@@ -1,0 +1,101 @@
+# General
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.bak
+*.swp
+*~
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+ENV/
+
+# MATLAB
+*.autosave
+*.asv
+*.slxc
+slprj/
+sfprj/
+*.mex*
+*.mlappwait
+*.ld
+*.p
+.MATLAB/
+
+# LaTeX
+*.aux
+*.bbl
+*.blg
+*.dvi
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.out
+*.synctex.gz
+*.toc
+*.xdv
+
+# Data
+*.csv
+*.csv.gz
+*.h5
+*.hdf5
+*.mat
+*.npy
+*.npz
+*.parquet
+*.pkl
+*.pickle
+/data/*
+!/data/.gitkeep
+
+# Model Weights
+*.pt
+*.pth
+*.onnx
+*.weights
+*.ckpt
+
+# Antigravity Specific
+# Antigravity Specific
+.agent/memory/
+
+# Generated Artifacts (Test outputs)
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.fig
+*.eps
+!/docs/images/*.png  # Allow documentation images
+!/docs/images/*.jpg
+!/docs/images/*.svg
