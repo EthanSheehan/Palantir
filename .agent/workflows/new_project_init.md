@@ -1,5 +1,5 @@
 ---
-description: "Workflow to initialize a new project using this template."
+description: "Main Workflow to initialize a new project using this template."
 ---
 
 # New Project Initialization
@@ -35,9 +35,6 @@ Use this workflow immediately after cloning this template for a new specific pro
       - **Success Criteria**: Define what "done" looks like.
 
 5.  **Git Initialization**:
-    - `git init` (if not already)
-    - `git remote remove origin` (if cloned from template)
-    - `git add .`
     - `git commit -m "chore: project init"`
     - **Ask User**: "Do you want to push to a new GitHub repo?"
 

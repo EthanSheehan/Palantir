@@ -1,11 +1,11 @@
-# Antigravity Project Template
+# Project Antigravity – Multi-Agent Decision-Centric C2 System
 
 ![Project Status](https://img.shields.io/badge/status-active-success.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 ## Overview
 
-Welcome to an **Antigravity** project. This repository is a meticulously structured engineering workspace designed for high-performance Python and MATLAB development, specifically tailored for aerospace, control systems, and physics simulations.
+Welcome to **Project Antigravity**. This system is a high-fidelity recreation of the multi-domain Command and Control (C2) capabilities demonstrated in the Palantir "Maven Smart System" showcase. It focuses on a **"decision-centric"** orchestration model, utilizing specialized AI agents to automate the F2T2EA kill chain.
 
 It comes equipped with:
 
