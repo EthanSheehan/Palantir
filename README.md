@@ -26,43 +26,56 @@ It comes equipped with:
 /.agent            # AI Agent configuration (Rules, Skills, Workflows)
 ```
 
+## Components
+
+### 1. C2 Dashboard (Frontend)
+A high-fidelity situational awareness display built with **MapLibre GL JS** and **Tailwind CSS**.
+- **3D Terrain**: Real-time 3D elevation rendering.
+- **Tactical HUD**: Integrated drone feeds with telemetry overlays.
+- **Map Tools**:
+    - `Coordinate Readout`: Precise Lat/Lon tracking on hover.
+    - `Layer Switcher`: Toggle between Dark, Satellite, and OpenStreetMap styles.
+    - `Distance Ruler`: Tactical tool for measuring distance between two points.
+
+### 2. Drone Simulator & Vision
+A Python-based simulation engine for multiple UAV feeds and mission scenarios.
+- **Multi-Drone Feed**: Simulatenous relay of multiple sensor streams (Viper-01, Raven-02).
+- **Mission Scenarios**: Pre-configured autonomous scanning patterns (Circular, Grid).
+- **Computer Vision**: Integrated telemetry relay using the Antigravity Tactical Ontology.
+
 ## Getting Started
 
 ### Prerequisites
 
-- **Python**: 3.10+
-- **MATLAB**: 2023b+ (Recommended)
-- **GitKraken** (Optional, for advanced git viz)
+- **Python**: 3.9+ (Environment already configured with `venv/`)
+- **Web Browser**: Chrome/Safari/Firefox
 
-### Installation
+### Easy Startup
 
-1.  **Clone the repository:**
+To launch the entire system (Backend, Drone Simulator, and Dashboard) in one command:
 
-    ```bash
-    git clone https://github.com/your-org/your-repo.git
-    cd your-repo
-    ```
+```bash
+./start.sh
+```
 
-2.  **Initialize Environment (Python):**
-    ```bash
-    python -m venv venv
-    source venv/bin/activate  # or venv\Scripts\activate
-    pip install -r requirements.txt
-    ```
+The system will:
+1. Start the **API Backend** on port 8000.
+2. Start the **Drone Simulator** (Viper-01 & Raven-02).
+3. Start the **C2 Dashboard** on [http://localhost:3000](http://localhost:3000).
 
-## Usage
+### Running Specific Scenarios
 
-### MATLAB Workflows
+To toggle between different mission types:
 
-All MATLAB scripts are located in `/src/matlab`.
+```bash
+./run_scenarios.sh
+```
 
-- Open VS Code and use the MATLAB extension to execute scripts directly.
-- Ensure your path includes `/src/matlab` if calling functions from the root.
+## Python Workflows
 
-### Python Workflows
-
-- Place core logic in `/src/python`.
-- Use `pytest` for testing.
+- **Backend**: Core logic in `src/python/api_main.py`.
+- **Vision**: Simulator and processing logic in `src/python/vision/`.
+- **Testing**: Use `pytest` for verification.
 
 ## Documentation Standards
 

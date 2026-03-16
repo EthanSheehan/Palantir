@@ -1,0 +1,135 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Antigravity Battlefield Ontology",
+    "description": "Unified Digital Twin schema for battlefield entities in the Antigravity C2 system.",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "string",
+            "description": "Unique identifier for the battlefield object (e.g., UUID)."
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "UAV",
+                "SATELLITE",
+                "TANK",
+                "PERSONNEL",
+                "TEL",
+                "SAM",
+                "COMMAND_POST",
+                "UNKNOWN"
+            ],
+            "description": "The classification type of the entity."
+        },
+        "metadata": {
+            "type": "object",
+            "properties": {
+                "callsign": {
+                    "type": "string"
+                },
+                "affiliation": {
+                    "type": "string",
+                    "enum": [
+                        "FRIENDLY",
+                        "HOSTILE",
+                        "NEUTRAL",
+                        "UNKNOWN"
+                    ]
+                },
+                "source": {
+                    "type": "string",
+                    "description": "Origin of the data (e.g., GlobalHawk-1, Sentinel-2)."
+                }
+            },
+            "required": [
+                "affiliation"
+            ]
+        },
+        "kinematics": {
+            "type": "object",
+            "properties": {
+                "latitude": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90
+                },
+                "longitude": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                },
+                "altitude_m": {
+                    "type": "number"
+                },
+                "heading_deg": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 360
+                },
+                "speed_kmh": {
+                    "type": "number",
+                    "minimum": 0
+                },
+                "timestamp": {
+                    "type": "string",
+                    "format": "date-time"
+                }
+            },
+            "required": [
+                "latitude",
+                "longitude",
+                "timestamp"
+            ]
+        },
+        "kill_chain_state": {
+            "type": "string",
+            "enum": [
+                "FIND",
+                "FIX",
+                "TRACK",
+                "TARGET",
+                "ENGAGE",
+                "ASSESS",
+                "RE-ENGAGE",
+                "HANDLED"
+            ],
+            "default": "FIND",
+            "description": "The current position of the object in the F2T2EA kill chain."
+        },
+        "history": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "timestamp": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "state": {
+                        "type": "string"
+                    },
+                    "action": {
+                        "type": "string"
+                    },
+                    "actor": {
+                        "type": "string",
+                        "description": "The agent or human who initiated the state change (e.g., 'ISR_OBSERVER', 'STRATEGY_ANALYST')."
+                    }
+                }
+            }
+        },
+        "confidence_score": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+        }
+    },
+    "required": [
+        "id",
+        "type",
+        "metadata",
+        "kinematics",
+        "kill_chain_state"
+    ]
+}
