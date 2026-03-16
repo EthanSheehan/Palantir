@@ -1,11 +1,11 @@
-# Project Antigravity – Multi-Agent Decision-Centric C2 System
+# Palantir C2 – Multi-Agent Decision-Centric C2 System
 
 ![Project Status](https://img.shields.io/badge/status-active-success.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 ## Overview
 
-Welcome to **Project Antigravity**. This system is a high-fidelity recreation of the multi-domain Command and Control (C2) capabilities demonstrated in the Palantir "Maven Smart System" showcase. It focuses on a **"decision-centric"** orchestration model, utilizing specialized AI agents to automate the F2T2EA kill chain.
+Welcome to **Palantir C2**. This system is a high-fidelity recreation of the multi-domain Command and Control (C2) capabilities demonstrated in the Palantir "Maven Smart System" showcase. It focuses on a **"decision-centric"** orchestration model, utilizing specialized AI agents to automate the F2T2EA kill chain.
 
 It comes equipped with:
 
@@ -41,7 +41,7 @@ A high-fidelity situational awareness display built with **MapLibre GL JS** and 
 A Python-based simulation engine for multiple UAV feeds and mission scenarios.
 - **Multi-Drone Feed**: Simulatenous relay of multiple sensor streams (Viper-01, Raven-02).
 - **Mission Scenarios**: Pre-configured autonomous scanning patterns (Circular, Grid).
-- **Computer Vision**: Integrated telemetry relay using the Antigravity Tactical Ontology.
+- **Computer Vision**: Integrated telemetry relay using the Palantir Tactical Ontology.
 
 ## Getting Started
 
@@ -55,13 +55,14 @@ A Python-based simulation engine for multiple UAV feeds and mission scenarios.
 To launch the entire system (Backend, Drone Simulator, and Dashboard) in one command:
 
 ```bash
-./start.sh
+./palantir.sh
 ```
 
 The system will:
-1. Start the **API Backend** on port 8000.
-2. Start the **Drone Simulator** (Viper-01 & Raven-02).
-3. Start the **C2 Dashboard** on [http://localhost:3000](http://localhost:3000).
+1. Start the **API Backend** (FastAPI) on port 8000.
+2. Start the **C2 Dashboard** (HTTP Server) on port 3000.
+3. Start the **Drone Simulator** (Viper-01 & Raven-02).
+4. Automatically open your default browser to [http://localhost:3000](http://localhost:3000).
 
 ### Running Specific Scenarios
 

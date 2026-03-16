@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <title>Cesium 3D Macro Grid</title>
+    
+    <!-- CesiumJS CSS/JS from CDN -->
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    
+    <!-- Custom Style -->
+    <link href="style.css" rel="stylesheet">
+</head>
+<body>
+<div id="appContainer">
+    
+    <div id="uiPanel" class="sidebar dark-theme">
+        <h1 class="title">System Dashboard</h1>
+        
+        <!-- Tab Navigation -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="tab-mission">MISSION</button>
+            <button class="tab-btn" data-tab="tab-drones">ASSETS</button>
+            <button class="tab-btn" data-tab="tab-enemies">ENEMIES</button>
+        </div>
+
+        <!-- TAB 1: MISSION -->
+        <div id="tab-mission" class="tab-content active-tab">
+            <div class="stats">
+                <div class="stat-row">
+                    <span class="stat-label">Uplink:</span>
+                    <span id="connStatus" class="stat-value disconnected">Offline</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Active UAVs:</span>
+                    <span id="uavCount" class="stat-value">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Monitored Zones:</span>
+                    <span id="zoneCount" class="stat-value">0</span>
+                </div>
+            </div>
+            
+            <div class="legend">
+                <h3>Geospatial Imbalance</h3>
+                <div class="legend-scale">
+                    <div class="scale-bar"></div>
+                    <div class="scale-labels">
+                        <span>Critical Shortage</span>
+                        <span>Stable</span>
+                        <span>Surplus Density</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <button id="toggleGridBtn" class="btn toggle-active">Grid Visibility: ON</button>
+                    <button id="toggleWaypointsBtn" class="btn">All Waypoints: OFF</button>
+                </div>
+                <button id="resetQueueBtn" class="btn">Override: Reset Grid</button>
+            </div>
+        </div>
+
+        <!-- TAB 2: DRONES -->
+        <div id="tab-drones" class="tab-content">
+            <div class="drone-list-header">
+                <span>ID</span>
+                <span>STATUS</span>
+            </div>
+            <div id="droneListContainer" class="drone-list">
+                <!-- Dynamically populated rows will go here -->
+            </div>
+        </div>
+
+        <!-- TAB 3: ENEMIES -->
+        <div id="tab-enemies" class="tab-content">
+            <div class="empty-state">No hostile entities detected.</div>
+        </div>
+        
+        <!-- Drag to Resize Handle -->
+        <div id="sidebarResizer" class="resizer"></div>
+    </div>
+
+
+    <!-- Right-Hand Content -->
+    <div id="cesiumContainer">
+        <!-- Camera Controls -->
+        <div id="cameraControls" class="camera-controls" style="display: none;">
+            <button id="returnGlobalBtn" class="square-btn" title="Return to Global View">🌐</button>
+            <button id="decoupleCameraBtn" class="square-btn" title="Decouple Camera">✖</button>
+        </div>
+    </div>
+    
+</div>
+    <!-- Secondary Detail Waypoint Map Modal (Grid 9) -->
+    <div id="detailMapModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Set Detail Waypoint</h2>
+                <button id="closeDetailMapBtn" class="close-btn">&times;</button>
+            </div>
+            <div id="detailMapContainer" class="detail-map-container"></div>
+            <div class="modal-footer">
+                <span style="color:#94a3b8; font-size: 0.8rem; font-family:'Inter',sans-serif;">Click inside the 150km red ring to place precise waypoint.</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application Logic -->
+    <script src="app.js?v=5"></script>
+</body>
+</html>

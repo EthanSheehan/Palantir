@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Antigravity C2 Dashboard</title>
+    <title>Palantir C2 Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
@@ -91,7 +91,7 @@
                 <i data-lucide="zap" class="w-5 h-5 text-blue-400"></i>
             </div>
             <h1 class="text-xl font-bold tracking-tight uppercase italic text-white/90">
-                Project <span class="text-blue-500">Antigravity</span> <span
+                <span class="text-blue-500">Palantir</span> <span
                     class="text-xs font-mono ml-2 text-white/40">v1.2-BETA</span>
             </h1>
         </div>
@@ -112,6 +112,15 @@
                     <span id="digital-clock">09:49:30Z</span>
                 </div>
             </div>
+            <div class="flex items-center space-x-2 border-r border-white/10 pr-6 mr-6">
+                <span class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30 mr-2">Mission Control:</span>
+                <button onclick="setScenario('DISCOVERY')" class="px-3 py-1.5 rounded-lg border border-white/10 text-[10px] font-bold uppercase tracking-wider hover:bg-white/10 transition-all text-blue-400">
+                    Discovery
+                </button>
+                <button onclick="setScenario('PAINTING')" class="px-3 py-1.5 rounded-lg bg-red-500/20 border border-red-500/40 text-[10px] font-bold uppercase tracking-wider hover:bg-red-500/30 transition-all text-red-500">
+                    Paint Target
+                </button>
+            </div>
             <button class="p-2 hover:bg-white/5 rounded-lg border border-white/10 transition-colors">
                 <i data-lucide="settings" class="w-5 h-5 text-white/60"></i>
             </button>
@@ -121,31 +130,28 @@
     <!-- Main Content Area -->
     <main class="flex-1 flex overflow-hidden relative">
 
-        <!-- Left Sidebar: Nomination Board -->
+        <!-- Left Sidebar: Tactical Overview -->
         <aside class="w-80 flex flex-col border-r border-white/10 glass z-40">
             <div class="p-4 border-b border-white/10 flex items-center justify-between">
-                <h2 class="text-sm font-bold uppercase tracking-wider text-white/70">Nomination Board</h2>
-                <span
-                    class="px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-[10px] text-blue-400 font-bold"
-                    id="nomination-count">0 ACTIVE</span>
+                <h2 class="text-xs font-bold uppercase tracking-[0.2em] text-white/50">Tactical Overview</h2>
+                <span class="px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-[9px] text-blue-400 font-bold" id="total-tracks">0 TRACKS</span>
             </div>
-            <div class="flex-1 overflow-y-auto p-3 space-y-3" id="nomination-list">
-                <!-- Mock Nomination Items -->
-                <div
-                    class="p-3 rounded-xl border border-white/10 glass hover:border-blue-500/40 cursor-pointer transition-all">
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="text-[10px] font-mono text-white/40">TGT-001</span>
-                        <span
-                            class="px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-[9px] text-amber-500 font-bold uppercase">Nominated</span>
-                    </div>
-                    <div class="text-sm font-semibold text-white/90">SA-17 "Buk" SAM System</div>
-                    <div class="text-xs text-white/50 mt-1">Mobile Launcher identified. ROE: COMPLIANT</div>
-                    <div class="mt-3 flex items-center space-x-2">
-                        <div class="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
-                            <div class="h-full bg-amber-500 w-[85%]"></div>
-                        </div>
-                        <span class="text-[9px] font-mono text-amber-500">85% CONF</span>
-                    </div>
+            
+            <!-- Tabs for Friendlies / Threats -->
+            <div class="flex border-b border-white/10">
+                <button onclick="switchTacticalTab('threats')" id="tab-threats" class="flex-1 py-2 text-[10px] font-bold uppercase tracking-wider text-red-500 bg-red-500/5 border-b-2 border-red-500">Threats</button>
+                <button onclick="switchTacticalTab('friendlies')" id="tab-friendlies" class="flex-1 py-2 text-[10px] font-bold uppercase tracking-wider text-white/30 hover:text-white/60">Friendlies</button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-3 space-y-3" id="tactical-list">
+                <!-- Tracks will be injected here -->
+            </div>
+
+            <!-- Consolidated Drone Feeds -->
+            <div class="border-t border-white/10 p-3 bg-black/20">
+                <h3 class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30 mb-2">Tactical Feeds</h3>
+                <div class="space-y-3" id="drone-feeds-grid">
+                    <!-- Drone feeds injected here -->
                 </div>
             </div>
         </aside>
@@ -181,7 +187,7 @@
                 <div class="px-4 py-3 border-b border-white/10 flex items-center justify-between bg-blue-500/5">
                     <div class="flex items-center space-x-2">
                         <div class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-                        <span class="text-xs font-bold uppercase tracking-widest text-blue-400">AIP Assistant</span>
+                        <span class="text-xs font-bold uppercase tracking-widest text-blue-400">Tactical AIP Assistant</span>
                     </div>
                     <button class="text-white/30 hover:text-white/60">
                         <i data-lucide="maximize-2" class="w-4 h-4"></i>
@@ -201,10 +207,7 @@
                     </button>
                 </div>
             </div>
-            <!-- Drone Feeds Container -->
-            <div class="absolute top-4 right-4 flex flex-col space-y-4 z-40" id="drone-feeds-grid">
-                <!-- Drone feeds will be dynamically injected here -->
-            </div>
+            <!-- Removed floating grid -->
         </section>
 
         <!-- Right Panel: Strike Workbench (Hidden by default, shown on nomination select) -->
@@ -378,21 +381,28 @@
 
         // State Management
         let tracks = {};
-        let nominations = [];
+        let currentTacticalTab = 'threats';
         let ws = null;
 
         // Custom Markers Helper
-        function createTacticalMarker(type, colorClass) {
+        function createTacticalMarker(type, colorClass, isLocked = false, label = '') {
             const el = document.createElement('div');
-            el.className = `tactical-marker ${colorClass}`;
+            el.className = `tactical-marker flex flex-col items-center ${isLocked ? 'animate-pulse' : ''}`;
             
             let iconName = 'help-circle';
             if (type === 'UAV') iconName = 'navigation';
             else if (type === 'SAM') iconName = 'radio';
             else if (type === 'TEL') iconName = 'truck';
             else if (type === 'CP') iconName = 'home';
+            else if (type === 'TGT') iconName = 'target';
 
-            el.innerHTML = `<i data-lucide="${iconName}" class="w-6 h-6 ${type === 'UAV' ? 'rotate-45' : ''}"></i>`;
+            el.innerHTML = `
+                <div class="text-[9px] font-bold uppercase mb-1 drop-shadow-md ${colorClass}">${label}</div>
+                <div class="relative ${colorClass}">
+                    ${isLocked ? '<div class="absolute -inset-2 border-2 border-red-500 rounded-full animate-ping opacity-75"></div>' : ''}
+                    <i data-lucide="${iconName}" class="w-5 h-5 ${type === 'UAV' ? 'rotate-45' : ''} tactical-icon"></i>
+                </div>
+            `;
             lucide.createIcons({ props: { "data-lucide": iconName }, element: el });
             return el;
         }
@@ -406,7 +416,7 @@
         map.on('load', () => {
             mockTracks.forEach(t => {
                 const color = t.type === 'UAV' ? 'text-blue-400' : 'text-red-500';
-                const marker = new maplibregl.Marker({ element: createTacticalMarker(t.type, color) })
+                const marker = new maplibregl.Marker({ element: createTacticalMarker(t.type, color, false, t.id) })
                     .setLngLat([t.lon, t.lat])
                     .setPopup(new maplibregl.Popup({ offset: 25 }).setHTML(`<div class="text-xs font-bold text-slate-800">${t.name} [${t.id}]</div>`))
                     .addTo(map);
@@ -451,7 +461,8 @@
 
         // WebSocket Setup
         function connectWS() {
-            ws = new WebSocket('ws://' + window.location.hostname + ':8000/ws');
+            const host = window.location.hostname || 'localhost';
+            ws = new WebSocket(`ws://${host}:8000/ws`);
 
             ws.onopen = () => {
                 console.log('C2 Bridge Established');
@@ -486,17 +497,17 @@
             if (!container) {
                 const grid = document.getElementById('drone-feeds-grid');
                 container = document.createElement('div');
-                container.className = 'w-64 glass rounded-xl border border-white/10 shadow-2xl overflow-hidden flex flex-col transition-all';
+                container.className = 'w-full glass rounded-lg border border-white/10 shadow-xl overflow-hidden flex flex-col transition-all';
                 container.innerHTML = `
-                    <div class="px-3 py-1.5 border-b border-white/10 flex items-center justify-between bg-white/5">
-                        <span class="text-[10px] font-bold uppercase tracking-widest text-white/50">Live: ${droneId}</span>
-                        <div class="flex items-center space-x-1.5">
-                            <div class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></div>
-                            <span class="text-[9px] font-mono text-red-500 uppercase">Live</span>
+                    <div class="px-2 py-1 border-b border-white/10 flex items-center justify-between bg-white/5">
+                        <span class="text-[9px] font-bold uppercase tracking-widest text-white/50">${droneId}</span>
+                        <div class="flex items-center space-x-1">
+                            <div class="w-1 h-1 rounded-full bg-red-500 animate-pulse"></div>
+                            <span class="text-[8px] font-mono text-red-500 uppercase">Live</span>
                         </div>
                     </div>
                     <div class="aspect-video bg-black/40 relative">
-                        <img id="feed-${droneId}" class="w-full h-full object-cover" src="" alt="${droneId}">
+                        <img id="feed-${droneId}" class="w-full h-full object-cover brightness-110 contrast-125" src="" alt="${droneId}">
                     </div>
                 `;
                 grid.appendChild(container);
@@ -612,41 +623,88 @@
                 const trackId = t.track_id || t.id;
                 const lat = t.lat || (t.kinematics ? t.kinematics.latitude : null);
                 const lon = t.lon || (t.kinematics ? t.kinematics.longitude : null);
-                const classification = t.classification || t.type;
+                const classification = t.classification || t.type || 'UNKNOWN';
+                const isLocked = t.kill_chain_state === 'LOCK';
+                const affiliation = t.metadata ? t.metadata.affiliation : (classification === 'UAV' ? 'FRIENDLY' : 'OPFOR');
 
                 if (!lat || !lon) return;
 
                 if (!tracks[trackId]) {
-                    const color = classification.toUpperCase() === 'UAV' ? 'text-blue-400' : 'text-red-500';
-                    const marker = new maplibregl.Marker({ element: createTacticalMarker(classification.toUpperCase(), color) })
+                    const color = affiliation === 'FRIENDLY' ? 'text-blue-400' : 'text-red-500';
+                    const marker = new maplibregl.Marker({ element: createTacticalMarker(classification.toUpperCase(), color, isLocked, trackId) })
                         .setLngLat([lon, lat])
                         .addTo(map);
-                    tracks[trackId] = { marker, data: t };
+                    tracks[trackId] = { marker, data: t, affiliation };
+                    
+                    // Add chat update for new track
+                    if (classification !== 'UAV') {
+                        addChatMessage(`New ${classification} detected at ${lat.toFixed(4)}, ${lon.toFixed(4)}`, 'intel');
+                    }
                 } else {
                     tracks[trackId].marker.setLngLat([lon, lat]);
                     tracks[trackId].data = t;
+                    
+                    // Simple logic to redo icon if lock state changes
+                    if (isLocked && !tracks[trackId].isLocked) {
+                        const color = affiliation === 'FRIENDLY' ? 'text-blue-400' : 'text-red-500';
+                        tracks[trackId].marker.getElement().replaceWith(createTacticalMarker(classification.toUpperCase(), color, true, trackId));
+                        tracks[trackId].isLocked = true;
+                        addChatMessage(`TARGET LOCKED: ${trackId}. Painting target for strike coordination.`, 'warn');
+                    }
                 }
             });
+            renderTacticalList();
+            document.getElementById('total-tracks').innerText = `${Object.keys(tracks).length} TRACKS`;
         }
 
-        function updateNominationBoard(newNominations) {
-            const list = document.getElementById('nomination-list');
+        function switchTacticalTab(tab) {
+            currentTacticalTab = tab;
+            const tBtn = document.getElementById('tab-threats');
+            const fBtn = document.getElementById('tab-friendlies');
+            
+            if (tab === 'threats') {
+                tBtn.className = 'flex-1 py-2 text-[10px] font-bold uppercase tracking-wider text-red-500 bg-red-500/5 border-b-2 border-red-500';
+                fBtn.className = 'flex-1 py-2 text-[10px] font-bold uppercase tracking-wider text-white/30 hover:text-white/60';
+            } else {
+                fBtn.className = 'flex-1 py-2 text-[10px] font-bold uppercase tracking-wider text-blue-400 bg-blue-500/5 border-b-2 border-blue-400';
+                tBtn.className = 'flex-1 py-2 text-[10px] font-bold uppercase tracking-wider text-white/30 hover:text-white/60';
+            }
+            renderTacticalList();
+        }
+
+        function renderTacticalList() {
+            const list = document.getElementById('tactical-list');
             list.innerHTML = '';
-            newNominations.forEach(n => {
+            
+            Object.values(tracks).forEach(track => {
+                const t = track.data;
+                const affiliation = track.affiliation;
+                
+                if (currentTacticalTab === 'threats' && affiliation !== 'OPFOR') return;
+                if (currentTacticalTab === 'friendlies' && affiliation !== 'FRIENDLY') return;
+
                 const item = document.createElement('div');
                 item.className = 'p-3 rounded-xl border border-white/10 glass hover:border-blue-500/40 cursor-pointer transition-all';
-                item.onclick = () => openWorkbench(n);
+                item.onclick = () => {
+                    map.flyTo({ center: [t.kinematics ? t.kinematics.longitude : t.lon, t.kinematics ? t.kinematics.latitude : t.lat], zoom: 14 });
+                    if (affiliation === 'OPFOR') openWorkbench(t);
+                };
+                
+                const status = t.kill_chain_state || 'TRACK';
+                const statusColor = status === 'LOCK' ? 'text-red-500 animate-pulse' : (affiliation === 'FRIENDLY' ? 'text-blue-400' : 'text-white/40');
+
                 item.innerHTML = `
                     <div class="flex justify-between items-start mb-2">
-                        <span class="text-[10px] font-mono text-white/40">${n.track_id}</span>
-                        <span class="px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-[9px] text-amber-500 font-bold uppercase">${n.decision}</span>
+                        <span class="text-[10px] font-mono text-white/40">${t.track_id || t.id}</span>
+                        <span class="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-[9px] ${statusColor} font-bold uppercase">${status}</span>
                     </div>
-                    <div class="text-sm font-semibold text-white/90">Target Identified</div>
-                    <div class="text-xs text-white/50 mt-1">${n.reasoning}</div>
+                    <div class="text-sm font-semibold text-white/90">${t.type || t.classification}</div>
+                    <div class="text-[10px] font-mono text-white/30 mt-1">
+                        ${(t.kinematics ? t.kinematics.latitude : t.lat).toFixed(4)}N, ${(t.kinematics ? t.kinematics.longitude : t.lon).toFixed(4)}E
+                    </div>
                 `;
                 list.appendChild(item);
             });
-            document.getElementById('nomination-count').innerText = `${newNominations.length} ACTIVE`;
         }
 
         function openWorkbench(nomination) {
@@ -661,10 +719,15 @@
             document.getElementById('strike-workbench').classList.add('translate-x-full');
         }
 
-        function addChatMessage(text) {
+        function addChatMessage(text, type = 'default') {
             const chat = document.getElementById('chat-messages');
             const msg = document.createElement('div');
-            msg.className = 'bg-white/5 p-3 rounded-xl border border-white/5 self-start max-w-[90%] text-white/80';
+            
+            let typeStyle = 'bg-white/5 border-white/5 text-white/80';
+            if (type === 'intel') typeStyle = 'bg-blue-500/10 border-blue-500/20 text-blue-100';
+            if (type === 'warn') typeStyle = 'bg-red-500/10 border-red-500/20 text-red-200';
+            
+            msg.className = `${typeStyle} p-3 rounded-xl border self-start max-w-[90%] text-[11px] leading-relaxed`;
             msg.innerText = text;
             chat.appendChild(msg);
             chat.scrollTop = chat.scrollHeight;
@@ -676,10 +739,23 @@
             document.getElementById('digital-clock').innerText = now.toISOString().split('T')[1].split('.')[0] + 'Z';
         }, 1000);
 
-        // Attempt connection if we're not just local file browsing
-        if (window.location.protocol !== 'file:') {
-            connectWS();
+        function setScenario(type) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const payload = {
+                    type: "CMD_SET_SCENARIO",
+                    scenario: type,
+                    drone_id: "ALL", // Broadcast to all drones for demo
+                    timestamp: new Date().toISOString()
+                };
+                ws.send(JSON.stringify(payload));
+                addChatMessage(`Mission Command Issued: SET_SCENARIO -> ${type}`);
+            } else {
+                addChatMessage('Error: C2 Command Link Offline');
+            }
         }
+
+        // Attempt connection
+        connectWS();
     </script>
 </body>
 

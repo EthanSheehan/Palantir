@@ -1,4 +1,4 @@
-# Project Charter: Antigravity
+# Project Charter: Palantir C2
 
 ## Goal
 To build a multi-agent decision-centric Command and Control (C2) system that pivots from traditional data-centric surveillance to automated orchestration of the F2T2EA kill chain, reducing action latency from hours to seconds.

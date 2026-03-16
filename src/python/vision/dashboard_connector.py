@@ -8,7 +8,7 @@ from typing import Dict, Any
 
 class DashboardConnector:
     """
-    WebSocket client to transmit tracking data and MJPEG frames to the Antigravity C2 backend.
+    WebSocket client to transmit tracking data and MJPEG frames to the Palantir C2 backend.
     """
     def __init__(self, backend_url: str = "ws://localhost:8000/ws"):
         self.backend_url = backend_url
@@ -22,9 +22,26 @@ class DashboardConnector:
         except Exception as e:
             print(f"Failed to connect to backend: {e}")
 
+    async def receive_command(self):
+        """Listen for incoming commands from the backend."""
+        if not self.websocket:
+            await self.connect()
+            return None
+        try:
+            # Non-blocking check for messages
+            message = await asyncio.wait_for(self.websocket.recv(), timeout=0.001)
+            return json.loads(message)
+        except asyncio.TimeoutError:
+            return None
+        except Exception as e:
+            # If disconnected, try to reconnect
+            print(f"Connection lost, retrying: {e}")
+            self.websocket = None
+            return None
+
     async def send_telemetry(self, track_data: Dict[str, Any], drone_id: str = "Drone-01"):
         """
-        Send tracking metadata formatted as a Project Antigravity Object.
+        Send tracking metadata formatted as a Palantir C2 Object.
         """
         if not self.websocket:
             return
@@ -50,7 +67,7 @@ class DashboardConnector:
 
         try:
             # Resize for faster streaming if necessary
-            _, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
+            _, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
             jpg_as_text = base64.b64encode(buffer).decode('utf-8')
             
             payload = {

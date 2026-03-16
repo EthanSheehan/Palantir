@@ -10,7 +10,7 @@ from websocket_manager import manager
 from pipeline import F2T2EAPipeline
 from schemas.ontology import Track, CourseOfAction
 
-app = FastAPI(title="Project Antigravity C2 API")
+app = FastAPI(title="Palantir C2 API")
 
 # Configure CORS for Dashboard
 app.add_middleware(
@@ -31,7 +31,7 @@ pipeline = F2T2EAPipeline(llm_client=llm_client)
 
 @app.get("/")
 async def root():
-    return {"status": "Project Antigravity C2 Online", "version": "1.0.0"}
+    return {"status": "Palantir C2 Online", "version": "1.0.0"}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -39,11 +39,15 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             # Receive data and relay it to all connected clients
-            data = await websocket.receive_text()
+            try:
+                data = await websocket.receive_text()
+            except RuntimeError:
+                # Handle "Need to call accept first" or already closed
+                break
             try:
                 message = json.loads(data)
-                # Relay message to all connected clients (broadcast)
-                await manager.broadcast(message)
+                # Relay message to all OTHER connected clients
+                await manager.broadcast(message, exclude=websocket)
             except json.JSONDecodeError:
                 pass
     except WebSocketDisconnect:

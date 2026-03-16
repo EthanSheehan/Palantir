@@ -43,12 +43,24 @@ class TrackingScenario(MissionScenario):
         target = next((b for b in blocks if b["id"] == self.target_id), None)
         if target:
             # Simple chase logic
-            # This is hard to do without mapping block pixels back to GPS
-            # For now, let's just jitter the camera towards the target
             pass
+class PaintingScenario(MissionScenario):
+    """Drone orbits and 'paints' (locks onto) a specific target."""
+    def __init__(self, target_id):
+        super().__init__(f"Painting-{target_id}")
+        self.target_id = target_id
+        self.angle = 0
+
+    def update_drone(self, drone, dt):
+        self.angle += dt * 0.3
+        # Orbit around a fixed point representing the target
+        drone["lat"] = drone["origin_lat"] + (math.cos(self.angle) * 0.0005)
+        drone["lon"] = drone["origin_lon"] + (math.sin(self.angle) * 0.0005)
+        # Always face the center (the target)
+        drone["yaw"] = (math.degrees(-self.angle)) % 360
 
 class DroneSimulator:
-    def __init__(self, drone_id, origin_lat=51.4545, origin_lon=-2.5879, width=640, height=480, fps=10):
+    def __init__(self, drone_id, origin_lat=51.4545, origin_lon=-2.5879, width=800, height=600, fps=12):
         self.drone_id = drone_id
         self.width = width
         self.height = height
@@ -68,10 +80,10 @@ class DroneSimulator:
         
         self.scenario = ScanningScenario(pattern="circular")
         
-        # Simulated "Blocks" (Targets) - Shared or local? Let's keep them local for simulation variety
+        # Simulated "Blocks" (Targets)
         self.blocks = [
-            {"id": f"{drone_id}-TGT-01", "x": random.randint(100, 500), "y": random.randint(100, 300), "vx": 2, "vy": 1, "color": (0, 0, 255), "type": "TEL"},
-            {"id": f"{drone_id}-TGT-02", "x": random.randint(100, 500), "y": random.randint(100, 300), "vx": -1, "vy": 2, "color": (255, 0, 0), "type": "CP"}
+            {"id": f"CP-1", "x": random.randint(100, 700), "y": random.randint(100, 500), "vx": 2, "vy": 1, "color": (0, 0, 255), "type": "TEL"},
+            {"id": f"CP-2", "x": random.randint(100, 700), "y": random.randint(100, 500), "vx": -1, "vy": 2, "color": (255, 0, 0), "type": "CP"}
         ]
 
     def draw_hud(self, frame):
@@ -100,8 +112,16 @@ class DroneSimulator:
         
         # Center Crosshair
         cx, cy = self.width // 2, self.height // 2
-        cv2.line(frame, (cx - 10, cy), (cx + 10, cy), color, 1)
-        cv2.line(frame, (cx, cy - 10), (cx, cy + 10), color, 1)
+        
+        is_painting = isinstance(self.scenario, PaintingScenario)
+        if is_painting:
+            color = (0, 0, 255) # Red for Lock
+            cv2.putText(frame, "TARGET LOCKED - PAINTING", (cx - 100, cy - 40), font, 0.6, color, 2)
+            # Reticle
+            cv2.drawMarker(frame, (cx, cy), color, cv2.MARKER_TILTED_CROSS, 20, 2)
+        else:
+            cv2.line(frame, (cx - 10, cy), (cx + 10, cy), color, 1)
+            cv2.line(frame, (cx, cy - 10), (cx, cy + 10), color, 1)
 
     def create_frame(self):
         frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
@@ -147,8 +167,8 @@ class DroneSimulator:
                     "longitude": lon,
                     "timestamp": datetime.now().isoformat()
                 },
-                "kill_chain_state": "TRACK",
-                "confidence_score": 0.92 + (random.random() * 0.05)
+                "kill_chain_state": "LOCK" if isinstance(self.scenario, PaintingScenario) else "TRACK",
+                "confidence_score": 0.98 if isinstance(self.scenario, PaintingScenario) else 0.92 + (random.random() * 0.05)
             })
             
         self.draw_hud(frame)
@@ -163,13 +183,49 @@ class DroneSimulator:
             while True:
                 start_time = asyncio.get_event_loop().time()
                 
+                # Check for incoming commands
+                cmd = await self.connector.receive_command()
+                if cmd and cmd.get("type") == "CMD_SET_SCENARIO":
+                    scenario_name = cmd.get("scenario")
+                    drone_target = cmd.get("drone_id")
+                    
+                    if drone_target == self.drone_id or drone_target == "ALL":
+                        print(f"[{self.drone_id}] Received Command: SET_SCENARIO -> {scenario_name}")
+                        if scenario_name == "PAINTING":
+                            target_id = f"{self.drone_id}-TGT-PAINTED"
+                            self.blocks = [{"id": target_id, "x": 320, "y": 240, "vx": 0, "vy": 0, "color": (0, 0, 255), "type": "TGT"}]
+                            self.scenario = PaintingScenario(target_id)
+                        elif scenario_name == "DISCOVERY":
+                            self.scenario = ScanningScenario(pattern="circular")
+                            self.blocks = [
+                                {"id": "CP-1", "x": random.randint(100, 700), "y": random.randint(100, 500), "vx": 2, "vy": 1, "color": (0, 0, 255), "type": "TEL"},
+                                {"id": "CP-2", "x": random.randint(100, 700), "y": random.randint(100, 500), "vx": -1, "vy": 2, "color": (255, 0, 0), "type": "CP"}
+                            ]
+                
                 # Update scenario
                 self.scenario.update_drone(self.state, dt)
                 
                 # Generate frame and data
                 frame, detections = self.create_frame()
                 
-                # Push telemetry and stream
+                # Push drone's own telemetry as a UAV track
+                drone_track = {
+                    "id": self.drone_id,
+                    "type": "UAV",
+                    "kinematics": {
+                        "latitude": self.state["lat"],
+                        "longitude": self.state["lon"],
+                        "timestamp": datetime.now().isoformat()
+                    },
+                    "metadata": {
+                        "affiliation": "FRIENDLY",
+                        "altitude": self.state["alt"],
+                        "yaw": self.state["yaw"]
+                    }
+                }
+                await self.connector.send_telemetry(drone_track, drone_id=self.drone_id)
+
+                # Push detections
                 for det in detections:
                     await self.connector.send_telemetry(det, drone_id=self.drone_id)
                 await self.connector.stream_frame(frame, drone_id=self.drone_id)
