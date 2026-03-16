@@ -1,628 +1,132 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Palantir C2 Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cesium.com/downloads/cesiumjs/releases/1.121/Build/Cesium/Cesium.js"></script>
-    <link href="https://cesium.com/downloads/cesiumjs/releases/1.121/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        body {
-            background: #020617;
-            margin: 0;
-            padding: 0;
-            color: white;
-            overflow: hidden;
-        }
-
-        /* Cesium UI Overrides */
-        .cesium-viewer-bottom,
-        .cesium-viewer-toolbar,
-        .cesium-viewer-animationContainer,
-        .cesium-viewer-timelineContainer,
-        .cesium-viewer-fullscreenContainer {
-            display: none !important;
-        }
-
-        .drone-card {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            overflow: hidden;
-            max-height: 80px; /* Collapsed height */
-            background: rgba(15, 23, 42, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.03);
-            border-radius: 12px;
-        }
-        .drone-card.expanded {
-            max-height: 400px;
-            border-color: rgba(56, 189, 248, 0.3);
-            background: rgba(56, 189, 248, 0.03);
-            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
-        }
-
-        #map-container {
-            position: relative;
-            flex: 1;
-            overflow: hidden;
-        }
-
-        #cesiumContainer {
-            width: 100%;
-            height: 100%;
-        }
-
-        .pov-overlay {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            width: 320px;
-            height: 180px;
-            border: 2px solid #38bdf8;
-            border-radius: 8px;
-            overflow: hidden;
-            display: none;
-            z-index: 1000;
-            background: black;
-            box-shadow: 0 0 20px rgba(0,0,0,0.8);
-        }
-
-        .obsidian {
-            background: #020617;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .obsidian-accent {
-            background: #0f172a;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-        }
-
-        /* Tactical Indicators */
-        .status-idle { color: #64748b; }
-        .status-painting { color: #f43f5e; }
-        .status-repositioning { color: #fbbf24; }
-        .status-tracking { color: #10b981; }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
-        ::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.3); border-radius: 10px; }
-    </style>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <title>Palantir C2 Baseline</title>
+    
+    <!-- CesiumJS CSS/JS from CDN -->
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    
+    <!-- Custom Style -->
+    <link href="style.css" rel="stylesheet">
 </head>
+<body>
+<div id="appContainer">
+    
+    <div id="uiPanel" class="sidebar dark-theme">
+        <h1 class="title">System Dashboard</h1>
+        
+        <!-- Tab Navigation -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="tab-mission">MISSION</button>
+            <button class="tab-btn" data-tab="tab-drones">ASSETS</button>
+            <button class="tab-btn" data-tab="tab-enemies">ENEMIES</button>
+        </div>
 
-<body class="h-screen flex flex-col">
-
-    <!-- Top Header -->
-    <header class="h-14 obsidian-accent flex items-center justify-between px-6 z-50">
-        <div class="flex items-center space-x-4">
-            <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                <i data-lucide="shield" class="w-5 h-5 text-white"></i>
+        <!-- TAB 1: MISSION -->
+        <div id="tab-mission" class="tab-content active-tab">
+            <div class="stats">
+                <div class="stat-row">
+                    <span class="stat-label">Uplink:</span>
+                    <span id="connStatus" class="stat-value disconnected">Offline</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Active UAVs:</span>
+                    <span id="uavCount" class="stat-value">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Monitored Zones:</span>
+                    <span id="zoneCount" class="stat-value">0</span>
+                </div>
             </div>
-            <div>
-                <h1 class="text-sm font-black tracking-widest text-white uppercase">Palantir <span class="text-blue-500">C2</span></h1>
-                <p class="text-[9px] text-white/30 font-mono tracking-tighter uppercase">Unified Battlespace Management v1.2</p>
+            
+            <div class="legend">
+                <h3>Geospatial Imbalance</h3>
+                <div class="legend-scale">
+                    <div class="scale-bar"></div>
+                    <div class="scale-labels">
+                        <span>Critical Shortage</span>
+                        <span>Stable</span>
+                        <span>Surplus Density</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <button id="toggleGridBtn" class="btn toggle-active">Grid Visibility: ON</button>
+                    <button id="toggleWaypointsBtn" class="btn">All Waypoints: OFF</button>
+                </div>
+                <button id="resetQueueBtn" class="btn">Override: Reset Grid</button>
             </div>
         </div>
-        <div class="flex items-center space-x-8">
-            <div class="flex space-x-6 text-xs font-mono text-white/60">
-                <div class="flex flex-col">
-                    <span class="text-[10px] text-white/30 uppercase">System Status</span>
-                    <span class="text-green-400 flex items-center">
-                        <span class="w-1.5 h-1.5 rounded-full bg-green-400 mr-2 animate-pulse"></span> OPERATIONAL
-                    </span>
-                </div>
-                <div class="flex flex-col">
-                    <span class="text-[10px] text-white/30 uppercase">AO Location</span>
-                    <span>SECTOR BRAVO / KURDISTAN</span>
-                </div>
-                <div class="flex flex-col">
-                    <span class="text-[10px] text-white/30 uppercase">Local Time</span>
-                    <span id="digital-clock">09:49:30Z</span>
-                </div>
+
+        <!-- TAB 2: DRONES -->
+        <div id="tab-drones" class="tab-content">
+            <div class="drone-list-header">
+                <span>ID</span>
+                <span>STATUS</span>
             </div>
-            <div class="flex items-center space-x-2 border-r border-white/10 pr-6 mr-6">
-                <span class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30 mr-2">Mission Control:</span>
-                <button onclick="setScenario('DISCOVERY')" class="px-3 py-1.5 rounded-lg border border-white/10 text-[10px] font-bold uppercase tracking-wider hover:bg-white/10 transition-all text-blue-400">
-                    Discovery
-                </button>
-                <button onclick="setScenario('PAINTING')" class="px-3 py-1.5 rounded-lg bg-red-500/20 border border-red-500/40 text-[10px] font-bold uppercase tracking-wider hover:bg-red-500/30 transition-all text-red-500">
-                    Paint Target
-                </button>
+            <div id="droneListContainer" class="drone-list">
+                <!-- Dynamically populated rows will go here -->
             </div>
-            <button class="p-2 hover:bg-white/5 rounded-lg border border-white/10 transition-colors">
-                <i data-lucide="settings" class="w-5 h-5 text-white/60"></i>
-            </button>
         </div>
-    </header>
 
-    <!-- Main Content Area -->
-    <main class="flex-1 flex overflow-hidden relative">
+        <!-- TAB 3: ENEMIES -->
+        <div id="tab-enemies" class="tab-content">
+            <div class="empty-state">No hostile entities detected.</div>
+        </div>
+        
+        <!-- Drag to Resize Handle -->
+        <div id="sidebarResizer" class="resizer"></div>
+    </div>
 
-        <!-- Left Sidebar: Tactical Overview -->
-        <aside class="w-80 flex flex-col obsidian z-40">
-            <div class="p-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-                <div class="flex flex-col">
-                    <h2 class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Battlespace Overview</h2>
-                    <span class="text-[9px] text-blue-500/60 font-mono tracking-tighter" id="total-tracks">0 TRACKS DETECTED</span>
-                </div>
-                <button onclick="resetCamera()" class="p-1.5 hover:bg-white/5 rounded border border-white/10 transition-colors" title="Global View">
-                    <i data-lucide="globe" class="w-3.5 h-3.5 text-white/40"></i>
-                </button>
+
+    <!-- Right-Hand Content -->
+    <div id="cesiumContainer">
+        <!-- Tactical HUD (Video Feed) -->
+        <div id="tacticalHud" class="tactical-hud" style="display: none;">
+            <div class="hud-header">
+                <span id="hudDroneId">UAV-01</span>
+                <span class="live-tag">LIVE</span>
             </div>
-            
-            <!-- Tabs for Friendlies / Threats -->
-            <div class="flex obsidian-accent">
-                <button onclick="switchTacticalTab('threats')" id="tab-threats" class="flex-1 py-3 text-[10px] font-bold uppercase tracking-wider text-white/20 hover:text-white/40 transition-all">Threats</button>
-                <button onclick="switchTacticalTab('friendlies')" id="tab-friendlies" class="flex-1 py-3 text-[10px] font-bold uppercase tracking-wider text-blue-400 bg-white/[0.03] border-b-2 border-blue-400">Friendlies</button>
+            <div class="video-container">
+                <img id="droneFeedImg" src="" alt="Drone Feed">
+                <div class="hud-overlay"></div>
             </div>
-
-            <div class="flex-1 overflow-y-auto p-3 space-y-3" id="tactical-list">
-                <!-- Tracks will be injected here -->
+            <div class="hud-controls">
+                <button id="paintTargetBtn" class="hud-btn red">INITIATE PAINTING</button>
+                <button id="stopPaintingBtn" class="hud-btn gray">STOP PAINTING</button>
             </div>
+        </div>
 
-            <!-- Consolidated Drone Feeds -->
-            <div class="border-t border-white/10 p-3 bg-black/20">
-                <h3 class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30 mb-2">Tactical Feeds</h3>
-                <div class="space-y-3" id="drone-feeds-grid">
-                    <!-- Drone feeds injected here -->
-                </div>
+        <!-- Camera Controls -->
+        <div id="cameraControls" class="camera-controls" style="display: none;">
+            <button id="returnGlobalBtn" class="square-btn" title="Return to Global View">🌐</button>
+            <button id="decoupleCameraBtn" class="square-btn" title="Decouple Camera">✖</button>
+        </div>
+    </div>
+
+    
+</div>
+    <!-- Secondary Detail Waypoint Map Modal (Grid 9) -->
+    <div id="detailMapModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Set Detail Waypoint</h2>
+                <button id="closeDetailMapBtn" class="close-btn">&times;</button>
             </div>
-        </aside>
-
-        <!-- Center: Gaia View (Map) -->
-        <section id="map-container" class="flex-1 relative">
-            <div id="cesiumContainer"></div>
-            
-            <div id="pov-viewer" class="pov-overlay !bg-black">
-                <div class="absolute top-4 left-4 z-10 px-3 py-1 bg-black/90 rounded border border-white/10 flex items-center space-x-3">
-                    <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
-                    <span class="text-[10px] font-mono text-white tracking-widest uppercase">Visual Relay: <span id="pov-drone-id" class="text-blue-400">VIPER-01</span></span>
-                </div>
-                <!-- Frame Container -->
-                <div id="drone-frame-container" class="w-full h-full flex items-center justify-center bg-zinc-950 overflow-hidden">
-                    <img id="drone-frame" class="w-full h-full object-contain opacity-0 transition-opacity duration-300" src="" />
-                    <div id="feed-error" class="absolute inset-0 flex flex-col items-center justify-center text-white/20 space-y-2">
-                        <i data-lucide="video-off" class="w-8 h-8"></i>
-                        <span class="text-[9px] font-mono uppercase tracking-[0.3em]">No Signal</span>
-                    </div>
-                </div>
+            <div id="detailMapContainer" class="detail-map-container"></div>
+            <div class="modal-footer">
+                <span style="color:#94a3b8; font-size: 0.8rem; font-family:'Inter',sans-serif;">Click inside the 150km red ring to place precise waypoint.</span>
             </div>
+        </div>
+    </div>
 
-            <!-- Waypoint Marker Control -->
-            <div class="absolute bottom-8 left-1/2 -translate-x-1/2 z-50 flex space-x-4">
-                <button onclick="enterWaypointMode()" id="waypoint-btn" class="px-6 py-2.5 bg-blue-600/80 hover:bg-blue-600 border border-blue-400/30 rounded-full text-xs font-bold uppercase tracking-widest text-white shadow-lg transition-all flex items-center space-x-2">
-                    <i data-lucide="map-pin" class="w-4 h-4"></i>
-                    <span>Set Waypoint</span>
-                </button>
-            </div>
-
-            <!-- AIP Assistant Chat (Mini) -->
-            <div
-                class="absolute bottom-6 right-6 w-96 obsidian rounded-2xl border border-white/10 shadow-2xl z-40 overflow-hidden flex flex-col max-h-[400px]">
-                <div class="px-4 py-3 border-b border-white/10 flex items-center justify-between bg-blue-500/5">
-                    <div class="flex items-center space-x-2">
-                        <div class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-                        <span class="text-xs font-bold uppercase tracking-widest text-blue-400">Tactical AIP Assistant</span>
-                    </div>
-                    <button class="text-white/30 hover:text-white/60">
-                        <i data-lucide="maximize-2" class="w-4 h-4"></i>
-                    </button>
-                </div>
-                <div class="flex-1 overflow-y-auto p-4 space-y-4 text-xs" id="chat-messages">
-                    <div
-                        class="bg-blue-500/10 p-3 rounded-xl border border-blue-500/10 self-start max-w-[90%] text-blue-100">
-                        Awaiting data ingestion. Ready to provide situational analysis for Sector Bravo.
-                    </div>
-                </div>
-                <div class="p-3 border-t border-white/10 flex space-x-2">
-                    <input type="text" placeholder="Query battlefield ontology..."
-                        class="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500/50 transition-all">
-                    <button class="p-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition-all">
-                        <i data-lucide="send" class="w-4 h-4 text-white"></i>
-                    </button>
-                </div>
-            </div>
-        </section>
-
-        <!-- Right Panel: Strike Workbench (Hidden by default, shown on nomination select) -->
-        <aside
-            class="absolute top-14 bottom-0 right-0 w-[450px] flex flex-col obsidian border-l border-white/5 z-40 transform transition-transform translate-x-full shadow-2xl"
-            id="strike-workbench">
-            <div class="p-4 border-b border-white/10 flex items-center justify-between bg-red-500/5">
-                <div class="flex items-center space-x-3">
-                    <i data-lucide="target" class="w-5 h-5 text-red-500"></i>
-                    <h2 class="text-sm font-bold uppercase tracking-wider text-red-400">Strike Workbench</h2>
-                </div>
-                <button onclick="closeWorkbench()" class="text-white/30 hover:text-white/60">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-
-            <div class="flex-1 overflow-y-auto p-6 space-y-6">
-                <!-- Target Header -->
-                <div class="space-y-2">
-                    <div class="text-2xl font-bold text-white/90" id="workbench-target-name">SA-17 "Buk" Launcher</div>
-                    <div class="flex items-center space-x-3 text-xs font-mono text-white/40">
-                        <span id="workbench-target-id">TGT-001</span>
-                        <span>|</span>
-                        <span id="workbench-target-coords">33.4214° N, 44.5012° E</span>
-                    </div>
-                </div>
-
-                <div class="h-px bg-white/10"></div>
-
-                <!-- COA Generation Section -->
-                <div>
-                    <div class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30 mb-4">Courses of Action
-                        (COA)</div>
-                    <div class="space-y-4" id="coa-list">
-                        <!-- COA Card 1 -->
-                        <div
-                            class="p-4 rounded-xl border border-white/10 obsidian hover:border-blue-500/40 cursor-pointer transition-all border-l-4 border-l-blue-500">
-                            <div class="flex justify-between items-start mb-3">
-                                <span
-                                    class="text-[10px] font-bold uppercase text-blue-400 px-1.5 py-0.5 bg-blue-500/10 rounded">COA
-                                    1: FASTEST</span>
-                                <span class="text-sm font-bold text-white/90">98% Pk</span>
-                            </div>
-                            <div class="text-sm font-semibold text-white/80 mb-1">Hellfire Strike (MQ-9 Reaper 3)</div>
-                            <div class="text-[11px] text-white/40 mb-3">Time to effect: 2.5 minutes</div>
-                            <div
-                                class="p-2 bg-white/5 rounded text-[10px] italic text-white/60 leading-relaxed border border-white/5">
-                                "Asset MQ9-Viper 3 is in immediate range. Clear LoS established. Kinetic effect
-                                recommended."
-                            </div>
-                        </div>
-
-                        <!-- COA Card 2 -->
-                        <div
-                            class="p-4 rounded-xl border border-white/10 obsidian hover:border-amber-500/40 cursor-pointer transition-all opacity-50 grayscale hover:opacity-100 hover:grayscale-0">
-                            <div class="flex justify-between items-start mb-3">
-                                <span
-                                    class="text-[10px] font-bold uppercase text-amber-500 px-1.5 py-0.5 bg-amber-500/10 rounded">COA
-                                    2: AREA EFFECT</span>
-                                <span class="text-sm font-bold text-white/90">82% Pk</span>
-                            </div>
-                            <div class="text-sm font-semibold text-white/80 mb-1">HIMARS Battery (Battery Bravo)</div>
-                            <div class="text-[11px] text-white/40 mb-3">Time to effect: 4.8 minutes</div>
-                            <div
-                                class="p-2 bg-white/5 rounded text-[10px] italic text-white/60 leading-relaxed border border-white/5">
-                                "Higher area effect but increased risk of collateral damage to nearby structures."
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Approval Footer -->
-            <div class="p-6 border-t border-white/10 obsidian">
-                <div class="flex space-x-3">
-                    <button
-                        class="flex-1 py-3 px-4 rounded-xl border border-white/10 text-white/60 text-xs font-bold uppercase tracking-wider hover:bg-white/5 transition-all">Reject</button>
-                    <button
-                        class="flex-1 py-3 px-4 rounded-xl border border-white/10 text-white/60 text-xs font-bold uppercase tracking-wider hover:bg-white/5 transition-all">Retask</button>
-                </div>
-                <button
-                    class="w-full mt-3 py-4 bg-green-500 hover:bg-green-600 text-white font-bold uppercase tracking-[0.2em] rounded-xl shadow-[0_0_20px_rgba(34,197,94,0.3)] transition-all flex items-center justify-center space-x-2">
-                    <i data-lucide="check" class="w-5 h-5"></i>
-                    <span>Approve Strike</span>
-                </button>
-                <div class="mt-4 flex items-center justify-center space-x-2 opacity-30">
-                    <i data-lucide="shield-check" class="w-3 h-3"></i>
-                    <span class="text-[9px] uppercase font-bold tracking-widest">Human Approval Token Required</span>
-                </div>
-            </div>
-        </aside>
-    </main>
-
-    <!-- Scripts -->
-    <script src="cesium_manager.js"></script>
-    <script>
-        lucide.createIcons();
-
-        let ws;
-        let cesiumManager;
-        let tracks = {};
-        let currentTacticalTab = 'friendlies';
-        let expandedDroneId = null;
-        let isWaypointMode = false;
-
-        // Initialize Cesium
-        cesiumManager = new CesiumManager('cesiumContainer');
-
-        function connectWS() {
-            const host = window.location.hostname || 'localhost';
-            ws = new WebSocket(`ws://${host}:8000/ws`);
-            ws.onmessage = (event) => {
-                const message = jsonSafeParse(event.data);
-                if (!message) return;
-
-                if (message.type === 'TRACK_UPDATE') {
-                    updateMap(message.data.tracks);
-                } else if (message.type === 'DRONE_FEED') {
-                    handleDroneFeed(message);
-                }
-            };
-            ws.onclose = () => setTimeout(connectWS, 3000);
-        }
-
-        function handleDroneFeed(message) {
-            // Handle both exact and case-insensitive matches for stability
-            const currentId = cesiumManager.trackedDroneId;
-            if (currentId && (currentId === message.drone_id || currentId.toUpperCase() === message.drone_id.toUpperCase())) {
-                const img = document.getElementById('drone-frame');
-                const error = document.getElementById('feed-error');
-                if (img) {
-                    img.src = `data:image/jpeg;base64,${message.data.frame}`;
-                    img.classList.remove('opacity-0');
-                    img.style.opacity = '1';
-                    if (error) error.style.display = 'none';
-                }
-            }
-        }
-
-        function jsonSafeParse(str) {
-            try { return JSON.parse(str); }
-            catch (e) { return null; }
-        }
-
-        function updateMap(newTracks) {
-            cesiumManager.updateTracks(newTracks);
-            
-            newTracks.forEach(t => {
-                const trackId = t.track_id || t.id;
-                const classification = t.classification || t.type || 'UNKNOWN';
-                const affiliation = t.metadata ? t.metadata.affiliation : 'UNKNOWN';
-                
-                if (!tracks[trackId]) {
-                    tracks[trackId] = t;
-                    if (classification !== 'UAV' && affiliation === 'OPFOR') {
-                        addChatMessage(`New ${classification} detected. Tracking initiated.`, 'intel');
-                    }
-                } else {
-                    tracks[trackId] = t;
-                }
-            });
-
-            renderTacticalList();
-            document.getElementById('total-tracks').innerText = `${Object.keys(tracks).length} TRACKS`;
-        }
-
-        function renderTacticalList() {
-            const list = document.getElementById('tactical-list');
-            list.innerHTML = '';
-            
-            Object.values(tracks).forEach(t => {
-                const trackId = t.track_id || t.id;
-                const type = t.type || t.classification;
-                const affiliation = t.metadata ? t.metadata.affiliation : 'UNKNOWN';
-                const mode = t.metadata ? t.metadata.mode : 'idle';
-                
-                if (currentTacticalTab === 'threats' && affiliation !== 'OPFOR') return;
-                if (currentTacticalTab === 'friendlies' && affiliation !== 'FRIENDLY') return;
-
-                const isExpanded = expandedDroneId === trackId;
-                const item = document.createElement('div');
-                item.className = `drone-card p-4 rounded-xl border border-white/10 obsidian cursor-pointer transition-all ${isExpanded ? 'expanded' : ''}`;
-                
-                let modeDisp = mode;
-                let statusColor = 'text-blue-400';
-                
-                if (affiliation === 'OPFOR') {
-                    const trackedBy = t.metadata?.tracked_by;
-                    const isPainted = t.metadata?.kill_chain_state === 'LOCK';
-                    if (isPainted && trackedBy) {
-                        modeDisp = `PAINTING [${trackedBy}]`;
-                        statusColor = 'text-red-500 animate-pulse';
-                    } else if (trackedBy) {
-                        modeDisp = `FOLLOWED BY [${trackedBy}]`;
-                        statusColor = 'text-amber-500';
-                    } else {
-                        modeDisp = 'STALKING';
-                        statusColor = 'text-white/40';
-                    }
-                } else {
-                    if (mode === 'repositioning') statusColor = 'text-amber-400';
-                    if (mode === 'tracking') statusColor = 'text-green-400';
-                }
-
-                const lat = t.kinematics?.latitude?.toFixed(4) || '0.0000';
-                const lon = t.kinematics?.longitude?.toFixed(4) || '0.0000';
-                const altDisplay = t.metadata?.altitude?.toFixed(0) || '0';
-
-                item.innerHTML = `
-                    <div class="flex justify-between items-center" onclick="toggleDroneExpand('${trackId}')">
-                        <div class="flex flex-col">
-                            <span class="text-[10px] font-mono text-white/40">${trackId}</span>
-                            <span class="text-sm font-bold text-white/90">${type}</span>
-                        </div>
-                        <div class="flex flex-col items-end">
-                            <span class="text-[9px] font-bold uppercase tracking-wider ${statusColor}">${modeDisp}</span>
-                            <i data-lucide="${isExpanded ? 'chevron-up' : 'chevron-down'}" class="w-4 h-4 text-white/20 mt-1"></i>
-                        </div>
-                    </div>
-                    ${isExpanded ? `
-                        <div class="mt-4 pt-4 border-t border-white/10 grid grid-cols-2 gap-4">
-                            <div class="space-y-1">
-                                <span class="text-[9px] text-white/30 uppercase font-bold">Altitude</span>
-                                <div class="text-xs font-mono">${altDisplay}m</div>
-                            </div>
-                            <div class="space-y-1">
-                                <span class="text-[9px] text-white/30 uppercase font-bold">Coordinates</span>
-                                <div class="text-[10px] font-mono">${lat}N, ${lon}E</div>
-                            </div>
-                            <div class="col-span-2 flex space-x-2 mt-2">
-                                <!-- Action Buttons -->
-                                ${currentTacticalTab === 'friendlies' && t.type === 'UAV' ? `
-                                    <button onclick="setPOV('${trackId}')" class="flex items-center justify-center space-x-1.5 py-1.5 rounded bg-blue-500/10 border border-blue-500/20 text-[9px] font-bold text-blue-400 hover:bg-blue-500/20 transition-all uppercase">
-                                        <i data-lucide="video" class="w-3 h-3"></i>
-                                        <span>Relay</span>
-                                    </button>
-                                    <button onclick="enterWaypointMode('${trackId}')" class="flex items-center justify-center space-x-1.5 py-1.5 rounded bg-amber-500/10 border border-amber-500/20 text-[9px] font-bold text-amber-400 hover:bg-amber-500/20 transition-all uppercase" id="wp-btn-${trackId}">
-                                        <i data-lucide="navigation" class="w-3 h-3"></i>
-                                        <span>WP</span>
-                                    </button>
-                                ` : currentTacticalTab === 'threats' ? `
-                                    <button onclick="startIntercept('${trackId}')" class="col-span-2 flex items-center justify-center space-x-1.5 py-1.5 rounded bg-red-500/10 border border-red-500/20 text-[9px] font-bold text-red-400 hover:bg-red-500/20 transition-all uppercase">
-                                        <i data-lucide="target" class="w-3 h-3"></i>
-                                        <span>Intercept</span>
-                                    </button>
-                                ` : ''}
-                            </div>
-                        </div>
-                    ` : ''}
-                `;
-                list.appendChild(item);
-            });
-            lucide.createIcons();
-        }
-
-        function toggleDroneExpand(id) {
-            expandedDroneId = expandedDroneId === id ? null : id;
-            renderTacticalList();
-        }
-
-        function setPOV(id) {
-            const viewer = document.getElementById('pov-viewer');
-            const idSpan = document.getElementById('pov-drone-id');
-            
-            if (cesiumManager.trackedDroneId === id) {
-                // If clicking on the currently tracked drone, turn it off
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({
-                        type: "UNSUBSCRIBE_VIDEO",
-                        drone_id: cesiumManager.trackedDroneId
-                    }));
-                }
-                cesiumManager.setPOV(null);
-                cesiumManager.trackedDroneId = null;
-                viewer.style.display = 'none';
-            } else {
-                // If switching to a new drone, unsubscribe from previous if any
-                if (cesiumManager.trackedDroneId && ws && ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({
-                        type: "UNSUBSCRIBE_VIDEO",
-                        drone_id: cesiumManager.trackedDroneId
-                    }));
-                }
-
-                // Subscribe to the new drone
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({
-                        type: "SUBSCRIBE_VIDEO",
-                        drone_id: id
-                    }));
-                }
-                cesiumManager.setPOV(id);
-                cesiumManager.trackedDroneId = id;
-                idSpan.innerText = id;
-                viewer.style.display = 'block';
-                addChatMessage(`Targeting Link Established: ${id} Visual Relay Active`, 'intel');
-            }
-        }
-
-        function resetCamera() {
-            cesiumManager.setPOV(null);
-            document.getElementById('pov-viewer').style.display = 'none';
-            cesiumManager.viewer.camera.flyHome(2.0);
-            addChatMessage('Tactical View Reset to Global Workspace', 'default');
-        }
-
-        function enterWaypointMode() {
-            isWaypointMode = true;
-            document.getElementById('waypoint-btn').classList.add('bg-amber-600', 'animate-pulse');
-            addChatMessage('WAYPOINT MODE: Click on map to set new flight path.');
-            
-            // Temporary handler for map click
-            const handler = new Cesium.ScreenSpaceEventHandler(cesiumManager.viewer.scene.canvas);
-            handler.setInputAction((click) => {
-                const cartesian = cesiumManager.viewer.camera.pickEllipsoid(click.position);
-                if (cartesian) {
-                    const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
-                    const lon = Cesium.Math.toDegrees(cartographic.longitude);
-                    const lat = Cesium.Math.toDegrees(cartographic.latitude);
-                    
-                    if (expandedDroneId) {
-                        sendWaypoint(expandedDroneId, lon, lat);
-                    }
-                    
-                    isWaypointMode = false;
-                    document.getElementById('waypoint-btn').classList.remove('bg-amber-600', 'animate-pulse');
-                    handler.destroy();
-                }
-            }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-        }
-
-        function sendWaypoint(droneId, lon, lat) {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({
-                    type: "CMD_SET_WAYPOINT",
-                    drone_id: droneId,
-                    lon: lon,
-                    lat: lat
-                }));
-                addChatMessage(`Flight Path Updated: ${droneId} navigating to target waypoint.`, 'default');
-            }
-        }
-
-        function switchTacticalTab(tab) {
-            currentTacticalTab = tab;
-            const tBtn = document.getElementById('tab-threats');
-            const fBtn = document.getElementById('tab-friendlies');
-            
-            if (tab === 'threats') {
-                tBtn.className = 'flex-1 py-3 text-[10px] font-bold uppercase tracking-wider text-red-400 bg-red-500/5 border-b-2 border-red-400';
-                fBtn.className = 'flex-1 py-3 text-[10px] font-bold uppercase tracking-wider text-white/20 hover:text-white/40';
-            } else {
-                fBtn.className = 'flex-1 py-3 text-[10px] font-bold uppercase tracking-wider text-blue-400 bg-white/[0.03] border-b-2 border-blue-400';
-                tBtn.className = 'flex-1 py-3 text-[10px] font-bold uppercase tracking-wider text-white/20 hover:text-white/40';
-            }
-            renderTacticalList();
-        }
-
-        function startIntercept(targetId) {
-            const droneId = cesiumManager.trackedDroneId || "Viper-01";
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({
-                    type: 'CMD_START_INTERCEPT',
-                    drone_id: droneId,
-                    target_id: targetId
-                }));
-                addChatMessage(`INTERCEPT PROTOCOL: ${droneId} vectored to ${targetId}`, 'warn');
-            }
-        }
-
-        function setScenario(type) {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({
-                    type: "CMD_SET_SCENARIO",
-                    scenario: type
-                }));
-                addChatMessage(`AO Scenario Set: ${type}`, type === 'PAINTING' ? 'warn' : 'intel');
-            }
-        }
-
-        function addChatMessage(text, type = 'default') {
-            const chat = document.getElementById('chat-messages');
-            const msg = document.createElement('div');
-            let style = 'bg-white/5 text-white/80';
-            if (type === 'intel') style = 'bg-blue-500/10 text-blue-100 border-blue-500/20';
-            if (type === 'warn') style = 'bg-red-500/10 text-red-200 border-red-500/20';
-            
-            msg.className = `${style} p-3 rounded-xl border border-white/5 self-start max-w-[90%] text-[11px] mb-2`;
-            msg.innerText = text;
-            chat.appendChild(msg);
-            chat.scrollTop = chat.scrollHeight;
-        }
-
-        setInterval(() => {
-            const now = new Date();
-            document.getElementById('digital-clock').innerText = now.toISOString().split('T')[1].split('.')[0] + 'Z';
-        }, 1000);
-
-        connectWS();
-    </script>
+    <!-- Main Application Logic -->
+    <script src="app.js"></script>
 </body>
-
 </html>

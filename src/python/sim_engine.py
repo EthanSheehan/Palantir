@@ -1,184 +1,275 @@
 import math
 import random
 import time
-from typing import List, Tuple, Dict, Any
-from datetime import datetime
-
-class UAV:
-    def __init__(self, id: str, lon: float, lat: float, alt: float = 120.0):
-        self.id = id
-        self.lon = lon
-        self.lat = lat
-        self.alt = alt
-        self.yaw = 0.0
-        self.mode = "idle"  # idle, repositioning, tracking
-        self.target_waypoint = None
-        self.target_entity_id = None
-        self.speed_deg = 0.0005 # Realistic speed for local ops
-        self.last_update = time.time()
-
-    def update(self, dt: float, targets: Dict[str, Any]):
-        if self.mode == "tracking" and self.target_entity_id:
-            target = targets.get(self.target_entity_id)
-            if target:
-                tx, ty = target.lon, target.lat
-                self.target_waypoint = (tx, ty)
-        
-        if self.target_waypoint:
-            tx, ty = self.target_waypoint
-            dx = tx - self.lon
-            dy = ty - self.lat
-            dist = math.hypot(dx, dy)
-            
-            if dist < 0.0001: # Reached target/waypoint
-                if self.mode != "tracking":
-                    self.target_waypoint = None
-                    self.mode = "idle"
-            else:
-                step = self.speed_deg * dt
-                ratio = min(1.0, step / dist)
-                self.lon += dx * ratio
-                self.lat += dy * ratio
-                
-                # Update yaw to face movement (Corrected for North-up CCW -> CW conversion)
-                math_angle = math.atan2(dy, dx)
-                # In math, (dx=1, dy=0) is 0 deg. In navigation, North (dy=1, dx=0) is 0 deg.
-                # To align with Cesium/Navigation:
-                self.yaw = (90 - math.degrees(math_angle)) % 360
-        else:
-            # Loiter
-            self.yaw = (self.yaw + dt * 5) % 360
-            self.lon += math.sin(math.radians(self.yaw)) * 0.00005 * dt
-            self.lat += math.cos(math.radians(self.yaw)) * 0.00005 * dt
-
-    def to_dict(self):
-        meta = {
-            "affiliation": "FRIENDLY",
-            "altitude": self.alt,
-            "yaw": self.yaw,
-            "mode": self.mode,
-            "target_waypoint": self.target_waypoint
-        }
-        if self.mode == "tracking":
-            meta["target_id"] = self.target_entity_id
-            
-        return {
-            "id": self.id,
-            "type": "UAV",
-            "kinematics": {
-                "latitude": self.lat,
-                "longitude": self.lon,
-                "timestamp": datetime.now().isoformat()
-            },
-            "metadata": meta
-        }
+from typing import List, Tuple
+from romania_grid import RomaniaMacroGrid
 
 class Target:
-    def __init__(self, id: str, type: str, lon: float, lat: float, affiliation: str = "OPFOR"):
+    def __init__(self, id: int, x: float, y: float):
         self.id = id
-        self.type = type
-        self.lon = lon
-        self.lat = lat
-        self.affiliation = affiliation
-        self.vx = (random.random() - 0.5) * 0.0005
-        self.vy = (random.random() - 0.5) * 0.0005
-        self.kill_chain_state = "TRACK"
-        self.tracked_by = None
+        self.x = x
+        self.y = y
+        # Slow random movement
+        angle = random.uniform(0, 2 * math.pi)
+        self.speed = random.uniform(0.0005, 0.0015)
+        self.vx = math.cos(angle) * self.speed
+        self.vy = math.sin(angle) * self.speed
+        self.detected = False
 
-    def update(self, dt: float):
-        self.lon += self.vx * dt
-        self.lat += self.vy * dt
-        
-        # Jitter movement
-        if random.random() < 0.05:
-            self.vx += (random.random() - 0.5) * 0.0002
-            self.vy += (random.random() - 0.5) * 0.0002
+    def update(self, dt_sec: float, bounds: dict):
+        self.x += self.vx * dt_sec
+        self.y += self.vy * dt_sec
+
+        # Bounce off geographic boundaries
+        if self.x < bounds['min_lon'] or self.x > bounds['max_lon']:
+            self.vx *= -1
+            self.x = max(bounds['min_lon'], min(bounds['max_lon'], self.x))
+        if self.y < bounds['min_lat'] or self.y > bounds['max_lat']:
+            self.vy *= -1
+            self.y = max(bounds['min_lat'], min(bounds['max_lat'], self.y))
+
+class UAV:
+    def __init__(self, id: int, x: float, y: float, zone_id: Tuple[int, int]):
+        self.id = id
+        self.x = x
+        self.y = y
+        self.vx = 0.0
+        self.vy = 0.0
+        self.mode = "idle"  # idle, serving, repositioning
+        self.zone_id = zone_id  # (col, row)
+        self.target = None
+        self.commanded_target = None
+        self.service_timer = 0.0
+
+    def update(self, dt_sec: float, speed: float):
+        if self.commanded_target:
+            tx, ty = self.commanded_target
+            dx = tx - self.x
+            dy = ty - self.y
+            dist = math.hypot(dx, dy)
+            if dist < 0.005:
+                self.commanded_target = None
+                self.mode = "idle"
+                self.vx = 0
+                self.vy = 0
+            else:
+                self.mode = "repositioning"
+                self.vx = (dx / dist) * speed
+                self.vy = (dy / dist) * speed
+            self.x += self.vx * dt_sec
+            self.y += self.vy * dt_sec
+            return
+
+        if self.mode == "repositioning" and self.target:
+            tx, ty = self.target
+            dx = tx - self.x
+            dy = ty - self.y
+            dist = math.hypot(dx, dy)
+            if dist < 0.005:
+                self.mode = "idle"
+                self.vx = 0
+                self.vy = 0
+                self.target = None
+            else:
+                self.vx = (dx / dist) * speed
+                self.vy = (dy / dist) * speed
+            self.x += self.vx * dt_sec
+            self.y += self.vy * dt_sec
+        elif self.mode == "idle":
+            rx = random.uniform(-1, 1) * speed * 0.2
+            ry = random.uniform(-1, 1) * speed * 0.2
+            self.vx += rx * dt_sec
+            self.vy += ry * dt_sec
+            self.vx *= 0.95
+            self.vy *= 0.95
             
-        # AO constraints roughly Kurdistan center
-        if abs(self.lon - 44.3615) > 0.1: self.vx *= -1
-        if abs(self.lat - 33.3128) > 0.1: self.vy *= -1
+            curr_speed = math.hypot(self.vx, self.vy)
+            max_loiter_speed = speed * 0.3
+            if curr_speed > max_loiter_speed:
+                self.vx = (self.vx / curr_speed) * max_loiter_speed
+                self.vy = (self.vy / curr_speed) * max_loiter_speed
+                
+            self.x += self.vx * dt_sec
+            self.y += self.vy * dt_sec
+            
+        elif self.mode == "serving":
+            self.service_timer -= dt_sec
+            if self.service_timer <= 0:
+                self.mode = "idle"
 
-    def to_dict(self):
-        return {
-            "track_id": self.id,
-            "type": self.type,
-            "classification": self.type,
-            "kinematics": {
-                "latitude": self.lat,
-                "longitude": self.lon,
-                "timestamp": datetime.now().isoformat()
-            },
-            "metadata": {
-                "affiliation": self.affiliation,
-                "kill_chain_state": self.kill_chain_state,
-                "tracked_by": self.tracked_by
-            }
+class SimulationModel:
+    def __init__(self):
+        self.NUM_UAVS = 20
+        self.grid = RomaniaMacroGrid()
+        self.uavs: List[UAV] = []
+        
+        self.SPEED_DEG_PER_SEC = 0.005
+        self.SERVICE_TIME_SEC = 2.0
+        
+        self.last_update_time = time.time()
+        self.active_flows = []
+        
+        # Target Simulation
+        self.targets: List[Target] = []
+        self.NUM_TARGETS = 12
+        self.VISION_RADIUS = 0.5  # Detection range in degrees
+        
+        self.bounds = {
+            'min_lon': self.grid.MIN_LON,
+            'max_lon': self.grid.MAX_LON,
+            'min_lat': self.grid.MIN_LAT,
+            'max_lat': self.grid.MAX_LAT
         }
-
-class TacticalSimulation:
-    def __init__(self, drone_count=3, target_count=5):
-        self.drones: Dict[str, UAV] = {}
-        self.targets: Dict[str, Target] = {}
         
-        # Initialize Scaled Fleet
-        for i in range(drone_count):
-            did = f"Viper-0{i+1}"
-            self.drones[did] = UAV(did, 44.35 + (i*0.01), 33.30 + (i*0.01))
-            
-        types = ["SAM", "TEL", "CP", "TRUCK"]
-        for i in range(target_count):
-            tid = f"TGT-{chr(65+i)}"
-            ttype = random.choice(types)
-            self.targets[tid] = Target(tid, ttype, 44.36 + (random.random()-0.5)*0.05, 33.31 + (random.random()-0.5)*0.05)
-            
-        self.scenario = "DISCOVERY" 
-        self.last_tick = time.time()
+        self.initialize()
+
+    def initialize(self):
+        zone_keys = list(self.grid.zones.keys())
+        for i in range(self.NUM_UAVS):
+            if not zone_keys:
+                break
+            zx, zy = random.choice(zone_keys)
+            z = self.grid.zones[(zx, zy)]
+            ux = z.lon + random.uniform(-z.width_deg/3, z.width_deg/3)
+            uy = z.lat + random.uniform(-z.height_deg/3, z.height_deg/3)
+            self.uavs.append(UAV(i, ux, uy, (zx, zy)))
+
+        # Initialize Targets in random zones
+        for i in range(self.NUM_TARGETS):
+            zx, zy = random.choice(zone_keys)
+            z = self.grid.zones[(zx, zy)]
+            tx = z.lon + random.uniform(-z.width_deg/2, z.width_deg/2)
+            ty = z.lat + random.uniform(-z.height_deg/2, z.height_deg/2)
+            self.targets.append(Target(i, tx, ty))
 
     def tick(self):
         now = time.time()
-        dt = now - self.last_tick
-        self.last_tick = now
+        dt_sec = now - self.last_update_time
+        self.last_update_time = now
         
-        # Reset tracking associations for metadata update
-        for t in self.targets.values():
-            t.tracked_by = None
+        if dt_sec > 0.1:
+            dt_sec = 0.1
             
-        for drone in self.drones.values():
-            drone.update(dt, self.targets)
-            if drone.mode == "tracking" and drone.target_entity_id:
-                if drone.target_entity_id in self.targets:
-                    self.targets[drone.target_entity_id].tracked_by = drone.id
+        # 1. Update UAV zone associations
+        for z in self.grid.zones.values():
+            z.uav_count = 0
             
-        for target in self.targets.values():
-            target.update(dt)
+        for u in self.uavs:
+            z = self.grid.get_zone_at(u.x, u.y)
+            if z:
+                u.zone_id = z.id
+                z.uav_count += 1
+            else:
+                # Out of bounds, pull back to center
+                u.x = self.grid.MIN_LON + (self.grid.MAX_LON - self.grid.MIN_LON)/2
+                u.y = self.grid.MIN_LAT + (self.grid.MAX_LAT - self.grid.MIN_LAT)/2
+
+        # 2. Demand Generation
+        for z in self.grid.zones.values():
+            prob = z.demand_rate * dt_sec
+            arrivals = 0
+            while prob > 0:
+                if random.random() < min(1.0, prob):
+                    arrivals += 1
+                prob -= 1.0
+            z.queue += arrivals
+
+        # 3. Assign Missions
+        for z_id, z in self.grid.zones.items():
+            if z.queue > 0:
+                idle_in_zone = [u for u in self.uavs if u.zone_id == z_id and u.mode == "idle"]
+                assign_count = min(z.queue, len(idle_in_zone))
+                for i in range(assign_count):
+                    idle_in_zone[i].mode = "serving"
+                    idle_in_zone[i].service_timer = self.SERVICE_TIME_SEC
+                    z.queue -= 1
+
+        # 4. Calculate imbalances and dispatches via the grid logic
+        dispatches = self.grid.calculate_macro_flow(dt_sec)
+        
+        # 5. Execute Dispatches
+        self.active_flows = []
+        for d in dispatches:
+            source_id = d["source_id"]
+            count = d["count"]
+            target_coord = d["target_coord"]
+            
+            idle_in_r = [u for u in self.uavs if u.zone_id == source_id and u.mode == "idle"]
+            dispatched_count = min(count, len(idle_in_r))
+            
+            for i in range(dispatched_count):
+                u = idle_in_r[i]
+                u.mode = "repositioning"
+                u.target = target_coord
+                self.active_flows.append({
+                    "source": d["source_coord"],
+                    "target": target_coord
+                })
+
+        # 6. Update Kinematics
+        for u in self.uavs:
+            u.update(dt_sec, self.SPEED_DEG_PER_SEC)
+
+        # 7. Update Targets & Discovery
+        for t in self.targets:
+            t.update(dt_sec, self.bounds)
+            # Reset detection state each tick
+            t.detected = False
+            
+            # Check if any UAV is close enough
+            for u in self.uavs:
+                dist = math.hypot(u.x - t.x, u.y - t.y)
+                if dist < self.VISION_RADIUS:
+                    t.detected = True
+                    break
+
+    def trigger_demand_spike(self, lon: float, lat: float):
+        z = self.grid.get_zone_at(lon, lat)
+        if z:
+            z.queue += 120
+
+    def command_move(self, uav_id: int, lon: float, lat: float):
+        for u in self.uavs:
+            if u.id == uav_id:
+                u.commanded_target = (lon, lat)
+                u.mode = "repositioning"
+                break
+
+    def reset_queues(self):
+        for z in self.grid.zones.values():
+            z.queue = 0
+            z.demand_rate = z.base_lambda
 
     def get_state(self):
         return {
-            "type": "TRACK_UPDATE",
-            "data": {
-                "tracks": [d.to_dict() for d in self.drones.values()] + 
-                          [t.to_dict() for t in self.targets.values()]
-            }
+            "uavs": [
+                {
+                    "id": u.id,
+                    "lon": u.x,
+                    "lat": u.y,
+                    "mode": u.mode
+                } for u in self.uavs
+            ],
+            "zones": [
+                {
+                    "x_idx": z.id[0],
+                    "y_idx": z.id[1],
+                    "lon": z.lon,
+                    "lat": z.lat,
+                    "width": z.width_deg,
+                    "height": z.height_deg,
+                    "queue": z.queue,
+                    "uav_count": z.uav_count,
+                    "imbalance": z.imbalance
+                } for z in self.grid.zones.values()
+            ],
+            "flows": self.active_flows,
+            "targets": [
+                {
+                    "id": t.id,
+                    "lon": t.x,
+                    "lat": t.y,
+                    "detected": t.detected
+                } for t in self.targets
+            ]
         }
-
-    def set_waypoint(self, drone_id: str, lon: float, lat: float):
-        if drone_id == "ALL":
-            for d in self.drones.values():
-                d.target_waypoint = (lon, lat)
-                d.mode = "repositioning"
-        elif drone_id in self.drones:
-            self.drones[drone_id].target_waypoint = (lon, lat)
-            self.drones[drone_id].mode = "repositioning"
-            self.drones[drone_id].target_entity_id = None
-
-    def start_intercept(self, drone_id: str, target_id: str):
-        if drone_id in self.drones and target_id in self.targets:
-            self.drones[drone_id].target_entity_id = target_id
-            self.drones[drone_id].mode = "tracking"
-
-    def set_scenario(self, scenario: str):
-        self.scenario = scenario
-        for t in self.targets.values():
-            t.kill_chain_state = "LOCK" if scenario == "PAINTING" else "TRACK"
-
-sim = TacticalSimulation()

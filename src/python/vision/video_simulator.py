@@ -225,36 +225,48 @@ class DroneSimulator:
                         "yaw": self.state["yaw"]
                     }
                 }
-                await self.connector.send_telemetry(drone_track, drone_id=self.drone_id)
+                try:
+                    # Push drone state telemetry
+                    await self.connector.send_telemetry(drone_track, drone_id=self.drone_id)
 
-                # Push detections
-                for det in detections:
-                    await self.connector.send_telemetry(det, drone_id=self.drone_id)
-                
-                # Stream frames less frequently to avoid network congestion
-                if tick_count % 3 == 0:  # ~3.3 FPS
-                    await self.connector.stream_frame(frame, drone_id=self.drone_id)
-                
-                elapsed = asyncio.get_event_loop().time() - start_time
-                await asyncio.sleep(max(0, dt - elapsed))
-                
+                    # Push detections
+                    for det in detections:
+                        await self.connector.send_telemetry(det, drone_id=self.drone_id)
+                    
+                    # Stream frames less frequently to avoid network congestion
+                    if tick_count % 3 == 0:  # ~3.3 FPS
+                        await self.connector.stream_frame(frame, drone_id=self.drone_id)
+                    
+                    elapsed = asyncio.get_event_loop().time() - start_time
+                    await asyncio.sleep(max(0, dt - elapsed))
+                except Exception as e:
+                    # Log but don't crash the simulation on individual send errors
+                    error_str = str(e).lower()
+                    if "1011" in error_str or "timeout" in error_str or "keepalive" in error_str:
+                        # Transient network/busy error, just skip this tick
+                        print(f"[{self.drone_id}] Transient WS error (dropping frame): {e}")
+                        pass
+                    else:
+                        print(f"[{self.drone_id}] Connection lost, retrying: {e}")
+                        await asyncio.sleep(5)
+                        break # Exit the inner while to trigger the outer reconnect
+
         except Exception as e:
-            print(f"[{self.drone_id}] Error: {e}")
-            # Attempt to reconnect on error
-            print(f"[{self.drone_id}] Attempting to reconnect...")
+            print(f"[{self.drone_id}] Global Error: {e}")
             await self.connector.close()
-            await asyncio.sleep(5) # Wait before retrying
+            await asyncio.sleep(5)
             await self.connector.connect()
             print(f"[{self.drone_id}] Reconnected.")
         finally:
             await self.connector.close()
 
 async def main():
-    # Multi-drone simulation with reduced load
+    # Multi-drone simulation with reduced load in Romania
     drones = [
-        DroneSimulator("Viper-01", origin_lat=33.3128, origin_lon=44.3615, fps=8),
-        DroneSimulator("Raven-02", origin_lat=33.3200, origin_lon=44.3700, fps=8)
+        DroneSimulator("Viper-01", origin_lat=45.9432, origin_lon=24.9668, fps=8),
+        DroneSimulator("Raven-02", origin_lat=46.1000, origin_lon=25.2000, fps=8)
     ]
+
     
     # Change scenario for the second drone
     drones[1].scenario = ScanningScenario(pattern="circular")
