@@ -3,14 +3,20 @@ import json
 from datetime import datetime
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Optional
 
 from websocket_manager import manager
 from pipeline import F2T2EAPipeline
 from schemas.ontology import Track, CourseOfAction
+from sim_engine import sim
 
 app = FastAPI(title="Palantir C2 API")
+
+# Serve Frontend and Resources
+app.mount("/static", StaticFiles(directory="src/frontend"), name="static")
+app.mount("/resources", StaticFiles(directory="resources"), name="resources")
 
 # Configure CORS for Dashboard
 app.add_middleware(
@@ -33,6 +39,19 @@ pipeline = F2T2EAPipeline(llm_client=llm_client)
 async def root():
     return {"status": "Palantir C2 Online", "version": "1.0.0"}
 
+async def simulation_loop():
+    """Background task to run the tactical simulation."""
+    while True:
+        sim.tick()
+        state = sim.get_state()
+        # Broadcast track updates to ALL clients
+        await manager.broadcast(state)
+        await asyncio.sleep(0.2) # 5Hz for stability
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(simulation_loop())
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
@@ -46,12 +65,32 @@ async def websocket_endpoint(websocket: WebSocket):
                 break
             try:
                 message = json.loads(data)
+                
+                # Handle Commands
+                if message.get("type") == "CMD_SET_WAYPOINT":
+                    sim.set_waypoint(
+                        message.get("drone_id"),
+                        message.get("lon"),
+                        message.get("lat")
+                    )
+                elif message.get("type") == "CMD_SET_SCENARIO":
+                    sim.set_scenario(message.get("scenario"))
+                elif message.get("type") == "CMD_START_INTERCEPT":
+                    sim.start_intercept(
+                        message.get("drone_id"),
+                        message.get("target_id")
+                    )
+                elif message.get("type") == "SUBSCRIBE_VIDEO":
+                    await manager.subscribe(websocket, message.get("drone_id"))
+                elif message.get("type") == "UNSUBSCRIBE_VIDEO":
+                    await manager.unsubscribe(websocket, message.get("drone_id"))
+                
                 # Relay message to all OTHER connected clients
                 await manager.broadcast(message, exclude=websocket)
             except json.JSONDecodeError:
                 pass
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
+        await manager.disconnect(websocket)
 
 @app.post("/ingest")
 async def ingest_data(payload: dict):

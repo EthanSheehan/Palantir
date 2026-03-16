@@ -15,10 +15,16 @@ class DashboardConnector:
         self.websocket = None
 
     async def connect(self):
-        """Establish WebSocket connection."""
+        """Establish WebSocket connection with robust parameters."""
         try:
-            self.websocket = await websockets.connect(self.backend_url)
-            print(f"Connected to C2 Backend at {self.backend_url}")
+            # Set ping_interval and ping_timeout to prevent keepalive timeout errors (1011)
+            self.websocket = await websockets.connect(
+                self.backend_url,
+                ping_interval=20,
+                ping_timeout=20,
+                max_size=None, # Allow large frames if needed
+            )
+            print(f"Connected to C2 Backend at {self.backend_url} (Stability Mode)")
         except Exception as e:
             print(f"Failed to connect to backend: {e}")
 
@@ -54,7 +60,7 @@ class DashboardConnector:
         }
         
         try:
-            await self.websocket.send(json.dumps(payload))
+            await asyncio.wait_for(self.websocket.send(json.dumps(payload)), timeout=2.0)
         except Exception as e:
             print(f"Error sending telemetry: {e}")
 
@@ -78,7 +84,7 @@ class DashboardConnector:
                     "frame": jpg_as_text
                 }
             }
-            await self.websocket.send(json.dumps(payload))
+            await asyncio.wait_for(self.websocket.send(json.dumps(payload)), timeout=2.0)
         except Exception as e:
             print(f"Error streaming frame: {e}")
 

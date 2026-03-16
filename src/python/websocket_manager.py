@@ -1,4 +1,5 @@
-from typing import List
+import asyncio
+from typing import List, Dict, Set
 from fastapi import WebSocket
 
 
@@ -7,26 +8,61 @@ class ConnectionManager:
     
     def __init__(self):
         self.active_connections: List[WebSocket] = []
+        # Track which drones each connection is interested in for video
+        self.subscriptions: Dict[WebSocket, Set[str]] = {}
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
+        self.subscriptions[websocket] = set()
 
-    def disconnect(self, websocket: WebSocket):
+    async def disconnect(self, websocket: WebSocket):
+        """Cleanly remove a connection and its subscriptions."""
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
+        if websocket in self.subscriptions:
+            del self.subscriptions[websocket]
+        
+        try:
+            await websocket.close()
+        except:
+            pass
+
+    async def subscribe(self, websocket: WebSocket, drone_id: str):
+        """Register interest in a specific drone's video feed."""
+        if websocket in self.subscriptions:
+            self.subscriptions[websocket].add(drone_id)
+
+    async def unsubscribe(self, websocket: WebSocket, drone_id: str):
+        """Unregister interest in a specific drone's video feed."""
+        if websocket in self.subscriptions:
+            self.subscriptions[websocket].discard(drone_id)
 
     async def broadcast(self, message: dict, exclude: WebSocket = None):
         """Send a message to all connected clients except the excluded one."""
-        for connection in self.active_connections[:]:
-            if connection == exclude:
-                continue
+        if not self.active_connections:
+            return
+
+        msg_type = message.get("type")
+        drone_id = message.get("drone_id")
+
+        async def send_to_conn(conn):
             try:
-                await connection.send_json(message)
+                # If it's a video feed, only send if subscribed
+                if msg_type == "DRONE_FEED" and drone_id:
+                    subs = self.subscriptions.get(conn, set())
+                    if drone_id not in subs:
+                        return
+
+                await asyncio.wait_for(conn.send_json(message), timeout=1.0)
             except Exception:
-                # Handle disconnected clients gracefully
-                if connection in self.active_connections:
-                    self.active_connections.remove(connection)
+                # If a send fails/times out, we don't automatically disconnect here
+                # to avoid churn, but we don't block others.
+                pass
+
+        for connection in self.active_connections[:]:
+            if connection != exclude:
+                asyncio.create_task(send_to_conn(connection))
 
 
 manager = ConnectionManager()

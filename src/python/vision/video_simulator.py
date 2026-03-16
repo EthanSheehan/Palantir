@@ -179,8 +179,10 @@ class DroneSimulator:
         await self.connector.connect()
         
         dt = 1.0 / self.fps
+        tick_count = 0
         try:
             while True:
+                tick_count += 1
                 start_time = asyncio.get_event_loop().time()
                 
                 # Check for incoming commands
@@ -228,21 +230,30 @@ class DroneSimulator:
                 # Push detections
                 for det in detections:
                     await self.connector.send_telemetry(det, drone_id=self.drone_id)
-                await self.connector.stream_frame(frame, drone_id=self.drone_id)
+                
+                # Stream frames less frequently to avoid network congestion
+                if tick_count % 3 == 0:  # ~3.3 FPS
+                    await self.connector.stream_frame(frame, drone_id=self.drone_id)
                 
                 elapsed = asyncio.get_event_loop().time() - start_time
                 await asyncio.sleep(max(0, dt - elapsed))
                 
         except Exception as e:
             print(f"[{self.drone_id}] Error: {e}")
+            # Attempt to reconnect on error
+            print(f"[{self.drone_id}] Attempting to reconnect...")
+            await self.connector.close()
+            await asyncio.sleep(5) # Wait before retrying
+            await self.connector.connect()
+            print(f"[{self.drone_id}] Reconnected.")
         finally:
             await self.connector.close()
 
 async def main():
-    # Multi-drone simulation
+    # Multi-drone simulation with reduced load
     drones = [
-        DroneSimulator("Viper-01", origin_lat=51.4545, origin_lon=-2.5879),
-        DroneSimulator("Raven-02", origin_lat=51.4600, origin_lon=-2.5950)
+        DroneSimulator("Viper-01", origin_lat=33.3128, origin_lon=44.3615, fps=8),
+        DroneSimulator("Raven-02", origin_lat=33.3200, origin_lon=44.3700, fps=8)
     ]
     
     # Change scenario for the second drone
