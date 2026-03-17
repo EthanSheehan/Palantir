@@ -1,0 +1,60 @@
+name: "Baltic States Defense"
+description: "NATO forward defense scenario — Estonia, Latvia, Lithuania border AO"
+bounds:
+  min_lon: 21.0
+  max_lon: 28.2
+  min_lat: 53.9
+  max_lat: 59.7
+grid:
+  cols: 30
+  rows: 30
+blue_force:
+  uavs:
+    count: 12
+    type: MQ-9
+    base_lon: 24.5
+    base_lat: 56.9
+    default_altitude_m: 2500
+    sensor_type: EO_IR
+    endurance_hours: 20
+red_force:
+  units:
+    - type: SAM
+      count: 5
+      behavior: stationary
+      threat_range_km: 35
+    - type: TEL
+      count: 3
+      behavior: shoot_and_scoot
+      speed_kmh: 45
+    - type: MANPADS
+      count: 10
+      behavior: ambush
+      threat_range_km: 5
+    - type: RADAR
+      count: 4
+      behavior: stationary
+      detection_range_km: 80
+    - type: APC
+      count: 8
+      behavior: patrol
+      speed_kmh: 65
+    - type: IFV
+      count: 6
+      behavior: patrol
+      speed_kmh: 60
+    - type: MBT
+      count: 4
+      behavior: patrol
+      speed_kmh: 45
+    - type: C2_NODE
+      count: 2
+      behavior: stationary
+    - type: LOGISTICS
+      count: 5
+      behavior: patrol
+      speed_kmh: 50
+environment:
+  weather: overcast
+  time_of_day: day
+  terrain: urban_forest

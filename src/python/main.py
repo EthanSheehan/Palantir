@@ -1,7 +1,7 @@
 """
 main.py
 =======
-LangGraph application — wires the Strategy Analyst into a runnable graph.
+LangGraph application -- wires the Strategy Analyst into a runnable graph.
 
 Usage (from project root):
     source venv/bin/activate
@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 
+import structlog
 from langgraph.graph import END, START, StateGraph
 
 from src.python.agents.strategy_analyst import evaluate_detections
@@ -27,6 +28,8 @@ from src.python.core.ontology import (
 )
 from src.python.core.state import AnalystState
 
+logger = structlog.get_logger()
+
 
 # ---------------------------------------------------------------------------
 # Graph construction
@@ -36,7 +39,7 @@ def build_graph() -> StateGraph:
     """Build and compile the Strategy Analyst LangGraph."""
     graph = StateGraph(AnalystState)
 
-    # Single node for now — additional agents will be added as new nodes
+    # Single node for now -- additional agents will be added as new nodes
     graph.add_node("strategy_analyst", evaluate_detections)
 
     # Edges
@@ -53,7 +56,7 @@ def build_graph() -> StateGraph:
 def _demo_scenario() -> AnalystState:
     """Build a realistic demo scenario with mixed detection types."""
 
-    # ── Friendly Forces ───────────────────────────────────────────────
+    # -- Friendly Forces --
     friendlies = [
         FriendlyForce(
             id="ALPHA-1",
@@ -69,7 +72,7 @@ def _demo_scenario() -> AnalystState:
         ),
     ]
 
-    # ── Rules of Engagement ───────────────────────────────────────────
+    # -- Rules of Engagement --
     roe = [
         RuleOfEngagement(
             id="ROE-001",
@@ -89,9 +92,9 @@ def _demo_scenario() -> AnalystState:
         ),
     ]
 
-    # ── ISR Detections ────────────────────────────────────────────────
+    # -- ISR Detections --
     detections = [
-        # 1) Clear hostile TEL — high confidence, far from friendlies
+        # 1) Clear hostile TEL -- high confidence, far from friendlies
         Detection(
             id="DET-001",
             detection_type=DetectionType.LAUNCHER,
@@ -99,9 +102,9 @@ def _demo_scenario() -> AnalystState:
             confidence=0.95,
             location=Location(latitude=33.4200, longitude=44.5000),
             sensor=SensorType.EO_IR,
-            description="TEL detected via EO/IR — erector raised",
+            description="TEL detected via EO/IR -- erector raised",
         ),
-        # 2) Ambiguous vehicle — low confidence, unknown identity
+        # 2) Ambiguous vehicle -- low confidence, unknown identity
         Detection(
             id="DET-002",
             detection_type=DetectionType.VEHICLE,
@@ -109,7 +112,7 @@ def _demo_scenario() -> AnalystState:
             confidence=0.35,
             location=Location(latitude=33.3800, longitude=44.4200),
             sensor=SensorType.GMTI,
-            description="Moving target, single return — identity unresolved",
+            description="Moving target, single return -- identity unresolved",
         ),
         # 3) Hostile vehicle dangerously close to Alpha Platoon
         Detection(
@@ -119,7 +122,7 @@ def _demo_scenario() -> AnalystState:
             confidence=0.90,
             location=Location(latitude=33.3105, longitude=44.3665),
             sensor=SensorType.FMV,
-            description="Technical vehicle with mounted weapon — very close to friendlies",
+            description="Technical vehicle with mounted weapon -- very close to friendlies",
         ),
     ]
 
@@ -142,44 +145,41 @@ def main() -> None:
     app = build_graph()
     initial_state = _demo_scenario()
 
-    print("=" * 72)
-    print("  PROJECT ANTIGRAVITY — Strategy Analyst Agent")
-    print("=" * 72)
-    print(f"\n  Evaluating {len(initial_state['detections'])} detections ...\n")
+    logger.info("evaluation_started", agent="Strategy Analyst", detections=len(initial_state["detections"]))
 
     result = app.invoke(initial_state)
 
-    # ── Strike Board ──────────────────────────────────────────────────
-    print("-" * 72)
-    print(f"  STRIKE BOARD  ({len(result['strike_board'])} targets)")
-    print("-" * 72)
+    # -- Strike Board --
+    logger.info("strike_board", count=len(result["strike_board"]))
     for t in result["strike_board"]:
-        print(f"\n  [{t.priority}/10]  Target {t.detection.id}")
-        print(f"           Type : {t.detection.detection_type.value}")
-        print(f"       Identity : {t.detection.identity.value}")
-        print(f"     Confidence : {t.detection.confidence:.0%}")
-        print(f"  Nearest Frdly : {t.nearest_friendly_id} ({t.nearest_friendly_distance_m:.0f}m)")
-        print(f"      Reasoning : {t.reasoning_trace}")
+        logger.info(
+            "strike_target",
+            priority=t.priority,
+            detection_id=t.detection.id,
+            detection_type=t.detection.detection_type.value,
+            identity=t.detection.identity.value,
+            confidence=f"{t.detection.confidence:.0%}",
+            nearest_friendly=t.nearest_friendly_id,
+            nearest_distance_m=f"{t.nearest_friendly_distance_m:.0f}",
+            reasoning=t.reasoning_trace,
+        )
 
-    # ── Tasking Requests ──────────────────────────────────────────────
-    print("\n" + "-" * 72)
-    print(f"  TASKING REQUESTS  ({len(result['tasking_requests'])} pending)")
-    print("-" * 72)
+    # -- Tasking Requests --
+    logger.info("tasking_requests", count=len(result["tasking_requests"]))
     for tr in result["tasking_requests"]:
-        print(f"\n  Detection {tr.detection_id} → Request {tr.requested_sensor.value}")
-        print(f"     Reason : {tr.reason}")
+        logger.info(
+            "tasking_request",
+            detection_id=tr.detection_id,
+            requested_sensor=tr.requested_sensor.value,
+            reason=tr.reason,
+        )
 
-    # ── Rejected ──────────────────────────────────────────────────────
-    print("\n" + "-" * 72)
-    print(f"  REJECTED  ({len(result['rejected'])} detections)")
-    print("-" * 72)
+    # -- Rejected --
+    logger.info("rejected", count=len(result["rejected"]))
     for r in result["rejected"]:
-        print(f"\n  Detection {r['detection_id']}")
-        print(f"     Reason : {r['reason']}")
+        logger.info("rejected_detection", detection_id=r["detection_id"], reason=r["reason"])
 
-    print("\n" + "=" * 72)
-    print("  Evaluation complete.")
-    print("=" * 72)
+    logger.info("evaluation_complete")
 
 
 if __name__ == "__main__":

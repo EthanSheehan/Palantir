@@ -1,0 +1,53 @@
+name: "South China Sea Maritime Operations"
+description: "Maritime patrol and ISR scenario — South China Sea AO"
+bounds:
+  min_lon: 109.0
+  max_lon: 121.0
+  min_lat: 5.0
+  max_lat: 22.0
+grid:
+  cols: 40
+  rows: 50
+blue_force:
+  uavs:
+    count: 15
+    type: P-8_Poseidon
+    base_lon: 118.5
+    base_lat: 14.5
+    default_altitude_m: 6000
+    sensor_type: MARITIME_RADAR
+    endurance_hours: 10
+red_force:
+  units:
+    - type: DESTROYER
+      count: 3
+      behavior: patrol
+      speed_kmh: 55
+    - type: FRIGATE
+      count: 4
+      behavior: patrol
+      speed_kmh: 50
+    - type: MISSILE_BOAT
+      count: 6
+      behavior: patrol
+      speed_kmh: 70
+    - type: SUBMARINE
+      count: 2
+      behavior: patrol
+      speed_kmh: 20
+    - type: FISHING_VESSEL
+      count: 12
+      behavior: patrol
+      speed_kmh: 15
+    - type: SAM
+      count: 4
+      behavior: stationary
+      threat_range_km: 40
+    - type: RADAR
+      count: 3
+      behavior: stationary
+      detection_range_km: 150
+environment:
+  weather: partly_cloudy
+  time_of_day: day
+  terrain: maritime

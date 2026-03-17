@@ -1,0 +1,55 @@
+name: "Romania Eastern Flank"
+description: "NATO defensive scenario — Romanian AO"
+bounds:
+  min_lon: 20.26
+  max_lon: 29.67
+  min_lat: 43.62
+  max_lat: 48.27
+grid:
+  cols: 50
+  rows: 50
+blue_force:
+  uavs:
+    count: 20
+    type: MQ-9
+    base_lon: 25.0
+    base_lat: 45.5
+    default_altitude_m: 3000
+    sensor_type: EO_IR
+    endurance_hours: 24
+red_force:
+  units:
+    - type: SAM
+      count: 3
+      behavior: stationary
+      threat_range_km: 30
+    - type: TEL
+      count: 4
+      behavior: shoot_and_scoot
+      speed_kmh: 40
+    - type: TRUCK
+      count: 8
+      behavior: patrol
+      speed_kmh: 60
+    - type: CP
+      count: 2
+      behavior: stationary
+    - type: MANPADS
+      count: 6
+      behavior: ambush
+      threat_range_km: 5
+    - type: RADAR
+      count: 2
+      behavior: stationary
+      detection_range_km: 100
+    - type: C2_NODE
+      count: 1
+      behavior: stationary
+    - type: LOGISTICS
+      count: 3
+      behavior: patrol
+      speed_kmh: 50
+environment:
+  weather: clear
+  time_of_day: day
+  terrain: mixed

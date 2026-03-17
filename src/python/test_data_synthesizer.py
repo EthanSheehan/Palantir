@@ -4,12 +4,16 @@ import random
 import uuid
 from datetime import datetime
 
+import structlog
+
+logger = structlog.get_logger()
+
 API_URL = "http://localhost:8000/ingest"
 
 def generate_mock_detection():
     types = ["TEL", "SAM", "Command Post", "Unknown"]
     sources = ["UAV", "Satellite", "SIGINT"]
-    
+
     return {
         "source": random.choice(sources),
         "lat": 33.3 + random.uniform(-0.1, 0.1),
@@ -20,20 +24,23 @@ def generate_mock_detection():
     }
 
 def run_synthesizer(count=50, interval=1.0):
-    print(f"Starting Project Antigravity Data Synthesizer ({count} targets)...")
+    logger.info("synthesizer_started", count=count)
     for i in range(count):
         detection = generate_mock_detection()
         try:
-            response = requests.post(API_URL, json=detection)
+            response = requests.post(API_URL, json=detection, timeout=10)
             if response.status_code == 200:
                 data = response.json()
-                print(f"[{i+1}/{count}] Ingested: {data['processed_tracks']} tracks processed.")
+                logger.info("ingested", progress=f"{i+1}/{count}", tracks=data["processed_tracks"])
             else:
-                print(f"Error ingesting data: {response.text}")
-        except Exception as e:
-            print(f"Connection error (is the API running?): {e}")
+                logger.error("ingest_error", status=response.status_code, body=response.text)
+        except requests.ConnectionError as exc:
+            logger.error("connection_error", error=str(exc), hint="Is the API running?")
             break
-        
+        except requests.Timeout as exc:
+            logger.error("request_timeout", error=str(exc))
+            break
+
         time.sleep(interval)
 
 if __name__ == "__main__":
@@ -42,5 +49,5 @@ if __name__ == "__main__":
     parser.add_argument("--count", type=int, default=50)
     parser.add_argument("--interval", type=float, default=0.5)
     args = parser.parse_args()
-    
+
     run_synthesizer(count=args.count, interval=args.interval)

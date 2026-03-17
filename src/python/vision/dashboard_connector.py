@@ -1,10 +1,15 @@
 import json
 import asyncio
+
+import structlog
 import websockets
 import cv2
 import base64
 from datetime import datetime
 from typing import List, Dict, Any
+
+logger = structlog.get_logger()
+
 
 class DashboardConnector:
     """
@@ -26,10 +31,10 @@ class DashboardConnector:
             )
             # Identify as a simulator to the backend
             await self.websocket.send(json.dumps({"type": "IDENTIFY", "client_type": "SIMULATOR"}))
-            print(f"Connected to C2 Backend at {self.backend_url} (Stability Mode)")
+            logger.info("backend_connected", url=self.backend_url, mode="stability")
 
-        except Exception as e:
-            print(f"Failed to connect to backend: {e}")
+        except (ConnectionRefusedError, OSError, websockets.exceptions.WebSocketException) as exc:
+            logger.error("backend_connect_failed", url=self.backend_url, error=str(exc))
 
     async def receive_command(self):
         """Listen for incoming commands from the backend."""
@@ -41,9 +46,8 @@ class DashboardConnector:
             return json.loads(message)
         except asyncio.TimeoutError:
             return None
-        except Exception as e:
-            # If disconnected, try to reconnect
-            print(f"Connection lost, retrying: {e}")
+        except (websockets.exceptions.ConnectionClosed, ConnectionError, OSError) as exc:
+            logger.warning("connection_lost_retrying", error=str(exc))
             self.websocket = None
             return None
 
@@ -66,11 +70,11 @@ class DashboardConnector:
             "drone_id": drone_id,
             "data": tracks
         }
-        
+
         try:
             await asyncio.wait_for(self.websocket.send(json.dumps(payload)), timeout=1.0)
-        except Exception as e:
-            print(f"Error sending telemetry: {e}")
+        except (asyncio.TimeoutError, websockets.exceptions.ConnectionClosed, ConnectionError, OSError) as exc:
+            logger.error("telemetry_send_failed", drone_id=drone_id, error=str(exc))
 
 
     async def stream_frame(self, frame: Any, drone_id: str = "Drone-01"):
@@ -84,7 +88,7 @@ class DashboardConnector:
             # Drop quality to 50% for stability over bandwidth
             _, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
             jpg_as_text = base64.b64encode(buffer).decode('utf-8')
-            
+
             payload = {
                 "type": "DRONE_FEED",
                 "timestamp": datetime.now().isoformat(),
@@ -95,8 +99,8 @@ class DashboardConnector:
             }
             # Short timeout to prevent loop blocking
             await asyncio.wait_for(self.websocket.send(json.dumps(payload)), timeout=1.0)
-        except Exception as e:
-            print(f"Error streaming frame: {e}")
+        except (asyncio.TimeoutError, websockets.exceptions.ConnectionClosed, ConnectionError, OSError) as exc:
+            logger.error("frame_stream_failed", drone_id=drone_id, error=str(exc))
 
 
     async def close(self):

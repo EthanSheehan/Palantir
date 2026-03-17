@@ -5,20 +5,20 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
     <title>Palantir C2 Baseline</title>
-    
+
     <!-- CesiumJS CSS/JS from CDN -->
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
-    
+
     <!-- Custom Style -->
     <link href="style.css" rel="stylesheet">
 </head>
 <body>
 <div id="appContainer">
-    
+
     <div id="uiPanel" class="sidebar dark-theme">
         <h1 class="title">System Dashboard</h1>
-        
+
         <!-- Tab Navigation -->
         <div class="tabs">
             <button class="tab-btn active" data-tab="tab-mission">MISSION</button>
@@ -42,17 +42,31 @@
                     <span id="zoneCount" class="stat-value">0</span>
                 </div>
             </div>
-            
+
+            <!-- THEATER SELECTOR -->
+            <div class="theater-selector">
+                <label class="stat-label" for="theaterSelect">Theater:</label>
+                <select id="theaterSelect" class="theater-select">
+                    <option value="romania">Romania</option>
+                </select>
+            </div>
+
             <!-- TACTICAL AIP ASSISTANT -->
             <div class="assistant-widget">
-                <div class="widget-header">
-                    <i class="fas fa-robot"></i> TACTICAL AIP ASSISTANT
-                </div>
+                <div class="widget-header">TACTICAL AIP ASSISTANT</div>
                 <div id="assistant-log" class="assistant-log">
                     <div class="assistant-msg system">AIP System Initialized...</div>
                 </div>
             </div>
-            
+
+            <!-- STRIKE BOARD (placeholder) -->
+            <div class="strike-board-widget">
+                <div class="widget-header strike-header">STRIKE BOARD</div>
+                <div id="strike-board-log" class="strike-board-log">
+                    <div class="strike-empty">No active strike packages.</div>
+                </div>
+            </div>
+
             <div class="legend">
                 <h3>Geospatial Imbalance</h3>
                 <div class="legend-scale">
@@ -64,7 +78,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="controls">
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                     <button id="toggleGridBtn" class="btn toggle-active">Grid Visibility: ON</button>
@@ -74,7 +88,7 @@
             </div>
         </div>
 
-        <!-- TAB 2: DRONES -->
+        <!-- TAB 2: DRONES / ASSETS -->
         <div id="tab-drones" class="tab-content">
             <div class="drone-list-header">
                 <span>ID</span>
@@ -83,6 +97,17 @@
             <div id="droneListContainer" class="drone-list">
                 <!-- Dynamically populated rows will go here -->
             </div>
+            <!-- Drone Action Buttons (shown when drone + target selected) -->
+            <div id="droneActionBar" class="drone-action-bar" style="display: none;">
+                <div class="action-bar-label">
+                    <span id="actionBarDrone">--</span> &rarr; <span id="actionBarTarget">--</span>
+                </div>
+                <div class="action-bar-buttons">
+                    <button id="actionViewBtn" class="action-btn action-view">VIEW</button>
+                    <button id="actionFollowBtn" class="action-btn action-follow">FOLLOW</button>
+                    <button id="actionPaintBtn" class="action-btn action-paint">PAINT</button>
+                </div>
+            </div>
         </div>
 
         <!-- TAB 3: ENEMIES -->
@@ -90,13 +115,14 @@
             <div class="enemy-list-header">
                 <span>ID</span>
                 <span>TYPE</span>
+                <span>STATE</span>
                 <span>COORDS</span>
             </div>
             <div id="enemyListContainer" class="enemy-list">
                 <div class="empty-state">No hostile entities detected.</div>
             </div>
         </div>
-        
+
         <!-- Drag to Resize Handle -->
         <div id="sidebarResizer" class="resizer"></div>
     </div>
@@ -104,30 +130,13 @@
 
     <!-- Right-Hand Content -->
     <div id="cesiumContainer">
-        <!-- Tactical HUD (Video Feed) -->
-        <div id="tacticalHud" class="tactical-hud" style="display: none;">
-            <div class="hud-header">
-                <span id="hudDroneId">UAV-01</span>
-                <span class="live-tag">LIVE</span>
-            </div>
-            <div class="video-container">
-                <img id="droneFeedImg" src="" alt="Drone Feed">
-                <div class="hud-overlay"></div>
-            </div>
-            <div class="hud-controls">
-                <button id="paintTargetBtn" class="hud-btn red">INITIATE PAINTING</button>
-                <button id="stopPaintingBtn" class="hud-btn gray">STOP PAINTING</button>
-            </div>
-        </div>
-
         <!-- Camera Controls -->
         <div id="cameraControls" class="camera-controls" style="display: none;">
-            <button id="returnGlobalBtn" class="square-btn" title="Return to Global View">🌐</button>
-            <button id="decoupleCameraBtn" class="square-btn" title="Decouple Camera">✖</button>
+            <button id="returnGlobalBtn" class="square-btn" title="Return to Global View">&#x1F310;</button>
+            <button id="decoupleCameraBtn" class="square-btn" title="Decouple Camera">&#x2716;</button>
         </div>
     </div>
 
-    
 </div>
     <!-- Secondary Detail Waypoint Map Modal (Grid 9) -->
     <div id="detailMapModal" class="modal-overlay">
@@ -144,6 +153,6 @@
     </div>
 
     <!-- Main Application Logic -->
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>

@@ -13,15 +13,17 @@ Presents three distinct COAs to the Human-in-the-Loop:
   COA-3  Lowest Cost
 
 Two execution modes:
-  • heuristic (default) – deterministic scoring, no LLM required.
-  • llm – forwards asset data + target context to an LLM for structured
-    reasoning (requires an ``llm_client``).
+  * heuristic (default) -- deterministic scoring, no LLM required.
+  * llm -- forwards asset data + target context to an LLM for structured
+    reasoning (requires an ``LLMAdapter``).
 """
 
 import json
 import math
 import uuid
 from typing import Any, List, Optional
+
+import structlog
 
 from schemas.ontology import (
     CourseOfAction,
@@ -32,8 +34,12 @@ from schemas.ontology import (
     Track,
 )
 from mission_data.asset_registry import get_available_effectors
+from llm_adapter import LLMAdapter
+from hitl_manager import CourseOfAction as HITLCourseOfAction
 
-# ── System prompt fed to the LLM for structured reasoning ──────────────────
+logger = structlog.get_logger()
+
+# -- System prompt fed to the LLM for structured reasoning ------------------
 TACTICAL_PLANNER_PROMPT = """\
 You are the Tactical Planner Agent for Project Antigravity.
 
@@ -43,27 +49,68 @@ nominated by the Strategy Analyst.
 Instructions:
 
 1. For each nominated target, generate exactly 3 COAs:
-   a) **Fastest** – minimise time-to-target.
-   b) **Highest Pk** – maximise probability of kill.
-   c) **Lowest Cost** – minimise munition-efficiency cost.
+   a) **Fastest** -- minimise time-to-target.
+   b) **Highest Pk** -- maximise probability of kill.
+   c) **Lowest Cost** -- minimise munition-efficiency cost.
 
 2. Effector Matching: Select the best-fit effector (kinetic or non-kinetic)
    from the available asset pool for each COA type.
 
 3. Reasoning Trace: Every COA MUST include a "rationalization" string
-   explaining why a specific effector was chosen (per PRD §3.2).
+   explaining why a specific effector was chosen (per PRD S3.2).
 
-4. Output: Return a TacticalPlannerOutput per nominated target containing
-   the three COAs.
+4. Output: Return valid JSON with the following structure for each COA:
+   {
+     "coas": [
+       {
+         "effector_name": "...",
+         "effector_type": "Kinetic|Non-Kinetic",
+         "time_to_effect_min": <float>,
+         "pk_estimate": <float 0-1>,
+         "risk_score": <float 1-10>,
+         "reasoning_trace": "..."
+       }
+     ]
+   }
 
 Constraint: Do NOT execute any strike. Your outputs feed HITL review.
-Output must be strictly valid JSON matching the TacticalPlannerOutput schema.
 """
 
+COA_RESPONSE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "coas": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "effector_name": {"type": "string"},
+                    "effector_type": {"type": "string"},
+                    "time_to_effect_min": {"type": "number"},
+                    "pk_estimate": {"type": "number"},
+                    "risk_score": {"type": "number"},
+                    "reasoning_trace": {"type": "string"},
+                },
+                "required": [
+                    "effector_name",
+                    "effector_type",
+                    "time_to_effect_min",
+                    "pk_estimate",
+                    "risk_score",
+                    "reasoning_trace",
+                ],
+            },
+            "minItems": 3,
+            "maxItems": 3,
+        }
+    },
+    "required": ["coas"],
+}
 
-# ═══════════════════════════════════════════════════════════════════════════
+
+# ===========================================================================
 #  Heuristic helpers (pure-python, no LLM)
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 
 def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Great-circle distance between two points in kilometres."""
@@ -78,11 +125,8 @@ def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 def _estimate_time_to_target(asset: dict, target_lat: float, target_lon: float) -> float:
     """Return estimated time-to-target in minutes."""
-    # Non-kinetic / cyber assets have a fixed response time
     if "time_to_effect_min" in asset:
         return asset["time_to_effect_min"]
-
-    # Rocket / artillery with a fixed flight time (e.g., HIMARS)
     if "rocket_flight_time_min" in asset:
         return asset["rocket_flight_time_min"]
 
@@ -90,7 +134,7 @@ def _estimate_time_to_target(asset: dict, target_lat: float, target_lon: float) 
     speed = asset.get("speed_kmh", 0.0)
     if speed <= 0:
         return float("inf")
-    return (dist / speed) * 60.0  # hours → minutes
+    return (dist / speed) * 60.0
 
 
 def _score_asset(asset: dict, target_lat: float, target_lon: float) -> dict:
@@ -122,37 +166,45 @@ def _build_coa(
     )
 
 
-# ═══════════════════════════════════════════════════════════════════════════
+def _compute_composite(pk: float, time_min: float, risk: float) -> float:
+    """Weighted composite score: higher is better."""
+    time_norm = 1.0 / max(time_min, 0.01)
+    risk_norm = 1.0 / max(risk, 0.01)
+    return round(0.4 * pk + 0.3 * time_norm + 0.3 * risk_norm, 4)
+
+
+def _risk_from_cost(cost_index: float) -> float:
+    """Map cost_index (1-10) to risk_score (1-10)."""
+    return max(1.0, min(10.0, cost_index))
+
+
+# ===========================================================================
 #  Agent class
-# ═══════════════════════════════════════════════════════════════════════════
+# ===========================================================================
 
 class TacticalPlannerAgent:
     """
     Generates three COAs for each nominated target track.
 
     Operates in two modes:
-      • **heuristic** (default, ``llm_client=None``) – pure-python scoring
-        against the Asset Registry.  No external calls required.
-      • **llm** – forwards asset data + target context to an LLM for
-        structured reasoning (requires an ``llm_client``).
+      * **heuristic** (default, ``llm_adapter=None``) -- pure-python scoring
+        against the Asset Registry. No external calls required.
+      * **llm** -- forwards asset data + target context to an LLM for
+        structured reasoning (requires an ``LLMAdapter``).
     """
 
     def __init__(
         self,
         llm_client: Any = None,
+        llm_adapter: Optional[LLMAdapter] = None,
         available_effectors: Optional[List[Effector]] = None,
     ):
-        """
-        Args:
-            llm_client: An initialized LLM client (e.g., OpenAI).
-                        If ``None``, the heuristic planner is used.
-            available_effectors: Optional override of the effector list.
-        """
         self.llm_client = llm_client
+        self.llm_adapter = llm_adapter
         self.available_effectors = available_effectors
         self.system_prompt = TACTICAL_PLANNER_PROMPT
 
-    # ── Primary entry point ────────────────────────────────────────────────
+    # -- Primary entry point (original sync interface) ----------------------
     def generate_coas(
         self,
         analyst_output: StrategyAnalystOutput,
@@ -161,14 +213,7 @@ class TacticalPlannerAgent:
         """
         Generate COAs for every nominated target in the analyst output.
 
-        Args:
-            analyst_output: Output from the Strategy Analyst containing
-                            target nominations.
-            tracks: List of fused Tracks from the ISR Observer so we can
-                    look up lat/lon for each nominated track_id.
-
-        Returns:
-            A list of ``TacticalPlannerOutput``, one per nominated target.
+        Returns a list of ``TacticalPlannerOutput``, one per nominated target.
         """
         track_lookup = {t.track_id: t for t in tracks}
         results: List[TacticalPlannerOutput] = []
@@ -188,7 +233,145 @@ class TacticalPlannerAgent:
 
         return results
 
-    # ── Heuristic path ─────────────────────────────────────────────────────
+    # -- Enhanced async entry point (HITL-compatible COAs) ------------------
+    async def generate_coas_enhanced(
+        self,
+        target_data: dict,
+        available_assets: Optional[list[dict]] = None,
+    ) -> list[HITLCourseOfAction]:
+        """
+        Generate 3 COA options using LLM (model_hint='reasoning') or heuristic
+        fallback. Returns frozen HITL CourseOfAction dataclasses ranked by
+        composite score.
+        """
+        assets = available_assets if available_assets is not None else get_available_effectors()
+
+        target_lat = target_data.get("lat", 0.0)
+        target_lon = target_data.get("lon", 0.0)
+
+        if self.llm_adapter is not None and self.llm_adapter.is_available():
+            coas = await self._generate_coas_llm(target_data, assets)
+            if coas:
+                return coas
+
+        logger.info("using_heuristic_coa_generation")
+        return self._generate_coas_heuristic(target_data, assets)
+
+    # -- Heuristic COA generation (HITL format) ----------------------------
+    def _generate_coas_heuristic(
+        self,
+        target_data: dict,
+        assets: list[dict],
+    ) -> list[HITLCourseOfAction]:
+        """Deterministic scoring fallback producing 3 ranked COAs."""
+        target_lat = target_data.get("lat", 0.0)
+        target_lon = target_data.get("lon", 0.0)
+
+        scored = [_score_asset(a, target_lat, target_lon) for a in assets]
+
+        fastest = min(scored, key=lambda s: s["time_min"])
+        best_pk = max(scored, key=lambda s: s["pk"])
+        cheapest = min(scored, key=lambda s: s["cost"])
+
+        raw_coas = [
+            self._scored_to_hitl_coa("COA-1", fastest, "Fastest option"),
+            self._scored_to_hitl_coa("COA-2", best_pk, "Highest Pk option"),
+            self._scored_to_hitl_coa("COA-3", cheapest, "Lowest cost option"),
+        ]
+
+        return sorted(raw_coas, key=lambda c: c.composite_score, reverse=True)
+
+    # -- LLM COA generation (HITL format) ----------------------------------
+    async def _generate_coas_llm(
+        self,
+        target_data: dict,
+        assets: list[dict],
+    ) -> list[HITLCourseOfAction]:
+        """Use LLMAdapter for reasoning-enhanced COA generation."""
+        context = json.dumps({
+            "target": target_data,
+            "available_effectors": [
+                {
+                    "name": a["effector"].name,
+                    "type": a["effector"].effector_type,
+                    "pk_rating": a.get("pk_rating", 0.0),
+                    "cost_index": a.get("cost_index", 10.0),
+                    "speed_kmh": a.get("speed_kmh", 0.0),
+                }
+                for a in assets
+            ],
+        }, indent=2)
+
+        messages = [
+            {"role": "system", "content": self.system_prompt},
+            {"role": "user", "content": f"Generate 3 COAs for this target:\n{context}"},
+        ]
+
+        try:
+            result = await self.llm_adapter.complete_structured(
+                messages=messages,
+                response_schema=COA_RESPONSE_SCHEMA,
+                model_hint="reasoning",
+            )
+        except Exception as exc:
+            logger.error("llm_coa_generation_failed", error=str(exc))
+            return []
+
+        if not result or "coas" not in result:
+            logger.warning("llm_returned_empty_coas")
+            return []
+
+        coas = []
+        for i, raw in enumerate(result["coas"][:3], start=1):
+            pk = max(0.0, min(1.0, float(raw.get("pk_estimate", 0.0))))
+            time_min = max(0.01, float(raw.get("time_to_effect_min", 999.0)))
+            risk = max(1.0, min(10.0, float(raw.get("risk_score", 5.0))))
+            coa = HITLCourseOfAction(
+                id=f"COA-{i}",
+                effector_name=raw.get("effector_name", "Unknown"),
+                effector_type=raw.get("effector_type", "Unknown"),
+                time_to_effect_min=round(time_min, 2),
+                pk_estimate=round(pk, 4),
+                risk_score=round(risk, 2),
+                composite_score=_compute_composite(pk, time_min, risk),
+                reasoning_trace=raw.get("reasoning_trace", ""),
+                status="PROPOSED",
+            )
+            coas.append(coa)
+
+        return sorted(coas, key=lambda c: c.composite_score, reverse=True)
+
+    # -- Internal helpers ---------------------------------------------------
+
+    @staticmethod
+    def _scored_to_hitl_coa(
+        coa_id: str,
+        scored: dict,
+        trace_prefix: str,
+    ) -> HITLCourseOfAction:
+        """Convert a heuristic scored dict to a frozen HITL CourseOfAction."""
+        asset = scored["asset"]
+        pk = scored["pk"]
+        time_min = scored["time_min"]
+        risk = _risk_from_cost(scored["cost"])
+        effector = asset["effector"]
+
+        return HITLCourseOfAction(
+            id=coa_id,
+            effector_name=effector.name,
+            effector_type=effector.effector_type,
+            time_to_effect_min=round(time_min, 2),
+            pk_estimate=pk,
+            risk_score=risk,
+            composite_score=_compute_composite(pk, time_min, risk),
+            reasoning_trace=(
+                f"{trace_prefix}: {effector.name} "
+                f"(Pk={pk:.0%}, time={time_min:.1f}min, risk={risk:.1f})"
+            ),
+            status="PROPOSED",
+        )
+
+    # -- Heuristic path (original schema) -----------------------------------
     def _generate_heuristic(
         self,
         nomination: TargetNomination,
@@ -198,7 +381,6 @@ class TacticalPlannerAgent:
         assets = get_available_effectors()
         scored = [_score_asset(a, track.lat, track.lon) for a in assets]
 
-        # COA 1 – Fastest
         fastest = min(scored, key=lambda s: s["time_min"])
         coa_fastest = _build_coa(
             fastest,
@@ -211,7 +393,6 @@ class TacticalPlannerAgent:
             ),
         )
 
-        # COA 2 – Highest Pk
         best_pk = max(scored, key=lambda s: s["pk"])
         coa_pk = _build_coa(
             best_pk,
@@ -224,7 +405,6 @@ class TacticalPlannerAgent:
             ),
         )
 
-        # COA 3 – Lowest Cost
         cheapest = min(scored, key=lambda s: s["cost"])
         coa_cost = _build_coa(
             cheapest,
@@ -242,7 +422,7 @@ class TacticalPlannerAgent:
             coas=[coa_fastest, coa_pk, coa_cost],
         )
 
-    # ── LLM path (activate when provider is chosen) ────────────────────────
+    # -- LLM path (original schema) ----------------------------------------
     def _generate_via_llm(
         self,
         nomination: TargetNomination,
@@ -258,16 +438,5 @@ class TacticalPlannerAgent:
             ],
         }, indent=2)
 
-        # Example for OpenAI-compatible client:
-        # response = self.llm_client.beta.chat.completions.parse(
-        #     model="gpt-4o",
-        #     messages=[
-        #         {"role": "system", "content": self.system_prompt},
-        #         {"role": "user", "content": context},
-        #     ],
-        #     response_format=TacticalPlannerOutput,
-        # )
-        # return TacticalPlannerOutput.model_validate_json(
-        #     response.choices[0].message.content
-        # )
-        raise NotImplementedError("LLM integration needs to be completed.")
+        logger.warning("llm_not_implemented_falling_back_to_heuristic")
+        return self._generate_heuristic(nomination, track)

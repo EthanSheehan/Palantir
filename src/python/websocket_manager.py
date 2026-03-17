@@ -1,12 +1,16 @@
 import asyncio
 import json
 from typing import List, Dict, Set
+
+import structlog
 from fastapi import WebSocket
+
+logger = structlog.get_logger()
 
 
 class ConnectionManager:
     """Manages active WebSocket connections with frame-dropping and non-blocking safety."""
-    
+
     def __init__(self):
         self.active_connections: List[WebSocket] = []
         # Track which drones each connection is interested in for video
@@ -27,11 +31,11 @@ class ConnectionManager:
             del self.subscriptions[websocket]
         if websocket in self.busy_connections:
             self.busy_connections.discard(websocket)
-        
+
         try:
             await websocket.close()
-        except:
-            pass
+        except (ConnectionError, OSError, RuntimeError) as exc:
+            logger.debug("disconnect_close_ignored", error=str(exc))
 
     async def subscribe(self, websocket: WebSocket, drone_id: str):
         """Register interest in a specific drone's video feed."""
@@ -66,9 +70,8 @@ class ConnectionManager:
                 self.busy_connections.add(conn)
                 # Use a tighter timeout to keep the loop moving
                 await asyncio.wait_for(conn.send_json(message), timeout=0.5)
-            except Exception:
-                # If a send fails/times out, we just drop it and proceed
-                pass
+            except (asyncio.TimeoutError, ConnectionError, OSError, RuntimeError) as exc:
+                logger.debug("broadcast_send_dropped", error=str(exc))
             finally:
                 self.busy_connections.discard(conn)
 

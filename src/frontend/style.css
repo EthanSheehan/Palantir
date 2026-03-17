@@ -20,11 +20,11 @@ html, body {
 
 #cesiumContainer {
     flex: 1;
-    position: relative; /* Anchor for camera controls */
+    position: relative;
     height: 100%;
 }
 
-/* Hide default Cesium UI elements to make it look clean */
+/* Hide default Cesium UI elements */
 .cesium-viewer-bottom,
 .cesium-viewer-toolbar,
 .cesium-viewer-animationContainer,
@@ -34,7 +34,6 @@ html, body {
 }
 
 .sidebar {
-    /* Removed absolute positioning */
     width: 320px;
     min-width: 280px;
     max-width: 800px;
@@ -106,10 +105,9 @@ h3 {
 .scale-bar {
     height: 6px;
     border-radius: 3px;
-    /* Red-to-Dark-to-Blue */
-    background: linear-gradient(to right, 
-        rgba(239, 68, 68, 0.9), 
-        rgba(30, 41, 59, 0.8), 
+    background: linear-gradient(to right,
+        rgba(239, 68, 68, 0.9),
+        rgba(30, 41, 59, 0.8),
         rgba(59, 130, 246, 0.9));
     margin-bottom: 8px;
     box-shadow: inset 0 1px 1px rgba(0,0,0,0.5);
@@ -293,6 +291,78 @@ h3 {
 .status-idle { color: #3b82f6; }
 .status-serving { color: #22c55e; }
 .status-repositioning { color: #eab308; }
+.status-painting { color: #ef4444; }
+
+/* --------------------------
+   DRONE ACTION BAR
+   -------------------------- */
+.drone-action-bar {
+    margin-top: 12px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(56, 189, 248, 0.2);
+    border-radius: 6px;
+}
+
+.action-bar-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.action-bar-buttons {
+    display: flex;
+    gap: 6px;
+}
+
+.action-btn {
+    flex: 1;
+    padding: 8px 0;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 4px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.action-btn.action-view {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border-color: rgba(56, 189, 248, 0.3);
+}
+.action-btn.action-view:hover {
+    background: rgba(56, 189, 248, 0.35);
+    color: #fff;
+}
+
+.action-btn.action-follow {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+    border-color: rgba(34, 197, 94, 0.3);
+}
+.action-btn.action-follow:hover {
+    background: rgba(34, 197, 94, 0.35);
+    color: #fff;
+}
+
+.action-btn.action-paint {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.3);
+}
+.action-btn.action-paint:hover {
+    background: rgba(239, 68, 68, 0.35);
+    color: #fff;
+}
 
 /* --------------------------
    ENEMY LIST
@@ -335,6 +405,11 @@ h3 {
     transform: translateX(4px);
 }
 
+.enemy-card.selected {
+    border-color: rgba(250, 204, 21, 0.6);
+    background: rgba(250, 204, 21, 0.08);
+}
+
 .enemy-card-info {
     display: flex;
     flex-direction: column;
@@ -355,10 +430,92 @@ h3 {
     text-transform: uppercase;
 }
 
+.enemy-card-state {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.state-undetected { color: #64748b; background: rgba(100, 116, 139, 0.15); }
+.state-detected { color: #eab308; background: rgba(234, 179, 8, 0.15); }
+.state-identified { color: #f59e0b; background: rgba(245, 158, 11, 0.15); }
+.state-tracked { color: #f97316; background: rgba(249, 115, 22, 0.15); }
+.state-nominated { color: #ef4444; background: rgba(239, 68, 68, 0.15); }
+.state-locked { color: #ef4444; background: rgba(239, 68, 68, 0.15); }
+.state-engaged { color: #dc2626; background: rgba(220, 38, 38, 0.25); }
+.state-neutralized { color: #64748b; background: rgba(100, 116, 139, 0.15); }
+
+@keyframes engagedPulse {
+    0% { border-color: rgba(220, 38, 38, 0.3); }
+    50% { border-color: rgba(220, 38, 38, 0.8); }
+    100% { border-color: rgba(220, 38, 38, 0.3); }
+}
+
+.enemy-card-engaged {
+    animation: engagedPulse 1.2s ease-in-out infinite;
+}
+
+.enemy-card-neutralized {
+    opacity: 0.5;
+}
+
+.threat-summary {
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(100, 116, 139, 0.2);
+    border-radius: 4px;
+    margin-bottom: 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: center;
+}
+
+.threat-count-active {
+    color: #ef4444;
+}
+
+.threat-count-neutralized {
+    color: #64748b;
+}
+
+.enemy-concealed-badge {
+    font-size: 0.55rem;
+    font-weight: 700;
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.15);
+    padding: 1px 4px;
+    border-radius: 3px;
+    letter-spacing: 0.03em;
+}
+
+.assistant-msg-time {
+    font-weight: 700;
+    font-size: 0.65rem;
+}
+
+.enemy-card-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
 .enemy-card-coords {
     font-size: 0.7rem;
     color: #64748b;
     font-family: monospace;
+}
+
+.enemy-card-confidence {
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: #94a3b8;
+    letter-spacing: 0.03em;
 }
 
 .empty-state {
@@ -397,7 +554,7 @@ h3 {
 .camera-controls {
     position: absolute;
     top: 24px;
-    left: 24px; /* Native 24px padding inside the flex child */
+    left: 24px;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -408,11 +565,10 @@ h3 {
     position: absolute;
     right: -6px;
     top: 0;
-    width: 12px; /* Enhanced Hitbox width */
+    width: 12px;
     height: 100%;
     cursor: col-resize;
     z-index: 1010;
-    /* Visual indicator on hover/active */
     transition: background-color 0.2s ease;
 }
 
@@ -481,7 +637,7 @@ h3 {
 
 .btn-tertiary {
     flex: 2;
-    background: rgba(56, 189, 248, 0.15); /* Blue hue */
+    background: rgba(56, 189, 248, 0.15);
     color: #38bdf8;
     border: 1px solid rgba(56, 189, 248, 0.3);
     border-radius: 0;
@@ -505,7 +661,7 @@ h3 {
 
 .btn-secondary {
     flex: 2;
-    background: rgba(220, 38, 38, 0.15); /* Red hue */
+    background: rgba(220, 38, 38, 0.15);
     color: #fca5a5;
     border: 1px solid rgba(239, 68, 68, 0.3);
     border-radius: 0 4px 4px 0;
@@ -520,7 +676,7 @@ h3 {
 
 .btn-secondary:hover {
     background: rgba(239, 68, 68, 0.4);
-    border-color: rgba(239, 68, 68, 0.6) !important;
+    border-color: rgba(239, 68, 68, 0.6);
     color: #fff;
 }
 
@@ -592,119 +748,68 @@ h3 {
     border-top: 1px solid rgba(100, 116, 139, 0.2);
     text-align: center;
 }
+
 /* --------------------------
-   TACTICAL HUD (VISION)
+   THEATER SELECTOR
    -------------------------- */
-.tactical-hud {
-    position: absolute;
-    bottom: 40px;
-    right: 40px;
-    width: 320px;
-    background: rgba(10, 15, 25, 0.9);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(148, 163, 184, 0.3);
-    border-radius: 12px;
-    padding: 12px;
-    z-index: 1500;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+.theater-selector {
     display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.hud-header {
-    display: flex;
-    justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-    padding-bottom: 8px;
+    gap: 10px;
+    margin-bottom: 16px;
 }
 
-#hudDroneId {
-    font-size: 0.8rem;
-    font-weight: 700;
-    color: #38bdf8;
-    letter-spacing: 0.05em;
-}
-
-.live-tag {
-    background: #ef4444;
-    color: white;
-    font-size: 0.6rem;
-    font-weight: 800;
-    padding: 2px 6px;
-    border-radius: 4px;
-    letter-spacing: 0.05em;
-}
-
-.video-container {
-    position: relative;
-    width: 100%;
-    aspect-ratio: 4/3;
-    background: #000;
-    border-radius: 4px;
-    overflow: hidden;
-}
-
-#droneFeedImg {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.hud-overlay {
-    position: absolute;
-    top: 0; left: 0; width: 100%; height: 100%;
-    border: 1px solid rgba(56, 189, 248, 0.2);
-    box-shadow: inset 0 0 40px rgba(56, 189, 248, 0.1);
-    pointer-events: none;
-}
-
-.hud-controls {
-    display: flex;
-    gap: 8px;
-}
-
-.hud-btn {
+.theater-select {
     flex: 1;
-    padding: 10px;
-    border: none;
-    border-radius: 6px;
-    font-family: inherit;
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
+    background: rgba(30, 41, 59, 0.6);
+    color: #e2e8f0;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 30px;
 }
 
-.hud-btn.red {
-    background: #ef4444;
-    color: white;
+.theater-select:hover {
+    background-color: rgba(51, 65, 85, 0.8);
+    border-color: rgba(148, 163, 184, 0.4);
+    color: #fff;
 }
 
-.hud-btn.red:hover { background: #dc2626; }
+.theater-select:focus {
+    outline: none;
+    border-color: rgba(56, 189, 248, 0.5);
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15);
+}
 
-.hud-btn.gray {
-    background: #475569;
+.theater-select option {
+    background: #1e293b;
     color: #e2e8f0;
 }
 
-.hud-btn.gray:hover { background: #334155; }
-
-/* TACTICAL AIP ASSISTANT */
+/* --------------------------
+   TACTICAL AIP ASSISTANT
+   -------------------------- */
 .assistant-widget {
     background: rgba(20, 30, 48, 0.7);
     border: 1px solid rgba(0, 255, 127, 0.3);
     border-radius: 8px;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     backdrop-filter: blur(10px);
     overflow: hidden;
 }
 
 .widget-header {
     background: rgba(0, 255, 127, 0.1);
-    color: var(--accent-color);
+    color: #00ff7f;
     padding: 8px 12px;
     font-size: 11px;
     font-weight: 700;
@@ -725,14 +830,14 @@ h3 {
     flex-direction: column;
     gap: 8px;
     scrollbar-width: thin;
-    scrollbar-color: var(--accent-color) transparent;
+    scrollbar-color: #00ff7f transparent;
 }
 
 .assistant-msg {
     padding: 8px;
     border-radius: 4px;
     background: rgba(255, 255, 255, 0.05);
-    border-left: 3px solid var(--accent-color);
+    border-left: 3px solid #00ff7f;
     animation: slideIn 0.3s ease-out;
 }
 
@@ -745,4 +850,199 @@ h3 {
 @keyframes slideIn {
     from { opacity: 0; transform: translateX(-10px); }
     to { opacity: 1; transform: translateX(0); }
+}
+
+/* --------------------------
+   STRIKE BOARD (placeholder)
+   -------------------------- */
+.strike-board-widget {
+    background: rgba(20, 30, 48, 0.7);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    backdrop-filter: blur(10px);
+    overflow: hidden;
+}
+
+.strike-header {
+    background: rgba(239, 68, 68, 0.1) !important;
+    color: #ef4444 !important;
+    border-bottom-color: rgba(239, 68, 68, 0.2) !important;
+}
+
+.strike-board-log {
+    min-height: 60px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 10px;
+    font-family: 'Inter', monospace;
+    font-size: 11px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: #ef4444 transparent;
+}
+
+.strike-empty {
+    color: #64748b;
+    font-size: 0.75rem;
+    text-align: center;
+    padding: 12px;
+    font-style: italic;
+}
+
+/* ── Strike Board Entries ─────────────────────────────── */
+.strike-entry {
+    background: rgba(10, 15, 25, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-left: 3px solid #eab308;
+    border-radius: 4px;
+    padding: 8px 10px;
+    animation: slideIn 0.3s ease-out;
+}
+
+.strike-entry-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.strike-entry-type {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #e2e8f0;
+    text-transform: uppercase;
+}
+
+.strike-entry-id {
+    font-size: 0.65rem;
+    color: #64748b;
+    font-family: monospace;
+}
+
+.strike-status-badge {
+    margin-left: auto;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.strike-status-pending { color: #eab308; background: rgba(234, 179, 8, 0.15); }
+.strike-status-approved { color: #22c55e; background: rgba(34, 197, 94, 0.15); }
+.strike-status-rejected { color: #ef4444; background: rgba(239, 68, 68, 0.15); }
+.strike-status-retasked { color: #3b82f6; background: rgba(59, 130, 246, 0.15); }
+
+.strike-entry-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 0.6rem;
+    color: #94a3b8;
+    margin-bottom: 6px;
+}
+
+/* ── Strike Actions ───────────────────────────────────── */
+.strike-actions,
+.strike-coa-actions {
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+}
+
+.strike-btn-approve {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+    border-color: rgba(34, 197, 94, 0.3);
+}
+.strike-btn-approve:hover {
+    background: rgba(34, 197, 94, 0.35);
+    color: #fff;
+}
+
+.strike-btn-reject {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.3);
+}
+.strike-btn-reject:hover {
+    background: rgba(239, 68, 68, 0.35);
+    color: #fff;
+}
+
+.strike-btn-retask {
+    background: rgba(234, 179, 8, 0.15);
+    color: #eab308;
+    border-color: rgba(234, 179, 8, 0.3);
+}
+.strike-btn-retask:hover {
+    background: rgba(234, 179, 8, 0.35);
+    color: #fff;
+}
+
+/* ── COA Cards ────────────────────────────────────────── */
+.strike-coa-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 6px;
+}
+
+.strike-coa-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    padding: 6px 8px;
+}
+
+.strike-coa-card.coa-authorized {
+    border-color: rgba(34, 197, 94, 0.4);
+    background: rgba(34, 197, 94, 0.05);
+}
+
+.strike-coa-card.coa-rejected {
+    border-color: rgba(239, 68, 68, 0.3);
+    opacity: 0.5;
+}
+
+.strike-coa-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2px;
+}
+
+.strike-coa-name {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #e2e8f0;
+}
+
+.strike-coa-pk {
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: #22c55e;
+}
+
+.strike-coa-meta {
+    display: flex;
+    gap: 10px;
+    font-size: 0.58rem;
+    color: #64748b;
+}
+
+/* --------------------------
+   LOCK INDICATOR ANIMATION
+   -------------------------- */
+@keyframes lockPulse {
+    0% { opacity: 0.6; transform: scale(1.0); }
+    50% { opacity: 1.0; transform: scale(1.15); }
+    100% { opacity: 0.6; transform: scale(1.0); }
+}
+
+.lock-pulse {
+    animation: lockPulse 1s ease-in-out infinite;
 }

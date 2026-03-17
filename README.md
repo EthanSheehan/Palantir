@@ -1,98 +1,168 @@
-# Palantir C2 – Multi-Agent Decision-Centric C2 System
+# Palantir C2 — Multi-Agent Decision-Centric C2 System
 
 ![Project Status](https://img.shields.io/badge/status-active-success.svg)
+![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 ## Overview
 
-Welcome to **Palantir C2**. This system is a high-fidelity recreation of the multi-domain Command and Control (C2) capabilities demonstrated in the Palantir "Maven Smart System" showcase. It focuses on a **"decision-centric"** orchestration model, utilizing specialized AI agents to automate the F2T2EA kill chain.
+**Palantir C2** is a high-fidelity Command and Control system that automates the **F2T2EA kill chain** (Find, Fix, Track, Target, Engage, Assess) using multi-agent AI orchestration, a physics-based tactical simulator, and a Cesium 3D geospatial frontend.
 
-It comes equipped with:
+The system features:
 
-- **Unified Directory Structure**: Clean separation of code, config, data, and docs.
-- **Embedded Agent Skills**: A full library of AI-assisted skills in `/.agent/skills`.
-- **Strict Engineering Rules**: Automated enforcement of documentation rigor and commit etiquette.
+- **8 AI Agents** orchestrating the full kill chain pipeline with heuristic + LLM fallback
+- **Human-in-the-Loop (HITL)** two-gate approval system for strike authorization
+- **Physics-based simulation** with red force AI, 8 unit behaviors, and UAV fuel/endurance modeling
+- **3 Theater configurations** (Romania, South China Sea, Baltic) with YAML-based scenario definition
+- **Real-time Cesium 3D visualization** with WebSocket-driven 10Hz updates
 
-## Directory Structure
-
-```plaintext
-/src
-    /python        # Python source code
-    /matlab        # MATLAB scripts and Simulink models
-/configs           # Configuration files (.json, .yaml)
-/data              # Simulation data (gitignored if large)
-/docs              # System diagrams and documentation
-/tex               # LaTeX files for papers/reports
-/.agent            # AI Agent configuration (Rules, Skills, Workflows)
-```
-
-## Components
-
-### 1. C2 Dashboard (Frontend)
-A high-fidelity situational awareness display built with **MapLibre GL JS** and **Tailwind CSS**.
-- **3D Terrain**: Real-time 3D elevation rendering.
-- **Tactical HUD**: Integrated drone feeds with telemetry overlays.
-- **Map Tools**:
-    - `Coordinate Readout`: Precise Lat/Lon tracking on hover.
-    - `Layer Switcher`: Toggle between Dark, Satellite, and OpenStreetMap styles.
-    - `Distance Ruler`: Tactical tool for measuring distance between two points.
-
-### 2. Drone Simulator & Vision
-A Python-based simulation engine for multiple UAV feeds and mission scenarios.
-- **Multi-Drone Feed**: Simulatenous relay of multiple sensor streams (Viper-01, Raven-02).
-- **Mission Scenarios**: Pre-configured autonomous scanning patterns (Circular, Grid).
-- **Computer Vision**: Integrated telemetry relay using the Palantir Tactical Ontology.
-
-## Getting Started
+## Quick Start
 
 ### Prerequisites
 
-- **Python**: 3.9+ (Environment already configured with `venv/`)
-- **Web Browser**: Chrome/Safari/Firefox
+- **Python 3.10+** with venv
+- **Web Browser** (Chrome/Safari/Firefox)
 
-### Easy Startup
+### Setup
 
-To launch the entire system (Backend, Drone Simulator, and Dashboard) in one command:
+```bash
+# Clone and enter project
+git clone <repo-url> && cd Palantir
+
+# Create virtual environment and install dependencies
+python3 -m venv venv
+./venv/bin/pip install -r requirements.txt
+
+# Copy environment config (optional — system works without API keys)
+cp .env.example .env
+```
+
+### Launch
 
 ```bash
 ./palantir.sh
 ```
 
-The system will:
-1. Start the **API Backend** (FastAPI) on port 8000.
-2. Start the **C2 Dashboard** (HTTP Server) on port 3000.
-3. Start the **Drone Simulator** (Viper-01 & Raven-02).
-4. Automatically open your default browser to [http://localhost:3000](http://localhost:3000).
+This starts:
+1. **FastAPI Backend** on `http://localhost:8000` (API + WebSocket server)
+2. **Cesium Dashboard** on `http://localhost:3000` (3D tactical display)
+3. **Drone Simulator** (UAV telemetry + video feeds)
+4. Opens your browser automatically
 
-### Running Specific Scenarios
-
-To toggle between different mission types:
+### Run Components Individually
 
 ```bash
-./run_scenarios.sh
+./venv/bin/python3 src/python/api_main.py                    # Backend only
+cd src/frontend && python3 -m http.server 3000                # Dashboard only
+./venv/bin/python3 src/python/vision/video_simulator.py       # Simulator only
 ```
 
-## Python Workflows
+### Run Tests
 
-- **Backend**: Core logic in `src/python/api_main.py`.
-- **Vision**: Simulator and processing logic in `src/python/vision/`.
-- **Testing**: Use `pytest` for verification.
+```bash
+./venv/bin/python3 -m pytest src/python/tests/                # All tests
+./venv/bin/python3 -m pytest src/python/tests/test_sim_integration.py  # Single file
+```
 
-## Documentation Standards
+## Architecture
 
-This project adheres to strict **Scientific Rigor**.
+```
+src/
+  python/
+    api_main.py              # FastAPI server + WebSocket + agent pipeline
+    sim_engine.py            # Physics simulation (UAVs, targets, zones)
+    pipeline.py              # F2T2EA kill chain orchestrator
+    config.py                # Pydantic-settings env var management
+    hitl_manager.py          # Two-gate HITL approval system
+    theater_loader.py        # YAML theater configuration loader
+    llm_adapter.py           # Multi-provider LLM fallback chain
+    sensor_model.py          # Probabilistic detection (Pd/RCS)
+    agents/
+      isr_observer.py        # Find/Fix/Track — sensor fusion
+      strategy_analyst.py    # Target — ROE evaluation + priority scoring
+      tactical_planner.py    # Engage — COA generation
+      effectors_agent.py     # Assess — execution + BDA
+      pattern_analyzer.py    # Activity pattern analysis
+      ai_tasking_manager.py  # Sensor retasking optimization
+      battlespace_manager.py # Map layers + threat rings
+      synthesis_query_agent.py # SITREP generation
+    tests/                   # 214+ pytest tests
+  frontend/
+    app.js                   # Entry point (imports ES modules)
+    index.html               # Cesium 3D viewer + sidebar UI
+    style.css                # Dark theme styles
+    state.js                 # Shared application state
+    websocket.js             # WebSocket connection + event dispatch
+    map.js                   # Cesium viewer initialization
+    drones.js                # UAV entity rendering + drone list
+    targets.js               # Target visualization + threat rings
+    enemies.js               # ENEMIES tab with threat rows
+    strikeboard.js           # Strike Board HITL UI
+    sidebar.js               # Tab navigation + controls
+    assistant.js             # Tactical AIP message feed
+    theater.js               # Theater selector dropdown
+theaters/
+  romania.yaml               # Default theater config
+  south_china_sea.yaml       # Pacific theater config
+  baltic.yaml                # Baltic theater config
+```
 
-- **Code**: Must be documented with clear docstrings explaining _why_, not just _what_.
-- **Research**: Significant derivations must be documented in `/docs` using LaTeX or Markdown with MathJax.
-- **No Hallucinations**: Documentation describes only what exists.
+### AI Agent Pipeline
+
+```
+ISR Observer → Strategy Analyst → [HITL Gate 1: Nomination] → Tactical Planner → [HITL Gate 2: COA Auth] → Effectors Agent
+```
+
+Each agent works in **heuristic mode** by default (no API keys needed). When LLM keys are configured in `.env`, agents upgrade to LLM-backed reasoning via the multi-provider fallback chain (Gemini → Anthropic → Ollama → heuristic).
+
+### Simulation
+
+The sim engine models:
+- **UAVs**: 7 operational modes (idle, scanning, tracking, painting, repositioning, RTB, serving), fuel consumption, zone-based coverage optimization
+- **Targets**: 8 unit types (SAM, TEL, TRUCK, CP, MANPADS, RADAR, ARTILLERY, APC) with type-specific behaviors (patrol, ambush, shoot-and-scoot, concealment, flee)
+- **Environment**: Time of day, cloud cover, precipitation affecting sensor performance
+- **Detection**: Probabilistic Pd model incorporating range, RCS, weather penalties
+
+### WebSocket Protocol
+
+The backend broadcasts full simulation state as JSON at 10Hz to all connected dashboard clients. The protocol supports:
+- `state` — full sim state (drones, targets, zones, strike board)
+- `ASSISTANT_MESSAGE` — AI agent notifications (INFO/WARNING/CRITICAL)
+- `HITL_UPDATE` — strike board nomination and COA status changes
+- `SITREP_RESPONSE` — situation report query results
+- Client actions: `spike`, `move_drone`, `view_target`, `follow_target`, `paint_target`, `cancel_track`, `approve_nomination`, `reject_nomination`, `authorize_coa`, `sitrep_query`, `retask_sensors`
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| WS | `/ws` | WebSocket (10Hz sim state + bidirectional commands) |
+| POST | `/api/sitrep` | Generate situation report |
+| POST | `/api/environment` | Set weather/time conditions |
+| GET | `/api/theaters` | List available theaters |
+| POST | `/api/theater` | Switch active theater |
+
+## Environment Variables
+
+See `.env.example` for all options. The system runs fully without API keys using heuristic agent mode.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OPENAI_API_KEY` | (empty) | OpenAI API key (optional) |
+| `ANTHROPIC_API_KEY` | (empty) | Anthropic API key (optional) |
+| `GEMINI_API_KEY` | (empty) | Google Gemini API key (optional) |
+| `HOST` | `0.0.0.0` | Server bind address |
+| `PORT` | `8000` | Server port |
+| `SIMULATION_HZ` | `10` | Simulation tick rate |
+| `DEFAULT_THEATER` | `romania` | Default theater to load |
 
 ## Contributing
 
-1.  Create a feature branch: `git checkout -b feat/new-control-law`
-2.  Commit your changes: `git commit -m "feat: implement PID controller"`
-3.  Push to the branch: `git push origin feat/new-control-law`
-4.  Open a Pull Request.
+1. Create a feature branch: `git checkout -b feat/new-feature`
+2. Write tests first (TDD): `./venv/bin/python3 -m pytest src/python/tests/`
+3. Commit changes: `git commit -m "feat: description"`
+4. Push and open a PR
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License — see [LICENSE](LICENSE) for details.
