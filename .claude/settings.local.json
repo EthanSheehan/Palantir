@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"\\\\.py$|^d\")",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(rm -rf /tmp/everything-claude-code)",
+      "Bash(git clone:*)",
+      "Bash(cp -r /tmp/everything-claude-code/skills/* ~/.claude/skills/)",
+      "Bash(cp -r /tmp/everything-claude-code/rules/common/* ~/.claude/rules/)",
+      "Bash(claude config:*)",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); [print\\(p[''''name'''']\\) for p in data.get\\(''''plugins'''', []\\)]\")",
+      "Bash(for plugin:*)",
+      "Bash(do echo:*)",
+      "Bash(cat ~/.claude/plugins/cache/claude-plugins-official/pyright-lsp/*/plugin.json)",
+      "Bash(python3 -m json.tool)",
+      "Bash(cat ~/.claude/plugins/cache/claude-plugins-official/github/*/plugin.json)",
+      "Bash(cat ~/.claude/plugins/cache/claude-plugins-official/hookify/*/plugin.json)",
+      "Skill(update-config)",
+      "Bash(npm --version)",
+      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
+      "Bash(npx --version)",
+      "Bash(curl -s http://localhost:3000/)",
+      "Bash(curl -s http://localhost:3000/index.html)",
+      "Bash(wc -l /Users/Rocklord/Documents/GitHub/Palantir/src/python/**/*.py)",
+      "Bash(file /Users/Rocklord/Documents/GitHub/Palantir/src/frontend/*.glb)",
+      "Bash(git check-ignore:*)",
+      "Bash(git config:*)"
+    ]
+  }
+}

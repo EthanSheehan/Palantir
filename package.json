@@ -1,0 +1,38 @@
+{
+  "name": "palantir",
+  "version": "1.0.0",
+  "description": "![Project Status](https://img.shields.io/badge/status-active-success.svg) ![License](https://img.shields.io/badge/license-MIT-blue.svg)",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "npm run test:e2e",
+    "test:e2e": "npx playwright test",
+    "test:e2e:ui": "npx playwright test --ui",
+    "test:e2e:headed": "npx playwright test --headed",
+    "test:e2e:debug": "npx playwright test --debug",
+    "test:e2e:report": "npx playwright show-report",
+    "test:e2e:trace": "npx playwright test --trace on",
+    "test:e2e:live": "PALANTIR_LIVE=1 npx playwright test --grep @live",
+    "test:e2e:critical": "npx playwright test tests/e2e/01-websocket-connection.spec.ts tests/e2e/02-tab-navigation.spec.ts tests/e2e/03-drone-list.spec.ts tests/e2e/04-enemy-list.spec.ts tests/e2e/05-mission-status.spec.ts tests/e2e/06-tactical-assistant.spec.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EthanSheehan/Palantir.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/EthanSheehan/Palantir/issues"
+  },
+  "homepage": "https://github.com/EthanSheehan/Palantir#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^25.5.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}

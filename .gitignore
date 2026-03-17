@@ -9,6 +9,29 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Secrets & credentials — NEVER commit these
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.pfx
+*.jks
+*.keystore
+**/secrets/
+**/credentials/
+*credentials*.json
+*secret*.json
+*token*.json
+*.gpg
+**/api_key*
+**/apikey*
+**/access_token*
+**/auth_token*
+
 # Python
 __pycache__/
 *.py[cod]
@@ -36,6 +59,18 @@ wheels/
 .venv/
 venv/
 ENV/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn/
 
 # MATLAB
 *.autosave
@@ -84,10 +119,16 @@ sfprj/
 *.onnx
 *.weights
 *.ckpt
+*.safetensors
+*.bin
 
-# Antigravity Specific
-# Antigravity Specific
-.agent/memory/
+# Antigravity Specific (keep .claude/ and .agent/ tracked)
+# .agent/memory/
+
+# Playwright / test artifacts
+test-results/
+playwright-report/
+blob-report/
 
 # Generated Artifacts (Test outputs)
 *.png
@@ -96,6 +137,11 @@ sfprj/
 *.svg
 *.fig
 *.eps
-!/docs/images/*.png  # Allow documentation images
+!/docs/images/*.png
 !/docs/images/*.jpg
 !/docs/images/*.svg
+
+# Misc
+*.sqlite
+*.db
+*.dump

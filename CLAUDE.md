@@ -77,3 +77,37 @@ Agents communicate through Pydantic models defined in `src/python/core/ontology.
 ### WebSocket Protocol
 
 The backend sends JSON payloads each tick containing drone positions, target positions, grid zone states, and tactical assistant messages. The frontend subscribes and updates Cesium entities in real time. Simulator clients send back video frames (base64 MJPEG) and telemetry.
+
+## Agent Workflow (MANDATORY)
+
+This project uses the `everything-claude-code` plugin agents. These MUST be used proactively — do not wait for the user to ask.
+
+### Automatic Agent Triggers
+
+| Trigger | Agent (`subagent_type`) | When |
+|---------|------------------------|------|
+| Feature request or complex task | `everything-claude-code:planner` | Before writing any code |
+| Architectural decision | `everything-claude-code:architect` | System design, scalability questions |
+| New feature or bug fix | `everything-claude-code:tdd-guide` | Write tests first (RED/GREEN/IMPROVE) |
+| Code written or modified | `everything-claude-code:python-reviewer` | Immediately after any Python change |
+| Code written or modified | `everything-claude-code:code-reviewer` | Immediately after any non-Python change |
+| Build/test failure | `everything-claude-code:build-error-resolver` | When pytest or any build fails |
+| Before commit | `everything-claude-code:security-reviewer` | Check for secrets, injection, OWASP Top 10 |
+| Dead code / cleanup | `everything-claude-code:refactor-cleaner` | Code maintenance tasks |
+| Documentation needed | `everything-claude-code:doc-updater` | After significant changes |
+| E2E testing needed | `everything-claude-code:e2e-runner` | Critical user flow validation |
+| Database changes | `everything-claude-code:database-reviewer` | Schema/query changes |
+
+### Parallel Execution (REQUIRED)
+
+Always launch independent agents in parallel. Example: after writing a feature, launch `python-reviewer` and `security-reviewer` simultaneously — never sequentially.
+
+### Development Pipeline
+
+Every feature follows this pipeline:
+1. **Plan** → `everything-claude-code:planner`
+2. **TDD** → `everything-claude-code:tdd-guide`
+3. **Implement** → write code
+4. **Review** → `everything-claude-code:python-reviewer` + `everything-claude-code:security-reviewer` (parallel)
+5. **Fix** → address review findings
+6. **Commit** → conventional commits format
