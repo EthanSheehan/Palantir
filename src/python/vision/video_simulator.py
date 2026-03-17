@@ -139,14 +139,34 @@ class DroneSimulator:
             block["x"] = (block["x"] + block["vx"]) % self.width
             block["y"] = (block["y"] + block["vy"]) % self.height
             
-            # Draw block
-            cv2.rectangle(frame, (int(block["x"]-12), int(block["y"]-12)), 
-                          (int(block["x"]+12), int(block["y"]+12)), block["color"], 2)
-            cv2.line(frame, (int(block["x"]-15), int(block["y"])), (int(block["x"]+15), int(block["y"])), block["color"], 1)
-            cv2.line(frame, (int(block["x"]), int(block["y"]-15)), (int(block["x"]), int(block["y"]+15)), block["color"], 1)
+            # Draw AI Bounding Box
+            bx, by = int(block["x"]), int(block["y"])
+            bw, bh = 40, 40
+            cv2.rectangle(frame, (bx - bw//2, by - bh//2), (bx + bw//2, by + bh//2), block["color"], 1)
             
-            cv2.putText(frame, block["type"], (int(block["x"]-15), int(block["y"]-20)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, (200, 200, 200), 1)
+            # Corner markers for the box
+            cl = 10
+            cv2.line(frame, (bx-bw//2, by-bh//2), (bx-bw//2+cl, by-bh//2), block["color"], 2)
+            cv2.line(frame, (bx-bw//2, by-bh//2), (bx-bw//2, by-bh//2+cl), block["color"], 2)
+            
+            cv2.line(frame, (bx+bw//2, by-bh//2), (bx+bw//2-cl, by-bh//2), block["color"], 2)
+            cv2.line(frame, (bx+bw//2, by-bh//2), (bx+bw//2, by-bh//2+cl), block["color"], 2)
+            
+            cv2.line(frame, (bx-bw//2, by+bh//2), (bx-bw//2+cl, by+bh//2), block["color"], 2)
+            cv2.line(frame, (bx-bw//2, by+bh//2), (bx-bw//2, by+bh//2-cl), block["color"], 2)
+            
+            cv2.line(frame, (bx+bw//2, by+bh//2), (bx+bw//2-cl, by+bh//2), block["color"], 2)
+            cv2.line(frame, (bx+bw//2, by+bh//2), (bx+bw//2, by+bh//2-cl), block["color"], 2)
+
+            # Label & Confidence
+            conf = 0.92 + (random.random() * 0.05)
+            label = f"{block['type']} [{conf:.2f}]"
+            cv2.putText(frame, label, (bx - bw//2, by - bh//2 - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, block["color"], 1)
+            
+            # Crosshair in box
+            cv2.line(frame, (bx-5, by), (bx+5, by), block["color"], 1)
+            cv2.line(frame, (bx, by-5), (bx, by+5), block["color"], 1)
             
             # Project to GPS
             lat, lon = pixel_to_gps(
@@ -199,9 +219,11 @@ class DroneSimulator:
                             self.scenario = PaintingScenario(target_id)
                         elif scenario_name == "DISCOVERY":
                             self.scenario = ScanningScenario(pattern="circular")
-                            self.blocks = [
-                                {"id": "CP-1", "x": random.randint(100, 700), "y": random.randint(100, 500), "vx": 2, "vy": 1, "color": (0, 0, 255), "type": "TEL"},
-                                {"id": "CP-2", "x": random.randint(100, 700), "y": random.randint(100, 500), "vx": -1, "vy": 2, "color": (255, 0, 0), "type": "CP"}
+                        self.blocks = [
+                                {"id": "CP-1", "x": random.randint(100, 700), "y": random.randint(100, 500), "vx": 2, "vy": 1, "color": (255, 100, 0), "type": "TEL"},
+                                {"id": "CP-2", "x": random.randint(100, 700), "y": random.randint(100, 500), "vx": -1, "vy": 2, "color": (0, 150, 255), "type": "CP"},
+                                {"id": "TGT-ALPHA", "x": random.randint(100, 700), "y": random.randint(100, 500), "vx": 1, "vy": -1, "color": (0, 0, 255), "type": "SAM"},
+                                {"id": "TGT-BRAVO", "x": random.randint(100, 700), "y": random.randint(100, 500), "vx": -2, "vy": 0.5, "color": (0, 255, 255), "type": "TRUCK"}
                             ]
                 
                 # Update scenario
@@ -226,12 +248,11 @@ class DroneSimulator:
                     }
                 }
                 try:
-                    # Push drone state telemetry
-                    await self.connector.send_telemetry(drone_track, drone_id=self.drone_id)
-
-                    # Push detections
-                    for det in detections:
-                        await self.connector.send_telemetry(det, drone_id=self.drone_id)
+                    # Collect all tracks for this tick (Drone itself + Detections)
+                    all_tracks = [drone_track] + detections
+                    
+                    # Push all tracks in a single batch to minimize overhead
+                    await self.connector.send_telemetry_batch(all_tracks, drone_id=self.drone_id)
                     
                     # Stream frames less frequently to avoid network congestion
                     if tick_count % 3 == 0:  # ~3.3 FPS
@@ -244,12 +265,13 @@ class DroneSimulator:
                     error_str = str(e).lower()
                     if "1011" in error_str or "timeout" in error_str or "keepalive" in error_str:
                         # Transient network/busy error, just skip this tick
-                        print(f"[{self.drone_id}] Transient WS error (dropping frame): {e}")
+                        print(f"[{self.drone_id}] Transient WS error (dropping data): {e}")
                         pass
                     else:
                         print(f"[{self.drone_id}] Connection lost, retrying: {e}")
                         await asyncio.sleep(5)
                         break # Exit the inner while to trigger the outer reconnect
+
 
         except Exception as e:
             print(f"[{self.drone_id}] Global Error: {e}")
@@ -263,8 +285,8 @@ class DroneSimulator:
 async def main():
     # Multi-drone simulation with reduced load in Romania
     drones = [
-        DroneSimulator("Viper-01", origin_lat=45.9432, origin_lon=24.9668, fps=8),
-        DroneSimulator("Raven-02", origin_lat=46.1000, origin_lon=25.2000, fps=8)
+        DroneSimulator("0", origin_lat=45.9432, origin_lon=24.9668, fps=8),
+        DroneSimulator("1", origin_lat=46.1000, origin_lon=25.2000, fps=8)
     ]
 
     

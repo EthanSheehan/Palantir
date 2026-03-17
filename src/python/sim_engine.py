@@ -15,6 +15,8 @@ class Target:
         self.vx = math.cos(angle) * self.speed
         self.vy = math.sin(angle) * self.speed
         self.detected = False
+        self.type = random.choice(["SAM", "TEL", "TRUCK", "CP"])
+        self.detected_time = 0
 
     def update(self, dt_sec: float, bounds: dict):
         self.x += self.vx * dt_sec
@@ -269,6 +271,7 @@ class SimulationModel:
                     "id": t.id,
                     "lon": t.x,
                     "lat": t.y,
+                    "type": t.type,
                     "detected": t.detected
                 } for t in self.targets
             ]

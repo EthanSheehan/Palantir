@@ -43,6 +43,16 @@
                 </div>
             </div>
             
+            <!-- TACTICAL AIP ASSISTANT -->
+            <div class="assistant-widget">
+                <div class="widget-header">
+                    <i class="fas fa-robot"></i> TACTICAL AIP ASSISTANT
+                </div>
+                <div id="assistant-log" class="assistant-log">
+                    <div class="assistant-msg system">AIP System Initialized...</div>
+                </div>
+            </div>
+            
             <div class="legend">
                 <h3>Geospatial Imbalance</h3>
                 <div class="legend-scale">
@@ -77,7 +87,14 @@
 
         <!-- TAB 3: ENEMIES -->
         <div id="tab-enemies" class="tab-content">
-            <div class="empty-state">No hostile entities detected.</div>
+            <div class="enemy-list-header">
+                <span>ID</span>
+                <span>TYPE</span>
+                <span>COORDS</span>
+            </div>
+            <div id="enemyListContainer" class="enemy-list">
+                <div class="empty-state">No hostile entities detected.</div>
+            </div>
         </div>
         
         <!-- Drag to Resize Handle -->

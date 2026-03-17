@@ -57,7 +57,16 @@ viewer.camera.flyTo({
     duration: 0 
 });
 
+const hudElement = document.getElementById('tacticalHud');
+const hudDroneIdElement = document.getElementById('hudDroneId');
+const droneFeedImg = document.getElementById('droneFeedImg');
+const paintTargetBtn = document.getElementById('paintTargetBtn');
+const stopPaintingBtn = document.getElementById('stopPaintingBtn');
+
+let selectedDroneId = null;
+
 // 2. Data Structures for ultra-fast rendering
+
 let zonesPrimitive = null;
 let zoneBordersPrimitive = null;
 let gridVisState = 2; // 2 = ON, 1 = OUTLINES ONLY, 0 = OFF
@@ -80,12 +89,23 @@ function getDronePin(statusColor) {
 }
 
 
-function getTargetIcon(detected) {
-    const color = detected ? '#ef4444' : 'rgba(255, 255, 255, 0.4)';
-    const size = detected ? 32 : 16;
+const TARGET_MAP = {
+    'SAM': {icon: 'fas fa-shield-alt', color: '#ff4444', label: 'SAM'},
+    'TEL': {icon: 'fas fa-truck-pickup', color: '#ffa500', label: 'TEL'},
+    'TRUCK': {icon: 'fas fa-truck', color: '#ffffff', label: 'TRUCK'},
+    'CP': {icon: 'fas fa-building', color: '#3b82f6', label: 'CP'}
+};
+
+function getTargetIcon(target) {
+    const config = TARGET_MAP[target.type] || {icon: 'fas fa-circle', color: '#ffcc00', label: 'TGT'};
+    // Improved visibility: Use yellow/gold for undetected targets instead of faint white
+    const color = target.detected ? config.color : 'rgba(255, 204, 0, 0.7)';
+    const size = target.detected ? 32 : 20; // Slightly larger undetected markers
+    
     const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
         <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 2}" stroke="${color}" stroke-width="2" fill="none" />
-        <circle cx="${size/2}" cy="${size/2}" r="2" fill="${color}" />
+        <circle cx="${size/2}" cy="${size/2}" r="${size/4}" fill="${color}" />
+        ${target.detected ? `<text x="${size/2}" y="${size + 12}" fill="${color}" font-size="10" font-family="Inter" font-weight="bold" text-anchor="middle">${config.label}</text>` : ''}
     </svg>`;
     return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
 }
@@ -695,7 +715,7 @@ function updateSimulation(state) {
                     name: `Target-${t.id}`,
                     position: positionProperty,
                     billboard: {
-                        image: getTargetIcon(t.detected),
+                        image: getTargetIcon(t),
                         verticalOrigin: Cesium.VerticalOrigin.CENTER,
                         heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND
                     }
@@ -714,7 +734,7 @@ function updateSimulation(state) {
                 marker.position.addSample(targetTime, position);
                 
                 // Update visibility/icon based on detection
-                marker.billboard.image = getTargetIcon(t.detected);
+                marker.billboard.image = getTargetIcon(t);
                 marker.billboard.color = t.detected ? Cesium.Color.WHITE : Cesium.Color.WHITE.withAlpha(0.5);
             }
         });
@@ -726,9 +746,74 @@ function updateSimulation(state) {
                 delete targetEntities[id];
             }
         });
+
+        // 4.5 Update Enemy Sidebar List
+        updateEnemyList(state.targets);
     }
 
     viewer.scene.requestRender();
+}
+
+/**
+ * Updates the sidebar enemies tab with localized hostiles.
+ */
+function updateEnemyList(targets) {
+    const container = document.getElementById('enemyListContainer');
+    if (!container) return;
+
+    const detectedTargets = targets.filter(t => t.detected);
+    
+    if (detectedTargets.length === 0) {
+        if (!container.querySelector('.empty-state')) {
+            container.innerHTML = '<div class="empty-state">No hostile entities detected.</div>';
+        }
+        return;
+    }
+
+    // Clear empty state if detected targets exist
+    const empty = container.querySelector('.empty-state');
+    if (empty) container.removeChild(empty);
+
+    const activeIds = new Set(detectedTargets.map(t => t.id));
+
+    // Remove old cards
+    Array.from(container.children).forEach(card => {
+        if (!activeIds.has(parseInt(card.dataset.id))) {
+            container.removeChild(card);
+        }
+    });
+
+    // Create or update cards
+    detectedTargets.forEach(t => {
+        let card = container.querySelector(`[data-id="${t.id}"]`);
+        if (!card) {
+            card = document.createElement('div');
+            card.className = 'enemy-card';
+            card.dataset.id = t.id;
+            
+            card.addEventListener('click', () => {
+                const entity = viewer.entities.getById(`target_${t.id}`);
+                if (entity) {
+                    viewer.flyTo(entity, {
+                        offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-45), 1000)
+                    });
+                }
+            });
+            
+            container.appendChild(card);
+        }
+
+        const lonStr = t.lon.toFixed(4);
+        const latStr = t.lat.toFixed(4);
+        
+        card.innerHTML = `
+            <div class="enemy-card-info">
+                <div class="enemy-card-id">TARGET-${t.id}</div>
+                <div class="enemy-card-type">${t.type}</div>
+            </div>
+            <div class="enemy-card-coords">${latStr}, ${lonStr}</div>
+        `;
+    });
 }
 
 // 4.5 3D Compass Projection Cursor
@@ -876,6 +961,8 @@ function connectWebSocket() {
     ws.onopen = () => {
         connStatus.textContent = "Uplink Active";
         connStatus.className = "stat-value connected";
+        // Identify specifically as a dashboard to filter incoming traffic
+        ws.send(JSON.stringify({type: "IDENTIFY", client_type: "DASHBOARD"}));
     };
     
     ws.onclose = () => {
@@ -886,10 +973,35 @@ function connectWebSocket() {
     
     ws.onmessage = (event) => {
         const payload = JSON.parse(event.data);
+        
+        if (payload.type === 'ASSISTANT_MESSAGE') {
+            const log = document.getElementById('assistant-log');
+            if (log) {
+                const msgEl = document.createElement('div');
+                msgEl.className = 'assistant-msg';
+                msgEl.innerHTML = `<strong>[${payload.timestamp}]</strong> ${payload.text}`;
+                log.insertBefore(msgEl, log.firstChild);
+                if (log.children.length > 20) log.removeChild(log.lastChild);
+            }
+            return;
+        }
+
         if (payload.type === "state") {
             updateSimulation(payload.data);
+        } else if (payload.type === "DRONE_FEED") {
+            // Handle video stream for selected drone
+            // Use loose equality to handle string vs number IDs
+            if (selectedDroneId == payload.drone_id) {
+                droneFeedImg.src = 'data:image/jpeg;base64,' + payload.data.frame;
+                hudDroneIdElement.textContent = payload.drone_id;
+            }
+        } else if (payload.type === "TRACK_UPDATE" || payload.type === "TRACK_UPDATE_BATCH") {
+            // Processing vision-based track data
+            // These can be used for HUD overlays or specialized map targets
         }
     };
+
+
 }
 connectWebSocket();
 
@@ -1039,7 +1151,30 @@ document.getElementById('decoupleCameraBtn').addEventListener('click', () => {
     viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
     
     document.getElementById('cameraControls').style.display = 'none';
+    hudElement.style.display = 'none';
+    selectedDroneId = null;
 });
+
+paintTargetBtn.addEventListener('click', () => {
+    if (selectedDroneId && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ 
+            action: "SET_SCENARIO", 
+            drone_id: selectedDroneId, 
+            scenario: "PAINTING" 
+        }));
+    }
+});
+
+stopPaintingBtn.addEventListener('click', () => {
+    if (selectedDroneId && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ 
+            action: "SET_SCENARIO", 
+            drone_id: selectedDroneId, 
+            scenario: "DISCOVERY" 
+        }));
+    }
+});
+
 
 function triggerDroneSelection(entity, viewMode = 'macro') {
     document.getElementById('cameraControls').style.display = 'flex';
@@ -1053,8 +1188,14 @@ function triggerDroneSelection(entity, viewMode = 'macro') {
     macroTrackedId = null;
     isMacroTrackingReady = false;
     lastDronePosition = null;
+
+    const droneIdStr = entity.id.replace('uav_', '');
+    selectedDroneId = droneIdStr;
+    hudElement.style.display = 'flex';
+    hudDroneIdElement.textContent = droneIdStr;
     
     if (viewMode === 'thirdPerson') {
+
         entity.viewFrom = undefined; 
         viewer.flyTo(entity, {
             duration: 1.5,
