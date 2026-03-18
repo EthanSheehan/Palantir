@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <title>Cesium 3D Macro Grid</title>
+    
+    <!-- CesiumJS CSS/JS from CDN -->
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    
+    <!-- Custom Style -->
+    <!-- fonts.css MUST be first: declares @font-face for self-hosted Inter before any rule uses it -->
+    <link href="fonts.css" rel="stylesheet">
+    <link href="style.css?v=17" rel="stylesheet">
+    <link href="workspace-shell.css?v=16" rel="stylesheet">
+</head>
+<body>
+<div id="appContainer">
+
+    <div id="uiPanel" class="sidebar dark-theme">
+        <h1 class="title">System Dashboard</h1>
+
+        <!-- Toolbar (placeholder, populated by workspace shell) -->
+        <div id="toolbarContainer" class="toolbar">
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="tab-mission">MISSION</button>
+            <button class="tab-btn" data-tab="tab-drones">ASSETS</button>
+            <button class="tab-btn" data-tab="tab-ops">OPS</button>
+            <button class="tab-btn" data-tab="tab-alerts">ALERTS</button>
+            <button class="tab-btn" data-tab="tab-grid">GRID</button>
+        </div>
+
+        <!-- TAB 1: MISSION -->
+        <div id="tab-mission" class="tab-content active-tab">
+            <div class="stats">
+                <div class="stat-row">
+                    <span class="stat-label">Uplink:</span>
+                    <span id="connStatus" class="stat-value disconnected">Offline</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Active UAVs:</span>
+                    <span id="uavCount" class="stat-value">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Monitored Zones:</span>
+                    <span id="zoneCount" class="stat-value">0</span>
+                </div>
+            </div>
+
+            <div class="legend">
+                <h3>Geospatial Imbalance</h3>
+                <div class="legend-scale">
+                    <div class="scale-bar"></div>
+                    <div class="scale-labels">
+                        <span>Critical Shortage</span>
+                        <span>Stable</span>
+                        <span>Surplus Density</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button id="resetQueueBtn" class="btn">Override: Reset Grid</button>
+            </div>
+
+            <!-- Mission List -->
+            <h3>Missions</h3>
+            <div id="missionListContainer" class="panel-list">
+                <div class="empty-state">No missions. Create one below.</div>
+            </div>
+
+            <!-- Create Mission Form -->
+            <form id="createMissionForm" class="create-form">
+                <input type="text" id="missionName" placeholder="Mission name" required class="form-input">
+                <select id="missionType" class="form-input">
+                    <option value="rebalance">Rebalance</option>
+                    <option value="surveillance">Surveillance</option>
+                    <option value="delivery">Delivery</option>
+                    <option value="patrol">Patrol</option>
+                    <option value="emergency_response">Emergency Response</option>
+                    <option value="custom">Custom</option>
+                </select>
+                <select id="missionPriority" class="form-input">
+                    <option value="normal">Normal</option>
+                    <option value="low">Low</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                </select>
+                <input type="text" id="missionObjective" placeholder="Objective (optional)" class="form-input">
+                <button type="submit" class="btn btn-sm">Create Mission</button>
+            </form>
+        </div>
+
+        <!-- TAB 2: TARGETS -->
+        <div id="tab-targets" class="tab-content">
+
+            <!-- Section header with Paint Target button -->
+            <div class="target-tab-header">
+                <span class="target-tab-title">Targets</span>
+                <button id="paintTargetBtn" class="target-add-btn" title="Paint Target — click globe to place">+</button>
+            </div>
+
+            <!-- Collapsible target filters -->
+            <div class="asset-filters" id="targetFiltersSection">
+                <div class="asset-filters-header" id="targetFiltersToggle">
+                    <span class="asset-filters-title">Target Filters</span>
+                    <span class="asset-filters-arrow" id="targetFiltersArrow">›</span>
+                </div>
+                <div class="asset-filters-body" id="targetFiltersBody">
+                    <div class="filter-pills">
+                        <button class="filter-pill active" data-target-filter="all">All</button>
+                        <button class="filter-pill" data-target-filter="active">Active</button>
+                        <button class="filter-pill" data-target-filter="neutralized">Neutralized</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="targetListContainer" class="drone-list">
+                <div class="empty-state">No targets. Use + to paint.</div>
+            </div>
+        </div>
+
+        <!-- TAB 3: ASSETS -->
+        <div id="tab-drones" class="tab-content">
+
+            <!-- Collapsible asset filters -->
+            <div class="asset-filters" id="assetFiltersSection">
+                <div class="asset-filters-header" id="assetFiltersToggle">
+                    <span class="asset-filters-title">Asset Filters</span>
+                    <span class="asset-filters-arrow" id="assetFiltersArrow">›</span>
+                </div>
+                <div class="asset-filters-body" id="assetFiltersBody">
+                    <div class="filter-pills">
+                        <button class="filter-pill active" data-filter="all">All</button>
+                        <button class="filter-pill" data-filter="idle">Idle</button>
+                        <button class="filter-pill" data-filter="serving">Serving</button>
+                        <button class="filter-pill" data-filter="repositioning">Reposn.</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="droneListContainer" class="drone-list">
+                <!-- Dynamically populated rows will go here -->
+            </div>
+        </div>
+
+        <!-- TAB 3: OPS (Timeline + Inspector) -->
+        <div id="tab-ops" class="tab-content">
+            <!-- Inspector Panel -->
+            <div id="inspectorPanel" class="inspector-panel">
+                <h3>Inspector</h3>
+                <div id="inspectorContent">
+                    <div class="empty-state">Select an asset, mission, or alert to inspect.</div>
+                </div>
+            </div>
+
+            <!-- Timeline Panel -->
+            <div id="timelinePanel" class="timeline-panel">
+                <canvas id="timelineCanvas"></canvas>
+            </div>
+        </div>
+
+        <!-- TAB 4: ALERTS -->
+        <div id="tab-alerts" class="tab-content">
+            <h3>Alerts</h3>
+            <div id="alertsListContainer" class="panel-list">
+                <div class="empty-state">No active alerts</div>
+            </div>
+        </div>
+
+        <!-- TAB 5: MACRO-GRID -->
+        <div id="tab-grid" class="tab-content">
+            <h3>Macro-Grid Recommendations</h3>
+            <div id="macrogridListContainer" class="panel-list">
+                <div class="empty-state">No active recommendations</div>
+            </div>
+        </div>
+
+    </div>
+
+
+    <!-- Right-Hand Content -->
+    <div id="cesiumContainer">
+        <!-- Camera Controls -->
+        <div id="cameraControls" class="camera-controls">
+            <button id="returnGlobalBtn" class="square-btn" title="Return to Global View">🌐</button>
+            <button id="decoupleCameraBtn" class="square-btn" title="Disconnect from UAV">✖</button>
+            <button id="lockZoomBtn" class="square-btn" title="Zoom to drone on select (click to disable)">⚂</button>
+            <button id="haloModeBtn" class="square-btn" title="Multi Halo Adaptive Visualisation">○</button>
+            <div class="cam-ctrl-sep"></div>
+            <button id="toggleGridBtn" class="square-btn square-btn-on" title="Grid Visibility — cycles ON → Outlines → OFF">⊞</button>
+            <button id="toggleWaypointsBtn" class="square-btn" title="All Waypoints Visibility">⌖</button>
+        </div>
+    </div>
+
+</div>
+    <!-- Drone right-click context menu -->
+    <div id="drone-context-menu" class="drone-ctx-menu" style="display:none">
+        <button id="ctx-set-waypoint">Set Waypoint</button>
+        <button id="ctx-range">Range</button>
+        <button id="ctx-satellite">Satellite Circle</button>
+    </div>
+
+    <!-- Secondary Detail Waypoint Map Modal (Grid 9) -->
+    <div id="detailMapModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Set Detail Waypoint</h2>
+                <button id="closeDetailMapBtn" class="close-btn">&times;</button>
+            </div>
+            <div id="detailMapContainer" class="detail-map-container"></div>
+            <div class="modal-footer">
+                <span style="color:#94a3b8; font-size: 0.8rem; font-family:'Inter',sans-serif;">Click inside the 150km red ring to place precise waypoint.</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- State Management & API -->
+    <script src="state.js"></script>
+    <script src="api-client.js"></script>
+    <script src="ws-client.js"></script>
+
+    <!-- Panel Modules -->
+    <script src="panels/inspector-panel.js"></script>
+    <script src="panels/mission-panel.js"></script>
+    <script src="panels/alerts-panel.js"></script>
+    <script src="panels/timeline-panel.js?v=19"></script>
+    <script src="panels/toolbar.js?v=11"></script>
+    <script src="panels/macrogrid-panel.js"></script>
+
+    <!-- Workspace Shell -->
+    <script src="pane-registry.js"></script>
+    <script src="pane-definitions.js"></script>
+    <script src="layout-persistence.js"></script>
+    <script src="workspace-shell.js?v=14"></script>
+    <script src="map-tool-controller.js?v=14"></script>
+
+    <!-- Main Application Logic -->
+    <script src="app.js?v=32"></script>
+</body>
+</html>

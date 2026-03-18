@@ -1,0 +1,65 @@
+/*
+ * fonts.css — Self-hosted Inter font (no network dependency)
+ * ============================================================
+ *
+ * WHY THIS EXISTS
+ * ---------------
+ * The app needs a consistent font on every machine — Windows, macOS, Linux,
+ * offline, or compiled (e.g. Electron). System fonts like 'Helvetica Neue'
+ * are not available on all systems. 'Arial' is universal but poor quality.
+ * This file loads Inter from a local file so the result is identical everywhere.
+ *
+ * HOW IT WORKS
+ * ------------
+ * @font-face tells the browser "when you see font-family: 'Inter', load this
+ * local file instead of looking it up on the system or network."
+ *
+ * Inter v20 is a VARIABLE FONT — the single file inter-latin.woff2 covers
+ * weights 100–900 (thin through black) in one download (~48KB).
+ * The font-weight: 100 900 range tells the browser this file handles the full
+ * weight axis, so font-weight: 400, 600, 700 etc. all resolve from this one file.
+ *
+ * font-display: swap — renders system fallback (Arial) instantly, then swaps
+ * in Inter once the 48KB file finishes loading. Prevents invisible text.
+ *
+ * FILE LOCATION
+ * -------------
+ * fonts/inter-latin.woff2  — Latin character set (A-Z, 0-9, common punctuation).
+ *   Source: https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2
+ *   Downloaded from: Google Fonts (https://fonts.google.com/specimen/Inter)
+ *   License: SIL Open Font License 1.1 (free for commercial use, redistribution OK)
+ *
+ * TO UPDATE THE FONT
+ * ------------------
+ * 1. Go to https://fonts.google.com/specimen/Inter
+ * 2. Download the family → extract the .woff2 file for the latin subset
+ * 3. Replace fonts/inter-latin.woff2 with the new file
+ * 4. No CSS changes needed — the @font-face src path stays the same.
+ *
+ * TO ADD MORE CHARACTER SETS (e.g. Cyrillic, Greek)
+ * --------------------------------------------------
+ * Fetch https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap
+ * with a Chrome User-Agent header to get the per-subset woff2 URLs, download
+ * each subset, and add additional @font-face blocks with the matching unicode-range.
+ */
+
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 100 900;       /* variable font: covers all weights in one file */
+    font-display: swap;         /* show fallback immediately, swap when loaded */
+    src: url('fonts/inter-latin.woff2') format('woff2');
+    unicode-range:              /* Latin characters only (English UI) */
+        U+0000-00FF,            /* Basic Latin + Latin-1 Supplement */
+        U+0131,                 /* ı (dotless i) */
+        U+0152-0153,            /* Œœ */
+        U+02BB-02BC,            /* ʻʼ (apostrophe variants) */
+        U+02C6, U+02DA, U+02DC, /* ˆ ˚ ˜ */
+        U+0304, U+0308, U+0329, /* combining marks */
+        U+2000-206F,            /* General Punctuation */
+        U+20AC,                 /* € */
+        U+2122,                 /* ™ */
+        U+2191, U+2193,         /* ↑ ↓ */
+        U+2212, U+2215,         /* − ∕ */
+        U+FEFF, U+FFFD;         /* BOM, replacement character */
+}

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <title>Cesium 3D Macro Grid</title>
+    
+    <!-- CesiumJS CSS/JS from CDN -->
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    
+    <!-- Custom Style -->
+    <link href="style.css" rel="stylesheet">
+</head>
+<body>
+    <div id="cesiumContainer"></div>
+    
+    <div id="uiPanel">
+        <h1 class="title">Mission Planner</h1>
+        <div class="stats">
+            <div class="stat-row">
+                <span class="stat-label">Uplink:</span>
+                <span id="connStatus" class="stat-value disconnected">Offline</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Active UAVs:</span>
+                <span id="uavCount" class="stat-value">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Monitored Zones:</span>
+                <span id="zoneCount" class="stat-value">0</span>
+            </div>
+        </div>
+        
+        <div class="legend">
+            <h3>Geospatial Imbalance</h3>
+            <div class="legend-scale">
+                <div class="scale-bar"></div>
+                <div class="scale-labels">
+                    <span>Critical Shortage</span>
+                    <span>Stable</span>
+                    <span>Surplus Density</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <p class="instruction">Observe the real-time flows in 3D adjusting to simulated topographical demand.</p>
+            <button id="resetQueueBtn" class="btn">Override: Reset Fleet</button>
+            <button id="addSpikeBtn" class="btn spike-btn" style="margin-top: 10px; background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.4);">Inject Random Stress Event</button>
+            <button id="returnGlobalBtn" class="btn" style="margin-top: 10px; display: none; background: rgba(59, 130, 246, 0.2); border-color: rgba(59, 130, 246, 0.4);">Return to Global View</button>
+        </div>
+    </div>
+    
+    <!-- Main Application Logic -->
+    <script src="app.js"></script>
+</body>
+</html>
