@@ -97,7 +97,7 @@ done
 
 # 2. Start Dashboard HTTP Server
 echo "[2/3] Starting Cesium dashboard on :3000..."
-(cd src/frontend && python3 -m http.server 3000 > /dev/null 2>&1) &
+(cd src/frontend && python3 serve.py 3000) &
 PIDS+=($!)
 sleep 1
 
