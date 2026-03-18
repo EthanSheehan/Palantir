@@ -102,7 +102,9 @@
       "Read(//Users/Rocklord/.local/bin/**)",
       "Bash(find ~/.claude/skills/ -type f -name *session*)",
       "WebFetch(domain:github.com)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(node /Users/Rocklord/.claude/hooks/gsd-context-monitor.js)",
+      "Bash(echo \"Exit: $?\")"
     ]
   }
 }
