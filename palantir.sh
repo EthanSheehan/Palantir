@@ -54,6 +54,16 @@ if [ ! -f "./src/python/api_main.py" ]; then
     exit 1
 fi
 
+# Kill stale processes on our ports
+for PORT in 8000 3000; do
+    STALE_PID=$(lsof -ti:$PORT 2>/dev/null || true)
+    if [ -n "$STALE_PID" ]; then
+        echo "Killing stale process on port $PORT (PID $STALE_PID)..."
+        kill $STALE_PID 2>/dev/null || true
+        sleep 1
+    fi
+done
+
 # Kill child processes on exit
 PIDS=()
 cleanup() {
