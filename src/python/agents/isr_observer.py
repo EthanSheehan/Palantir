@@ -241,7 +241,7 @@ class ISRObserverAgent:
                 lat=data.get("lat", 0.0),
                 lon=data.get("lon", 0.0),
                 confidence=data.get("confidence", 0.5),
-                classification=TargetClassification(
+                classification=_safe_classification(
                     data.get("classification", "Unknown")
                 ),
                 timestamp=data.get("timestamp", ""),

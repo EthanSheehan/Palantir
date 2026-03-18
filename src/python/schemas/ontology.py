@@ -3,9 +3,16 @@ from typing import List, Optional
 from enum import Enum
 
 class TargetClassification(str, Enum):
-    TEL = "TEL" # Transporter Erector Launcher
-    SAM = "SAM" # Surface-to-Air Missile site
-    CP = "Command Post"
+    TEL = "TEL"           # Transporter Erector Launcher
+    SAM = "SAM"           # Surface-to-Air Missile site
+    CP = "CP"             # Command Post
+    TRUCK = "TRUCK"       # Supply / transport vehicle
+    MANPADS = "MANPADS"   # Man-Portable Air-Defense System
+    RADAR = "RADAR"       # Early-warning / fire-control radar
+    C2_NODE = "C2_NODE"   # Command & Control node
+    LOGISTICS = "LOGISTICS"  # Logistics / resupply vehicle
+    ARTILLERY = "ARTILLERY"  # Self-propelled / towed artillery
+    APC = "APC"           # Armored Personnel Carrier
     UNKNOWN = "Unknown"
 
 class SensorSource(str, Enum):

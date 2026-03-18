@@ -112,7 +112,7 @@ class TestISRObserverHeuristic:
         assert len(result.alerts) > 0
 
     def test_process_cp_is_high_priority(self, isr_agent):
-        raw = _make_raw_sensor_json(target_type="Command Post", confidence=0.75)
+        raw = _make_raw_sensor_json(target_type="CP", confidence=0.75)
         result = isr_agent.process_sensor_data(raw)
 
         assert result.tracks[0].is_high_priority is True

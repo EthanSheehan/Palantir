@@ -11,7 +11,7 @@ logger = structlog.get_logger()
 API_URL = "http://localhost:8000/ingest"
 
 def generate_mock_detection():
-    types = ["TEL", "SAM", "Command Post", "Unknown"]
+    types = ["TEL", "SAM", "CP", "Unknown"]
     sources = ["UAV", "Satellite", "SIGINT"]
 
     return {

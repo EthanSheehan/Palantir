@@ -48,7 +48,6 @@ _HEURISTIC_PRIORITY: dict[str, int] = {
     "TEL": 8,
     "RADAR": 7,
     "CP": 6,
-    "Command Post": 6,
     "C2_NODE": 6,
     "MANPADS": 5,
     "TRUCK": 3,
