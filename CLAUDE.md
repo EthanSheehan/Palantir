@@ -18,7 +18,7 @@ Palantir is a decision-centric AI-assisted Command & Control (C2) system that au
 
 # Or run components individually:
 ./venv/bin/python3 src/python/api_main.py          # FastAPI backend on :8000
-cd src/frontend && python3 -m http.server 3000      # Web UI on :3000
+cd src/frontend && python3 serve.py 3000              # Web UI on :3000 (no-cache)
 ./venv/bin/python3 src/python/vision/video_simulator.py  # Drone simulator
 DEMO_MODE=true ./venv/bin/python3 src/python/api_main.py  # Backend in demo mode
 ```
@@ -55,14 +55,15 @@ Environment variables go in a `.env` file (loaded via python-dotenv). Required f
 
 **2. Simulation Engine (`src/python/sim_engine.py`)**
 - `SimulationModel` manages UAV positions/modes and target movement (SAM, TEL, TRUCK, CP, MANPADS, RADAR, C2_NODE, LOGISTICS, ARTILLERY, APC)
-- UAV modes: IDLE, SEARCH (circular loiter), FOLLOW (loose orbit ~2km), PAINT (tight orbit ~1km, laser lock), INTERCEPT (direct approach 1.5x speed, ~300m orbit), REPOSITIONING, RTB
-- Fixed-wing physics with `_turn_toward()` for smooth heading changes, `MAX_TURN_RATE` based circular loiter
+- UAV modes: IDLE (hold), SEARCH (circular loiter over zone), FOLLOW (loose ~2km orbit tracking target), PAINT (tight ~1km orbit with laser lock, target→LOCKED), INTERCEPT (direct approach at 1.5x speed, ~300m danger-close orbit, target→LOCKED), REPOSITIONING (zone rebalance at 3x turn rate), RTB (low fuel return to base)
+- Fixed-wing physics: `_turn_toward()` for smooth heading changes, `MAX_TURN_RATE` circular loiter in SEARCH, all tracking modes use gradual arcs
+- Mode commands from frontend: SEARCH (releases target), FOLLOW/PAINT/INTERCEPT (requires target selection)
 - Theater-configurable via YAML files in `theaters/` (Romania, South China Sea, Baltic)
 - Zone-based imbalance tracking drives UAV repositioning logic
 
 **3. Cesium Frontend (`src/frontend/`)**
 - Modular ES6 JS with Cesium JS for 3D WGS-84 visualization
-- No build step — served directly by Python's `http.server`
+- No build step — served by `serve.py` (no-cache dev HTTP server)
 - Tabs: MISSION / ASSETS / ENEMIES; includes Tactical AIP Assistant widget, Drone Camera PIP
 - Drone cards with inline mode command buttons (SEARCH/FOLLOW/PAINT/INTERCEPT)
 - Auto-recenters camera when switching theaters

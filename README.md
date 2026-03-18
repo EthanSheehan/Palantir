@@ -86,7 +86,7 @@ For a lightweight demo without the drone video simulator:
 
 ```bash
 ./venv/bin/python3 src/python/api_main.py                    # Backend only
-cd src/frontend && python3 -m http.server 3000                # Dashboard only
+cd src/frontend && python3 serve.py 3000                       # Dashboard only (no-cache)
 ./venv/bin/python3 src/python/vision/video_simulator.py       # Simulator only
 DEMO_MODE=true ./venv/bin/python3 src/python/api_main.py     # Backend in demo mode
 ```
@@ -127,16 +127,20 @@ src/
     style.css                # Dark theme styles
     state.js                 # Shared application state
     websocket.js             # WebSocket connection + event dispatch
-    map.js                   # Cesium viewer initialization
-    drones.js                # UAV entity rendering + 3D model management
-    dronelist.js             # Drone card list + inline mode command buttons
-    dronecam.js              # Drone Camera PIP — canvas-based synthetic feed
+    map.js                   # Cesium viewer, zone rendering, theater camera
+    drones.js                # UAV 3D entity rendering + model management
+    dronelist.js             # Drone card list + mode command buttons
+    dronecam.js              # Drone Camera PIP — synthetic HUD feed
     targets.js               # Target visualization + threat rings
-    enemies.js               # ENEMIES tab with threat rows + UAV tracker tags
+    enemies.js               # ENEMIES tab with tracker tags per target
     strikeboard.js           # Strike Board HITL UI
     sidebar.js               # Tab navigation + controls
     assistant.js             # Tactical AIP message feed
-    theater.js               # Theater selector dropdown
+    theater.js               # Theater selector + live switching
+    rangerings.js            # Sensor range ring overlays
+    mapclicks.js             # Map click handlers (waypoints, spikes)
+    detailmap.js             # Detail waypoint placement modal
+    serve.py                 # No-cache dev HTTP server
 theaters/
   romania.yaml               # Default theater config
   south_china_sea.yaml       # Pacific theater config
@@ -154,10 +158,32 @@ Each agent works in **heuristic mode** by default (no API keys needed). When LLM
 ### Simulation
 
 The sim engine models:
-- **UAVs**: 7 operational modes (IDLE, SEARCH, FOLLOW, PAINT, INTERCEPT, REPOSITIONING, RTB), fixed-wing physics with smooth turn rates, fuel consumption, zone-based coverage optimization
-- **Targets**: 8 unit types (SAM, TEL, TRUCK, CP, MANPADS, RADAR, ARTILLERY, APC) with type-specific behaviors (patrol, ambush, shoot-and-scoot, concealment, flee)
+- **UAVs**: 7 operational modes with fixed-wing physics, fuel consumption, and zone-based coverage optimization
+- **Targets**: 10 unit types (SAM, TEL, TRUCK, CP, MANPADS, RADAR, C2_NODE, LOGISTICS, ARTILLERY, APC) with type-specific behaviors (patrol, ambush, shoot-and-scoot, concealment, flee)
 - **Environment**: Time of day, cloud cover, precipitation affecting sensor performance
 - **Detection**: Probabilistic Pd model incorporating range, RCS, weather penalties
+
+#### UAV Flight Modes
+
+| Mode | Description | Orbit / Behavior |
+|------|-------------|------------------|
+| **IDLE** | No assignment, loitering at base position | Stationary hold |
+| **SEARCH** | Area scanning — autonomous circular patrol over assigned zone | Constant-rate circular loiter via `MAX_TURN_RATE` |
+| **FOLLOW** | Loose tracking — maintains visual contact with a target | ~2 km orbit, smooth fixed-wing arcs via `_turn_toward()` |
+| **PAINT** | Laser designation — tight orbit with active laser lock for weapons guidance | ~1 km orbit, target state set to LOCKED |
+| **INTERCEPT** | Direct approach — flies straight at target at 1.5x normal speed | ~300 m danger-close orbit, target state set to LOCKED |
+| **REPOSITIONING** | En route to a new zone assignment driven by coverage imbalance | Direct flight with 3x turn rate |
+| **RTB** | Return to base — low fuel triggers automatic return | Direct flight to base coordinates |
+
+Modes are commanded via the drone card buttons (SEARCH/FOLLOW/PAINT/INTERCEPT) or via WebSocket actions. FOLLOW, PAINT, and INTERCEPT require a target selection. SEARCH releases the UAV from any target assignment and resumes area patrol.
+
+#### Drone Camera PIP
+
+When a UAV is selected, a picture-in-picture synthetic camera feed appears showing:
+- Canvas-rendered target shapes with type-specific icons (diamond, triangle, square, etc.)
+- HUD overlay with telemetry (altitude, heading, mode, coordinates)
+- Tracking reticle and range/bearing readouts when following or painting a target
+- Pulsing red lock box when in PAINT mode with active laser designation
 
 ### WebSocket Protocol
 
