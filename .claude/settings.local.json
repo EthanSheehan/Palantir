@@ -104,7 +104,13 @@
       "WebFetch(domain:github.com)",
       "Bash(pip install:*)",
       "Bash(node /Users/Rocklord/.claude/hooks/gsd-context-monitor.js)",
-      "Bash(echo \"Exit: $?\")"
+      "Bash(echo \"Exit: $?\")",
+      "Bash(./venv/bin/python3 -m pytest src/python/tests/ -x -q)",
+      "Bash(./venv/bin/python3 -c \"\nimport sys; sys.path.insert\\(0, 'src/python'\\)\nfrom config import load_settings\nimport os\nos.environ['DEMO_MODE'] = 'true'\ns = load_settings\\(\\)\nprint\\(f'demo_mode = {s.demo_mode}'\\)\nassert s.demo_mode is True\n\nfrom agents.tactical_planner import TacticalPlannerAgent\ntp = TacticalPlannerAgent\\(\\)\nfrom mission_data.asset_registry import get_available_effectors\ncoas = tp._generate_coas_heuristic\\(\n    target_data={'lat': 45.0, 'lon': 26.0, 'type': 'SAM'},\n    assets=get_available_effectors\\(\\),\n\\)\nprint\\(f'Generated {len\\(coas\\)} COAs'\\)\nfor c in coas:\n    print\\(f'  {c.id}: {c.effector_name} Pk={c.pk_estimate:.0%} TTE={c.time_to_effect_min:.1f}m'\\)\nprint\\('Demo pipeline verified OK'\\)\n\")",
+      "Bash(./venv/bin/python3 --version)",
+      "Bash(pip3 show:*)",
+      "Bash(pip show:*)",
+      "Read(//Users/Rocklord/Library/Python/**)"
     ]
   }
 }
