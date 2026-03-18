@@ -1,7 +1,7 @@
 import { state } from './state.js';
 
 const CESIUM_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJmNTg1MmY5OC05NWQ0LTQ0MDEtYTFmMy0yMWI0YzEwYzRiNjciLCJpZCI6NDAzNzE1LCJpYXQiOjE3NzM1MTczMjV9.pfteEFlBPi85hAolMWsVyZkuRTwSeg_-bF5dlTMcWHo';
-const STADIA_URL = 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}.png?api_key=74c21d3f-b418-4db6-9318-ffb876f1f071';
+const DARK_TILE_URL = 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
 
 const zoneAttributesCache = {};
 
@@ -24,7 +24,7 @@ export function initMap() {
     });
 
     viewer.imageryLayers.removeAll();
-    viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider({ url: STADIA_URL }));
+    viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider({ url: DARK_TILE_URL }));
 
     viewer.scene.globe.baseColor = Cesium.Color.BLACK;
     viewer.scene.backgroundColor = Cesium.Color.BLACK;

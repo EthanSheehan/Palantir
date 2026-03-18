@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import collections
 import json
-import random
 import time
 
 import structlog
@@ -250,19 +249,30 @@ def _get_entry_if_status(entry_id: str, expected_status: str) -> dict | None:
     return None
 
 
+def _find_nearest_available_uav(target_id: int) -> int | None:
+    """Find the nearest idle/scanning UAV to a target and return its id."""
+    target = sim._find_target(target_id)
+    if not target:
+        return None
+    available = [u for u in sim.uavs if u.mode in ("IDLE", "SCANNING")]
+    if not available:
+        return None
+    best = min(available, key=lambda u: (u.x - target.x) ** 2 + (u.y - target.y) ** 2)
+    return best.id
+
+
 async def demo_autopilot():
-    """Auto-pilot loop for demo mode: auto-approve, generate COAs, auto-authorize, engage."""
+    """Auto-pilot loop: auto-approve nominations, dispatch UAVs to follow & paint targets."""
     APPROVAL_DELAY = 5.0
-    COA_AUTH_DELAY = 3.0
-    ENGAGE_DELAY = 2.0
+    FOLLOW_DELAY = 4.0
+    PAINT_DELAY = 5.0
 
     logger.warning("demo_autopilot_started", note="HITL bypass active")
 
-    # Announce demo mode to all dashboard clients
     await asyncio.sleep(2.0)
     await broadcast(json.dumps({
         "type": "ASSISTANT_MESSAGE",
-        "text": "DEMO MODE ACTIVE — Full F2T2EA kill chain running on auto-pilot.",
+        "text": "DEMO MODE ACTIVE — UAV intercept auto-pilot running.",
         "severity": "CRITICAL",
         "timestamp": time.strftime("%H:%M:%S"),
     }), target_type="DASHBOARD")
@@ -272,18 +282,17 @@ async def demo_autopilot():
     while True:
         await asyncio.sleep(2.0)
 
-        # Gate 1: Auto-approve PENDING nominations after delay
         board = hitl.get_strike_board()
         for entry in board:
             if entry["status"] != "PENDING" or entry["id"] in in_flight:
                 continue
 
             entry_id = entry["id"]
+            target_id = entry["target_id"]
             in_flight.add(entry_id)
 
+            # --- Gate 1: Auto-approve after delay ---
             await asyncio.sleep(APPROVAL_DELAY)
-
-            # Re-fetch: operator may have acted during sleep
             entry = _get_entry_if_status(entry_id, "PENDING")
             if not entry:
                 in_flight.discard(entry_id)
@@ -297,7 +306,7 @@ async def demo_autopilot():
 
             await broadcast(json.dumps({
                 "type": "ASSISTANT_MESSAGE",
-                "text": f"AUTO-APPROVED: {entry['target_type']} (id={entry['target_id']}) — generating COAs...",
+                "text": f"AUTO-APPROVED: {entry['target_type']} (id={target_id}) — dispatching nearest UAV...",
                 "severity": "WARNING",
                 "timestamp": time.strftime("%H:%M:%S"),
             }), target_type="DASHBOARD")
@@ -307,89 +316,87 @@ async def demo_autopilot():
                 "entry": hitl.get_strike_board(),
             }), target_type="DASHBOARD")
 
-            # Generate COAs
-            target_loc = entry.get("target_location", [0.0, 0.0])
-            coas = tactical_planner._generate_coas_heuristic(
-                target_data={
-                    "lat": target_loc[0] if len(target_loc) > 0 else 0.0,
-                    "lon": target_loc[1] if len(target_loc) > 1 else 0.0,
-                    "type": entry["target_type"],
-                },
-                assets=_get_demo_effectors(),
-            )
-            if coas:
-                hitl.propose_coas(entry_id, coas)
-                await broadcast(json.dumps({
-                    "type": "HITL_UPDATE",
-                    "action": "coas_proposed",
-                    "entry_id": entry_id,
-                    "coas": hitl.get_coas_for_entry(entry_id),
-                }), target_type="DASHBOARD")
-
-                coa_names = [f"{c.effector_name} (Pk={c.pk_estimate:.0%})" for c in coas]
+            # --- Dispatch UAV: follow target ---
+            uav_id = _find_nearest_available_uav(target_id)
+            if uav_id is None:
                 await broadcast(json.dumps({
                     "type": "ASSISTANT_MESSAGE",
-                    "text": f"COAs GENERATED: {' | '.join(coa_names)}",
-                    "severity": "INFO",
-                    "timestamp": time.strftime("%H:%M:%S"),
-                }), target_type="DASHBOARD")
-
-                # Gate 2: Auto-authorize best COA after delay
-                await asyncio.sleep(COA_AUTH_DELAY)
-
-                # Re-fetch: check entry still in APPROVED state
-                entry = _get_entry_if_status(entry_id, "APPROVED")
-                if not entry:
-                    in_flight.discard(entry_id)
-                    continue
-
-                best_coa = coas[0]  # already sorted by composite_score desc
-                try:
-                    hitl.authorize_coa(entry_id, best_coa.id, "Demo auto-authorized best COA")
-                except ValueError:
-                    in_flight.discard(entry_id)
-                    continue
-
-                await broadcast(json.dumps({
-                    "type": "ASSISTANT_MESSAGE",
-                    "text": f"COA AUTHORIZED: {best_coa.effector_name} — Pk={best_coa.pk_estimate:.0%}, TTE={best_coa.time_to_effect_min:.1f}min",
+                    "text": f"NO AVAILABLE UAV for {entry['target_type']} (id={target_id}) — all assets committed.",
                     "severity": "WARNING",
                     "timestamp": time.strftime("%H:%M:%S"),
                 }), target_type="DASHBOARD")
+                in_flight.discard(entry_id)
+                continue
+
+            sim.command_follow(uav_id, target_id)
+            await broadcast(json.dumps({
+                "type": "ASSISTANT_MESSAGE",
+                "text": f"UAV-{uav_id} FOLLOWING: {entry['target_type']} (id={target_id}) — tracking in progress.",
+                "severity": "INFO",
+                "timestamp": time.strftime("%H:%M:%S"),
+            }), target_type="DASHBOARD")
+
+            # --- After follow delay, escalate to paint (laser lock) ---
+            await asyncio.sleep(FOLLOW_DELAY)
+            target = sim._find_target(target_id)
+            if target and target.tracked_by_uav_id == uav_id:
+                sim.command_paint(uav_id, target_id)
                 await broadcast(json.dumps({
-                    "type": "HITL_UPDATE",
-                    "action": "coa_authorized",
-                    "entry_id": entry_id,
-                    "coas": hitl.get_coas_for_entry(entry_id),
+                    "type": "ASSISTANT_MESSAGE",
+                    "text": f"UAV-{uav_id} PAINTING: {entry['target_type']} (id={target_id}) — laser lock established.",
+                    "severity": "CRITICAL",
+                    "timestamp": time.strftime("%H:%M:%S"),
                 }), target_type="DASHBOARD")
 
-                # Engage phase
-                await asyncio.sleep(ENGAGE_DELAY)
-                target = sim._find_target(entry["target_id"])
-                if target and effectors_agent:
-                    pk = best_coa.pk_estimate
-                    hit = random.random() < pk
-                    if hit:
-                        destroyed = random.random() < 0.70
-                        if destroyed:
-                            sim._set_target_state(entry["target_id"], "DESTROYED")
-                            result_text = f"DESTROYED — {entry['target_type']} (id={entry['target_id']}) neutralized by {best_coa.effector_name}. BDA confidence: 90%."
-                            severity = "CRITICAL"
-                        else:
-                            sim._set_target_state(entry["target_id"], "ENGAGED")
-                            result_text = f"DAMAGED — {entry['target_type']} (id={entry['target_id']}) hit by {best_coa.effector_name}, partial effect. Re-engagement recommended."
-                            severity = "WARNING"
-                    else:
-                        sim._set_target_state(entry["target_id"], "ESCAPED")
-                        result_text = f"MISSED — {entry['target_type']} (id={entry['target_id']}) evaded {best_coa.effector_name}. ISR re-detection required."
-                        severity = "WARNING"
+                # Generate COAs while painting
+                target_loc = entry.get("target_location", [0.0, 0.0])
+                coas = tactical_planner._generate_coas_heuristic(
+                    target_data={
+                        "lat": target_loc[0] if len(target_loc) > 0 else 0.0,
+                        "lon": target_loc[1] if len(target_loc) > 1 else 0.0,
+                        "type": entry["target_type"],
+                    },
+                    assets=_get_demo_effectors(),
+                )
+                if coas:
+                    hitl.propose_coas(entry_id, coas)
+                    await broadcast(json.dumps({
+                        "type": "HITL_UPDATE",
+                        "action": "coas_proposed",
+                        "entry_id": entry_id,
+                        "coas": hitl.get_coas_for_entry(entry_id),
+                    }), target_type="DASHBOARD")
 
+                    coa_names = [f"{c.effector_name} (Pk={c.pk_estimate:.0%})" for c in coas]
                     await broadcast(json.dumps({
                         "type": "ASSISTANT_MESSAGE",
-                        "text": f"ENGAGEMENT RESULT: {result_text}",
-                        "severity": severity,
+                        "text": f"COAs GENERATED: {' | '.join(coa_names)} — awaiting authorization.",
+                        "severity": "INFO",
                         "timestamp": time.strftime("%H:%M:%S"),
                     }), target_type="DASHBOARD")
+
+                    # Auto-authorize best COA
+                    await asyncio.sleep(PAINT_DELAY)
+                    entry = _get_entry_if_status(entry_id, "APPROVED")
+                    if entry:
+                        best_coa = coas[0]
+                        try:
+                            hitl.authorize_coa(entry_id, best_coa.id, "Demo auto-authorized")
+                        except ValueError:
+                            pass
+                        else:
+                            await broadcast(json.dumps({
+                                "type": "ASSISTANT_MESSAGE",
+                                "text": f"COA AUTHORIZED: {best_coa.effector_name} — Pk={best_coa.pk_estimate:.0%}. UAV-{uav_id} maintaining lock.",
+                                "severity": "WARNING",
+                                "timestamp": time.strftime("%H:%M:%S"),
+                            }), target_type="DASHBOARD")
+                            await broadcast(json.dumps({
+                                "type": "HITL_UPDATE",
+                                "action": "coa_authorized",
+                                "entry_id": entry_id,
+                                "coas": hitl.get_coas_for_entry(entry_id),
+                            }), target_type="DASHBOARD")
 
             in_flight.discard(entry_id)
 

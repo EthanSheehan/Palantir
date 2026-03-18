@@ -8,6 +8,7 @@ const STATUS_COLORS = {
 };
 
 let cachedCoas = {};
+let lastBoardFingerprint = '';
 
 export function initStrikeBoard() {
     document.addEventListener('ws:state', (e) => {
@@ -19,13 +20,23 @@ export function initStrikeBoard() {
         const { coas, entry_id } = e.detail;
         if (coas && entry_id) {
             cachedCoas = { ...cachedCoas, [entry_id]: coas };
+            lastBoardFingerprint = ''; // force rebuild on COA update
         }
     });
+}
+
+function boardFingerprint(entries) {
+    return entries.map(e => `${e.id}:${e.status}`).join('|');
 }
 
 export function updateStrikeBoard(entries) {
     const container = document.getElementById('strike-board-log');
     if (!container) return;
+
+    // Skip rebuild if nothing changed
+    const fp = boardFingerprint(entries);
+    if (fp === lastBoardFingerprint) return;
+    lastBoardFingerprint = fp;
 
     while (container.firstChild) container.removeChild(container.firstChild);
 

@@ -158,15 +158,8 @@ function _updateExistingDrone(viewer, marker, uav, position, colorStr, color) {
     let targetTime;
     const now = viewer.clock.currentTime;
 
-    if (!marker._lastTargetTime) {
-        targetTime = Cesium.JulianDate.addSeconds(now, 0.3, new Cesium.JulianDate());
-    } else {
-        targetTime = Cesium.JulianDate.addSeconds(marker._lastTargetTime, 0.1, new Cesium.JulianDate());
-        const diff = Cesium.JulianDate.secondsDifference(targetTime, now);
-        if (diff < 0.1 || diff > 0.5) {
-            targetTime = Cesium.JulianDate.addSeconds(now, 0.3, new Cesium.JulianDate());
-        }
-    }
+    // Place sample slightly ahead of now so interpolation smooths the path
+    targetTime = Cesium.JulianDate.addSeconds(now, 0.15, new Cesium.JulianDate());
     marker._lastTargetTime = targetTime;
     marker.position.addSample(targetTime, position);
 
@@ -174,7 +167,7 @@ function _updateExistingDrone(viewer, marker, uav, position, colorStr, color) {
     const dy = uav.lat - marker._lastLat;
     const movementDist = Math.abs(dx) + Math.abs(dy);
 
-    if (movementDist > 0.002) {
+    if (movementDist > 0.0005) {
         const latRad = Cesium.Math.toRadians(uav.lat);
         const dxScaled = dx * Math.cos(latRad);
         const mathAngle = Math.atan2(dy, dxScaled);
@@ -184,7 +177,7 @@ function _updateExistingDrone(viewer, marker, uav, position, colorStr, color) {
         let hdiff = heading - marker._lastHeading;
         while (hdiff > Math.PI) hdiff -= Math.PI * 2;
         while (hdiff < -Math.PI) hdiff += Math.PI * 2;
-        heading = marker._lastHeading + (hdiff * 0.3);
+        heading = marker._lastHeading + (hdiff * 0.6);
         marker._lastHeading = heading;
 
         const hpr = new Cesium.HeadingPitchRoll(heading, 0.0, 0.0);
