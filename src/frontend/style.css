@@ -1046,3 +1046,31 @@ h3 {
 .lock-pulse {
     animation: lockPulse 1s ease-in-out infinite;
 }
+
+/* --------------------------
+   DEMO MODE BANNER
+   -------------------------- */
+.demo-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    background: linear-gradient(90deg, rgba(220, 38, 38, 0.9), rgba(239, 68, 68, 0.8), rgba(220, 38, 38, 0.9));
+    color: #fff;
+    text-align: center;
+    padding: 6px 0;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    animation: demoPulse 2s ease-in-out infinite;
+    box-shadow: 0 2px 12px rgba(220, 38, 38, 0.5);
+}
+
+@keyframes demoPulse {
+    0% { opacity: 0.85; }
+    50% { opacity: 1.0; }
+    100% { opacity: 0.85; }
+}

@@ -11,22 +11,34 @@ cd "$SCRIPT_DIR"
 # Parse flags
 NO_SIM=false
 NO_BROWSER=false
+DEMO_MODE=false
 for arg in "$@"; do
     case "$arg" in
         --no-sim)     NO_SIM=true ;;
         --no-browser) NO_BROWSER=true ;;
+        --demo)       DEMO_MODE=true ;;
         --help|-h)
-            echo "Usage: ./palantir.sh [--no-sim] [--no-browser]"
+            echo "Usage: ./palantir.sh [--no-sim] [--no-browser] [--demo]"
             echo "  --no-sim      Skip drone video simulator (useful if OpenCV not installed)"
             echo "  --no-browser  Don't auto-open browser"
+            echo "  --demo        Enable auto-pilot demo mode (full F2T2EA kill chain)"
             exit 0
             ;;
         *) echo "Unknown flag: $arg (try --help)"; exit 1 ;;
     esac
 done
 
+# Export demo mode for the backend
+if [ "$DEMO_MODE" = true ]; then
+    export DEMO_MODE=true
+fi
+
 echo "================================================"
-echo "   PALANTIR C2 — MISSION CONTROL SYSTEM v2"
+if [ "$DEMO_MODE" = true ]; then
+    echo "   PALANTIR C2 — DEMO MODE (AUTO-PILOT)"
+else
+    echo "   PALANTIR C2 — MISSION CONTROL SYSTEM v2"
+fi
 echo "================================================"
 echo ""
 

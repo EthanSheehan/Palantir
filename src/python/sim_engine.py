@@ -663,6 +663,16 @@ class SimulationModel:
                     old_target.tracked_by_uav_id = None
                 uav.tracked_target_id = None
 
+    def _set_target_state(self, target_id: int, new_state: str):
+        """Set a target's state directly (used by demo auto-pilot)."""
+        target = self._find_target(target_id)
+        if target and new_state in TARGET_STATES:
+            target.state = new_state
+            if new_state == "DESTROYED":
+                target.vx = 0.0
+                target.vy = 0.0
+            logger.info("target_state_set", target_id=target_id, new_state=new_state)
+
     def reset_queues(self):
         for z in self.grid.zones.values():
             z.queue = 0

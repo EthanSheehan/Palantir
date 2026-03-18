@@ -12,10 +12,15 @@ Palantir is a decision-centric AI-assisted Command & Control (C2) system that au
 # Launch everything (backend + frontend + drone simulator)
 ./palantir.sh
 
+# Launch in demo auto-pilot mode (full F2T2EA kill chain, no human input needed)
+./palantir.sh --demo
+./palantir.sh --demo --no-sim    # without drone video simulator
+
 # Or run components individually:
 ./venv/bin/python3 src/python/api_main.py          # FastAPI backend on :8000
 cd src/frontend && python3 -m http.server 3000      # Web UI on :3000
 ./venv/bin/python3 src/python/vision/video_simulator.py  # Drone simulator
+DEMO_MODE=true ./venv/bin/python3 src/python/api_main.py  # Backend in demo mode
 ```
 
 ## Tests
@@ -45,6 +50,7 @@ Environment variables go in a `.env` file (loaded via python-dotenv). Required f
 - WebSocket server running a 10Hz simulation loop
 - Dual-client model: `DASHBOARD` clients (frontend) and `SIMULATOR` clients (drone sim)
 - `TacticalAssistant` embedded in the loop generates AI recommendations on new target detections
+- `demo_autopilot()` async loop (when `DEMO_MODE=true`): auto-approves HITL nominations, generates COAs, auto-authorizes, simulates engagement with probabilistic outcomes
 - Broadcasts full simulation state as JSON each tick
 
 **2. Simulation Engine (`src/python/sim_engine.py`)**
@@ -154,6 +160,22 @@ ralph-import prd.md      # Import tasks from a PRD
 
 Edit `.ralph/fix_plan.md` to define the task list. Ralph handles session continuity, rate limiting, and stagnation detection automatically.
 
+### Auto-Commit at Milestones (MANDATORY)
+
+Commit frequently — after every logical unit of work completes. Do NOT batch changes.
+
+**Commit after each:** test passes, feature implemented, bug fixed, refactor done, config applied. If you haven't committed in 2-3 tool calls after making changes, you're overdue. Use conventional commits (`feat:`, `fix:`, `test:`, `docs:`, etc.).
+
+### Auto Documentation & README Updates (MANDATORY)
+
+Every commit that changes behavior MUST include docs updates in the same commit:
+- New feature/endpoint → update `README.md` + `CLAUDE.md`
+- New file/module → update `CLAUDE.md` architecture section
+- Config/env/CLI changes → update `README.md` setup section
+- Architecture decisions → update `CLAUDE.md` + `docs/INTEGRATED_WORKFLOW.md`
+
+Spawn `everything-claude-code:doc-updater` (haiku, background) for large doc work. Do small README/CLAUDE.md updates inline.
+
 ### Parallel Execution (REQUIRED)
 
 Always launch independent agents in parallel. Example: after writing a feature, launch `python-reviewer` and `security-reviewer` simultaneously — never sequentially.
@@ -164,26 +186,30 @@ Always launch independent agents in parallel. Example: after writing a feature, 
 1. **Plan** → `everything-claude-code:planner` (sonnet)
 2. **TDD** → `everything-claude-code:tdd-guide` (sonnet)
 3. **Implement** → write code
-4. **Review** → `python-reviewer` + `security-reviewer` (parallel, sonnet)
-5. **Fix** → address findings
-6. **Commit** → conventional commits
+4. **Commit** → auto-commit milestone (test green)
+5. **Review** → `python-reviewer` + `security-reviewer` (parallel, sonnet)
+6. **Fix** → address findings
+7. **Commit + Docs** → commit fixes + update README/CLAUDE.md
 
 **DevFleet — parallelizable feature (4-10 files):**
 1. **Plan** → `everything-claude-code:planner` (sonnet) → break into independent units
 2. **Execute** → DevFleet dispatches each unit to isolated worktree (sonnet per mission)
 3. **Auto-merge** → worktrees merge on completion
-4. **Review** → `python-reviewer` + `security-reviewer` (parallel, sonnet)
-5. **Fix + Commit**
+4. **Commit** → auto-commit merged work
+5. **Review** → `python-reviewer` + `security-reviewer` (parallel, sonnet)
+6. **Fix + Commit + Docs** → commit fixes + update README/CLAUDE.md
 
 **GSD + DevFleet — major feature (10+ files):**
 1. `/gsd:discuss-phase N` → capture decisions
 2. `/gsd:plan-phase N` → research + plan (opus for planning, fresh context)
 3. **DevFleet** executes plans as parallel worktree missions (sonnet)
-4. `/gsd:verify-work N` → user acceptance testing
-5. **Review** → `python-reviewer` + `security-reviewer` (parallel, sonnet)
-6. **Commit** → conventional commits
+4. **Commit** → auto-commit after each phase/wave
+5. `/gsd:verify-work N` → user acceptance testing
+6. **Review** → `python-reviewer` + `security-reviewer` (parallel, sonnet)
+7. **Commit + Docs** → commit fixes + update README/CLAUDE.md/INTEGRATED_WORKFLOW.md
 
 **Ralph — unattended batch (20+ tasks):**
 1. Edit `.ralph/fix_plan.md` with tasks
 2. `ralph --monitor` → autonomous execution with safety guardrails
-3. Review results when complete
+3. Auto-commits after each task completion
+4. Review results when complete

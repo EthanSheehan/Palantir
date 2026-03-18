@@ -69,6 +69,12 @@ document.addEventListener('DOMContentLoaded', () => {
             updateLockIndicators(simState.uavs, getTargetEntities());
         }
 
+        // Show demo banner if demo_mode is active
+        const demoBanner = document.getElementById('demoBanner');
+        if (demoBanner && simState.demo_mode) {
+            demoBanner.style.display = 'block';
+        }
+
         viewer.scene.requestRender();
     });
 

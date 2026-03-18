@@ -24,6 +24,12 @@ class PalantirSettings(BaseSettings):
         description="Anthropic API key (optional, for Claude-based agents)",
     )
 
+    # -- Optional: Google Gemini --
+    gemini_api_key: str = Field(
+        default="",
+        description="Gemini API key (optional, for Gemini-based agents)",
+    )
+
     # -- Server --
     host: str = Field(default="0.0.0.0", description="Bind address for the API server")
     port: int = Field(default=8000, description="Port for the API server")
@@ -37,6 +43,12 @@ class PalantirSettings(BaseSettings):
     ws_backend_url: str = Field(
         default="ws://localhost:8000/ws",
         description="Backend WebSocket URL for simulator clients",
+    )
+
+    # -- Demo mode --
+    demo_mode: bool = Field(
+        default=False,
+        description="Enable demo auto-pilot: auto-approve, auto-COA, auto-engage",
     )
 
     model_config = {

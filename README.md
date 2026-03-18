@@ -49,12 +49,46 @@ This starts:
 3. **Drone Simulator** (UAV telemetry + video feeds)
 4. Opens your browser automatically
 
+#### Launcher Flags
+
+| Flag | Description |
+|------|-------------|
+| `--demo` | Enable demo auto-pilot mode (full F2T2EA kill chain runs automatically) |
+| `--no-sim` | Skip drone video simulator (useful if OpenCV not installed) |
+| `--no-browser` | Don't auto-open the browser |
+
+### Demo Mode
+
+Run the full F2T2EA kill chain on auto-pilot with no human input:
+
+```bash
+./palantir.sh --demo
+```
+
+Demo mode automatically:
+1. Detects targets via ISR Observer + Strategy Analyst
+2. Nominates targets to the strike board
+3. Auto-approves nominations after 5s delay
+4. Generates 3 COAs via Tactical Planner heuristics
+5. Auto-authorizes the best COA after 3s delay
+6. Simulates engagement with probabilistic hit/kill outcomes
+7. Updates target state (DESTROYED / DAMAGED / ESCAPED)
+
+All actions are broadcast as real-time messages visible in the Tactical AIP Assistant feed. A red "DEMO MODE" banner appears on the dashboard. No API keys are required — the system runs entirely on heuristic agents.
+
+For a lightweight demo without the drone video simulator:
+
+```bash
+./palantir.sh --demo --no-sim
+```
+
 ### Run Components Individually
 
 ```bash
 ./venv/bin/python3 src/python/api_main.py                    # Backend only
 cd src/frontend && python3 -m http.server 3000                # Dashboard only
 ./venv/bin/python3 src/python/vision/video_simulator.py       # Simulator only
+DEMO_MODE=true ./venv/bin/python3 src/python/api_main.py     # Backend in demo mode
 ```
 
 ### Run Tests
@@ -155,6 +189,7 @@ See `.env.example` for all options. The system runs fully without API keys using
 | `PORT` | `8000` | Server port |
 | `SIMULATION_HZ` | `10` | Simulation tick rate |
 | `DEFAULT_THEATER` | `romania` | Default theater to load |
+| `DEMO_MODE` | `false` | Enable demo auto-pilot (or use `--demo` flag) |
 
 ## Contributing
 

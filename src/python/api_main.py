@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import asyncio
 import collections
 import json
+import random
 import time
 
 import structlog
@@ -231,19 +234,187 @@ def _process_new_detection(target: dict, nominated: set) -> dict | None:
 
 
 assistant = TacticalAssistant()
+effectors_agent = None
+_get_demo_effectors = None
+if settings.demo_mode:
+    from agents.effectors_agent import EffectorsAgent
+    from mission_data.asset_registry import get_available_effectors as _get_demo_effectors
+    effectors_agent = EffectorsAgent()
+
+
+def _get_entry_if_status(entry_id: str, expected_status: str) -> dict | None:
+    """Re-fetch a strike board entry and return it only if it still has the expected status."""
+    for e in hitl.get_strike_board():
+        if e["id"] == entry_id and e["status"] == expected_status:
+            return e
+    return None
+
+
+async def demo_autopilot():
+    """Auto-pilot loop for demo mode: auto-approve, generate COAs, auto-authorize, engage."""
+    APPROVAL_DELAY = 5.0
+    COA_AUTH_DELAY = 3.0
+    ENGAGE_DELAY = 2.0
+
+    logger.warning("demo_autopilot_started", note="HITL bypass active")
+
+    # Announce demo mode to all dashboard clients
+    await asyncio.sleep(2.0)
+    await broadcast(json.dumps({
+        "type": "ASSISTANT_MESSAGE",
+        "text": "DEMO MODE ACTIVE — Full F2T2EA kill chain running on auto-pilot.",
+        "severity": "CRITICAL",
+        "timestamp": time.strftime("%H:%M:%S"),
+    }), target_type="DASHBOARD")
+
+    in_flight: set[str] = set()
+
+    while True:
+        await asyncio.sleep(2.0)
+
+        # Gate 1: Auto-approve PENDING nominations after delay
+        board = hitl.get_strike_board()
+        for entry in board:
+            if entry["status"] != "PENDING" or entry["id"] in in_flight:
+                continue
+
+            entry_id = entry["id"]
+            in_flight.add(entry_id)
+
+            await asyncio.sleep(APPROVAL_DELAY)
+
+            # Re-fetch: operator may have acted during sleep
+            entry = _get_entry_if_status(entry_id, "PENDING")
+            if not entry:
+                in_flight.discard(entry_id)
+                continue
+
+            try:
+                hitl.approve_nomination(entry_id, "Demo auto-approved")
+            except ValueError:
+                in_flight.discard(entry_id)
+                continue
+
+            await broadcast(json.dumps({
+                "type": "ASSISTANT_MESSAGE",
+                "text": f"AUTO-APPROVED: {entry['target_type']} (id={entry['target_id']}) — generating COAs...",
+                "severity": "WARNING",
+                "timestamp": time.strftime("%H:%M:%S"),
+            }), target_type="DASHBOARD")
+            await broadcast(json.dumps({
+                "type": "HITL_UPDATE",
+                "action": "approved",
+                "entry": hitl.get_strike_board(),
+            }), target_type="DASHBOARD")
+
+            # Generate COAs
+            target_loc = entry.get("target_location", [0.0, 0.0])
+            coas = tactical_planner._generate_coas_heuristic(
+                target_data={
+                    "lat": target_loc[0] if len(target_loc) > 0 else 0.0,
+                    "lon": target_loc[1] if len(target_loc) > 1 else 0.0,
+                    "type": entry["target_type"],
+                },
+                assets=_get_demo_effectors(),
+            )
+            if coas:
+                hitl.propose_coas(entry_id, coas)
+                await broadcast(json.dumps({
+                    "type": "HITL_UPDATE",
+                    "action": "coas_proposed",
+                    "entry_id": entry_id,
+                    "coas": hitl.get_coas_for_entry(entry_id),
+                }), target_type="DASHBOARD")
+
+                coa_names = [f"{c.effector_name} (Pk={c.pk_estimate:.0%})" for c in coas]
+                await broadcast(json.dumps({
+                    "type": "ASSISTANT_MESSAGE",
+                    "text": f"COAs GENERATED: {' | '.join(coa_names)}",
+                    "severity": "INFO",
+                    "timestamp": time.strftime("%H:%M:%S"),
+                }), target_type="DASHBOARD")
+
+                # Gate 2: Auto-authorize best COA after delay
+                await asyncio.sleep(COA_AUTH_DELAY)
+
+                # Re-fetch: check entry still in APPROVED state
+                entry = _get_entry_if_status(entry_id, "APPROVED")
+                if not entry:
+                    in_flight.discard(entry_id)
+                    continue
+
+                best_coa = coas[0]  # already sorted by composite_score desc
+                try:
+                    hitl.authorize_coa(entry_id, best_coa.id, "Demo auto-authorized best COA")
+                except ValueError:
+                    in_flight.discard(entry_id)
+                    continue
+
+                await broadcast(json.dumps({
+                    "type": "ASSISTANT_MESSAGE",
+                    "text": f"COA AUTHORIZED: {best_coa.effector_name} — Pk={best_coa.pk_estimate:.0%}, TTE={best_coa.time_to_effect_min:.1f}min",
+                    "severity": "WARNING",
+                    "timestamp": time.strftime("%H:%M:%S"),
+                }), target_type="DASHBOARD")
+                await broadcast(json.dumps({
+                    "type": "HITL_UPDATE",
+                    "action": "coa_authorized",
+                    "entry_id": entry_id,
+                    "coas": hitl.get_coas_for_entry(entry_id),
+                }), target_type="DASHBOARD")
+
+                # Engage phase
+                await asyncio.sleep(ENGAGE_DELAY)
+                target = sim._find_target(entry["target_id"])
+                if target and effectors_agent:
+                    pk = best_coa.pk_estimate
+                    hit = random.random() < pk
+                    if hit:
+                        destroyed = random.random() < 0.70
+                        if destroyed:
+                            sim._set_target_state(entry["target_id"], "DESTROYED")
+                            result_text = f"DESTROYED — {entry['target_type']} (id={entry['target_id']}) neutralized by {best_coa.effector_name}. BDA confidence: 90%."
+                            severity = "CRITICAL"
+                        else:
+                            sim._set_target_state(entry["target_id"], "ENGAGED")
+                            result_text = f"DAMAGED — {entry['target_type']} (id={entry['target_id']}) hit by {best_coa.effector_name}, partial effect. Re-engagement recommended."
+                            severity = "WARNING"
+                    else:
+                        sim._set_target_state(entry["target_id"], "ESCAPED")
+                        result_text = f"MISSED — {entry['target_type']} (id={entry['target_id']}) evaded {best_coa.effector_name}. ISR re-detection required."
+                        severity = "WARNING"
+
+                    await broadcast(json.dumps({
+                        "type": "ASSISTANT_MESSAGE",
+                        "text": f"ENGAGEMENT RESULT: {result_text}",
+                        "severity": severity,
+                        "timestamp": time.strftime("%H:%M:%S"),
+                    }), target_type="DASHBOARD")
+
+            in_flight.discard(entry_id)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Start simulation loop
     task = asyncio.create_task(simulation_loop())
+    demo_task = None
+    if settings.demo_mode:
+        demo_task = asyncio.create_task(demo_autopilot())
     yield
-    # Shutdown: Cancel task
+    # Shutdown: Cancel tasks
     task.cancel()
+    if demo_task:
+        demo_task.cancel()
     try:
         await task
     except asyncio.CancelledError:
         pass
+    if demo_task:
+        try:
+            await demo_task
+        except asyncio.CancelledError:
+            pass
 
 app = FastAPI(lifespan=lifespan)
 
@@ -298,6 +469,7 @@ async def simulation_loop():
         if clients:
             state = sim.get_state()
             state["strike_board"] = hitl.get_strike_board()
+            state["demo_mode"] = settings.demo_mode
             state_json = json.dumps({"type": "state", "data": state})
             # Only send simulation state to dashboard clients
             await broadcast(state_json, target_type="DASHBOARD")
