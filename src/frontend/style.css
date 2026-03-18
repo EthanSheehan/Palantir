@@ -282,16 +282,52 @@ h3 {
 }
 
 .drone-card-status {
-    font-size: 0.7rem;
-    font-weight: 600;
+    font-size: 0.65rem;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    padding: 1px 6px;
+    border: 1px solid;
+    border-radius: 3px;
 }
 
-.status-idle { color: #3b82f6; }
-.status-serving { color: #22c55e; }
-.status-repositioning { color: #eab308; }
-.status-painting { color: #ef4444; }
+.drone-card-target {
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 2px 0 0 0;
+}
+
+/* --------------------------
+   DRONE MODE COMMAND BUTTONS
+   -------------------------- */
+.drone-mode-group {
+    display: flex;
+    gap: 4px;
+    margin: 6px 0;
+}
+
+.drone-mode-btn {
+    flex: 1;
+    padding: 4px 2px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.drone-mode-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.drone-mode-active {
+    font-weight: 800;
+}
 
 /* --------------------------
    DRONE ACTION BAR
@@ -436,6 +472,22 @@ h3 {
     text-transform: uppercase;
     letter-spacing: 0.03em;
     padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.enemy-card-trackers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 3px;
+}
+
+.tracker-tag {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 1px 5px;
+    border: 1px solid;
     border-radius: 3px;
 }
 
@@ -1045,6 +1097,60 @@ h3 {
 
 .lock-pulse {
     animation: lockPulse 1s ease-in-out infinite;
+}
+
+/* --------------------------
+   DRONE CAMERA PIP
+   -------------------------- */
+.drone-cam-panel {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    z-index: 2000;
+    background: rgba(10, 15, 20, 0.95);
+    border: 1px solid rgba(0, 255, 0, 0.3);
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+    user-select: none;
+}
+
+.drone-cam-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 10px;
+    background: rgba(0, 255, 0, 0.08);
+    border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+}
+
+.drone-cam-title {
+    color: #00ff00;
+    font-family: monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+}
+
+.drone-cam-close {
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+}
+
+.drone-cam-close:hover {
+    color: #ef4444;
+}
+
+#droneCamCanvas {
+    display: block;
+    width: 400px;
+    height: 300px;
 }
 
 /* --------------------------

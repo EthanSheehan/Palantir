@@ -14,4 +14,6 @@ export const state = {
     zonesPrimitive: null,
     zoneBordersPrimitive: null,
     droneWaypoints: {},
+    droneCamVisible: false,
+    theaterBounds: null,
 };

@@ -23,8 +23,11 @@ export function initMap() {
         navigationInstructionsInitiallyVisible: false
     });
 
+    // Remove default Bing imagery, replace with CARTO dark tiles (free, no key)
     viewer.imageryLayers.removeAll();
-    viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider({ url: DARK_TILE_URL }));
+    viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider({
+        url: DARK_TILE_URL
+    }));
 
     viewer.scene.globe.baseColor = Cesium.Color.BLACK;
     viewer.scene.backgroundColor = Cesium.Color.BLACK;
@@ -255,6 +258,21 @@ export function initMouseTracking() {
             }
         }
     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+}
+
+export function flyToTheater(bounds) {
+    const viewer = state.viewer;
+    if (!viewer || !bounds) return;
+    const centerLon = (bounds.min_lon + bounds.max_lon) / 2;
+    const centerLat = (bounds.min_lat + bounds.max_lat) / 2;
+    const lonSpan = bounds.max_lon - bounds.min_lon;
+    const latSpan = bounds.max_lat - bounds.min_lat;
+    const altitude = Math.max(lonSpan, latSpan) * 80000;
+    viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(centerLon, centerLat, altitude),
+        orientation: { heading: 0, pitch: Cesium.Math.toRadians(-45.0), roll: 0 },
+        duration: 1.5,
+    });
 }
 
 export function initMacroTracking() {

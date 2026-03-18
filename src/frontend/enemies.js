@@ -10,13 +10,22 @@ const STATE_COLORS = {
     NEUTRALIZED:  { color: '#64748b', bg: 'rgba(100, 116, 139, 0.15)' },
 };
 
-export function updateEnemyList(targets) {
+export function updateEnemyList(targets, uavs = []) {
     const container = document.getElementById('enemyListContainer');
     if (!container) return;
 
     const visibleTargets = targets.filter(t => {
         const targetState = t.state || (t.detected ? 'DETECTED' : 'UNDETECTED');
         return targetState !== 'UNDETECTED';
+    });
+
+    // Build target→UAV tracking map
+    const trackingMap = {};
+    uavs.forEach(u => {
+        if (u.tracked_target_id) {
+            if (!trackingMap[u.tracked_target_id]) trackingMap[u.tracked_target_id] = [];
+            trackingMap[u.tracked_target_id].push({ id: u.id, mode: u.mode });
+        }
     });
 
     // Render threat summary
@@ -66,17 +75,6 @@ export function updateEnemyList(targets) {
                 }
                 document.dispatchEvent(new CustomEvent('target:selected', { detail: { id: t.id } }));
 
-                // Show drone action bar if a drone is also selected
-                if (state.selectedDroneId != null) {
-                    const actionBar = document.getElementById('droneActionBar');
-                    if (actionBar) {
-                        actionBar.style.display = 'block';
-                        const droneLabel = document.getElementById('actionBarDrone');
-                        const targetLabel = document.getElementById('actionBarTarget');
-                        if (droneLabel) droneLabel.textContent = `UAV-${state.selectedDroneId}`;
-                        if (targetLabel) targetLabel.textContent = `TGT-${t.id}`;
-                    }
-                }
             });
 
             container.appendChild(card);
@@ -157,6 +155,25 @@ export function updateEnemyList(targets) {
         stateSpan.style.background = stateStyle.bg;
         stateSpan.textContent = targetState;
         infoDiv.appendChild(stateSpan);
+
+        // Show tracking drones
+        const trackers = trackingMap[t.id] || [];
+        if (trackers.length > 0) {
+            const trackDiv = document.createElement('div');
+            trackDiv.className = 'enemy-card-trackers';
+            trackers.forEach(tr => {
+                const tag = document.createElement('span');
+                tag.className = 'tracker-tag';
+                const modeTagColors = { PAINT: '#ef4444', INTERCEPT: '#ff6400', FOLLOW: '#a78bfa' };
+                const tagColor = modeTagColors[tr.mode] || '#a78bfa';
+                tag.style.color = tagColor;
+                tag.style.borderColor = tagColor.replace(')', ', 0.4)').replace('#', 'rgba(');
+                tag.style.borderColor = tr.mode === 'PAINT' ? 'rgba(239, 68, 68, 0.4)' : tr.mode === 'INTERCEPT' ? 'rgba(255, 100, 0, 0.4)' : 'rgba(167, 139, 250, 0.4)';
+                tag.textContent = `UAV-${tr.id} ${tr.mode}`;
+                trackDiv.appendChild(tag);
+            });
+            infoDiv.appendChild(trackDiv);
+        }
 
         card.appendChild(infoDiv);
 

@@ -1,6 +1,5 @@
 import { state } from './state.js';
 import { sendMessage } from './websocket.js';
-import { triggerDroneSelection } from './drones.js';
 
 export function initSidebar() {
     initTabs();
@@ -111,8 +110,12 @@ function initResetButton() {
 function initCameraControls() {
     document.getElementById('returnGlobalBtn').addEventListener('click', () => {
         _decoupleCamera();
+        const b = state.theaterBounds;
+        const lon = b ? (b.min_lon + b.max_lon) / 2 : 24.9668;
+        const lat = b ? (b.min_lat + b.max_lat) / 2 : 41.2;
+        const alt = b ? Math.max(b.max_lon - b.min_lon, b.max_lat - b.min_lat) * 80000 : 500000;
         state.viewer.camera.flyTo({
-            destination: Cesium.Cartesian3.fromDegrees(24.9668, 41.2, 500000.0),
+            destination: Cesium.Cartesian3.fromDegrees(lon, lat, alt),
             orientation: { heading: Cesium.Math.toRadians(0), pitch: Cesium.Math.toRadians(-45.0), roll: 0.0 },
             duration: 1.5
         });
@@ -138,40 +141,7 @@ function _decoupleCamera() {
 }
 
 function initActionButtons() {
-    document.getElementById('actionViewBtn').addEventListener('click', () => {
-        if (state.selectedDroneId && state.selectedTargetId) {
-            sendMessage({ action: 'view_target', drone_id: parseInt(state.selectedDroneId), target_id: state.selectedTargetId });
-        }
-    });
-
-    document.getElementById('actionFollowBtn').addEventListener('click', () => {
-        if (state.selectedDroneId && state.selectedTargetId) {
-            sendMessage({ action: 'follow_target', drone_id: parseInt(state.selectedDroneId), target_id: state.selectedTargetId });
-        }
-    });
-
-    document.getElementById('actionPaintBtn').addEventListener('click', () => {
-        if (state.selectedDroneId && state.selectedTargetId) {
-            sendMessage({ action: 'paint_target', drone_id: parseInt(state.selectedDroneId), target_id: state.selectedTargetId });
-        }
-    });
-
-    document.addEventListener('drone:selected', updateDroneActionBar);
-    document.addEventListener('target:selected', updateDroneActionBar);
-}
-
-function updateDroneActionBar() {
-    const bar = document.getElementById('droneActionBar');
-    const droneLabel = document.getElementById('actionBarDrone');
-    const targetLabel = document.getElementById('actionBarTarget');
-
-    if (state.selectedDroneId && state.selectedTargetId) {
-        bar.style.display = 'block';
-        droneLabel.textContent = `UAV-${state.selectedDroneId}`;
-        targetLabel.textContent = `TGT-${state.selectedTargetId}`;
-    } else {
-        bar.style.display = 'none';
-    }
+    // Action buttons now live in drone card (dronelist.js), no standalone action bar needed
 }
 
 function initOverscrollBounce() {

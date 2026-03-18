@@ -54,14 +54,18 @@ Environment variables go in a `.env` file (loaded via python-dotenv). Required f
 - Broadcasts full simulation state as JSON each tick
 
 **2. Simulation Engine (`src/python/sim_engine.py`)**
-- `SimulationModel` manages UAV positions/modes (idle/serving/repositioning) and target movement (SAM, TEL, TRUCK, CP unit types)
-- Romania macro grid with zone-based imbalance tracking drives UAV repositioning logic
-- Mission scenarios: circular scanning, target tracking, target painting (lock)
+- `SimulationModel` manages UAV positions/modes and target movement (SAM, TEL, TRUCK, CP, MANPADS, RADAR, C2_NODE, LOGISTICS, ARTILLERY, APC)
+- UAV modes: IDLE, SEARCH (circular loiter), FOLLOW (loose orbit ~2km), PAINT (tight orbit ~1km, laser lock), INTERCEPT (direct approach 1.5x speed, ~300m orbit), REPOSITIONING, RTB
+- Fixed-wing physics with `_turn_toward()` for smooth heading changes, `MAX_TURN_RATE` based circular loiter
+- Theater-configurable via YAML files in `theaters/` (Romania, South China Sea, Baltic)
+- Zone-based imbalance tracking drives UAV repositioning logic
 
 **3. Cesium Frontend (`src/frontend/`)**
-- Vanilla JS (~1500 lines in `app.js`) with Cesium JS for 3D WGS-84 visualization
+- Modular ES6 JS with Cesium JS for 3D WGS-84 visualization
 - No build step — served directly by Python's `http.server`
-- Tabs: MISSION / ASSETS / ENEMIES; includes Tactical AIP Assistant widget
+- Tabs: MISSION / ASSETS / ENEMIES; includes Tactical AIP Assistant widget, Drone Camera PIP
+- Drone cards with inline mode command buttons (SEARCH/FOLLOW/PAINT/INTERCEPT)
+- Auto-recenters camera when switching theaters
 - Connects to backend WebSocket at `ws://localhost:8000/ws`
 
 ### AI Agent Layer (`src/python/agents/`)
@@ -82,7 +86,7 @@ Agents communicate through Pydantic models defined in `src/python/core/ontology.
 
 ### WebSocket Protocol
 
-The backend sends JSON payloads each tick containing drone positions, target positions, grid zone states, and tactical assistant messages. The frontend subscribes and updates Cesium entities in real time. Simulator clients send back video frames (base64 MJPEG) and telemetry.
+The backend sends JSON payloads each tick containing drone positions, target positions, grid zone states, theater bounds, and tactical assistant messages. The frontend subscribes and updates Cesium entities in real time. Simulator clients send back video frames (base64 MJPEG) and telemetry. WebSocket actions: `scan_area`, `follow_target`, `paint_target`, `intercept_target`, `cancel_track`, `move_drone`, `spike`, `approve_nomination`, `reject_nomination`, `authorize_coa`.
 
 ## Integrated Agent Workflow (MANDATORY)
 

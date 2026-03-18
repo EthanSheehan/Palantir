@@ -1,5 +1,5 @@
 import { state } from './state.js';
-import { initMap, initCompass, initMouseTracking, initMacroTracking, initOrUpdateZonesPrimitive } from './map.js';
+import { initMap, initCompass, initMouseTracking, initMacroTracking, initOrUpdateZonesPrimitive, flyToTheater } from './map.js';
 import { connectWebSocket } from './websocket.js';
 import { updateDrones, updateLockIndicators } from './drones.js';
 import { updateDroneList } from './dronelist.js';
@@ -11,6 +11,7 @@ import { initAssistant } from './assistant.js';
 import { initDetailMap } from './detailmap.js';
 import { initStrikeBoard } from './strikeboard.js';
 import { initTheater } from './theater.js';
+import { initDroneCam, updateDroneCamState } from './dronecam.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Initialize Cesium map
@@ -27,9 +28,11 @@ document.addEventListener('DOMContentLoaded', () => {
     initDetailMap();
     initStrikeBoard();
     initTheater();
+    initDroneCam();
 
     // 4. Flow lines buffer (managed here since it spans multiple ticks)
     const flowLines = [];
+    let currentTheater = null;
 
     // 5. Wire simulation state updates
     document.addEventListener('ws:state', (e) => {
@@ -65,8 +68,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (simState.targets) {
             updateTargets(simState.targets);
-            updateEnemyList(simState.targets);
+            updateEnemyList(simState.targets, simState.uavs);
             updateLockIndicators(simState.uavs, getTargetEntities());
+            updateDroneCamState(simState.uavs, simState.targets);
+        }
+
+        // Recenter camera when theater changes
+        if (simState.theater && simState.theater.name !== currentTheater) {
+            currentTheater = simState.theater.name;
+            state.theaterBounds = simState.theater.bounds;
+            flyToTheater(simState.theater.bounds);
         }
 
         // Show demo banner if demo_mode is active

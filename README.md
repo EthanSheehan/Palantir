@@ -128,9 +128,11 @@ src/
     state.js                 # Shared application state
     websocket.js             # WebSocket connection + event dispatch
     map.js                   # Cesium viewer initialization
-    drones.js                # UAV entity rendering + drone list
+    drones.js                # UAV entity rendering + 3D model management
+    dronelist.js             # Drone card list + inline mode command buttons
+    dronecam.js              # Drone Camera PIP — canvas-based synthetic feed
     targets.js               # Target visualization + threat rings
-    enemies.js               # ENEMIES tab with threat rows
+    enemies.js               # ENEMIES tab with threat rows + UAV tracker tags
     strikeboard.js           # Strike Board HITL UI
     sidebar.js               # Tab navigation + controls
     assistant.js             # Tactical AIP message feed
@@ -152,7 +154,7 @@ Each agent works in **heuristic mode** by default (no API keys needed). When LLM
 ### Simulation
 
 The sim engine models:
-- **UAVs**: 7 operational modes (idle, scanning, tracking, painting, repositioning, RTB, serving), fuel consumption, zone-based coverage optimization
+- **UAVs**: 7 operational modes (IDLE, SEARCH, FOLLOW, PAINT, INTERCEPT, REPOSITIONING, RTB), fixed-wing physics with smooth turn rates, fuel consumption, zone-based coverage optimization
 - **Targets**: 8 unit types (SAM, TEL, TRUCK, CP, MANPADS, RADAR, ARTILLERY, APC) with type-specific behaviors (patrol, ambush, shoot-and-scoot, concealment, flee)
 - **Environment**: Time of day, cloud cover, precipitation affecting sensor performance
 - **Detection**: Probabilistic Pd model incorporating range, RCS, weather penalties
@@ -164,7 +166,7 @@ The backend broadcasts full simulation state as JSON at 10Hz to all connected da
 - `ASSISTANT_MESSAGE` — AI agent notifications (INFO/WARNING/CRITICAL)
 - `HITL_UPDATE` — strike board nomination and COA status changes
 - `SITREP_RESPONSE` — situation report query results
-- Client actions: `spike`, `move_drone`, `view_target`, `follow_target`, `paint_target`, `cancel_track`, `approve_nomination`, `reject_nomination`, `authorize_coa`, `sitrep_query`, `retask_sensors`
+- Client actions: `spike`, `move_drone`, `scan_area`, `follow_target`, `paint_target`, `intercept_target`, `cancel_track`, `approve_nomination`, `reject_nomination`, `authorize_coa`, `sitrep_query`, `retask_sensors`
 
 ## API Endpoints
 

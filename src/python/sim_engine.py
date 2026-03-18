@@ -18,8 +18,8 @@ TARGET_STATES = (
 
 # UAV modes
 UAV_MODES = (
-    "IDLE", "SCANNING", "VIEWING", "FOLLOWING",
-    "PAINTING", "REPOSITIONING", "RTB",
+    "IDLE", "SEARCH", "FOLLOW", "FOLLOW",
+    "PAINT", "REPOSITIONING", "RTB",
 )
 
 # Types that emit radar signals
@@ -49,11 +49,23 @@ CONCEALMENT_DIST_DEG = 0.03
 # Logistics patrol speed multiplier (slower than TRUCK)
 LOGISTICS_SPEED_MULT = 0.5
 
-# Orbit radius for VIEWING mode (degrees, ~2km at Romanian latitudes)
-VIEWING_ORBIT_RADIUS_DEG = 0.018
+# Follow orbit radius (degrees, ~2km — loose orbit)
+FOLLOW_ORBIT_RADIUS_DEG = 0.018
+
+# Paint orbit radius (degrees, ~1km — tight lock orbit)
+PAINT_ORBIT_RADIUS_DEG = 0.009
+
+# Intercept approach distance (degrees, ~300m — danger close)
+INTERCEPT_CLOSE_DEG = 0.003
 
 # Follow offset distance (degrees)
 FOLLOW_OFFSET_DEG = 0.01
+
+# Fixed-wing loiter circle radius (degrees, ~3km)
+LOITER_RADIUS_DEG = 0.027
+
+# Max turn rate for fixed-wing (radians/sec, ~3 deg/sec standard rate turn)
+MAX_TURN_RATE = math.radians(3.0)
 
 
 def _heading_from_velocity(vx: float, vy: float) -> float:
@@ -204,6 +216,22 @@ class UAV:
         self.fuel_hours: float = 24.0
         self.fuel_rate: float = 1.0
 
+    def _turn_toward(self, target_vx: float, target_vy: float, speed: float, dt_sec: float):
+        """Gradually turn toward desired direction (fixed-wing turn rate limit)."""
+        curr_heading = math.atan2(self.vx, self.vy) if math.hypot(self.vx, self.vy) > 1e-9 else 0.0
+        desired_heading = math.atan2(target_vx, target_vy)
+        diff = desired_heading - curr_heading
+        while diff > math.pi:
+            diff -= 2 * math.pi
+        while diff < -math.pi:
+            diff += 2 * math.pi
+        max_delta = MAX_TURN_RATE * dt_sec * 3  # 3x for repositioning urgency
+        if abs(diff) > max_delta:
+            diff = math.copysign(max_delta, diff)
+        new_heading = curr_heading + diff
+        self.vx = math.sin(new_heading) * speed
+        self.vy = math.cos(new_heading) * speed
+
     def update(self, dt_sec: float, speed: float):
         if self.commanded_target:
             tx, ty = self.commanded_target
@@ -213,12 +241,9 @@ class UAV:
             if dist < 0.005:
                 self.commanded_target = None
                 self.mode = "IDLE"
-                self.vx = 0
-                self.vy = 0
             else:
                 self.mode = "REPOSITIONING"
-                self.vx = (dx / dist) * speed
-                self.vy = (dy / dist) * speed
+                self._turn_toward((dx / dist) * speed, (dy / dist) * speed, speed, dt_sec)
             self.x += self.vx * dt_sec
             self.y += self.vy * dt_sec
             self.heading_deg = _heading_from_velocity(self.vx, self.vy)
@@ -235,24 +260,27 @@ class UAV:
                 self.vy = 0
                 self.target = None
             else:
-                self.vx = (dx / dist) * speed
-                self.vy = (dy / dist) * speed
+                self._turn_toward((dx / dist) * speed, (dy / dist) * speed, speed, dt_sec)
             self.x += self.vx * dt_sec
             self.y += self.vy * dt_sec
 
-        elif self.mode in ("IDLE", "SCANNING"):
-            rx = random.uniform(-1, 1) * speed * 0.2
-            ry = random.uniform(-1, 1) * speed * 0.2
-            self.vx += rx * dt_sec
-            self.vy += ry * dt_sec
-            self.vx *= 0.95
-            self.vy *= 0.95
-
+        elif self.mode in ("IDLE", "SEARCH"):
+            # Fixed-wing loiter: fly in a circle around a loiter point
+            loiter_speed = speed * 0.5
             curr_speed = math.hypot(self.vx, self.vy)
-            max_loiter_speed = speed * 0.3
-            if curr_speed > max_loiter_speed:
-                self.vx = (self.vx / curr_speed) * max_loiter_speed
-                self.vy = (self.vy / curr_speed) * max_loiter_speed
+
+            if curr_speed < loiter_speed * 0.3:
+                # Kick-start with initial heading
+                angle = math.radians(self.heading_deg) if self.heading_deg else random.uniform(0, 2 * math.pi)
+                self.vx = math.sin(angle) * loiter_speed
+                self.vy = math.cos(angle) * loiter_speed
+
+            # Apply gentle constant turn (fixed-wing circle)
+            heading_rad = math.atan2(self.vx, self.vy)
+            turn = MAX_TURN_RATE * dt_sec
+            heading_rad += turn
+            self.vx = math.sin(heading_rad) * loiter_speed
+            self.vy = math.cos(heading_rad) * loiter_speed
 
             self.x += self.vx * dt_sec
             self.y += self.vy * dt_sec
@@ -371,46 +399,28 @@ class SimulationModel:
                 return t
         return None
 
-    def command_view(self, uav_id: int, target_id: int):
+    def _assign_target(self, uav_id: int, target_id: int, mode: str, target_state: str):
         uav = self._find_uav(uav_id)
         target = self._find_target(target_id)
         if not uav or not target:
-            logger.warning("command_view_failed", uav_id=uav_id, target_id=target_id)
+            logger.warning("command_failed", mode=mode, uav_id=uav_id, target_id=target_id)
             return
-        uav.mode = "VIEWING"
+        uav.mode = mode
         uav.tracked_target_id = target_id
         uav.commanded_target = None
         target.tracked_by_uav_id = uav_id
-        if target.state == "DETECTED":
-            target.state = "TRACKED"
-        logger.info("command_view", uav_id=uav_id, target_id=target_id)
+        if target_state == "LOCKED" or target.state in ("DETECTED", "UNDETECTED"):
+            target.state = target_state
+        logger.info("command_assign", mode=mode, uav_id=uav_id, target_id=target_id)
 
     def command_follow(self, uav_id: int, target_id: int):
-        uav = self._find_uav(uav_id)
-        target = self._find_target(target_id)
-        if not uav or not target:
-            logger.warning("command_follow_failed", uav_id=uav_id, target_id=target_id)
-            return
-        uav.mode = "FOLLOWING"
-        uav.tracked_target_id = target_id
-        uav.commanded_target = None
-        target.tracked_by_uav_id = uav_id
-        if target.state in ("DETECTED", "TRACKED"):
-            target.state = "TRACKED"
-        logger.info("command_follow", uav_id=uav_id, target_id=target_id)
+        self._assign_target(uav_id, target_id, "FOLLOW", "TRACKED")
 
     def command_paint(self, uav_id: int, target_id: int):
-        uav = self._find_uav(uav_id)
-        target = self._find_target(target_id)
-        if not uav or not target:
-            logger.warning("command_paint_failed", uav_id=uav_id, target_id=target_id)
-            return
-        uav.mode = "PAINTING"
-        uav.tracked_target_id = target_id
-        uav.commanded_target = None
-        target.tracked_by_uav_id = uav_id
-        target.state = "LOCKED"
-        logger.info("command_paint", uav_id=uav_id, target_id=target_id)
+        self._assign_target(uav_id, target_id, "PAINT", "LOCKED")
+
+    def command_intercept(self, uav_id: int, target_id: int):
+        self._assign_target(uav_id, target_id, "INTERCEPT", "LOCKED")
 
     def cancel_track(self, uav_id: int):
         uav = self._find_uav(uav_id)
@@ -418,7 +428,7 @@ class SimulationModel:
             logger.warning("cancel_track_failed", uav_id=uav_id)
             return
         old_target_id = uav.tracked_target_id
-        uav.mode = "SCANNING"
+        uav.mode = "SEARCH"
         uav.tracked_target_id = None
         if old_target_id is not None:
             target = self._find_target(old_target_id)
@@ -465,7 +475,7 @@ class SimulationModel:
                 idle_in_zone = [u for u in self.uavs if u.zone_id == z_id and u.mode == "IDLE"]
                 assign_count = min(z.queue, len(idle_in_zone))
                 for i in range(assign_count):
-                    idle_in_zone[i].mode = "SCANNING"
+                    idle_in_zone[i].mode = "SEARCH"
                     idle_in_zone[i].service_timer = self.SERVICE_TIME_SEC
                     z.queue -= 1
 
@@ -496,12 +506,12 @@ class SimulationModel:
 
         # 7. Update Kinematics (handles IDLE, SCANNING, REPOSITIONING, RTB)
         for u in self.uavs:
-            if u.mode not in ("VIEWING", "FOLLOWING", "PAINTING"):
+            if u.mode not in ("FOLLOW", "FOLLOW", "PAINT"):
                 u.update(dt_sec, self.SPEED_DEG_PER_SEC)
 
         # 8. Decrement service timers for SCANNING UAVs
         for u in self.uavs:
-            if u.mode == "SCANNING":
+            if u.mode == "SEARCH":
                 u.service_timer -= dt_sec
                 if u.service_timer <= 0:
                     u.mode = "IDLE"
@@ -559,12 +569,12 @@ class SimulationModel:
     def _update_tracking_modes(self, dt_sec: float):
         speed = self.SPEED_DEG_PER_SEC
         for u in self.uavs:
-            if u.mode not in ("VIEWING", "FOLLOWING", "PAINTING"):
+            if u.mode not in ("FOLLOW", "PAINT", "INTERCEPT"):
                 continue
 
             target = self._find_target(u.tracked_target_id) if u.tracked_target_id is not None else None
             if not target:
-                u.mode = "SCANNING"
+                u.mode = "SEARCH"
                 u.tracked_target_id = None
                 u.vx = 0
                 u.vy = 0
@@ -574,56 +584,58 @@ class SimulationModel:
             dy = target.y - u.y
             dist = math.hypot(dx, dy)
 
-            if u.mode == "VIEWING":
-                # Orbit target at ~2km radius
+            if u.mode == "FOLLOW":
+                # Loose orbit at ~2km
+                orbit_r = FOLLOW_ORBIT_RADIUS_DEG
                 if dist < 0.001:
-                    # Too close, push out
-                    u.x -= VIEWING_ORBIT_RADIUS_DEG
-                    dist = VIEWING_ORBIT_RADIUS_DEG
-
-                # Tangential velocity for circular orbit
+                    u.x -= orbit_r
+                    dist = orbit_r
+                    dx, dy = target.x - u.x, target.y - u.y
                 nx, ny = dx / dist, dy / dist
-                # Tangent perpendicular to radial direction
                 tx, ty = -ny, nx
-
-                if dist < VIEWING_ORBIT_RADIUS_DEG * 0.8:
-                    # Move outward + tangential
-                    u.vx = (-nx * 0.3 + tx * 0.7) * speed
-                    u.vy = (-ny * 0.3 + ty * 0.7) * speed
-                elif dist > VIEWING_ORBIT_RADIUS_DEG * 1.2:
-                    # Move inward + tangential
-                    u.vx = (nx * 0.3 + tx * 0.7) * speed
-                    u.vy = (ny * 0.3 + ty * 0.7) * speed
+                if dist < orbit_r * 0.8:
+                    dvx = (-nx * 0.3 + tx * 0.7) * speed
+                    dvy = (-ny * 0.3 + ty * 0.7) * speed
+                elif dist > orbit_r * 1.2:
+                    dvx = (nx * 0.3 + tx * 0.7) * speed
+                    dvy = (ny * 0.3 + ty * 0.7) * speed
                 else:
-                    # Pure tangential orbit
-                    u.vx = tx * speed
-                    u.vy = ty * speed
-
+                    dvx, dvy = tx * speed, ty * speed
+                u._turn_toward(dvx, dvy, speed, dt_sec)
                 u.x += u.vx * dt_sec
                 u.y += u.vy * dt_sec
 
-            elif u.mode == "FOLLOWING":
-                # Follow target, maintaining offset behind
-                desired_x = target.x - target.vx * (FOLLOW_OFFSET_DEG / max(target.speed, 0.0001))
-                desired_y = target.y - target.vy * (FOLLOW_OFFSET_DEG / max(target.speed, 0.0001))
-                fdx = desired_x - u.x
-                fdy = desired_y - u.y
-                fdist = math.hypot(fdx, fdy)
-                if fdist > 0.001:
-                    follow_speed = min(speed * 1.2, speed * (fdist / FOLLOW_OFFSET_DEG))
-                    u.vx = (fdx / fdist) * follow_speed
-                    u.vy = (fdy / fdist) * follow_speed
+            elif u.mode == "PAINT":
+                # Tight orbit at ~1km (laser lock)
+                orbit_r = PAINT_ORBIT_RADIUS_DEG
+                if dist < 0.001:
+                    u.x -= orbit_r
+                    dist = orbit_r
+                    dx, dy = target.x - u.x, target.y - u.y
+                nx, ny = dx / dist, dy / dist
+                tx, ty = -ny, nx
+                if dist < orbit_r * 0.8:
+                    dvx = (-nx * 0.4 + tx * 0.6) * speed
+                    dvy = (-ny * 0.4 + ty * 0.6) * speed
+                elif dist > orbit_r * 1.2:
+                    dvx = (nx * 0.4 + tx * 0.6) * speed
+                    dvy = (ny * 0.4 + ty * 0.6) * speed
                 else:
-                    # Match target velocity
-                    u.vx = target.vx
-                    u.vy = target.vy
+                    dvx, dvy = tx * speed, ty * speed
+                u._turn_toward(dvx, dvy, speed, dt_sec)
                 u.x += u.vx * dt_sec
                 u.y += u.vy * dt_sec
 
-            elif u.mode == "PAINTING":
-                # Hold steady, pointed at target — minimal drift
-                u.vx *= 0.9
-                u.vy *= 0.9
+            elif u.mode == "INTERCEPT":
+                # Fly directly at target, danger close (~300m)
+                if dist > INTERCEPT_CLOSE_DEG:
+                    intercept_speed = speed * 1.5
+                    u._turn_toward((dx / dist) * intercept_speed, (dy / dist) * intercept_speed, intercept_speed, dt_sec)
+                else:
+                    # Arrived — tight orbit
+                    nx, ny = dx / max(dist, 0.0001), dy / max(dist, 0.0001)
+                    tx, ty = -ny, nx
+                    u._turn_toward(tx * speed, ty * speed, speed, dt_sec)
                 u.x += u.vx * dt_sec
                 u.y += u.vy * dt_sec
 
@@ -726,5 +738,9 @@ class SimulationModel:
                 "time_of_day": self.environment.time_of_day,
                 "cloud_cover": self.environment.cloud_cover,
                 "precipitation": self.environment.precipitation,
+            },
+            "theater": {
+                "name": self.theater_name,
+                "bounds": self.bounds,
             },
         }

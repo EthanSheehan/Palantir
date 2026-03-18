@@ -2,7 +2,7 @@ import { state } from './state.js';
 import { sendMessage } from './websocket.js';
 import { getDronePin, placeWaypointFromDetail } from './drones.js';
 
-const STADIA_URL = 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}.png?api_key=74c21d3f-b418-4db6-9318-ffb876f1f071';
+const DARK_TILE_URL = 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
 const CONSTRAINT_RADIUS_METERS = 150000.0;
 
 let detailViewer = null;
@@ -26,7 +26,7 @@ export function initDetailMap() {
     });
 
     detailViewer.imageryLayers.removeAll();
-    detailViewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider({ url: STADIA_URL }));
+    detailViewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider({ url: DARK_TILE_URL }));
 
     detailViewer.scene.globe.baseColor = Cesium.Color.BLACK;
     detailViewer.scene.backgroundColor = Cesium.Color.BLACK;

@@ -102,17 +102,6 @@
             <div id="droneListContainer" class="drone-list">
                 <!-- Dynamically populated rows will go here -->
             </div>
-            <!-- Drone Action Buttons (shown when drone + target selected) -->
-            <div id="droneActionBar" class="drone-action-bar" style="display: none;">
-                <div class="action-bar-label">
-                    <span id="actionBarDrone">--</span> &rarr; <span id="actionBarTarget">--</span>
-                </div>
-                <div class="action-bar-buttons">
-                    <button id="actionViewBtn" class="action-btn action-view">VIEW</button>
-                    <button id="actionFollowBtn" class="action-btn action-follow">FOLLOW</button>
-                    <button id="actionPaintBtn" class="action-btn action-paint">PAINT</button>
-                </div>
-            </div>
         </div>
 
         <!-- TAB 3: ENEMIES -->
@@ -139,6 +128,15 @@
         <div id="cameraControls" class="camera-controls" style="display: none;">
             <button id="returnGlobalBtn" class="square-btn" title="Return to Global View">&#x1F310;</button>
             <button id="decoupleCameraBtn" class="square-btn" title="Decouple Camera">&#x2716;</button>
+        </div>
+
+        <!-- Drone Camera PIP -->
+        <div id="droneCamPanel" class="drone-cam-panel" style="display: none;">
+            <div class="drone-cam-header">
+                <span class="drone-cam-title">DRONE CAM</span>
+                <button class="drone-cam-close">&times;</button>
+            </div>
+            <canvas id="droneCamCanvas"></canvas>
         </div>
     </div>
 

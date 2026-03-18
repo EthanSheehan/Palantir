@@ -23,9 +23,12 @@ export function updateDrones(uavs) {
         currentUavIds.add(uav.id);
 
         let colorStr = '#3b82f6';
-        if (uav.mode === 'serving') colorStr = '#22c55e';
-        else if (uav.mode === 'repositioning') colorStr = '#eab308';
-        else if (uav.mode === 'painting') colorStr = '#ef4444';
+        if (uav.mode === 'SEARCH') colorStr = '#22c55e';
+        else if (uav.mode === 'FOLLOW') colorStr = '#a78bfa';
+        else if (uav.mode === 'PAINT') colorStr = '#ef4444';
+        else if (uav.mode === 'INTERCEPT') colorStr = '#ff6400';
+        else if (uav.mode === 'REPOSITIONING') colorStr = '#eab308';
+        else if (uav.mode === 'RTB') colorStr = '#64748b';
         const color = Cesium.Color.fromCssColorString(colorStr);
         const billboardImage = getDronePin(colorStr);
 
@@ -189,7 +192,7 @@ function _updateExistingDrone(viewer, marker, uav, position, colorStr, color) {
     }
 
     if (uav.heading_deg !== undefined && movementDist <= 0.002) {
-        const heading = Cesium.Math.toRadians(uav.heading_deg);
+        const heading = Cesium.Math.toRadians(uav.heading_deg) + Math.PI;
         marker._lastHeading = heading;
         const hpr = new Cesium.HeadingPitchRoll(heading, 0.0, 0.0);
         const quat = Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
@@ -257,7 +260,7 @@ export function updateLockIndicators(uavs, targetEntities) {
         const marker = uavEntities[uav.id];
         if (!marker) return;
 
-        if (uav.mode === 'painting' && uav.tracked_target_id) {
+        if (uav.mode === 'PAINT' && uav.tracked_target_id) {
             const targetEntity = targetEntities[uav.tracked_target_id];
             if (targetEntity && !targetEntity._lockRing) {
                 targetEntity._lockRing = viewer.entities.add({
@@ -273,7 +276,7 @@ export function updateLockIndicators(uavs, targetEntities) {
                     }
                 });
             }
-        } else if (uav.mode !== 'painting' && uav.tracked_target_id) {
+        } else if (uav.mode !== 'PAINT' && uav.tracked_target_id) {
             const targetEntity = targetEntities[uav.tracked_target_id];
             if (targetEntity && targetEntity._lockRing) {
                 viewer.entities.remove(targetEntity._lockRing);

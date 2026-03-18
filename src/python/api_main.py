@@ -28,10 +28,7 @@ from schemas.ontology import (
     Detection,
     EngagementDecision,
     SensorSource,
-    SITREPQuery,
-    SynthesisQueryOutput,
     TargetClassification,
-    TargetNomination,
 )
 
 configure_logging()
@@ -97,7 +94,7 @@ def _check_rate_limit(client_info: dict) -> bool:
 _ACTION_SCHEMAS: dict[str, dict[str, str]] = {
     "spike": {"lon": "float", "lat": "float"},
     "move_drone": {"drone_id": "int", "target_lon": "float", "target_lat": "float"},
-    "view_target": {"drone_id": "int", "target_id": "int"},
+    "intercept_target": {"drone_id": "int", "target_id": "int"},
     "follow_target": {"drone_id": "int", "target_id": "int"},
     "paint_target": {"drone_id": "int", "target_id": "int"},
     "cancel_track": {"drone_id": "int"},
@@ -233,12 +230,9 @@ def _process_new_detection(target: dict, nominated: set) -> dict | None:
 
 
 assistant = TacticalAssistant()
-effectors_agent = None
 _get_demo_effectors = None
 if settings.demo_mode:
-    from agents.effectors_agent import EffectorsAgent
     from mission_data.asset_registry import get_available_effectors as _get_demo_effectors
-    effectors_agent = EffectorsAgent()
 
 
 def _get_entry_if_status(entry_id: str, expected_status: str) -> dict | None:
@@ -729,16 +723,16 @@ async def handle_payload(payload: dict, websocket: WebSocket, raw_data: str):
         # Forward vision/track data to DASHBOARDs
         await broadcast(raw_data, target_type="DASHBOARD", sender=websocket)
 
-    elif action == "view_target":
-        sim.command_view(payload["drone_id"], payload["target_id"])
-
     elif action == "follow_target":
         sim.command_follow(payload["drone_id"], payload["target_id"])
 
     elif action == "paint_target":
         sim.command_paint(payload["drone_id"], payload["target_id"])
 
-    elif action == "cancel_track":
+    elif action == "intercept_target":
+        sim.command_intercept(payload["drone_id"], payload["target_id"])
+
+    elif action in ("cancel_track", "scan_area"):
         sim.cancel_track(payload["drone_id"])
 
     elif action == "approve_nomination":

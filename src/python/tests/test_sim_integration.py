@@ -85,34 +85,34 @@ class TestCommandsAfterSensorIntegration:
                     return t
         pytest.skip("No target detected after 500 ticks")
 
-    def test_command_view_works(self, sim):
-        target = self._detect_first_target(sim)
-        uav = sim.uavs[0]
-        sim.command_view(uav.id, target.id)
-        assert uav.mode == "VIEWING"
-        assert uav.tracked_target_id == target.id
-        assert target.tracked_by_uav_id == uav.id
-
     def test_command_follow_works(self, sim):
         target = self._detect_first_target(sim)
         uav = sim.uavs[0]
         sim.command_follow(uav.id, target.id)
-        assert uav.mode == "FOLLOWING"
+        assert uav.mode == "FOLLOW"
+        assert uav.tracked_target_id == target.id
         assert target.tracked_by_uav_id == uav.id
 
     def test_command_paint_works(self, sim):
         target = self._detect_first_target(sim)
         uav = sim.uavs[0]
         sim.command_paint(uav.id, target.id)
-        assert uav.mode == "PAINTING"
+        assert uav.mode == "PAINT"
+        assert target.state == "LOCKED"
+
+    def test_command_intercept_works(self, sim):
+        target = self._detect_first_target(sim)
+        uav = sim.uavs[0]
+        sim.command_intercept(uav.id, target.id)
+        assert uav.mode == "INTERCEPT"
         assert target.state == "LOCKED"
 
     def test_cancel_track_reverts_state(self, sim):
         target = self._detect_first_target(sim)
         uav = sim.uavs[0]
-        sim.command_view(uav.id, target.id)
+        sim.command_follow(uav.id, target.id)
         sim.cancel_track(uav.id)
-        assert uav.mode == "SCANNING"
+        assert uav.mode == "SEARCH"
         assert uav.tracked_target_id is None
         assert target.tracked_by_uav_id is None
 
