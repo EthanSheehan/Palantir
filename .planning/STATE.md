@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 02
 current_plan: 1
 status: unknown
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-03-19T22:13:21.521Z"
+stopped_at: Completed 02-03-PLAN.md (awaiting Task 3 human-verify checkpoint)
+last_updated: "2026-03-19T22:17:55.843Z"
 progress:
   total_phases: 11
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 22
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 # Project State
@@ -22,8 +22,8 @@ progress:
 
 - **Current Phase:** 02
 - **Current Plan:** 1
-- **Last Session:** 2026-03-19T22:13:21.508Z
-- **Stopped At:** Completed 02-02-PLAN.md
+- **Last Session:** 2026-03-19T22:17:55.840Z
+- **Stopped At:** Completed 02-03-PLAN.md (awaiting Task 3 human-verify checkpoint)
 
 ## Phase Status
 
@@ -77,6 +77,9 @@ progress:
 - 2026-03-19: DEMO_FAST halves time thresholds and lowers confidence by 0.1 (floor 0.3/0.4)
 - 2026-03-19: Fade logic extended to CLASSIFIED/VERIFIED states — verification promotion broke pre-existing decay test
 - 2026-03-19: ISR pipeline gate: only fires once per target on VERIFIED transition, tracked by _last_verified dict in TacticalAssistant
+- 2026-03-19: useSendMessage() from App.tsx WebSocketContext is the correct pattern for leaf-component WS sends (consistent with DroneModeButtons)
+- 2026-03-19: VerificationStepper onManualVerify only passed when state CLASSIFIED; component controls button render
+- 2026-03-19: fused_confidence falls back to detection_confidence when Phase 1 sensor fusion hasn't run yet
 
 ## Performance Metrics
 
@@ -91,3 +94,4 @@ progress:
 | Phase 01 P03 | 266s | 2 tasks | 8 files |
 | Phase 02 P01 | 162 | 2 tasks | 2 files |
 | Phase 02 P02 | 233s | 2 tasks | 3 files |
+| Phase 02 P03 | 141 | 2 tasks | 4 files |

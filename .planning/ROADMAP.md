@@ -376,7 +376,7 @@ Configurable thresholds per target type (SAMs verify faster due to high threat).
 
 **Depends on**: Phase 1 (sensor contribution for SUPPORT) + Phase 2 (verification triggers for VERIFY)
 
-**Plans:** 1/3 plans executed
+**Plans:** 3/3 plans complete
 **Requirements:** [FR-3]
 
 Plans:
@@ -635,7 +635,7 @@ Plans:
 ### 9.1 Map Modes
 | Mode | Key | Layers |
 |------|-----|--------|
-| OPERATIONAL | 1 | 3/3 | Complete   | 2026-03-19 | 2 | 1/3 | In Progress|  | 3 | threat heatmap, clusters, SAM envelopes, corridors |
+| OPERATIONAL | 1 | 3/3 | Complete   | 2026-03-19 | 2 | 3/3 | Complete   | 2026-03-19 | 3 | threat heatmap, clusters, SAM envelopes, corridors |
 | FUSION | 4 | fusion rings, sensor lines, verification bars |
 | SWARM | 5 | formation lines, assignment arrows, sensor diversity |
 | TERRAIN | 6 | 3D terrain, LOS analysis, terrain masking |
