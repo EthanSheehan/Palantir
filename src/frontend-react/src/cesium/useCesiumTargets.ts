@@ -30,7 +30,7 @@ function getTargetIcon(target: Target): string {
     <circle cx="${size / 2}" cy="${size / 2}" r="${size / 2 - 2}" stroke="${color}" stroke-width="2" fill="none" opacity="${opacity}" />
     <circle cx="${size / 2}" cy="${size / 2}" r="${size / 4}" fill="${color}" opacity="${opacity}" />
     ${crossLine}
-    ${isVisible ? `<text x="${size / 2}" y="${size + 12}" fill="${color}" font-size="10" font-family="Inter" font-weight="bold" text-anchor="middle" opacity="${opacity}">${config.label}</text>` : ''}
+    ${isVisible ? `<text x="${size / 2}" y="${size + 12}" fill="${color}" font-size="10" font-family="Inter" font-weight="bold" text-anchor="middle" opacity="${opacity}">TGT</text>` : ''}
   </svg>`;
   const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   targetSvgCache[cacheKey] = url;
@@ -86,7 +86,7 @@ export function useCesiumTargets(viewerRef: React.RefObject<Cesium.Viewer | null
               color: Cesium.Color.WHITE.withAlpha(billboardAlpha),
             },
             label: {
-              text: `${config.label} #${t.id}`,
+              text: `TARGET-${t.id}`,
               font: 'bold 12px monospace',
               fillColor: labelColor,
               outlineColor: Cesium.Color.BLACK,
