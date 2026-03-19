@@ -1,3 +1,9 @@
+export interface SensorContributionPayload {
+  uav_id: number;
+  sensor_type: 'EO_IR' | 'SAR' | 'SIGINT';
+  confidence: number;
+}
+
 export interface UAV {
   id: number;
   lat: number;
@@ -6,8 +12,10 @@ export interface UAV {
   mode: 'IDLE' | 'SEARCH' | 'FOLLOW' | 'PAINT' | 'INTERCEPT' | 'REPOSITIONING' | 'RTB';
   heading_deg: number;
   tracked_target_id: number | null;
+  tracked_target_ids: number[];
+  primary_target_id: number | null;
   sensor_type: string;
-  sensors?: string[];
+  sensors: string[];
   fuel_hours: number;
 }
 
@@ -20,6 +28,16 @@ export interface Target {
   detected: boolean;
   detection_confidence: number;
   concealed?: boolean;
+  fused_confidence: number;
+  sensor_count: number;
+  tracked_by_uav_id: number | null;
+  tracked_by_uav_ids: number[];
+  sensor_contributions: SensorContributionPayload[];
+  detected_by_sensor: string | null;
+  is_emitting: boolean;
+  heading_deg: number;
+  threat_range_km: number | null;
+  detection_range_km: number | null;
 }
 
 export interface Zone {

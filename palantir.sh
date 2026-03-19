@@ -96,8 +96,8 @@ for i in $(seq 1 15); do
 done
 
 # 2. Start Dashboard HTTP Server
-echo "[2/3] Starting Cesium dashboard on :3000..."
-(cd src/frontend && python3 serve.py 3000) &
+echo "[2/3] Starting React dashboard on :3000..."
+(cd src/frontend-react && npm run dev -- --port 3000) &
 PIDS+=($!)
 sleep 1
 

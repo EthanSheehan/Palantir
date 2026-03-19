@@ -1,0 +1,70 @@
+"""Async JSONL event logger with daily rotation.
+
+Events are enqueued non-blocking via ``log_event()`` and drained to
+``logs/events-{date}.jsonl`` by a background asyncio task.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+from datetime import date, datetime, timezone
+from pathlib import Path
+
+LOG_DIR = Path("logs")
+
+_queue: asyncio.Queue[dict] | None = None
+_writer_task_handle: asyncio.Task | None = None
+
+
+async def _writer_loop() -> None:
+    """Background coroutine that drains the queue to disk."""
+    assert _queue is not None
+    LOG_DIR.mkdir(exist_ok=True)
+    while True:
+        event = await _queue.get()
+        log_path = LOG_DIR / f"events-{date.today().isoformat()}.jsonl"
+        with open(log_path, "a") as f:
+            f.write(json.dumps(event, default=str) + "\n")
+        _queue.task_done()
+
+
+def log_event(event_type: str, data: dict) -> None:
+    """Non-blocking enqueue.  Safe to call from sync or async contexts."""
+    if _queue is None:
+        return  # logger not started yet — silently drop
+    event = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "event_type": event_type,
+        "data": data,
+    }
+    try:
+        _queue.put_nowait(event)
+    except asyncio.QueueFull:
+        pass  # drop rather than block the sim loop
+
+
+async def start_logger(maxsize: int = 10_000) -> None:
+    """Create the queue and spawn the background writer task."""
+    global _queue, _writer_task_handle
+    if _queue is not None:
+        return  # already running
+    _queue = asyncio.Queue(maxsize=maxsize)
+    _writer_task_handle = asyncio.create_task(_writer_loop())
+
+
+async def stop_logger() -> None:
+    """Drain remaining events and cancel the writer task."""
+    global _queue, _writer_task_handle
+    if _writer_task_handle is None:
+        return
+    # drain
+    if _queue is not None:
+        await _queue.join()
+    _writer_task_handle.cancel()
+    try:
+        await _writer_task_handle
+    except asyncio.CancelledError:
+        pass
+    _writer_task_handle = None
+    _queue = None

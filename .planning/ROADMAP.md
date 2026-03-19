@@ -11,17 +11,19 @@ Phase 2: Target Verification Workflow     [TARGET STATES — kill chain gate]
     ↓ DEMO: DETECTED→CLASSIFIED→VERIFIED stepper
 Phase 3: Drone Modes & Autonomy           [HUMAN/AUTO — 3-tier control]
     ↓ DEMO: SUPPORT/VERIFY/OVERWATCH/BDA modes + autonomy toggle
-Phase 4: Swarm Coordination               [SWARM INTELLIGENCE — auto-tasking]
+Phase 4: Enemy UAVs                       [ADVERSARY AIR — threat drones in sim]
+    ↓ DEMO: Enemy UAVs on map, detection, evasion behaviors
+Phase 5: Swarm Coordination               [SWARM INTELLIGENCE — auto-tasking]
     ↓ DEMO: UAVs auto-dispatch complementary sensors
-Phase 5: Information Feeds & Event Log    [CHANNELS — typed feeds + audit]
+Phase 6: Information Feeds & Event Log    [CHANNELS — typed feeds + audit]
     ↓ DEMO: Intel feed, command log, sensor subscriptions
-Phase 6: Battlespace Assessment           [COP — threat clusters, gaps]
+Phase 7: Battlespace Assessment           [COP — threat clusters, gaps]
     ↓ DEMO: Threat clusters, coverage gaps, heatmap
-Phase 7: Adaptive ISR & Closed Loop       [CAPSTONE — autonomous retasking]
+Phase 8: Adaptive ISR & Closed Loop       [CAPSTONE — autonomous retasking]
     ↓ DEMO: Full closed loop: detect→fuse→verify→task→assess→adapt
-Phase 8: Map Modes & Tactical Views       [VISUALIZATION — 6 view modes]
+Phase 9: Map Modes & Tactical Views       [VISUALIZATION — 6 view modes]
     ↓ DEMO: OPS/ISR/THREAT/FUSION/SWARM/TERRAIN toggles
-Phase 9: Upgraded Drone Feeds             [SENSOR DISPLAYS — EO/SAR/SIGINT]
+Phase 10: Upgraded Drone Feeds            [SENSOR DISPLAYS — EO/SAR/SIGINT]
     ↓ FINAL DEMO: Full system end-to-end
 ```
 
@@ -439,20 +441,34 @@ AUTONOMOUS_TRANSITIONS = {
 
 ---
 
-## Phase 4: Swarm Coordination
+## Phase 4: Enemy UAVs
+
+**Goal**: Add adversary UAVs to the simulation. Enemy drones with configurable behaviors (recon, attack, jamming), detection by friendly sensors, threat classification, and evasion/intercept mechanics.
+
+**Depends on**: Phase 3 (drone modes — reuses flight model, mode system, and autonomy framework)
+
+**Plans:** 0 plans
+**Requirements**: TBD
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 4 to break down)
+
+---
+
+## Phase 5: Swarm Coordination
 
 **Goal**: UAVs coordinate as a swarm. System auto-tasks complementary sensors to accelerate verification.
 
-**Depends on**: Phases 1+2+3 (fusion + verification + modes)
+**Depends on**: Phases 1+2+3+4 (fusion + verification + modes + enemy UAVs)
 
-### 4.1 New Module: `src/python/swarm_coordinator.py`
+### 5.1 New Module: `src/python/swarm_coordinator.py`
 - `SwarmCoordinator` class: runs each tick after detection
 - `evaluate_and_assign()` — greedy assignment: identify sensor gaps per target, dispatch nearest matching UAV
 - `SwarmTask` dataclass (target_id, assigned_uav_ids, sensor_coverage, formation_type)
 - `TaskingOrder` dataclass (uav_id, target_id, mode, reason, priority)
 - Minimum idle count enforced (don't drain all UAVs to one target)
 
-### 4.2 Algorithm
+### 5.2 Algorithm
 ```
 1. For each DETECTED/CLASSIFIED target: identify missing sensor types, score by threat × (1-confidence) × time
 2. Sort targets by score (highest first)
@@ -461,12 +477,12 @@ AUTONOMOUS_TRANSITIONS = {
 5. Issue TaskingOrder → SUPPORT mode
 ```
 
-### 4.3 React Components
+### 8.3 React Components
 - `SwarmPanel.tsx` — per-target sensor coverage indicator (EO_IR/SAR/SIGINT icons, filled when contributing)
 - "Request Swarm" / "Release Swarm" buttons on target cards
 - Cesium: formation lines between swarm members (dashed cyan polylines)
 
-### 4.4 Files Changed
+### 5.4 Files Changed
 
 | File | Action |
 |------|--------|
@@ -482,36 +498,36 @@ AUTONOMOUS_TRANSITIONS = {
 
 ---
 
-## Phase 5: Information Feeds & Event Log
+## Phase 6: Information Feeds & Event Log
 
 **Goal**: Multiple specialized feed types over WebSocket. Rich event logging.
 
-**Depends on**: Phases 1-4 (fusion, verification, modes, swarm data to feed)
+**Depends on**: Phases 1-5 (fusion, verification, modes, enemy UAVs, swarm data to feed)
 
-### 5.1 Feed Types
+### 6.1 Feed Types
 - **STATE_FEED** (10Hz): existing, enhanced with fusion/swarm/autonomy data
 - **INTEL_FEED** (event-driven): target state transitions, verifications, threat assessments
 - **SENSOR_FEED** (2Hz per UAV): raw per-UAV detection results, subscribable
 - **COMMAND_FEED** (event-driven): all commands + mode transitions with source attribution
 - **DRONE_VIDEO_FEED** (existing): enhanced with fusion overlays
 
-### 5.2 Subscription Protocol
+### 6.2 Subscription Protocol
 ```json
 {"action": "subscribe", "feeds": ["STATE_FEED", "INTEL_FEED"]}
 {"action": "subscribe_sensor_feed", "uav_ids": [5, 7]}
 ```
 
-### 5.3 React Components
+### 8.3 React Components
 - `IntelFeed.tsx` — real-time intel event list (Blueprint Card stream, color-coded, filterable)
 - `CommandLog.tsx` — audit trail (Blueprint HTMLTable, source attribution)
 - Update `DroneCam.tsx` — overlay fused confidence, verification status on HUD
 
-### 5.4 Event Logger Enhancement
+### 6.4 Event Logger Enhancement
 - Wire all feed events through `event_logger.py`
 - Each event appended to JSONL with full context
 - Log rotation + configurable retention
 
-### 5.5 Files Changed
+### 6.5 Files Changed
 
 | File | Action |
 |------|--------|
@@ -527,13 +543,13 @@ AUTONOMOUS_TRANSITIONS = {
 
 ---
 
-## Phase 6: Battlespace Assessment
+## Phase 7: Battlespace Assessment
 
 **Goal**: Live Common Operating Picture. Threat clusters, coverage gaps, zone threat scores, movement corridors.
 
-**Depends on**: Phase 2 (verification states) + Phase 4 (swarm for addressing gaps)
+**Depends on**: Phase 2 (verification states) + Phase 5 (swarm for addressing gaps)
 
-### 6.1 New Module: `src/python/battlespace_assessment.py`
+### 7.1 New Module: `src/python/battlespace_assessment.py`
 - `BattlespaceAssessor` class: runs every 5s
 - `_cluster_targets()` — DBSCAN-like with type affinity (SAM_BATTERY, CONVOY, CP_COMPLEX, AD_NETWORK)
 - `_identify_coverage_gaps()` — zones with no UAV presence
@@ -541,18 +557,18 @@ AUTONOMOUS_TRANSITIONS = {
 - `_detect_movement_corridors()` — patrol routes from target movement history
 - Consume theater YAML `threat_range_km` for SAM engagement envelopes
 
-### 6.2 Activate Dormant Agents
+### 7.2 Activate Dormant Agents
 - `battlespace_manager.py` — activate threat ring generation from verified SAM/RADAR positions
 - Wire `threat_range_km` from theater YAML into ring radius
 
-### 6.3 React Components
+### 8.3 React Components
 - `AssessmentTab.tsx` — new sidebar tab with Blueprint Cards
 - `ThreatClusterCard.tsx` — cluster type, member targets, threat score
 - `CoverageGapAlert.tsx` — zones needing attention
 - ECharts: zone threat heatmap chart
 - Cesium: convex hull overlays (colored by cluster type), SAM engagement envelopes, movement corridor polylines
 
-### 6.4 Files Changed
+### 8.4 Files Changed
 
 | File | Action |
 |------|--------|
@@ -569,27 +585,27 @@ AUTONOMOUS_TRANSITIONS = {
 
 ---
 
-## Phase 7: Adaptive ISR & Closed Loop
+## Phase 8: Adaptive ISR & Closed Loop
 
 **Goal**: Close the loop. Battlespace assessment drives autonomous retasking.
 
 **Depends on**: All prior phases (capstone)
 
-### 7.1 Activate AI Tasking Manager
+### 8.1 Activate AI Tasking Manager
 - Implement `_generate_response_heuristic()` — score targets by verification gap, match UAV sensors
 - ISR priority queue: outstanding intelligence requirements ranked by urgency
 
-### 7.2 Adaptive Coverage
+### 8.2 Adaptive Coverage
 - `coverage_mode`: "balanced" (current zone-imbalance) vs "threat_adaptive" (assessment-driven)
 - Threat-adaptive redistributes IDLE UAVs to high-threat coverage gaps
 - Toggle via WebSocket action
 
-### 7.3 React Components
+### 8.3 React Components
 - `ISRQueue.tsx` — priority queue of intel requirements (Blueprint HTMLTable)
 - Coverage mode toggle (Blueprint SegmentedControl)
 - Update `DroneList.tsx` — per-UAV tasking status with source attribution
 
-### 7.4 Files Changed
+### 8.4 Files Changed
 
 | File | Action |
 |------|--------|
@@ -605,13 +621,13 @@ AUTONOMOUS_TRANSITIONS = {
 
 ---
 
-## Phase 8: Map Modes & Tactical Views
+## Phase 9: Map Modes & Tactical Views
 
 **Goal**: 6 map visualization modes with keyboard shortcuts.
 
-**Depends on**: Phase 1 (FUSION mode), Phase 4 (SWARM mode), Phase 6 (THREAT mode)
+**Depends on**: Phase 1 (FUSION mode), Phase 5 (SWARM mode), Phase 7 (THREAT mode)
 
-### 8.1 Map Modes
+### 9.1 Map Modes
 | Mode | Key | Layers |
 |------|-----|--------|
 | OPERATIONAL | 1 | zones, drones, targets, flows, compass |
@@ -621,13 +637,13 @@ AUTONOMOUS_TRANSITIONS = {
 | SWARM | 5 | formation lines, assignment arrows, sensor diversity |
 | TERRAIN | 6 | 3D terrain, LOS analysis, terrain masking |
 
-### 8.2 React Components
+### 9.2 React Components
 - `MapModeBar.tsx` — Blueprint ButtonGroup for mode selection
 - `LayerPanel.tsx` — Blueprint Checkbox list for individual layer toggles
 - `CameraPresets.tsx` — Theater Overview, Top-Down, Oblique, Free Camera buttons
 - Cesium layers: `coverageLayer.ts`, `threatLayer.ts`, `fusionLayer.ts`, `terrainLayer.ts`, `swarmLayer.ts`
 
-### 8.3 Files Changed
+### 9.3 Files Changed
 
 | File | Action |
 |------|--------|
@@ -644,38 +660,38 @@ AUTONOMOUS_TRANSITIONS = {
 
 ---
 
-## Phase 9: Upgraded Drone Feeds
+## Phase 10: Upgraded Drone Feeds
 
 **Goal**: Multi-mode sensor feeds (EO/IR, SAR, SIGINT), enhanced HUD, PIP/SPLIT/QUAD layouts.
 
-**Depends on**: Phase 1 (fusion data), Phase 3 (modes), Phase 5 (SENSOR_FEED)
+**Depends on**: Phase 1 (fusion data), Phase 3 (modes), Phase 6 (SENSOR_FEED)
 
-### 9.1 Sensor Feed Modes
+### 10.1 Sensor Feed Modes
 - **EO/IR**: green thermal, hot targets glow, terrain noise texture
 - **SAR**: amber radar returns, sharp echoes, velocity vectors
 - **SIGINT**: dark blue waterfall/spectrum display, emitter classification
 - **FUSION**: split-screen combining multiple sensor views
 
-### 9.2 Enhanced HUD
+### 10.2 Enhanced HUD
 - Compass tape (horizontal heading strip)
 - Sensor status panel (quality, fused count, verification progress)
 - Fuel gauge bar
 - Multi-target bounding boxes (primary=reticle, secondary=dashed)
 - Threat warning (flash when entering SAM envelope)
 
-### 9.3 Layouts
+### 10.3 Layouts
 - SINGLE (full-frame, current enhanced)
 - PIP (main + picture-in-picture from supporting UAV)
 - SPLIT (two sensors side-by-side)
 - QUAD (2x2 grid, 4 drone feeds)
 
-### 9.4 React Components
+### 10.4 React Components
 - Major rewrite of `DroneCam.tsx` — multi-canvas architecture
 - `SigintDisplay.tsx` — ECharts waterfall chart (time vs frequency, signal intensity as heatmap)
 - `CamLayoutSelector.tsx` — Blueprint ButtonGroup: SINGLE/PIP/SPLIT/QUAD
 - `SensorHUD.tsx` — compass tape, fuel gauge, sensor status
 
-### 9.5 Files Changed
+### 10.5 Files Changed
 
 | File | Action |
 |------|--------|
@@ -687,49 +703,3 @@ AUTONOMOUS_TRANSITIONS = {
 | `src/python/api_main.py` | MODIFY (~20 lines) |
 
 **Risk**: MEDIUM — canvas rendering complexity. PIP/SPLIT/QUAD need careful layout management.
-
----
-
-## Cross-Cutting Concerns
-
-### Testing Strategy
-Each phase includes a test file. All tests run via `./venv/bin/python3 -m pytest src/python/tests/`. Frontend tested via Playwright (Phase 0 sets up).
-
-### Event Logging (all phases)
-Every phase adds events to the logger: Phase 1 (detections, fusion), Phase 2 (state transitions), Phase 3 (mode changes, autonomy decisions), Phase 4 (swarm assignments), Phase 5 (all feeds), Phase 6 (assessments), Phase 7 (ISR retasking).
-
-### Blueprint Component Reuse
-Core patterns established in Phase 0 reused throughout:
-- `Card` + `Elevation.TWO` for all info panels
-- `Tag` for status badges
-- `ProgressBar` for confidence/verification progress
-- `ButtonGroup` for mode/view toggles
-- `Toast2` for notifications
-- `HTMLTable` for data-dense views
-- `Tabs` for sidebar navigation
-
-### Cumulative File Impact
-
-| File | Phases | Total Changes |
-|------|--------|---------------|
-| `sim_engine.py` | 0,1,2,3,4,6,7,9 | ~590 lines |
-| `api_main.py` | 0,1,2,3,4,5,7,9 | ~440 lines |
-| `EnemyList.tsx` | 0,1,2,4 | ~160 lines |
-| `DroneList.tsx` | 0,1,3,7 | ~170 lines |
-| `DroneCam.tsx` | 0,5,9 | ~500 lines |
-
-### New Files Summary
-
-| Phase | New Python | New React/TS |
-|-------|-----------|-------------|
-| 0 | 6/7 | In Progress|  | 1 | `sensor_fusion.py`, test | `FusionBar.tsx`, `SensorBadge.tsx` |
-| 2 | `verification_engine.py`, test | `VerificationStepper.tsx` |
-| 3 | test | `AutonomyToggle.tsx`, `TransitionToast.tsx` |
-| 4 | `swarm_coordinator.py`, test | `SwarmPanel.tsx`, `swarmLines.ts` |
-| 5 | `intel_feed.py`, test | `IntelFeed.tsx`, `CommandLog.tsx` |
-| 6 | `battlespace_assessment.py`, test | `AssessmentTab.tsx`, `ThreatClusterCard.tsx`, `assessmentOverlays.ts` |
-| 7 | `isr_priority.py`, test | `ISRQueue.tsx` |
-| 8 | — | `MapModeBar.tsx`, `LayerPanel.tsx`, 5 layer files |
-| 9 | — | `SigintDisplay.tsx`, `CamLayoutSelector.tsx`, `SensorHUD.tsx` |
-
-**Total**: ~8,500 new/changed lines across 10 phases

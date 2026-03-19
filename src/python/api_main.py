@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 
 from logging_config import configure_logging
 from config import load_settings
+from event_logger import log_event, start_logger as start_event_logger, stop_logger as stop_event_logger
 
 from sim_engine import SimulationModel
 from hitl_manager import HITLManager
@@ -397,7 +398,8 @@ async def demo_autopilot():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Start simulation loop
+    # Startup: Start event logger and simulation loop
+    await start_event_logger()
     task = asyncio.create_task(simulation_loop())
     demo_task = None
     if settings.demo_mode:
@@ -416,6 +418,7 @@ async def lifespan(app: FastAPI):
             await demo_task
         except asyncio.CancelledError:
             pass
+    await stop_event_logger()
 
 app = FastAPI(lifespan=lifespan)
 
@@ -725,20 +728,25 @@ async def handle_payload(payload: dict, websocket: WebSocket, raw_data: str):
 
     elif action == "follow_target":
         sim.command_follow(payload["drone_id"], payload["target_id"])
+        log_event("command", {"action": "follow_target", "drone_id": payload["drone_id"], "target_id": payload["target_id"]})
 
     elif action == "paint_target":
         sim.command_paint(payload["drone_id"], payload["target_id"])
+        log_event("command", {"action": "paint_target", "drone_id": payload["drone_id"], "target_id": payload["target_id"]})
 
     elif action == "intercept_target":
         sim.command_intercept(payload["drone_id"], payload["target_id"])
+        log_event("command", {"action": "intercept_target", "drone_id": payload["drone_id"], "target_id": payload["target_id"]})
 
     elif action in ("cancel_track", "scan_area"):
         sim.cancel_track(payload["drone_id"])
+        log_event("command", {"action": action, "drone_id": payload["drone_id"]})
 
     elif action == "approve_nomination":
         rationale = payload.get("rationale", "")
         try:
             hitl.approve_nomination(payload["entry_id"], rationale)
+            log_event("nomination", {"action": "approved", "entry_id": payload["entry_id"]})
             response = json.dumps({"type": "HITL_UPDATE", "action": "approved", "entry": hitl.get_strike_board()})
             await broadcast(response, target_type="DASHBOARD")
         except ValueError as exc:
@@ -766,6 +774,7 @@ async def handle_payload(payload: dict, websocket: WebSocket, raw_data: str):
         rationale = payload.get("rationale", "")
         try:
             hitl.authorize_coa(payload["entry_id"], payload["coa_id"], rationale)
+            log_event("engagement", {"action": "coa_authorized", "entry_id": payload["entry_id"], "coa_id": payload["coa_id"]})
             response = json.dumps({
                 "type": "HITL_UPDATE",
                 "action": "coa_authorized",

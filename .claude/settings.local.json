@@ -121,7 +121,27 @@
       "Bash(xargs kill:*)",
       "mcp__plugin_playwright_playwright__browser_navigate",
       "Bash(find /Users/Rocklord/Library/Python -path */claude_monitor* -name *.py)",
-      "Bash(/Users/Rocklord/Library/Python/3.9/bin/pip show:*)"
+      "Bash(/Users/Rocklord/Library/Python/3.9/bin/pip show:*)",
+      "Bash(find ~/.claude -name *monitor* -type f)",
+      "Bash(pip3 list:*)",
+      "Bash(echo \"$PATH\")",
+      "WebSearch",
+      "Bash(export PATH=\"$HOME/Library/Python/3.9/bin:$PATH\")",
+      "Bash(claude-monitor --version)",
+      "Bash(git -C /Users/Rocklord/Documents/GitHub/Palantir log --oneline -5)",
+      "Bash(grep:*)",
+      "Bash(\"./venv/bin/python3\" -m pip install pytest-asyncio)",
+      "Bash(\"./venv/bin/python3\" -m pytest src/python/tests/test_event_logger.py -v 2>&1)",
+      "Bash(\"./venv/bin/python3\" -m pytest src/python/tests/test_sensor_spawn.py -v 2>&1)",
+      "Bash(npm install:*)",
+      "Skill(gsd:plan-phase)",
+      "Bash(./venv/bin/python3 -m pytest src/python/tests/test_event_logger.py src/python/tests/test_sensor_spawn.py -v 2>&1)",
+      "Skill(gsd:ui-phase)",
+      "Bash(node:*)",
+      "Skill(gsd:execute-phase)",
+      "Bash(mkdir -p /Users/Rocklord/Documents/GitHub/Palantir/src/frontend-react/src/hooks)",
+      "Bash(mkdir -p /Users/Rocklord/Documents/GitHub/Palantir/src/frontend-react/src/cesium)",
+      "Bash(npm run:*)"
     ]
   }
 }
