@@ -1,4 +1,3 @@
-import React from 'react';
 import { Tabs, Tab } from '@blueprintjs/core';
 import { useSimStore } from '../store/SimulationStore';
 import { MissionTab } from './mission/MissionTab';
@@ -9,13 +8,13 @@ export function SidebarTabs() {
   const activeTab = useSimStore(s => s.activeTab);
   const setActiveTab = useSimStore(s => s.setActiveTab);
 
-  const panelStyle: React.CSSProperties = {
-    overflow: 'auto',
-    flex: 1,
-  };
-
   return (
-    <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+    <>
+      <style>{`
+        #sidebar-tabs { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+        #sidebar-tabs > .bp5-tab-list { flex-shrink: 0; }
+        #sidebar-tabs > .bp5-tab-panel { flex: 1; overflow: auto; }
+      `}</style>
       <Tabs
         id="sidebar-tabs"
         animate
@@ -23,22 +22,10 @@ export function SidebarTabs() {
         selectedTabId={activeTab}
         onChange={(newTab: string) => setActiveTab(newTab)}
       >
-        <Tab
-          id="mission"
-          title="MISSION"
-          panel={<div style={panelStyle}><MissionTab /></div>}
-        />
-        <Tab
-          id="assets"
-          title="ASSETS"
-          panel={<div style={panelStyle}><AssetsTab /></div>}
-        />
-        <Tab
-          id="enemies"
-          title="ENEMIES"
-          panel={<div style={panelStyle}><EnemiesTab /></div>}
-        />
+        <Tab id="mission" title="MISSION" panel={<MissionTab />} />
+        <Tab id="assets" title="ASSETS" panel={<AssetsTab />} />
+        <Tab id="enemies" title="ENEMIES" panel={<EnemiesTab />} />
       </Tabs>
-    </div>
+    </>
   );
 }
