@@ -23,11 +23,12 @@ interface DroneEntity extends Cesium.Entity {
   _tether?: Cesium.Entity;
 }
 
-function updateDrones(uavs: UAV[], viewer: Cesium.Viewer, entities: Record<number, DroneEntity>) {
+function updateDrones(uavs: UAV[], viewer: Cesium.Viewer, entities: Record<number, DroneEntity>, selectedDroneId: number | null) {
   const currentIds = new Set<number>();
 
   uavs.forEach((uav) => {
     currentIds.add(uav.id);
+    const isSelected = uav.id === selectedDroneId;
     const modeStyle = MODE_STYLES[uav.mode] || MODE_STYLES.IDLE;
     const colorStr = modeStyle.color;
     const color = Cesium.Color.fromCssColorString(colorStr);
@@ -82,15 +83,15 @@ function updateDrones(uavs: UAV[], viewer: Cesium.Viewer, entities: Record<numbe
         },
         label: {
           text: `UAV-${uav.id}`,
-          font: 'bold 13px monospace',
-          fillColor: color,
-          outlineColor: Cesium.Color.BLACK,
-          outlineWidth: 3,
+          font: isSelected ? 'bold 15px monospace' : 'bold 13px monospace',
+          fillColor: isSelected ? Cesium.Color.WHITE : color,
+          outlineColor: isSelected ? color : Cesium.Color.BLACK,
+          outlineWidth: isSelected ? 4 : 3,
           style: Cesium.LabelStyle.FILL_AND_OUTLINE,
           verticalOrigin: Cesium.VerticalOrigin.TOP,
           pixelOffset: new Cesium.Cartesian2(0, 14),
           showBackground: true,
-          backgroundColor: Cesium.Color.BLACK.withAlpha(0.55),
+          backgroundColor: isSelected ? color.withAlpha(0.7) : Cesium.Color.BLACK.withAlpha(0.55),
           backgroundPadding: new Cesium.Cartesian2(5, 3),
           distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0.0, 1200000.0),
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
@@ -170,10 +171,19 @@ function updateDrones(uavs: UAV[], viewer: Cesium.Viewer, entities: Record<numbe
         (marker.orientation as Cesium.SampledProperty).addSample(targetTime, quat);
       }
 
+      // Update selection styling every tick
+      marker.billboard!.scale = new Cesium.ConstantProperty(isSelected ? 1.1 : 0.8);
+      marker.label!.font = new Cesium.ConstantProperty(isSelected ? 'bold 15px monospace' : 'bold 13px monospace');
+      marker.label!.fillColor = new Cesium.ConstantProperty(isSelected ? Cesium.Color.WHITE : color);
+      marker.label!.outlineColor = new Cesium.ConstantProperty(isSelected ? color : Cesium.Color.BLACK);
+      marker.label!.outlineWidth = new Cesium.ConstantProperty(isSelected ? 4 : 3);
+      marker.label!.backgroundColor = new Cesium.ConstantProperty(
+        isSelected ? color.withAlpha(0.7) : Cesium.Color.BLACK.withAlpha(0.55)
+      );
+
       if (marker._lastMode !== colorStr) {
         marker.billboard!.image = new Cesium.ConstantProperty(billboardImage);
         marker.point!.color = new Cesium.ConstantProperty(color);
-        marker.label!.fillColor = new Cesium.ConstantProperty(color);
         if (marker._tether) {
           marker._tether.polyline!.material = new Cesium.ColorMaterialProperty(color.withAlpha(0.3));
         }
@@ -201,7 +211,7 @@ export function useCesiumDrones(viewerRef: React.RefObject<Cesium.Viewer | null>
     const unsub = useSimStore.subscribe((state) => {
       const viewer = viewerRef.current;
       if (!viewer || viewer.isDestroyed()) return;
-      updateDrones(state.uavs, viewer, entitiesRef.current);
+      updateDrones(state.uavs, viewer, entitiesRef.current, state.selectedDroneId);
     });
 
     return unsub;

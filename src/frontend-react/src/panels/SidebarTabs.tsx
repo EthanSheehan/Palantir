@@ -1,10 +1,14 @@
 import React from 'react';
 import { Tabs, Tab } from '@blueprintjs/core';
+import { useSimStore } from '../store/SimulationStore';
 import { MissionTab } from './mission/MissionTab';
 import { AssetsTab } from './assets/AssetsTab';
 import { EnemiesTab } from './enemies/EnemiesTab';
 
 export function SidebarTabs() {
+  const activeTab = useSimStore(s => s.activeTab);
+  const setActiveTab = useSimStore(s => s.setActiveTab);
+
   const panelStyle: React.CSSProperties = {
     overflow: 'auto',
     flex: 1,
@@ -16,7 +20,8 @@ export function SidebarTabs() {
         id="sidebar-tabs"
         animate
         renderActiveTabPanelOnly
-        defaultSelectedTabId="mission"
+        selectedTabId={activeTab}
+        onChange={(newTab: string) => setActiveTab(newTab)}
       >
         <Tab
           id="mission"

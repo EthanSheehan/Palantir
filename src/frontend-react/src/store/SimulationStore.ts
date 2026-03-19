@@ -23,6 +23,7 @@ interface SimState {
   selectedDroneId: number | null;
   selectedTargetId: number | null;
   trackedDroneId: number | null;
+  activeTab: string;
   gridVisState: 0 | 1 | 2;
   showAllWaypoints: boolean;
   droneCamVisible: boolean;
@@ -45,6 +46,7 @@ interface SimState {
   setCachedCoas: (entryId: string, coas: COA[]) => void;
   selectDrone: (id: number | null) => void;
   selectTarget: (id: number | null) => void;
+  setActiveTab: (tab: string) => void;
   setTrackedDrone: (id: number | null) => void;
   cycleGridVis: () => void;
   toggleAllWaypoints: () => void;
@@ -66,6 +68,7 @@ export const useSimStore = create<SimState>((set, get) => ({
   selectedDroneId: null,
   selectedTargetId: null,
   trackedDroneId: null,
+  activeTab: 'mission',
   gridVisState: 2,
   showAllWaypoints: false,
   droneCamVisible: false,
@@ -127,6 +130,7 @@ export const useSimStore = create<SimState>((set, get) => ({
   })),
 
   selectDrone: (id) => set({ selectedDroneId: id }),
+  setActiveTab: (tab) => set({ activeTab: tab }),
 
   selectTarget: (id) => set({ selectedTargetId: id }),
 

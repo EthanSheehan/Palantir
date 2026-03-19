@@ -54,13 +54,17 @@ export function useCesiumTargets(viewerRef: React.RefObject<Cesium.Viewer | null
       const targets = state.targets;
       const currentIds = new Set<number>();
 
+      const selectedTargetId = state.selectedTargetId;
+
       targets.forEach((t) => {
         currentIds.add(t.id);
         const position = Cesium.Cartesian3.fromDegrees(t.lon, t.lat, 0);
         const confidence = t.detection_confidence || (t.detected ? 1.0 : 0.3);
         const targetState = t.state || (t.detected ? 'DETECTED' : 'UNDETECTED');
         const isConcealed = t.concealed === true;
-        const billboardAlpha = isConcealed ? 0.35 : Math.max(0.3, confidence);
+        const isUndetected = targetState === 'UNDETECTED';
+        const billboardAlpha = isUndetected ? 0 : isConcealed ? 0.35 : Math.max(0.3, confidence);
+        const isSelected = t.id === selectedTargetId;
 
         if (!entitiesRef.current[t.id]) {
           const positionProperty = new Cesium.SampledPositionProperty();
@@ -84,21 +88,26 @@ export function useCesiumTargets(viewerRef: React.RefObject<Cesium.Viewer | null
               verticalOrigin: Cesium.VerticalOrigin.CENTER,
               heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
               color: Cesium.Color.WHITE.withAlpha(billboardAlpha),
+              show: !isUndetected,
+              scale: isSelected ? 1.4 : 1.0,
             },
             label: {
               text: `TARGET-${t.id}`,
-              font: 'bold 12px monospace',
-              fillColor: labelColor,
-              outlineColor: Cesium.Color.BLACK,
-              outlineWidth: 3,
+              font: isSelected ? 'bold 14px monospace' : 'bold 12px monospace',
+              fillColor: isSelected ? Cesium.Color.WHITE : labelColor,
+              outlineColor: isSelected ? Cesium.Color.fromCssColorString(config.color) : Cesium.Color.BLACK,
+              outlineWidth: isSelected ? 4 : 3,
               style: Cesium.LabelStyle.FILL_AND_OUTLINE,
               verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
               pixelOffset: new Cesium.Cartesian2(0, -36),
               showBackground: true,
-              backgroundColor: Cesium.Color.BLACK.withAlpha(0.55),
+              backgroundColor: isSelected
+                ? Cesium.Color.fromCssColorString(config.color).withAlpha(0.7)
+                : Cesium.Color.BLACK.withAlpha(0.55),
               backgroundPadding: new Cesium.Cartesian2(5, 3),
               distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0.0, 1200000.0),
               disableDepthTestDistance: Number.POSITIVE_INFINITY,
+              show: !isUndetected,
             },
           }) as TargetEntity;
           entitiesRef.current[t.id] = marker;
@@ -114,11 +123,24 @@ export function useCesiumTargets(viewerRef: React.RefObject<Cesium.Viewer | null
           (marker.position as Cesium.SampledPositionProperty).addSample(targetTime, position);
           marker.billboard!.image = new Cesium.ConstantProperty(getTargetIcon(t));
           marker.billboard!.color = new Cesium.ConstantProperty(Cesium.Color.WHITE.withAlpha(billboardAlpha));
+          marker.billboard!.show = new Cesium.ConstantProperty(!isUndetected);
+          marker.billboard!.scale = new Cesium.ConstantProperty(isSelected ? 1.4 : 1.0);
           const updConfig = TARGET_MAP[t.type] || { color: '#ffcc00', label: 'TGT' };
           const updLabelColor = Cesium.Color.fromCssColorString(
             targetState === 'NEUTRALIZED' ? '#4a5568' : updConfig.color
           );
-          marker.label!.fillColor = new Cesium.ConstantProperty(updLabelColor);
+          marker.label!.fillColor = new Cesium.ConstantProperty(isSelected ? Cesium.Color.WHITE : updLabelColor);
+          marker.label!.outlineColor = new Cesium.ConstantProperty(
+            isSelected ? Cesium.Color.fromCssColorString(updConfig.color) : Cesium.Color.BLACK
+          );
+          marker.label!.outlineWidth = new Cesium.ConstantProperty(isSelected ? 4 : 3);
+          marker.label!.font = new Cesium.ConstantProperty(isSelected ? 'bold 14px monospace' : 'bold 12px monospace');
+          marker.label!.backgroundColor = new Cesium.ConstantProperty(
+            isSelected
+              ? Cesium.Color.fromCssColorString(updConfig.color).withAlpha(0.7)
+              : Cesium.Color.BLACK.withAlpha(0.55)
+          );
+          marker.label!.show = new Cesium.ConstantProperty(!isUndetected);
         }
 
         // Threat rings for SAM/MANPADS

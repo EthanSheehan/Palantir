@@ -35,16 +35,16 @@ export function VerificationStepper({
     state === 'CLASSIFIED' ? Intent.WARNING : Intent.PRIMARY;
 
   return (
-    <div style={{ padding: '4px 0' }}>
+    <div style={{ padding: '4px 0', overflow: 'hidden' }}>
       {/* Step dots */}
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
         {STEPS.map((step, idx) => (
           <React.Fragment key={step}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 0 }}>
               <div
                 style={{
-                  width: 10,
-                  height: 10,
+                  width: 8,
+                  height: 8,
                   borderRadius: '50%',
                   backgroundColor: dotColor(idx, currentIdx),
                   flexShrink: 0,
@@ -52,9 +52,9 @@ export function VerificationStepper({
               />
               <span
                 style={{
-                  fontSize: 10,
+                  fontSize: 9,
                   color: '#A7B6C2',
-                  marginTop: 2,
+                  marginTop: 1,
                   whiteSpace: 'nowrap',
                 }}
               >
@@ -64,11 +64,12 @@ export function VerificationStepper({
             {idx < STEPS.length - 1 && (
               <div
                 style={{
-                  width: 12,
+                  flex: 1,
                   height: 1,
                   backgroundColor: '#394B59',
-                  marginBottom: 14,
-                  flexShrink: 0,
+                  marginBottom: 12,
+                  marginLeft: 2,
+                  marginRight: 2,
                 }}
               />
             )}
@@ -90,7 +91,7 @@ export function VerificationStepper({
       {/* Manual VERIFY button — only for CLASSIFIED targets */}
       {state === 'CLASSIFIED' && onManualVerify !== undefined && (
         <Button
-          small
+          size="small"
           intent={Intent.WARNING}
           text="VERIFY"
           onClick={onManualVerify}

@@ -7,6 +7,15 @@ import { SensorBadge } from './SensorBadge';
 import { VerificationStepper } from './VerificationStepper';
 import { useSendMessage } from '../../App';
 
+function useNavigateToDrone() {
+  const selectDrone = useSimStore(s => s.selectDrone);
+  const setActiveTab = useSimStore(s => s.setActiveTab);
+  return (droneId: number) => {
+    selectDrone(droneId);
+    setActiveTab('assets');
+  };
+}
+
 interface EnemyCardProps {
   target: Target;
   trackers: Array<{ id: number; mode: string }>;
@@ -49,6 +58,7 @@ const EnemyCardInner = function EnemyCardInner({ target, trackers }: EnemyCardPr
   const selectedTargetId = useSimStore(s => s.selectedTargetId);
   const selectTarget = useSimStore(s => s.selectTarget);
   const sendMessage = useSendMessage();
+  const navigateToDrone = useNavigateToDrone();
 
   const targetState = target.state || (target.detected ? 'DETECTED' : 'UNDETECTED');
   const config = TARGET_MAP[target.type] || { color: '#ffcc00', label: 'TGT' };
@@ -136,6 +146,7 @@ const EnemyCardInner = function EnemyCardInner({ target, trackers }: EnemyCardPr
                 return (
                   <span
                     key={`${tr.id}-${tr.mode}`}
+                    onClick={(e) => { e.stopPropagation(); navigateToDrone(tr.id); }}
                     style={{
                       color: tc.color,
                       border: `1px solid ${tc.border}`,
@@ -143,6 +154,7 @@ const EnemyCardInner = function EnemyCardInner({ target, trackers }: EnemyCardPr
                       padding: '0px 4px',
                       fontSize: '0.6rem',
                       fontWeight: 700,
+                      cursor: 'pointer',
                     }}
                   >
                     UAV-{tr.id} {tr.mode}
