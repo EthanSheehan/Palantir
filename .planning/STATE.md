@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 02
-current_plan: Not started
+current_plan: 1
 status: unknown
-stopped_at: 01-03 Task 3 checkpoint — awaiting visual verification
-last_updated: "2026-03-19T22:00:46.477Z"
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-03-19T22:06:57.241Z"
 progress:
   total_phases: 11
   completed_phases: 2
-  total_plans: 19
-  completed_plans: 10
+  total_plans: 21
+  completed_plans: 11
 ---
 
 # Project State
@@ -21,9 +21,9 @@ progress:
 ## Position
 
 - **Current Phase:** 02
-- **Current Plan:** Not started
-- **Last Session:** 2026-03-19T21:35:07.038Z
-- **Stopped At:** 01-03 Task 3 checkpoint — awaiting visual verification
+- **Current Plan:** 1
+- **Last Session:** 2026-03-19T22:06:57.237Z
+- **Stopped At:** Completed 02-01-PLAN.md
 
 ## Phase Status
 
@@ -72,6 +72,9 @@ progress:
 - 2026-03-19: ViewerContext default { current: null } so consumers skip null-check on the ref
 - 2026-03-19: WebSocketContext at App root mirrors vanilla state.ws without globals
 - 2026-03-19: Window custom events (palantir:send, palantir:placeWaypoint, palantir:openDetailMap) bridge Cesium imperative hooks to React WebSocket context without prop drilling
+- 2026-03-19: evaluate_target_state() is pure — takes state+evidence, returns new state string, never mutates input
+- 2026-03-19: High-threat types (SAM/TEL/MANPADS) have lower verification thresholds (0.5/0.7) than default (0.6/0.8)
+- 2026-03-19: DEMO_FAST halves time thresholds and lowers confidence by 0.1 (floor 0.3/0.4)
 
 ## Performance Metrics
 
@@ -84,3 +87,4 @@ progress:
 | 00 | 06 | 10min | 2/2 | 13 |
 | 01 | 02 | ~15min | 2/2 | 2 |
 | Phase 01 P03 | 266s | 2 tasks | 8 files |
+| Phase 02 P01 | 162 | 2 tasks | 2 files |
