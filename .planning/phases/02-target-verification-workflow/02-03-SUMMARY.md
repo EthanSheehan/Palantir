@@ -1,106 +1,51 @@
 ---
 phase: 02-target-verification-workflow
 plan: 03
-subsystem: ui
-tags: [react, typescript, blueprint, websocket, verification, stepper]
-
-requires:
-  - phase: 02-02
-    provides: "verify_target WebSocket action, time_in_state_sec/next_threshold in target payload"
-
-provides:
-  - "VerificationStepper component with colored step dots (DETECTED->CLASSIFIED->VERIFIED->NOMINATED)"
-  - "Manual VERIFY button wired to verify_target WebSocket action"
-  - "Progress bar toward next confidence threshold"
-  - "CLASSIFIED and VERIFIED state colors in constants"
-  - "Extended Target interface with time_in_state_sec and next_threshold"
-
-affects: [03-drone-modes-autonomy, cesium-entity-hooks, enemies-panel]
-
-tech-stack:
-  added: []
-  patterns:
-    - "useSendMessage() hook (from WebSocketContext) used by leaf components to send WS actions"
-    - "VerificationStepper as a pure display+action composite (no internal state)"
-    - "targetsShallowEqual includes all rendered fields to prevent missed re-renders"
-
-key-files:
-  created:
-    - src/frontend-react/src/panels/enemies/VerificationStepper.tsx
-  modified:
-    - src/frontend-react/src/store/types.ts
-    - src/frontend-react/src/panels/enemies/EnemyCard.tsx
-    - src/frontend-react/src/shared/constants.ts
-
-key-decisions:
-  - "useSendMessage() from App.tsx WebSocketContext is the correct pattern for leaf component WS sends"
-  - "onManualVerify only passed when state === CLASSIFIED — VerificationStepper controls button visibility"
-  - "fused_confidence falls back to detection_confidence when Phase 1 sensor fusion hasn't run"
-  - "time_in_state_sec equality check uses 0.1s precision (x10 rounding) to avoid excessive re-renders"
-
-patterns-established:
-  - "VerificationStepper: dotColor helper maps (stepIdx, currentIdx) to green/amber/gray — reusable for future step-dot patterns"
-
-requirements-completed: [FR-2]
-
-duration: ~2min
-completed: 2026-03-19
+subsystem: frontend
+tags: [react, blueprint, verification-stepper, typescript, cesium, zustand]
 ---
 
-# Phase 02 Plan 03: Verification Stepper UI Summary
+# Plan 02-03 Summary: React Verification UI
 
-**Blueprint VerificationStepper with colored step dots, confidence progress bar, and CLASSIFIED-gated VERIFY button wired to verify_target WebSocket action**
+## What Shipped
 
-## Performance
+- **VerificationStepper.tsx** — Step dots (DETE/CLAS/VERI/NOMI) with color progression (green=passed, amber=current, gray=pending) + progress bar toward next threshold
+- **Manual VERIFY button** on CLASSIFIED targets — sends `verify_target` WebSocket action
+- **EnemyCard integration** — stepper embedded below fusion bar, state badge colors updated
+- **Target selection highlighting** on Cesium map — selected target gets white text, colored background, larger label+billboard
+- **Drone selection highlighting** on Cesium map — same treatment for selected UAVs
+- **Cross-tab navigation** — clicking UAV tracker tag on enemy card switches to ASSETS tab and selects drone
+- **Controlled tabs** — SidebarTabs now driven by Zustand `activeTab` state
+- **Scroll fix** — sidebar height constrained, Blueprint tab panels get `overflow-y: auto` via CSS injection
+- **Stability** — enemies list sorted by ID, hysteresis filter, coarser memo comparison
 
-- **Duration:** ~2 min
-- **Started:** 2026-03-19T22:14:41Z
-- **Completed:** 2026-03-19T22:17:02Z
-- **Tasks:** 2/2 (Task 3 is a checkpoint:human-verify — pending visual confirmation)
-- **Files modified:** 4
+## Key Files
 
-## Accomplishments
-- Created VerificationStepper component with colored step dots (green=passed, amber=current, gray=pending) and abbreviated labels
-- Progress bar fills toward `next_threshold` confidence with WARNING intent for CLASSIFIED, PRIMARY otherwise
-- Manual VERIFY button renders only when `state === 'CLASSIFIED'` and sends `{"action": "verify_target", "target_id": N}` via WebSocket
-- Extended Target interface with `time_in_state_sec` and `next_threshold` fields
-- Added CLASSIFIED (amber `#f59e0b`) and VERIFIED (green `#22c55e`) to STATE_COLORS constants
-- EnemyCard's shallow-equal comparator updated to track new Phase 2 fields
+### Created
+- `src/frontend-react/src/panels/enemies/VerificationStepper.tsx`
 
-## Task Commits
+### Modified
+- `src/frontend-react/src/panels/enemies/EnemyCard.tsx` — stepper integration, cross-tab nav, stable memo
+- `src/frontend-react/src/panels/enemies/EnemiesTab.tsx` — sort by ID, hysteresis, scroll
+- `src/frontend-react/src/panels/assets/AssetsTab.tsx` — scroll overflow
+- `src/frontend-react/src/panels/SidebarTabs.tsx` — controlled tabs, CSS flex overrides
+- `src/frontend-react/src/panels/Sidebar.tsx` — height constraint
+- `src/frontend-react/src/store/SimulationStore.ts` — activeTab + setActiveTab
+- `src/frontend-react/src/cesium/useCesiumTargets.ts` — hide undetected, selection highlight
+- `src/frontend-react/src/cesium/useCesiumDrones.ts` — selection highlight
+- `src/frontend-react/src/shared/constants.ts` — verification state colors
 
-1. **Task 1: Extend Target interface and create VerificationStepper** - `f995658` (feat)
-2. **Task 2: Integrate VerificationStepper into EnemyCard and wire verify action** - `3ae0f8f` (feat)
+## Commits
+- f995658: Extend Target interface and create VerificationStepper
+- 3ae0f8f: Integrate VerificationStepper into EnemyCard, wire verify action
+- 217cdba: Selection highlights on map, stepper overflow, cross-tab navigation
+- f8fac5f: Stabilize enemies tab — sort by ID, hysteresis filter, reduce re-renders
+- 8601e28: Add scrollable overflow to enemies and assets tab lists
+- 83bf2e7: Fix sidebar tab panel scroll with CSS flex overrides
+- f8f2f0a: Fix tab scroll, reduce card jitter, remove verbose contributor list
+- aa56180: Constrain sidebar height so tab panels can scroll
 
-## Files Created/Modified
-- `src/frontend-react/src/panels/enemies/VerificationStepper.tsx` - Step dots + ProgressBar + VERIFY button composite
-- `src/frontend-react/src/store/types.ts` - Added `time_in_state_sec: number` and `next_threshold: number | null`
-- `src/frontend-react/src/panels/enemies/EnemyCard.tsx` - Imports and renders VerificationStepper; wires verify_target action
-- `src/frontend-react/src/shared/constants.ts` - Added CLASSIFIED and VERIFIED STATE_COLORS entries
-
-## Decisions Made
-- `useSendMessage()` from `App.tsx` WebSocketContext is the correct pattern for leaf-component WebSocket sends (consistent with DroneModeButtons.tsx)
-- `onManualVerify` only passed to VerificationStepper when `targetState === 'CLASSIFIED'`; the component checks internally before rendering the button
-- `fused_confidence ?? target.detection_confidence` fallback ensures stepper works before Phase 1 fusion data arrives
-
-## Deviations from Plan
-
-None — plan executed exactly as written.
-
-## Issues Encountered
-
-None. TypeScript compiled clean after both tasks.
-
-## User Setup Required
-
-None - no external service configuration required.
-
-## Next Phase Readiness
-- Task 3 (visual verification) is a checkpoint waiting for human confirmation
-- Backend broadcasts `time_in_state_sec`, `next_threshold`, and `state` per target (from 02-02)
-- Frontend displays and accepts manual verify; ready for `./palantir.sh --demo` visual test
-- Phase 03 (Drone Modes & Autonomy) can begin once this checkpoint is confirmed
-
----
-*Phase: 02-target-verification-workflow*
-*Completed: 2026-03-19*
+## Deviations
+- Removed verbose per-UAV contributing text from enemy cards (FusionBar already shows sensor breakdown) — reduces layout jitter
+- Added cross-tab navigation and selection highlighting (not in original plan but requested by user)
+- Multiple scroll fix iterations needed due to Blueprint Tabs internal DOM structure
