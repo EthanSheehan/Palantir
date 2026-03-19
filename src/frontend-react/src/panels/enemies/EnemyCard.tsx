@@ -4,6 +4,8 @@ import { useSimStore } from '../../store/SimulationStore';
 import { TARGET_MAP, STATE_COLORS } from '../../shared/constants';
 import { FusionBar } from './FusionBar';
 import { SensorBadge } from './SensorBadge';
+import { VerificationStepper } from './VerificationStepper';
+import { useSendMessage } from '../../App';
 
 interface EnemyCardProps {
   target: Target;
@@ -33,6 +35,8 @@ function targetsShallowEqual(a: Target, b: Target): boolean {
     a.detected === b.detected &&
     a.concealed === b.concealed &&
     a.sensor_count === b.sensor_count &&
+    a.next_threshold === b.next_threshold &&
+    Math.round((a.time_in_state_sec ?? 0) * 10) === Math.round((b.time_in_state_sec ?? 0) * 10) &&
     Math.round((a.lat ?? 0) * 1000) === Math.round((b.lat ?? 0) * 1000) &&
     Math.round((a.lon ?? 0) * 1000) === Math.round((b.lon ?? 0) * 1000) &&
     Math.round((a.detection_confidence ?? 0) * 100) === Math.round((b.detection_confidence ?? 0) * 100) &&
@@ -44,6 +48,7 @@ function targetsShallowEqual(a: Target, b: Target): boolean {
 const EnemyCardInner = function EnemyCardInner({ target, trackers }: EnemyCardProps) {
   const selectedTargetId = useSimStore(s => s.selectedTargetId);
   const selectTarget = useSimStore(s => s.selectTarget);
+  const sendMessage = useSendMessage();
 
   const targetState = target.state || (target.detected ? 'DETECTED' : 'UNDETECTED');
   const config = TARGET_MAP[target.type] || { color: '#ffcc00', label: 'TGT' };
@@ -168,6 +173,19 @@ const EnemyCardInner = function EnemyCardInner({ target, trackers }: EnemyCardPr
               )}
             </div>
           )}
+
+          {/* Verification stepper */}
+          <VerificationStepper
+            state={targetState}
+            fused_confidence={target.fused_confidence ?? target.detection_confidence}
+            next_threshold={target.next_threshold ?? null}
+            time_in_state_sec={target.time_in_state_sec ?? 0}
+            onManualVerify={
+              targetState === 'CLASSIFIED'
+                ? () => sendMessage({ action: 'verify_target', target_id: target.id })
+                : undefined
+            }
+          />
         </div>
 
         {/* Meta */}

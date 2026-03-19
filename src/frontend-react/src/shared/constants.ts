@@ -23,6 +23,8 @@ export const TARGET_MAP: Record<string, { color: string; label: string }> = {
 
 export const STATE_COLORS: Record<string, { color: string; bg: string }> = {
   DETECTED:    { color: '#eab308', bg: 'rgba(234, 179, 8, 0.15)' },
+  CLASSIFIED:  { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)' },
+  VERIFIED:    { color: '#22c55e', bg: 'rgba(34, 197, 94, 0.15)' },
   IDENTIFIED:  { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)' },
   TRACKED:     { color: '#f97316', bg: 'rgba(249, 115, 22, 0.15)' },
   NOMINATED:   { color: '#ef4444', bg: 'rgba(239, 68, 68, 0.15)' },
