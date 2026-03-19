@@ -1,0 +1,20 @@
+.targets-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.targets-legacy-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.sort-anchor-label {
+  font-size: 0.6rem;
+  color: #64748b;
+  padding: 0 2px;
+}
+
+.sort-anchor-label strong {
+  color: #94a3b8;
+}

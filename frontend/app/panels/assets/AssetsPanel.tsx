@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Tag, Intent, ProgressBar } from '@blueprintjs/core';
 import { useAppStore } from '../../store/appStore';
 import type { Asset } from '../../store/types';
+import { SearchBar, haversineKm } from '../../components/SearchBar';
+import type { SearchResult } from '../../components/SearchBar';
 import './AssetsPanel.css';
 
 const DOMAIN_FILTERS = ['Air', 'Land', 'Space'] as const;
@@ -31,17 +33,6 @@ function formatEta(seconds: number): string {
   return `${h}h ${m}m`;
 }
 
-/** Haversine distance in km between two lon/lat points. */
-function haversineKm(lon1: number, lat1: number, lon2: number, lat2: number): number {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
 function selectOnGlobe(assetId: string, additive: boolean) {
   const viewer = (window as any).viewer;
   const controller = (window as any).MapToolController;
@@ -54,181 +45,56 @@ function selectOnGlobe(assetId: string, additive: boolean) {
   else controller._triggerDroneSelection(entity, 'macro');
 }
 
-// ── Search result types ──
+// ── Shared search bar handler ──
 
-interface SearchResult {
-  label: string;
-  sublabel: string;
-  type: 'location' | 'asset' | 'target';
-  lon: number;
-  lat: number;
-  assetId?: string;
-}
+/** Place/remove orange search marker on globe and fly camera. */
+function handleSearchLocation(result: SearchResult | null) {
+  const viewer = (window as any).viewer;
+  const Cesium = (window as any).Cesium;
 
-/** Geocode a query using OpenStreetMap Nominatim. */
-async function geocodeNominatim(query: string): Promise<SearchResult[]> {
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=ro&accept-language=en`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.map((item: any) => ({
-      label: item.display_name.split(',')[0],
-      sublabel: item.display_name.split(',').slice(1, 3).join(',').trim(),
-      type: 'location' as const,
-      lon: parseFloat(item.lon),
-      lat: parseFloat(item.lat),
-    }));
-  } catch {
-    return [];
+  // Remove previous search marker
+  if (viewer) {
+    const existing = viewer.entities.getById('_search_marker');
+    if (existing) viewer.entities.remove(existing);
+    viewer.scene.requestRender();
   }
-}
 
-/** Search local assets by display name. */
-function searchAssets(query: string, assets: Asset[]): SearchResult[] {
-  const q = query.toLowerCase();
-  return assets
-    .filter((a) => {
-      const name = getDisplayName(a).toLowerCase();
-      const id = a.id.toLowerCase();
-      return name.includes(q) || id.includes(q);
-    })
-    .slice(0, 5)
-    .map((a) => ({
-      label: getDisplayName(a),
-      sublabel: `${a.position?.lon?.toFixed(3)}, ${a.position?.lat?.toFixed(3)}`,
-      type: 'asset' as const,
-      lon: a.position?.lon ?? 0,
-      lat: a.position?.lat ?? 0,
-      assetId: a.id,
-    }));
-}
+  if (!result || result.type !== 'location') return;
 
-// ── Search Bar Component ──
-
-function SearchBar({
-  assets,
-  onResultSelected,
-}: {
-  assets: Asset[];
-  onResultSelected: (result: SearchResult) => void;
-}) {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [isOpen, setIsOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const doSearch = useCallback(async (q: string) => {
-    if (q.length < 2) {
-      setResults([]);
-      setIsOpen(false);
-      return;
-    }
-
-    // Local asset/entity matches (instant)
-    const localResults = searchAssets(q, assets);
-
-    // Show local results immediately
-    if (localResults.length > 0) {
-      setResults(localResults);
-      setIsOpen(true);
-    }
-
-    // Geocode in parallel (async)
-    setLoading(true);
-    const geoResults = await geocodeNominatim(q);
-    setLoading(false);
-
-    // Merge: assets first, then locations
-    const merged = [...localResults, ...geoResults];
-    setResults(merged);
-    if (merged.length > 0) setIsOpen(true);
-  }, [assets]);
-
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setQuery(val);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => doSearch(val), 300);
-  }, [doSearch]);
-
-  const handleSelect = useCallback((result: SearchResult) => {
-    setQuery(result.label);
-    setIsOpen(false);
-    onResultSelected(result);
-  }, [onResultSelected]);
-
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      setIsOpen(false);
-      setQuery('');
-      setResults([]);
-      // Clear sort anchor
-      onResultSelected(null as any);
-    }
-  }, [onResultSelected]);
-
-  const handleClear = useCallback(() => {
-    setQuery('');
-    setResults([]);
-    setIsOpen(false);
-    onResultSelected(null as any);
-  }, [onResultSelected]);
-
-  return (
-    <div className="search-bar-container" ref={containerRef}>
-      <div className="search-bar-input-wrap">
-        <svg className="search-bar-icon" viewBox="0 0 16 16" width="12" height="12">
-          <path fill="#64748b" d="M11.7 10.3l3 3a1 1 0 01-1.4 1.4l-3-3a6 6 0 111.4-1.4zM7 11a4 4 0 100-8 4 4 0 000 8z"/>
-        </svg>
-        <input
-          type="text"
-          className="search-bar-input"
-          placeholder="Search location, asset..."
-          value={query}
-          onChange={handleInputChange}
-          onFocus={() => { if (results.length > 0) setIsOpen(true); }}
-          onKeyDown={handleKeyDown}
-        />
-        {query && (
-          <button className="search-bar-clear" onClick={handleClear}>&times;</button>
-        )}
-        {loading && <span className="search-bar-spinner" />}
-      </div>
-      {isOpen && results.length > 0 && (
-        <div className="search-bar-dropdown">
-          {results.map((r, i) => (
-            <div
-              key={`${r.type}-${r.label}-${i}`}
-              className="search-result"
-              onClick={() => handleSelect(r)}
-            >
-              <span className={`search-result-type search-type-${r.type}`}>
-                {r.type === 'location' ? '\u25CB' : r.type === 'asset' ? '\u25A0' : '\u25C7'}
-              </span>
-              <div className="search-result-text">
-                <span className="search-result-label">{r.label}</span>
-                <span className="search-result-sub">{r.sublabel}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  if (viewer && Cesium) {
+    viewer.entities.add({
+      id: '_search_marker',
+      name: result.label,
+      position: Cesium.Cartesian3.fromDegrees(result.lon, result.lat, 0),
+      cylinder: {
+        length: 3000,
+        topRadius: 300,
+        bottomRadius: 300,
+        material: Cesium.Color.fromCssColorString('#f97316').withAlpha(0.85),
+        outline: true,
+        outlineColor: Cesium.Color.fromCssColorString('#fb923c'),
+        outlineWidth: 1,
+        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+      },
+      label: {
+        text: result.label,
+        font: '11px Inter, sans-serif',
+        fillColor: Cesium.Color.fromCssColorString('#f97316'),
+        outlineColor: Cesium.Color.BLACK,
+        outlineWidth: 2,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+        pixelOffset: new Cesium.Cartesian2(0, -20),
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      },
+    });
+    viewer.scene.requestRender();
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(result.lon, result.lat, 80000),
+      orientation: { heading: 0, pitch: Cesium.Math.toRadians(-90), roll: 0 },
+      duration: 1.5,
+    });
+  }
 }
 
 // ── Main Panel ──
@@ -276,33 +142,29 @@ export function AssetsPanel() {
   const handleSearchResult = useCallback((result: SearchResult | null) => {
     if (!result) {
       setSortAnchor(null);
+      handleSearchLocation(null);
       return;
     }
 
-    // Set sort anchor
     setSortAnchor({ lon: result.lon, lat: result.lat, label: result.label });
 
-    // If it's an asset, select it on globe
     if (result.type === 'asset' && result.assetId) {
       selectOnGlobe(result.assetId, false);
+      handleSearchLocation(null); // remove marker when selecting asset
       return;
     }
 
-    // If it's a location, fly camera there
-    const viewer = (window as any).viewer;
-    if (viewer) {
-      const Cesium = (window as any).Cesium;
-      viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(result.lon, result.lat, 80000),
-        orientation: { heading: 0, pitch: Cesium.Math.toRadians(-90), roll: 0 },
-        duration: 1.5,
-      });
-    }
+    handleSearchLocation(result);
   }, []);
 
   return (
     <div className="assets-panel">
-      <SearchBar assets={assets} onResultSelected={handleSearchResult} />
+      <SearchBar
+        assets={assets}
+        getDisplayName={getDisplayName}
+        includeTargets
+        onResultSelected={handleSearchResult}
+      />
 
       {sortAnchor && (
         <div className="sort-anchor-label">

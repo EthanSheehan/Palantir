@@ -9,10 +9,12 @@ import { AssetsPanel } from '../panels/assets/AssetsPanel';
 import { MissionsPanel } from '../panels/missions/MissionsPanel';
 import { CommandsPanel } from '../panels/commands/CommandsPanel';
 import { MacrogridPanel } from '../panels/macrogrid/MacrogridPanel';
+import { TargetsPanel } from '../panels/targets/TargetsPanel';
 
-/** Tabs migrated to React. 'targets' remains legacy (tight Cesium coupling in app.js). */
+/** All tabs migrated to React. */
 const REACT_PANELS: Partial<Record<LeftPanelTab, () => JSX.Element>> = {
   missions: MissionsPanel,
+  targets: TargetsPanel,
   assets: AssetsPanel,
   inspector: InspectorPanel,
   alerts: AlertsPanel,

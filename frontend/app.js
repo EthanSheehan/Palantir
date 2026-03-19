@@ -1175,6 +1175,7 @@ function _renderHalos() {
 // ─── TARGET SYSTEM ────────────────────────────────────────────────────────────
 
 const _targets = [];       // [{ id, lon, lat, topCone, botCone, lensTopCone, lensBotCone }]
+window._targets = _targets; // Expose for React SearchBar target search
 let _targetIdCounter = 0;
 
 // NOTE: Cesium's DataSourceCollection does NOT support sharing one DataSource

@@ -4,11 +4,6 @@
   gap: 6px;
 }
 
-/* ---- Search Bar ---- */
-.search-bar-container {
-  position: relative;
-}
-
 .search-bar-input-wrap {
   display: flex;
   align-items: center;
