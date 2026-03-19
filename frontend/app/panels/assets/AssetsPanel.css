@@ -1,7 +1,178 @@
 .assets-panel {
   display: flex;
   flex-direction: column;
+  gap: 6px;
+}
+
+/* ---- Search Bar ---- */
+.search-bar-container {
+  position: relative;
+}
+
+.search-bar-input-wrap {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(100, 116, 139, 0.2);
+  border-radius: 4px;
+  padding: 0 8px;
+  gap: 6px;
+  transition: border-color 0.15s;
+}
+
+.search-bar-input-wrap:focus-within {
+  border-color: rgba(56, 189, 248, 0.5);
+}
+
+.search-bar-icon {
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.search-bar-input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: #e2e8f0;
+  font-size: 0.72rem;
+  font-family: 'Inter', sans-serif;
+  padding: 5px 0;
+  min-width: 0;
+}
+
+.search-bar-input::placeholder {
+  color: #475569;
+}
+
+.search-bar-clear {
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.search-bar-clear:hover {
+  color: #e2e8f0;
+}
+
+.search-bar-spinner {
+  width: 10px;
+  height: 10px;
+  border: 2px solid rgba(56, 189, 248, 0.3);
+  border-top-color: #38bdf8;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---- Search Dropdown ---- */
+.search-bar-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  margin-top: 2px;
+  background: rgba(8, 14, 28, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(100, 116, 139, 0.25);
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.search-result {
+  display: flex;
+  align-items: center;
   gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.search-result:hover {
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.search-result-type {
+  font-size: 0.7rem;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.search-type-location { color: #22c55e; }
+.search-type-asset { color: #38bdf8; }
+.search-type-target { color: #f97316; }
+
+.search-result-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.search-result-label {
+  color: #e2e8f0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-result-sub {
+  color: #64748b;
+  font-size: 0.6rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- Sort Anchor Label ---- */
+.sort-anchor-label {
+  font-size: 0.6rem;
+  color: #64748b;
+  padding: 0 2px;
+}
+
+.sort-anchor-label strong {
+  color: #94a3b8;
+}
+
+/* ---- Distance + ETA Badges ---- */
+.asset-dist-group {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.asset-dist {
+  font-size: 0.55rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.asset-eta {
+  font-size: 0.55rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: #facc15;
+  background: rgba(250, 204, 21, 0.1);
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid rgba(250, 204, 21, 0.2);
 }
 
 .assets-filters {
@@ -84,9 +255,15 @@
 /* ---- Card Header ---- */
 .asset-card-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 4px;
+}
+
+.asset-card-name {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .asset-id {
@@ -94,6 +271,15 @@
   font-size: 0.75rem;
   font-weight: 700;
   font-family: 'JetBrains Mono', monospace;
+  line-height: 1.2;
+}
+
+.asset-manufacturer {
+  color: #475569;
+  font-size: 0.55rem;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
 }
 
 .asset-card-tags {
@@ -106,6 +292,67 @@
   padding: 1px 4px !important;
   min-height: 0 !important;
   line-height: 1.3 !important;
+}
+
+/* ---- Expanded Detail Table ---- */
+.asset-card.asset-expanded {
+  padding: 8px 10px 10px;
+}
+
+.asset-detail {
+  margin-top: 6px;
+  border-top: 1px solid rgba(100, 116, 139, 0.15);
+  padding-top: 6px;
+}
+
+.detail-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.detail-table td {
+  padding: 3px 0;
+  font-size: 0.68rem;
+  vertical-align: middle;
+}
+
+.detail-label {
+  color: #64748b;
+  font-weight: 500;
+  width: 45%;
+  text-transform: uppercase;
+  font-size: 0.6rem !important;
+  letter-spacing: 0.04em;
+}
+
+.detail-value {
+  color: #e2e8f0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem !important;
+  text-align: right;
+}
+
+.detail-accent {
+  color: #facc15;
+  font-weight: 600;
+}
+
+.detail-sep td {
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(100, 116, 139, 0.08);
+}
+
+.detail-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.detail-bar.bp5-progress-bar {
+  width: 60px;
+  height: 4px;
+  flex-shrink: 0;
 }
 
 /* ---- Telemetry Grid ---- */

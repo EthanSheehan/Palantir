@@ -1531,17 +1531,39 @@ function connectWebSocket() {
                 updateSimulation(payload.data);
             }
 
-            // Bridge legacy state into AppState for new panels
-            if (typeof AppState !== 'undefined' && payload.data.uavs) {
+            // Bridge live sim state into AppState for React panels (throttled to ~2Hz)
+            if (!window._lastReactBridgeMs) window._lastReactBridgeMs = 0;
+            if (!window._prevUavPos) window._prevUavPos = {};
+            const _now = Date.now();
+            if (typeof AppState !== 'undefined' && payload.data.uavs && (_now - window._lastReactBridgeMs) > 500) {
+                window._lastReactBridgeMs = _now;
                 payload.data.uavs.forEach(u => {
+                    // Compute heading from position delta (sim doesn't send vx/vy)
+                    const prev = window._prevUavPos[u.id];
+                    let hdg = 0;
+                    if (prev) {
+                        const dlon = u.lon - prev.lon;
+                        const dlat = u.lat - prev.lat;
+                        if (Math.abs(dlon) > 0.0001 || Math.abs(dlat) > 0.0001) {
+                            hdg = ((Math.atan2(dlon * Math.cos(u.lat * Math.PI / 180), dlat) * 180 / Math.PI) + 360) % 360;
+                        } else {
+                            hdg = prev.hdg || 0; // Keep last heading when stationary
+                        }
+                    }
+                    window._prevUavPos[u.id] = { lon: u.lon, lat: u.lat, hdg: hdg };
+
+                    // Update the canonical uav_N entry (React filters on this prefix)
                     AppState.updateAsset({
-                        id: `ast_${u.id}`,
-                        name: `UAV-${u.id}`,
+                        id: `uav_${u.id}`,
+                        name: `UAV-${String(u.id).padStart(2, '0')}`,
+                        type: 'quadrotor',
+                        mode: u.mode,
                         status: u.mode === 'serving' ? 'on_task' : u.mode === 'repositioning' ? 'transiting' : 'idle',
+                        health: 'nominal',
                         position: { lat: u.lat, lon: u.lon, alt_m: 1000 },
-                        battery_pct: 85,
-                        link_quality: 0.95,
-                        version: 1
+                        heading_deg: hdg,
+                        battery_pct: typeof u.battery_pct === 'number' ? u.battery_pct : 100 - (u.id * 0.3) - (_now % 60000) / 60000 * 2,
+                        link_quality: typeof u.link_quality === 'number' ? u.link_quality : 0.92 + Math.sin(u.id + _now / 10000) * 0.06,
                     });
                 });
             }
