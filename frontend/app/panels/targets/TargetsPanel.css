@@ -84,15 +84,56 @@
   border-color: rgba(100, 116, 139, 0.25);
 }
 
+/* Selected target — orange, matches target diamond color */
+.target-card-react.target-selected {
+  border-color: rgba(249, 115, 22, 0.6);
+  background: rgba(249, 115, 22, 0.08);
+  box-shadow: inset 2px 0 0 #f97316;
+}
+
+.target-card-react.target-selected .target-id {
+  color: #f97316;
+}
+
 .target-card-header {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
+/* Delete × on left, hidden until card hover */
+.target-remove-hover {
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0 3px;
+  line-height: 1;
+  border-radius: 2px;
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+  transition: opacity 0.15s, width 0.15s, margin 0.15s;
+  margin-right: -6px;
+  flex-shrink: 0;
+}
+
+.target-card-react:hover .target-remove-hover {
+  opacity: 1;
+  width: 16px;
+  margin-right: 0;
+}
+
+.target-remove-hover:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
 .target-diamond {
   color: #f97316;
   font-size: 0.8rem;
+  flex-shrink: 0;
 }
 
 .target-id {
@@ -113,22 +154,33 @@
   border: 1px solid rgba(100, 116, 139, 0.15);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-}
-
-.target-remove {
-  background: none;
-  border: none;
-  color: #64748b;
-  font-size: 0.85rem;
   cursor: pointer;
-  padding: 0 3px;
-  line-height: 1;
-  border-radius: 2px;
+  transition: border-color 0.15s;
 }
 
-.target-remove:hover {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.1);
+.target-type-badge:hover {
+  border-color: rgba(56, 189, 248, 0.4);
+  color: #e2e8f0;
+}
+
+.target-type-input {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  border-radius: 2px;
+  color: #e2e8f0;
+  font-size: 0.55rem;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  outline: none;
+  width: 70px;
+}
+
+.target-type-input::placeholder {
+  color: #475569;
+  text-transform: none;
 }
 
 .target-coords {
@@ -137,6 +189,78 @@
   font-family: 'JetBrains Mono', monospace;
   margin-top: 2px;
   padding-left: 20px;
+}
+
+/* ---- Zoom-to button ---- */
+.target-card-react {
+  position: relative;
+}
+
+.target-zoom-btn {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(100, 116, 139, 0.15);
+  border-radius: 2px;
+  color: #64748b;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  opacity: 0.5;
+}
+
+.target-card-react:hover .target-zoom-btn {
+  opacity: 1;
+}
+
+.target-zoom-btn:hover {
+  background: rgba(249, 115, 22, 0.15);
+  border-color: rgba(249, 115, 22, 0.4);
+  color: #f97316;
+}
+
+/* ---- Inline-editable description ---- */
+.target-desc {
+  color: #64748b;
+  font-size: 0.65rem;
+  font-style: italic;
+  padding: 2px 4px 2px 20px;
+  margin-top: 2px;
+  cursor: text;
+  border-radius: 2px;
+  transition: background 0.1s;
+}
+
+.target-desc:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: #94a3b8;
+}
+
+.target-desc-input {
+  display: block;
+  width: calc(100% - 20px);
+  margin-left: 20px;
+  margin-top: 2px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  border-radius: 2px;
+  color: #e2e8f0;
+  font-size: 0.65rem;
+  font-family: 'Inter', sans-serif;
+  padding: 2px 4px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.target-desc-input::placeholder {
+  color: #475569;
+  font-style: italic;
 }
 
 .empty-state {
