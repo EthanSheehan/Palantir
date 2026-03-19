@@ -1,4 +1,5 @@
 import subprocess
+import threading
 import time
 import os
 import sys
@@ -20,10 +21,17 @@ _procs = []  # track subprocesses for cleanup
 
 
 def _cleanup():
-    """Terminate all child processes."""
+    """Terminate all child processes (and their entire process trees)."""
     for proc in _procs:
         if proc.poll() is None:
-            proc.terminate()
+            if sys.platform == 'win32':
+                # taskkill /T kills the full process tree (including uvicorn reload workers)
+                subprocess.run(
+                    ['taskkill', '/F', '/T', '/PID', str(proc.pid)],
+                    capture_output=True,
+                )
+            else:
+                proc.terminate()
     for proc in _procs:
         try:
             proc.wait(timeout=5)
@@ -66,6 +74,15 @@ def _wait_for_health(url, timeout, proc):
     return False
 
 
+def _drain_pipe(pipe):
+    """Continuously read and discard pipe output to prevent buffer deadlock."""
+    try:
+        while pipe.read(4096):
+            pass
+    except (OSError, ValueError):
+        pass
+
+
 def main():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     backend_dir = os.path.join(base_dir, "backend")
@@ -97,6 +114,7 @@ def main():
     print(f"[2/4] Waiting for backend to be ready (up to {BACKEND_TIMEOUT}s)...")
     if _wait_for_health(HEALTH_URL, BACKEND_TIMEOUT, backend_proc):
         print("       Backend is healthy!")
+        threading.Thread(target=_drain_pipe, args=(backend_proc.stdout,), daemon=True).start()
     else:
         if backend_proc.poll() is not None:
             # Process exited — dump output for diagnostics
@@ -123,6 +141,7 @@ def main():
 
     if _wait_for_health(FRONTEND_URL, FRONTEND_TIMEOUT, frontend_proc):
         print("       Frontend is serving!")
+        threading.Thread(target=_drain_pipe, args=(frontend_proc.stdout,), daemon=True).start()
     else:
         print(f"[ERROR] Frontend did not start within {FRONTEND_TIMEOUT}s")
         sys.exit(1)
@@ -139,13 +158,17 @@ def main():
 
     # Clear cache so it always loads the latest code
     profile = QWebEngineProfile.defaultProfile()
-    profile.clearHttpCache()
+    profile.setHttpCacheType(QWebEngineProfile.NoCache)
 
     window = QMainWindow()
     window.setWindowTitle("AMS V0.2")
     window.resize(1600, 900)
 
-    webview = QWebEngineView()
+    class _WebView(QWebEngineView):
+        def contextMenuEvent(self, event):
+            event.ignore()  # suppress browser right-click menu; handled by Cesium
+
+    webview = _WebView()
     webview.setUrl(QUrl(FRONTEND_URL))
 
     window.setCentralWidget(webview)

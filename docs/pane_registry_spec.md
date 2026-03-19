@@ -334,6 +334,8 @@ interface MountablePane {
 
 ### 4.1 PaneContext
 
+> **Status: Not yet implemented** — panels currently use direct DOM manipulation and global event listeners rather than this formal lifecycle interface.
+
 ```javascript
 interface PaneContext {
   appState: AppState;      // Centralized state store
@@ -344,6 +346,8 @@ interface PaneContext {
 ```
 
 ### 4.2 Migration Strategy for Existing Panels
+
+> **Status: Not yet implemented** — current panels are wired directly without adapter classes.
 
 Existing panels (MissionPanel, AlertsPanel, etc.) will be wrapped in adapter classes:
 
