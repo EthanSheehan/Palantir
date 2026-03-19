@@ -17,12 +17,22 @@ interface DroneCardProps {
 export function DroneCard({ uav }: DroneCardProps) {
   const trackedDroneId = useSimStore(s => s.trackedDroneId);
   const setTrackedDrone = useSimStore(s => s.setTrackedDrone);
+  const selectDrone = useSimStore(s => s.selectDrone);
+  const setDroneCamVisible = useSimStore(s => s.setDroneCamVisible);
 
   const isTracked = uav.id === trackedDroneId;
   const modeStyle = MODE_STYLES[uav.mode] || { color: '#94a3b8', label: uav.mode };
 
   const handleClick = () => {
-    setTrackedDrone(isTracked ? null : uav.id);
+    if (isTracked) {
+      setTrackedDrone(null);
+      selectDrone(null);
+      setDroneCamVisible(false);
+    } else {
+      setTrackedDrone(uav.id);
+      selectDrone(uav.id);
+      setDroneCamVisible(true);
+    }
   };
 
   const cardStyle: React.CSSProperties = {

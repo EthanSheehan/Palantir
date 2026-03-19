@@ -10,11 +10,12 @@ export function DroneCamPIP() {
 
   useDroneCam(canvasRef);
 
-  if (selectedDroneId === null || !droneCamVisible) return null;
+  const isVisible = selectedDroneId !== null && droneCamVisible;
 
   return (
     <div
       style={{
+        display: isVisible ? 'block' : 'none',
         position: 'absolute',
         bottom: 16,
         right: 16,
