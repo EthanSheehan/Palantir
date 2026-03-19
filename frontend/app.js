@@ -1244,12 +1244,22 @@ let _targetIdCounter = 0;
 // and mirror them when the satellite lens viewer is opened.
 
 function _diamondEntities(targetViewer, lon, lat, id) {
-    const alt    = 80;   // metres above ellipsoid — floats close to ground
+    const aboveGround = 80;   // metres above terrain surface
     const halfH  = 55;   // half-height of each cone
     const radius = 35;   // equatorial (widest) radius
-    const color   = Cesium.Color.fromCssColorString('#ef4444').withAlpha(0.88);
-    const outline = Cesium.Color.fromCssColorString('#fca5a5');
+    const color   = Cesium.Color.fromCssColorString('#f97316').withAlpha(0.88);
+    const outline = Cesium.Color.fromCssColorString('#fdba74');
     const suffix  = targetViewer === viewer ? 'main' : 'lens';
+
+    // Sample terrain height so diamonds sit above terrain, not ellipsoid
+    let terrainH = 0;
+    const carto = Cesium.Cartographic.fromDegrees(lon, lat);
+    const globe = targetViewer.scene.globe;
+    if (globe) {
+        const sampledH = globe.getHeight(carto);
+        if (sampledH !== undefined) terrainH = sampledH;
+    }
+    const alt = terrainH + aboveGround;
 
     // Upper cone: topRadius=0 → pointy tip at top, wide base at equator
     const topPos  = Cesium.Cartesian3.fromDegrees(lon, lat, alt + halfH / 2);

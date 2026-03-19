@@ -69,6 +69,7 @@ export interface AppStore {
     missionId: string | null;
     alertId: string | null;
     hoveredEntityId: string | null;
+    selectedTargetIds: number[];
   };
 
   // ── Time ──
@@ -106,6 +107,7 @@ export interface AppStore {
   selectMission: (id: string | null) => void;
   selectAlert: (id: string | null) => void;
   setHoveredEntity: (id: string | null) => void;
+  selectTarget: (id: number | null, additive?: boolean) => void;
   setTimeCursor: (ms: number | null) => void;
   setTimeMode: (mode: 'live' | 'historical') => void;
   setLeftPanelTab: (tab: LeftPanelTab) => void;
@@ -146,6 +148,7 @@ export const useAppStore = create<AppStore>()(subscribeWithSelector((set) => ({
     missionId: null,
     alertId: null,
     hoveredEntityId: null,
+    selectedTargetIds: [],
   },
 
   time: {
@@ -201,6 +204,19 @@ export const useAppStore = create<AppStore>()(subscribeWithSelector((set) => ({
   setHoveredEntity: (id) => set((state) => ({
     selection: { ...state.selection, hoveredEntityId: id },
   })),
+
+  selectTarget: (id, additive = false) => set((state) => {
+    if (id === null) return { selection: { ...state.selection, selectedTargetIds: [] } };
+    const current = state.selection.selectedTargetIds;
+    if (additive) {
+      const idx = current.indexOf(id);
+      const next = idx >= 0 ? current.filter((t) => t !== id) : [...current, id];
+      return { selection: { ...state.selection, selectedTargetIds: next } };
+    }
+    // Single select: toggle if already sole selection
+    const next = current.length === 1 && current[0] === id ? [] : [id];
+    return { selection: { ...state.selection, selectedTargetIds: next } };
+  }),
 
   setTimeCursor: (ms) => set((state) => ({
     time: {
