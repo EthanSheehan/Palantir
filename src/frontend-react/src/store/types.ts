@@ -1,0 +1,95 @@
+export interface UAV {
+  id: number;
+  lat: number;
+  lon: number;
+  altitude_m: number;
+  mode: 'IDLE' | 'SEARCH' | 'FOLLOW' | 'PAINT' | 'INTERCEPT' | 'REPOSITIONING' | 'RTB';
+  heading_deg: number;
+  tracked_target_id: number | null;
+  sensor_type: string;
+  sensors?: string[];
+  fuel_hours: number;
+}
+
+export interface Target {
+  id: number;
+  lat: number;
+  lon: number;
+  type: string;
+  state: string;
+  detected: boolean;
+  detection_confidence: number;
+  concealed?: boolean;
+}
+
+export interface Zone {
+  x_idx: number;
+  y_idx: number;
+  lat: number;
+  lon: number;
+  width: number;
+  height: number;
+  imbalance: number;
+}
+
+export interface FlowLine {
+  source: [number, number];
+  target: [number, number];
+}
+
+export interface StrikeEntry {
+  id: string;
+  target_type: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'RETASKED';
+  detection_confidence: number;
+  priority_score: number;
+  roe_evaluation: string;
+}
+
+export interface COA {
+  id: string;
+  effector_name: string;
+  effector_type: string;
+  pk_estimate: number;
+  time_to_effect_min: number;
+  risk_score: number;
+  composite_score: number;
+  status: string;
+}
+
+export interface TheaterBounds {
+  min_lat: number;
+  max_lat: number;
+  min_lon: number;
+  max_lon: number;
+}
+
+export interface TheaterInfo {
+  name: string;
+  bounds: TheaterBounds;
+}
+
+export interface AssistantMessage {
+  timestamp: string;
+  text: string;
+  severity: 'INFO' | 'WARNING' | 'CRITICAL';
+}
+
+export interface HitlUpdate {
+  text: string;
+  severity: string;
+  coas?: COA[];
+  entry_id?: string;
+}
+
+export interface SimStatePayload {
+  uavs: UAV[];
+  targets: Target[];
+  zones: Zone[];
+  flows: FlowLine[];
+  strike_board: StrikeEntry[];
+  theater: TheaterInfo | null;
+  demo_mode: boolean;
+  sitrep_response?: string;
+  hitl_update?: HitlUpdate | string;
+}
