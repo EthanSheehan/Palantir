@@ -1,10 +1,11 @@
 import math
 import random
 import time
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from romania_grid import RomaniaMacroGrid
 from sensor_model import evaluate_detection, EnvironmentConditions
 from theater_loader import load_theater, TheaterConfig, list_theaters
+from sensor_fusion import SensorContribution, fuse_detections
 
 import structlog
 
@@ -18,8 +19,8 @@ TARGET_STATES = (
 
 # UAV modes
 UAV_MODES = (
-    "IDLE", "SEARCH", "FOLLOW", "FOLLOW",
-    "PAINT", "REPOSITIONING", "RTB",
+    "IDLE", "SEARCH", "FOLLOW",
+    "PAINT", "INTERCEPT", "REPOSITIONING", "RTB",
 )
 
 # Types that emit radar signals
@@ -67,6 +68,23 @@ LOITER_RADIUS_DEG = 0.027
 # Max turn rate for fixed-wing (radians/sec, ~3 deg/sec standard rate turn)
 MAX_TURN_RATE = math.radians(3.0)
 
+# Degrees per km (approximate)
+DEG_PER_KM = 1.0 / 111.0
+
+# Sensor distribution weights: (sensors, weight)
+_SENSOR_DISTRIBUTION = [
+    (["EO_IR"],          50),
+    (["SAR"],            20),
+    (["SIGINT"],         10),
+    (["EO_IR", "SAR"],   10),
+    (["EO_IR", "SIGINT"], 10),
+]
+
+
+def _pick_sensors() -> List[str]:
+    population = [s for s, w in _SENSOR_DISTRIBUTION for _ in range(w)]
+    return list(random.choice(population))
+
 
 def _heading_from_velocity(vx: float, vy: float) -> float:
     if abs(vx) < 1e-9 and abs(vy) < 1e-9:
@@ -92,7 +110,10 @@ class Target:
         self.detected_by_sensor: Optional[str] = None
         self.heading_deg = _heading_from_velocity(self.vx, self.vy)
         self.is_emitting = self.type in EMITTING_TYPES
-        self.tracked_by_uav_id: Optional[int] = None
+        self.tracked_by_uav_ids: list = []
+        self.sensor_contributions: list = []
+        self.fused_confidence: float = 0.0
+        self.sensor_count: int = 0
 
         # Behavior fields
         self.behavior = UNIT_BEHAVIOR.get(self.type, "stationary")
@@ -103,9 +124,17 @@ class Target:
         self._patrol_waypoints: List[Tuple[float, float]] = []
         self._patrol_index = 0
 
+        # Theater-wired fields (set externally)
+        self.threat_range_km: Optional[float] = None
+        self.detection_range_km: Optional[float] = None
+
     @property
     def detected(self) -> bool:
         return self.state != "UNDETECTED"
+
+    @property
+    def tracked_by_uav_id(self) -> Optional[int]:
+        return self.tracked_by_uav_ids[0] if self.tracked_by_uav_ids else None
 
     def update(self, dt_sec: float, bounds: dict, uav_positions: Optional[List[Tuple[float, float]]] = None):
         uav_positions = uav_positions or []
@@ -211,10 +240,25 @@ class UAV:
         # New fields
         self.altitude_m = 3000.0
         self.sensor_type = "EO_IR"
+        self.sensors: List[str] = _pick_sensors()
         self.heading_deg = 0.0
-        self.tracked_target_id: Optional[int] = None
+        self.tracked_target_ids: list = []
+        self.primary_target_id: Optional[int] = None
         self.fuel_hours: float = 24.0
         self.fuel_rate: float = 1.0
+
+    @property
+    def tracked_target_id(self) -> Optional[int]:
+        return self.primary_target_id
+
+    @tracked_target_id.setter
+    def tracked_target_id(self, value: Optional[int]):
+        self.primary_target_id = value
+        if value is not None and value not in self.tracked_target_ids:
+            self.tracked_target_ids.append(value)
+        elif value is None:
+            self.tracked_target_ids.clear()
+            self.primary_target_id = None
 
     def _turn_toward(self, target_vx: float, target_vy: float, speed: float, dt_sec: float):
         """Gradually turn toward desired direction (fixed-wing turn rate limit)."""
@@ -338,6 +382,20 @@ class SimulationModel:
         self.SPEED_DEG_PER_SEC = 0.005
         self.SERVICE_TIME_SEC = 2.0
 
+        # Build per-type config maps from theater
+        self._unit_speed_map: Dict[str, float] = {}
+        self._unit_threat_range_map: Dict[str, Optional[float]] = {}
+        self._unit_detection_range_map: Dict[str, Optional[float]] = {}
+        if self.theater:
+            for unit in self.theater.red_force.units:
+                if unit.speed_kmh is not None:
+                    # Convert km/h to deg/sec: speed_kmh * 1000m/km / 3600s/hr * DEG_PER_KM
+                    self._unit_speed_map[unit.type] = unit.speed_kmh * DEG_PER_KM / 3600.0
+                if unit.threat_range_km is not None:
+                    self._unit_threat_range_map[unit.type] = float(unit.threat_range_km)
+                if unit.detection_range_km is not None:
+                    self._unit_detection_range_map[unit.type] = float(unit.detection_range_km)
+
         self.last_update_time = time.time()
         self.active_flows = []
         self.targets: List[Target] = []
@@ -384,6 +442,11 @@ class SimulationModel:
                 t.type = unit_type
                 t.is_emitting = unit_type in EMITTING_TYPES
                 t.behavior = UNIT_BEHAVIOR.get(unit_type, "stationary")
+                # Wire theater fields
+                if unit_type in self._unit_speed_map:
+                    t.speed = self._unit_speed_map[unit_type]
+                t.threat_range_km = self._unit_threat_range_map.get(unit_type)
+                t.detection_range_km = self._unit_detection_range_map.get(unit_type)
                 target_id += 1
                 self.targets.append(t)
 
@@ -408,7 +471,8 @@ class SimulationModel:
         uav.mode = mode
         uav.tracked_target_id = target_id
         uav.commanded_target = None
-        target.tracked_by_uav_id = uav_id
+        if uav_id not in target.tracked_by_uav_ids:
+            target.tracked_by_uav_ids.append(uav_id)
         if target_state == "LOCKED" or target.state in ("DETECTED", "UNDETECTED"):
             target.state = target_state
         logger.info("command_assign", mode=mode, uav_id=uav_id, target_id=target_id)
@@ -427,14 +491,15 @@ class SimulationModel:
         if not uav:
             logger.warning("cancel_track_failed", uav_id=uav_id)
             return
-        old_target_id = uav.tracked_target_id
+        old_target_id = uav.primary_target_id
         uav.mode = "SEARCH"
-        uav.tracked_target_id = None
+        uav.tracked_target_ids = [tid for tid in uav.tracked_target_ids if tid != old_target_id]
+        uav.primary_target_id = None
         if old_target_id is not None:
             target = self._find_target(old_target_id)
-            if target and target.tracked_by_uav_id == uav_id:
-                target.tracked_by_uav_id = None
-                if target.state in ("TRACKED", "LOCKED"):
+            if target:
+                target.tracked_by_uav_ids = [uid for uid in target.tracked_by_uav_ids if uid != uav_id]
+                if not target.tracked_by_uav_ids and target.state in ("TRACKED", "LOCKED"):
                     target.state = "DETECTED"
         logger.info("cancel_track", uav_id=uav_id, old_target_id=old_target_id)
 
@@ -506,7 +571,7 @@ class SimulationModel:
 
         # 7. Update Kinematics (handles IDLE, SCANNING, REPOSITIONING, RTB)
         for u in self.uavs:
-            if u.mode not in ("FOLLOW", "FOLLOW", "PAINT"):
+            if u.mode not in ("FOLLOW", "PAINT", "INTERCEPT"):
                 u.update(dt_sec, self.SPEED_DEG_PER_SEC)
 
         # 8. Decrement service timers for SCANNING UAVs
@@ -528,6 +593,13 @@ class SimulationModel:
             for u in self.uavs:
                 if u.mode in ("RTB", "REPOSITIONING"):
                     continue
+
+                # Use target's detection_range_km to gate detection if available
+                if t.detection_range_km is not None:
+                    dist_deg = math.hypot(u.x - t.x, u.y - t.y)
+                    dist_km = dist_deg / DEG_PER_KM
+                    if dist_km > t.detection_range_km:
+                        continue
 
                 # Compute aspect angle: bearing from UAV to target vs target heading
                 dlat = t.y - u.y
@@ -671,8 +743,8 @@ class SimulationModel:
             # Clear any tracking
             if uav.tracked_target_id is not None:
                 old_target = self._find_target(uav.tracked_target_id)
-                if old_target and old_target.tracked_by_uav_id == uav_id:
-                    old_target.tracked_by_uav_id = None
+                if old_target:
+                    old_target.tracked_by_uav_ids = [uid for uid in old_target.tracked_by_uav_ids if uid != uav_id]
                 uav.tracked_target_id = None
 
     def _set_target_state(self, target_id: int, new_state: str):
@@ -700,8 +772,11 @@ class SimulationModel:
                     "mode": u.mode,
                     "altitude_m": u.altitude_m,
                     "sensor_type": u.sensor_type,
+                    "sensors": u.sensors,
                     "heading_deg": round(u.heading_deg, 1),
                     "tracked_target_id": u.tracked_target_id,
+                    "tracked_target_ids": list(u.tracked_target_ids),
+                    "primary_target_id": u.primary_target_id,
                     "fuel_hours": round(u.fuel_hours, 2),
                 } for u in self.uavs
             ],
@@ -732,6 +807,16 @@ class SimulationModel:
                     "is_emitting": t.is_emitting,
                     "heading_deg": round(t.heading_deg, 1),
                     "tracked_by_uav_id": t.tracked_by_uav_id,
+                    "tracked_by_uav_ids": list(t.tracked_by_uav_ids),
+                    "fused_confidence": round(t.fused_confidence, 3),
+                    "sensor_count": t.sensor_count,
+                    "sensor_contributions": [
+                        {"uav_id": c.uav_id, "sensor_type": c.sensor_type, "confidence": round(c.confidence, 3)}
+                        for c in sorted(t.sensor_contributions, key=lambda c: c.confidence, reverse=True)[:10]
+                        if c.confidence > 0.05
+                    ],
+                    "threat_range_km": t.threat_range_km,
+                    "detection_range_km": t.detection_range_km,
                 } for t in self.targets
             ],
             "environment": {
