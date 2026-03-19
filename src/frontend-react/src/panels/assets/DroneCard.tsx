@@ -1,0 +1,66 @@
+import React from 'react';
+import { UAV } from '../../store/types';
+import { useSimStore } from '../../store/SimulationStore';
+import { MODE_STYLES } from '../../shared/constants';
+import { DroneCardDetails } from './DroneCardDetails';
+
+const verbMap: Record<string, string> = {
+  FOLLOW: 'FOLLOWING',
+  PAINT: 'PAINTING',
+  INTERCEPT: 'INTERCEPTING',
+};
+
+interface DroneCardProps {
+  uav: UAV;
+}
+
+export function DroneCard({ uav }: DroneCardProps) {
+  const trackedDroneId = useSimStore(s => s.trackedDroneId);
+  const setTrackedDrone = useSimStore(s => s.setTrackedDrone);
+
+  const isTracked = uav.id === trackedDroneId;
+  const modeStyle = MODE_STYLES[uav.mode] || { color: '#94a3b8', label: uav.mode };
+
+  const handleClick = () => {
+    setTrackedDrone(isTracked ? null : uav.id);
+  };
+
+  const cardStyle: React.CSSProperties = {
+    background: isTracked ? 'rgba(250, 204, 21, 0.15)' : 'rgba(255,255,255,0.04)',
+    border: `1px solid ${isTracked ? 'rgba(250, 204, 21, 0.5)' : 'rgba(255,255,255,0.1)'}`,
+    borderRadius: 4,
+    padding: '8px 10px',
+    cursor: 'pointer',
+    userSelect: 'none',
+  };
+
+  return (
+    <div style={cardStyle} onClick={handleClick}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ color: isTracked ? '#facc15' : '#e2e8f0', fontWeight: 600, fontSize: '0.85rem' }}>
+          UAV-{uav.id}
+        </span>
+        <span style={{
+          color: modeStyle.color,
+          borderColor: modeStyle.color,
+          border: '1px solid',
+          borderRadius: 3,
+          padding: '1px 6px',
+          fontSize: '0.65rem',
+          fontWeight: 700,
+          letterSpacing: '0.05em',
+        }}>
+          {modeStyle.label}
+        </span>
+      </div>
+
+      {uav.tracked_target_id && verbMap[uav.mode] && (
+        <div style={{ color: modeStyle.color, fontSize: '0.7rem', marginTop: 4 }}>
+          {verbMap[uav.mode]} TGT-{uav.tracked_target_id}
+        </div>
+      )}
+
+      {isTracked && <DroneCardDetails uav={uav} />}
+    </div>
+  );
+}
