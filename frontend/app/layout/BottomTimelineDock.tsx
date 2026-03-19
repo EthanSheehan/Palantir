@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Button, Intent } from '@blueprintjs/core';
 import { TimelineSurfaceHost } from '../surfaces/TimelineSurfaceHost';
 import { useAppStore } from '../store/appStore';
 
@@ -8,6 +9,8 @@ import { useAppStore } from '../store/appStore';
 export function BottomTimelineDock() {
   const layout = useAppStore((s) => s.ui.layout);
   const setLayout = useAppStore((s) => s.setLayout);
+  const timeCursorMs = useAppStore((s) => s.time.cursorMs);
+  const timeMode = useAppStore((s) => s.time.mode);
 
   const [expanded, setExpanded] = useState(layout.timelineExpanded);
   const [height, setHeight] = useState(layout.timelineHeight); // vh
@@ -104,11 +107,40 @@ export function BottomTimelineDock() {
           className="ws-timeline-resize-handle"
           onMouseDown={onResizeMouseDown}
         />
-        <div className="ws-timeline-drawer-header" />
+        <div className="ws-timeline-drawer-header">
+          {timeMode !== 'live' && timeCursorMs !== null && (
+            <>
+              <span className="scrub-indicator">
+                SCRUB: {formatTime(timeCursorMs)}
+              </span>
+              <Button
+                small
+                intent={Intent.WARNING}
+                className="return-live-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const AppState = (window as any).AppState;
+                  if (AppState) AppState.setTimeCursor(null);
+                }}
+              >
+                RETURN TO LIVE
+              </Button>
+            </>
+          )}
+        </div>
         <TimelineSurfaceHost />
       </div>
     </>
   );
+}
+
+function formatTime(ms: number): string {
+  const d = new Date(ms);
+  return [
+    String(d.getHours()).padStart(2, '0'),
+    String(d.getMinutes()).padStart(2, '0'),
+    String(d.getSeconds()).padStart(2, '0'),
+  ].join(':');
 }
 
 function formatClock() {

@@ -293,8 +293,8 @@ export function AssetsPanel() {
     if (viewer) {
       const Cesium = (window as any).Cesium;
       viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(result.lon, result.lat, 50000),
-        orientation: { heading: 0, pitch: Cesium.Math.toRadians(-60), roll: 0 },
+        destination: Cesium.Cartesian3.fromDegrees(result.lon, result.lat, 80000),
+        orientation: { heading: 0, pitch: Cesium.Math.toRadians(-90), roll: 0 },
         duration: 1.5,
       });
     }

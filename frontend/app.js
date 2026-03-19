@@ -413,7 +413,7 @@ function updateSimulation(state) {
 
             const marker = viewer.entities.add({
                 id: `uav_${uav.id}`,
-                name: `UAV-${uav.id}`,
+                name: `Fixed - ${String(uav.id + 1).padStart(2, '0')}`,
                 position: positionProperty,
                 orientation: orientationProperty,
                 point: {
@@ -1289,8 +1289,8 @@ function _renderTargetList() {
         });
         card.addEventListener('click', () => {
             viewer.camera.flyTo({
-                destination: Cesium.Cartesian3.fromDegrees(t.lon, t.lat, 2000),
-                orientation: { heading: 0, pitch: Cesium.Math.toRadians(-60), roll: 0 },
+                destination: Cesium.Cartesian3.fromDegrees(t.lon, t.lat, 5000),
+                orientation: { heading: 0, pitch: Cesium.Math.toRadians(-90), roll: 0 },
                 duration: 1.2
             });
         });
@@ -1531,11 +1531,12 @@ function connectWebSocket() {
                 updateSimulation(payload.data);
             }
 
-            // Bridge live sim state into AppState for React panels (throttled to ~2Hz)
+            // Bridge live sim state into AppState for React panels (throttled to ~2Hz, only in live mode)
             if (!window._lastReactBridgeMs) window._lastReactBridgeMs = 0;
             if (!window._prevUavPos) window._prevUavPos = {};
             const _now = Date.now();
-            if (typeof AppState !== 'undefined' && payload.data.uavs && (_now - window._lastReactBridgeMs) > 500) {
+            const _isLive = typeof AppState === 'undefined' || AppState.state.timeMode === 'live';
+            if (_isLive && typeof AppState !== 'undefined' && payload.data.uavs && (_now - window._lastReactBridgeMs) > 500) {
                 window._lastReactBridgeMs = _now;
                 payload.data.uavs.forEach(u => {
                     // Compute heading from position delta (sim doesn't send vx/vy)
@@ -1555,7 +1556,7 @@ function connectWebSocket() {
                     // Update the canonical uav_N entry (React filters on this prefix)
                     AppState.updateAsset({
                         id: `uav_${u.id}`,
-                        name: `UAV-${String(u.id).padStart(2, '0')}`,
+                        name: `Fixed - ${String(u.id + 1).padStart(2, '0')}`,
                         type: 'quadrotor',
                         mode: u.mode,
                         status: u.mode === 'serving' ? 'on_task' : u.mode === 'repositioning' ? 'transiting' : 'idle',
@@ -1604,6 +1605,33 @@ function scrubToSnapshot(state) {
         });
         flowLines.push(line);
     });
+
+    // Bridge scrub state into AppState so React panels show historical data
+    if (typeof AppState !== 'undefined') {
+        state.uavs.forEach(u => {
+            const prev = window._prevUavPos ? window._prevUavPos[u.id] : null;
+            let hdg = prev ? prev.hdg || 0 : 0;
+            if (prev) {
+                const dlon = u.lon - prev.lon;
+                const dlat = u.lat - prev.lat;
+                if (Math.abs(dlon) > 0.0001 || Math.abs(dlat) > 0.0001) {
+                    hdg = ((Math.atan2(dlon * Math.cos(u.lat * Math.PI / 180), dlat) * 180 / Math.PI) + 360) % 360;
+                }
+            }
+            AppState.updateAsset({
+                id: `uav_${u.id}`,
+                name: `UAV-${String(u.id).padStart(2, '0')}`,
+                type: 'quadrotor',
+                mode: u.mode,
+                status: u.mode === 'serving' ? 'on_task' : u.mode === 'repositioning' ? 'transiting' : 'idle',
+                health: 'nominal',
+                position: { lat: u.lat, lon: u.lon, alt_m: 1000 },
+                heading_deg: hdg,
+                battery_pct: 100 - (u.id * 0.3),
+                link_quality: 0.92,
+            });
+        });
+    }
 
     // Directly set UAV positions without touching the interpolation buffer
     state.uavs.forEach(uav => {
