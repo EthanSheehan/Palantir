@@ -42,7 +42,7 @@ export function EnemiesTab() {
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <ThreatSummary visibleTargets={visibleTargets} />
       {visibleTargets.length === 0 ? (
         <div style={{ padding: 16, color: '#94a3b8' }}>No hostile entities detected.</div>
