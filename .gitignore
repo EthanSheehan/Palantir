@@ -32,6 +32,9 @@ Thumbs.db
 **/access_token*
 **/auth_token*
 
+# Event logs
+logs/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -71,6 +74,8 @@ yarn-debug.log*
 yarn-error.log*
 .npm
 .yarn/
+*.tsbuildinfo
+package-lock.json
 
 # MATLAB
 *.autosave
