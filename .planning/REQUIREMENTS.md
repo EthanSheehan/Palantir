@@ -1,0 +1,84 @@
+# Requirements
+
+## Functional Requirements
+
+### FR-1: Multi-Sensor Fusion
+- Multiple UAVs contribute detections to the same target
+- Fused confidence = 1 - product(1 - ci) for independent sensors
+- UAVs can carry 1 or 2 sensor types (EO_IR, SAR, SIGINT)
+- Sensor distribution: 50% EO_IR, 30% SAR, 20% SIGINT; 10% dual-sensor
+
+### FR-2: Target Verification Pipeline
+- State machine: UNDETECTED → DETECTED → CLASSIFIED → VERIFIED → NOMINATED
+- Promotion criteria based on fused confidence + sensor diversity + time
+- Configurable thresholds per target type (SAMs verify faster)
+- Regression when sensors lose contact
+- Manual operator override (fast-track CLASSIFIED → VERIFIED)
+
+### FR-3: Drone Modes & Autonomy
+- New modes: SUPPORT, VERIFY, OVERWATCH, BDA
+- 3-tier autonomy: MANUAL / SUPERVISED / AUTONOMOUS
+- SUPERVISED: system recommends, operator approves/rejects, auto-approve timeout
+- Per-drone autonomy override
+
+### FR-4: Swarm Coordination
+- Automatic dispatch of complementary sensors to targets
+- Greedy nearest-available assignment with sensor-type match
+- Minimum idle count constraint (don't drain all UAVs)
+- Request/release swarm via operator command
+
+### FR-5: Information Feeds
+- STATE_FEED (10Hz), INTEL_FEED (event), SENSOR_FEED (2Hz/UAV), COMMAND_FEED (event)
+- Subscription-based (clients opt in to feeds)
+- Feed filtering by event type, target, UAV
+
+### FR-6: Battlespace Assessment
+- Threat clustering (SAM_BATTERY, CONVOY, CP_COMPLEX, AD_NETWORK)
+- Coverage gap identification
+- Zone threat scoring
+- Movement corridor detection
+- 5-second assessment interval
+
+### FR-7: Adaptive ISR
+- ISR priority queue from assessment
+- Threat-adaptive coverage mode
+- Autonomous UAV retasking based on intelligence gaps
+
+### FR-8: Map Modes
+- 6 view modes: OPERATIONAL, ISR, THREAT, FUSION, SWARM, TERRAIN
+- Individual layer toggles
+- Keyboard shortcuts (1-6)
+- Camera presets
+
+### FR-9: Drone Feed Upgrade
+- EO/IR, SAR, SIGINT sensor displays
+- SIGINT waterfall display
+- PIP/SPLIT/QUAD layouts
+- Enhanced HUD with compass tape, fuel, multi-target bounding boxes
+
+### FR-10: Event Logging
+- JSONL event log to disk
+- All detections, transitions, commands, engagements logged
+- Daily rotation
+
+## Non-Functional Requirements
+
+### NFR-1: Performance
+- 10Hz simulation loop maintained
+- Frontend renders at 60fps with Cesium + React
+- No jank from ECharts real-time updates
+
+### NFR-2: UI Quality
+- Palantir-style dark theme (Blueprint dark + custom ECharts theme)
+- Professional look matching real Palantir products
+- Responsive sidebar panels
+
+### NFR-3: Backward Compatibility
+- `./palantir.sh --demo` runs end-to-end with all new features
+- All existing WebSocket actions continue to work
+- Theater YAML backward compatible (new fields optional)
+
+### NFR-4: Testability
+- All new Python modules have pytest tests
+- Pure functions for fusion, verification, assessment (no side effects)
+- 80%+ coverage on new code

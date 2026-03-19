@@ -17,8 +17,8 @@ Palantir is a decision-centric AI-assisted Command & Control (C2) system that au
 ./palantir.sh --demo --no-sim    # without drone video simulator
 
 # Or run components individually:
-./venv/bin/python3 src/python/api_main.py          # FastAPI backend on :8000
-cd src/frontend && python3 serve.py 3000              # Web UI on :3000 (no-cache)
+./venv/bin/python3 src/python/api_main.py              # FastAPI backend on :8000
+cd src/frontend-react && npm run dev -- --port 3000    # React dashboard on :3000 (Vite)
 ./venv/bin/python3 src/python/vision/video_simulator.py  # Drone simulator
 DEMO_MODE=true ./venv/bin/python3 src/python/api_main.py  # Backend in demo mode
 ```
@@ -61,13 +61,14 @@ Environment variables go in a `.env` file (loaded via python-dotenv). Required f
 - Theater-configurable via YAML files in `theaters/` (Romania, South China Sea, Baltic)
 - Zone-based imbalance tracking drives UAV repositioning logic
 
-**3. Cesium Frontend (`src/frontend/`)**
-- Modular ES6 JS with Cesium JS for 3D WGS-84 visualization
-- No build step — served by `serve.py` (no-cache dev HTTP server)
-- Tabs: MISSION / ASSETS / ENEMIES; includes Tactical AIP Assistant widget, Drone Camera PIP
-- Drone cards with inline mode command buttons (SEARCH/FOLLOW/PAINT/INTERCEPT)
-- Auto-recenters camera when switching theaters
-- Connects to backend WebSocket at `ws://localhost:8000/ws`
+**3. React Frontend (`src/frontend-react/`)**
+- React + Vite + TypeScript with Blueprint dark theme and Zustand state
+- Served by Vite dev server on `:3000` (`npm run dev -- --port 3000`)
+- Tabs: MISSION / ASSETS / ENEMIES; Tactical AIP Assistant widget, Drone Camera PIP, Demo Banner
+- Drone cards in ASSETS tab with mode command buttons (SEARCH/FOLLOW/PAINT/INTERCEPT); clicking a card activates drone cam PIP
+- Cesium globe with all entity hooks: drones (mode-colored labels), targets (type+ID labels), zones, flow lines, compass, range rings, lock indicators
+- Custom event bridge (`palantir:send`, `palantir:placeWaypoint`, `palantir:openDetailMap`) for Cesium→React WebSocket communication
+- Legacy vanilla JS frontend remains in `src/frontend/` for reference
 
 ### AI Agent Layer (`src/python/agents/`)
 
