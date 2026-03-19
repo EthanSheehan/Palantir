@@ -38,6 +38,8 @@ export interface Target {
   heading_deg: number;
   threat_range_km: number | null;
   detection_range_km: number | null;
+  time_in_state_sec: number;
+  next_threshold: number | null;
 }
 
 export interface Zone {
