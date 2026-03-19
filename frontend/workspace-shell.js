@@ -242,7 +242,7 @@ const WorkspaceShell = (() => {
             const hours = String(now.getHours()).padStart(2, '0');
             const mins = String(now.getMinutes()).padStart(2, '0');
             const secs = String(now.getSeconds()).padStart(2, '0');
-            timelinePill.innerHTML = `<span class="ws-date-day">${day}</span> <span class="ws-date-month">${monthName}</span> <span class="ws-date-year">${year}</span> <span class="ws-date-sep">|</span> <span class="ws-date-time">${hours}:${mins}:${secs}</span>`;
+            timelinePill.innerHTML = `<span class="ws-date-day">${day}</span><span class="ws-date-month">${monthName}</span><span class="ws-date-year">${year}</span><span class="ws-date-sep">|</span><span class="ws-date-time">${hours}:${mins}:${secs}</span>`;
         }
         _updatePillClock();
         setInterval(_updatePillClock, 1000);

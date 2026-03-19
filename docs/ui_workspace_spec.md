@@ -31,6 +31,8 @@ Panels are resizable, collapsible, and can be rearranged. The map always fills r
 
 ## 2. Required Panes
 
+> **Implementation note:** The current UI implements 5 panes (Map, Asset Panel, Mission Panel, Inspector Panel, Alerts Panel, and Timeline Panel in the bottom bar). A dedicated **Commands panel** (`tab-commands` / "CMDS (C)") is defined in `workspace-shell.js` as a placeholder tab but is **not yet implemented** — it shows only a static empty state. It is planned for a future release.
+
 ### A. Map / Globe View
 
 **Purpose:** Spatial awareness and geographic context

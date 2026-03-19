@@ -197,6 +197,8 @@ To reconstruct state at time T:
 
 ### 5.2 Playback Controls
 
+> **Note:** The current implementation supports basic scrubbing and zoom/pan. Full playback controls are planned.
+
 | Control | Description |
 |---------|-------------|
 | Play | Advance time cursor at selected speed |
@@ -228,6 +230,8 @@ Replayable elements:
 ---
 
 ## 6. What-If Planning
+
+> **Status: Not yet implemented** — design specification only
 
 The Timeline Service supports previewing hypothetical scenarios:
 

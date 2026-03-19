@@ -1,45 +1,68 @@
-# Grid 7: Inline Drone Control Dropdown
+# AMS v0.2 (Grid 11) — Autonomous Mission System
 
-This iteration modifies the UI architecture by removing the floating `droneControlPanel` and embedding its functionalities directly into the Drones Tab list via **Delta DOM Expanding Cards**.
+Real-time UAV fleet management platform built around a macro-grid demand/supply rebalancing model over Romania. Combines a 3D Cesium.js geospatial viewer with a domain-driven FastAPI backend, connected via dual WebSocket channels. Runs as a PyQt5 desktop application.
 
-## Overview of Changes
+## Quick Start
 
-1.  **Inline UI Architecture:**
-    *   The floating `#droneControlPanel` (which previously sat in the top-right corner) has been completely removed from `index.html`.
-    *   The Javascript Delta DOM rendering loop in `app.js` now dynamically builds an expanded `.drone-details` block *inside* the actively tracked UAV's list item.
-    *   This `.drone-details` block includes the drone's real-time telemetry (Altitude, Coordinates) and the interactive "Set Waypoint" button.
+### Option A: Desktop App (recommended)
 
-2.  **Event Listener Isolation:**
-    *   Previously, a single global "Set Waypoint" button controlled waypoint states, leading to potential race conditions if tracking changed rapidly.
-    *   Now, each `<button class="command-btn">` is dynamically injected into the active card with a unique ID (`inlineSetWaypointBtn_X`).
-    *   The click listener for this button is bound locally inside the Delta DOM update loop, ensuring it can safely toggle the `isSettingWaypoint` state without conflicting with other drone cards. Click events on this embedded button use `e.stopPropagation()` to prevent accidentally re-triggering the parent card's `macro` tracking lock.
+```bash
+python start.py
+```
 
-3.  **Return to Global Context:**
-    *   The "Return to Global View" button has been properly wired to gracefully collapse the inline dropdown. Clicking it explicitly clears `trackedDroneEntity` and `isSettingWaypoint`, forcing the Delta DOM loop to unmount the `.drone-details` block on the next 100ms tick.
+Launches backend (FastAPI on port 8012), frontend (HTTP server on port 8093), and opens a PyQt5 desktop window.
 
-## Setup Instructions
+### Option B: Development (separate terminals)
 
-1.  **Backend:**
-    *   Navigate to the `backend/` directory.
-    *   Start the simulation server: `python romania_grid.py`
-    *   *(Note: The `app.js` websocket configuration is still defaulted to port `8008` so it can leverage the existing Grid 6 backend if running, or a new instance of it.)*
+```bash
+# Terminal 1 — Backend
+cd backend && python main.py
+# Runs FastAPI on http://localhost:8012
 
-2.  **Frontend:**
-    *   Navigate to the `frontend/` directory.
-    *   Start the web server: `python -m http.server 8089`
-    *   Open your browser to `http://localhost:8089`
+# Terminal 2 — Frontend
+cd frontend && python -m http.server 8093
+# Open http://localhost:8093 in your browser
+```
 
-## Verification
-- Clicking a drone in the Drones Tab should smoothly expand the card downward, revealing the stats and the green "Set Waypoint" button.
-- Clicking another drone should instantly collapse the first card and expand the new one.
-- Clicking "Set Waypoint" inside the dropdown should turn it green and label it "Select Target...". You can then click the 3D map to command the drone.
-- Clicking "Return to Global View" should immediately collapse the open drone card and reset the camera.
+## Architecture
 
-## Grid 9 & 10 Updates
+| Layer | Technology | Port |
+|-------|-----------|------|
+| Desktop wrapper | PyQt5 + QWebEngineView | — |
+| 3D Map / UI | Cesium.js 1.114, vanilla JS, HTML/CSS | 8093 |
+| HTTP API | FastAPI (Python) | 8012 |
+| WebSocket (legacy) | `/ws/stream` — 10Hz sim state broadcast | 8012 |
+| WebSocket (events) | `/ws/events` — domain event stream | 8012 |
+| Database | SQLite (`ams.db`) | — |
+| Simulation | 20 UAVs, Romania macro-grid | — |
 
-- **Drone Range Visualization:** Added a new "Range" button to the drone cards in the Assets tab. This renders an animated 3D cone (consisting of 10 expanding wireframe rings) beneath the drone, stretching down to a 50km radius at ground level.
-- **Dynamic Waypoint Anchoring:** When a waypoint is set for a drone, the range visualization cone snaps to the waypoint destination to visualize its "dash range" upon arrival. Once the destination is reached, it snaps back to the drone.
-- **Base Map Provider Swap:** Replaced the Stadia Maps "Alidade Smooth Dark" tile provider with "CartoDB Dark Matter" to eliminate API rate limit restrictions (429 errors).
-- **Map Brightness Adjustments:** Increased the brightness and gamma of the imagery layer to soften the map.
-- **Grid 10 3D Buildings:** Integrated `Cesium.createOsmBuildingsAsync()` to load global 3D geometry for cities based on OpenStreetMap data, seamlessly extruded from the terrain.
-- **Grid 10 Independence:** Updated WebSocket and HTTP server ports (8011, 8092) to decouple from Grid 9.
+## Features
+
+- **3D Globe**: Cesium.js with CartoDB dark basemap, terrain, and cinematic lighting
+- **Macro-Grid Visualization**: Real-time zone imbalance coloring (red=shortage, blue=surplus)
+- **UAV Fleet**: 20 simulated drones with idle/serving/repositioning modes
+- **Waypoint Control**: Click-to-set waypoints via map interaction tools
+- **Mission Management**: Create, approve, and monitor missions with state machine lifecycle
+- **Timeline**: Canvas-based swimlane timeline with scrubbing and replay
+- **Satellite Lens**: Secondary Cesium viewer for close-up drone inspection
+- **Alerts**: Auto-generated alerts from domain events with severity levels
+- **Multi-UAV Selection**: Shift+click and drag-drop selection
+
+## Documentation
+
+See `docs/` for detailed specifications:
+- `SYSTEM_ARCHITECTURE.md` — Complete technical reference
+- `architecture.md` — High-level architectural principles
+- `domain_model.md` — Entity definitions and relationships
+- `state_machines.md` — State transition diagrams
+- `event_catalog.md` — Domain event types and payloads
+- `api_contract.md` — REST and WebSocket API specification
+- `desktop_host_spec.md` — Desktop app lifecycle specification
+
+## Dependencies
+
+- Python 3.10+
+- PyQt5 + PyQtWebEngine
+- FastAPI + uvicorn
+- pydantic
+- Cesium.js 1.114 (loaded from CDN)
