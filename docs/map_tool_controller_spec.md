@@ -18,15 +18,15 @@ The controller replaces ad hoc click handlers with a formal state machine: at an
 
 ### 2.1 Initial Tool Modes (v1)
 
-| Tool ID | Display Name | Cursor | Description |
-|---------|-------------|--------|-------------|
-| `select` | Select | `default` | Click entities to select them. Default tool. |
-| `track_asset` | Track Asset | `pointer` | Click an asset to enter camera tracking mode. |
-| `set_waypoint` | Set Waypoint | `crosshair` | Click terrain to create a move command draft for the selected asset. |
-| `draw_route` | Draw Route | `crosshair` | Click multiple points to define a route. Double-click to finish. |
-| `draw_area` | Draw Area | `crosshair` | Click vertices to define a polygon area. Double-click to close. |
-| `measure` | Measure | `crosshair` | Click two points to measure distance. |
-| `macrogrid_inspect` | Grid Inspect | `help` | Click a grid zone to show zone details in the inspector. |
+| Tool ID | Display Name | Cursor | Status | Description |
+|---------|-------------|--------|--------|-------------|
+| `select` | Select | `default` | Implemented | Click entities to select them. Default tool. |
+| `set_waypoint` | Set Waypoint | `crosshair` | Implemented | Click terrain to create a move command draft for the selected asset. |
+| `track_asset` | Track Asset | `pointer` | Planned | Click an asset to enter camera tracking mode. |
+| `draw_route` | Draw Route | `crosshair` | Planned | Click multiple points to define a route. Double-click to finish. |
+| `draw_area` | Draw Area | `crosshair` | Planned | Click vertices to define a polygon area. Double-click to close. |
+| `measure` | Measure | `crosshair` | Planned | Click two points to measure distance. |
+| `macrogrid_inspect` | Grid Inspect | `help` | Planned | Click a grid zone to show zone details in the inspector. |
 
 ### 2.2 Future Tool Modes (v2+)
 
@@ -90,6 +90,8 @@ interface ToolMode {
 
 ### 4.2 Track Asset Tool (`track_asset`)
 
+> **Status: Not yet implemented** — specification only
+
 **Purpose**: Camera follows a specific asset. This replaces the current single-click/double-click drone tracking.
 
 | Event | Behavior |
@@ -129,6 +131,8 @@ interface ToolMode {
 
 ### 4.4 Draw Route Tool (`draw_route`)
 
+> **Status: Not yet implemented** — specification only
+
 **Purpose**: Define a multi-point route for mission planning.
 
 | Event | Behavior |
@@ -150,6 +154,8 @@ interface ToolMode {
 
 ### 4.5 Draw Area Tool (`draw_area`)
 
+> **Status: Not yet implemented** — specification only
+
 **Purpose**: Define a polygon area for mission area, geofence, etc.
 
 | Event | Behavior |
@@ -165,6 +171,8 @@ interface ToolMode {
 **Output**: Area draft → `{ vertices: [{lon, lat}, ...] }` stored in AppState.
 
 ### 4.6 Measure Tool (`measure`)
+
+> **Status: Not yet implemented** — specification only
 
 **Purpose**: Measure distance between two points.
 
@@ -183,6 +191,8 @@ interface ToolMode {
 - Distance label at midpoint (meters/km auto-unit)
 
 ### 4.7 Macrogrid Inspect Tool (`macrogrid_inspect`)
+
+> **Status: Not yet implemented** — specification only
 
 **Purpose**: Click a grid zone to show its details in the inspector.
 
