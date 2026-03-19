@@ -2,6 +2,8 @@
 
 > Defines the workspace layout state structure, persistence rules, schema versioning, and reset behavior.
 
+> **Implementation Note (2026-03-19):** The actual implementation in `layout-persistence.js` uses a simplified flat schema (see section below), not the full `TabGroupState` structure described in this spec. The complex schema represents the design target; the current code stores only `{width, collapsed, activeTab}` per region. Features like multiple tab groups per region, layout presets, and reset UI are not yet implemented.
+
 ---
 
 ## 1. Overview
@@ -127,6 +129,33 @@ This is the state used on first launch or after "Reset Layout":
   "floating": []
 }
 ```
+
+---
+
+## 3A. Current Implementation (layout-persistence.js)
+
+The actual `DEFAULT_LAYOUT_STATE` used in the codebase is a simplified flat structure with no tab groups, no presets, and no floating panes:
+
+```json
+{
+  "version": 1,
+  "regions": {
+    "left":   { "width": 380, "collapsed": false, "activeTab": "missions" },
+    "right":  { "width": 340, "visible": false },
+    "bottom": { "height": 240, "collapsed": false, "activeTab": "timeline" }
+  }
+}
+```
+
+Key differences from the design schema above:
+- **No `activePreset`** — presets are not implemented
+- **No `top` or `center` regions** — these are hard-coded in the shell, not persisted
+- **No `groups[]` array** — each region stores a single `activeTab` string directly
+- **No `tabs[]` ordering** — tab order is determined by the shell, not persisted
+- **No `floating[]`** — floating panes are not implemented
+- **`size` is split** into `width` (left/right) or `height` (bottom) rather than a generic `size` field
+
+Validation clamps region sizes: left width 240–800px, right width 240–600px, bottom height 120–600px.
 
 ---
 

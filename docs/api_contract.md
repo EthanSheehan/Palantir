@@ -17,15 +17,23 @@ This document defines the REST and WebSocket interfaces between frontend and bac
 
 Base URL: `http://localhost:8012/api/v1`
 
+### Health Check
+
+`GET /health`
+
+Returns `{"status": "ok"}` when the backend is ready. Used by `start.py` for readiness polling.
+
+---
+
 ### 2.1 Assets
 
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/assets` | List all assets |
 | `GET` | `/assets/{id}` | Get asset by ID |
-| `POST` | `/assets` | Register a new asset |
-| `PATCH` | `/assets/{id}` | Update asset fields |
-| `DELETE` | `/assets/{id}` | Deregister an asset |
+| `POST` | `/assets` | Register a new asset *(not yet implemented)* |
+| `PATCH` | `/assets/{id}` | Update asset fields *(not yet implemented)* |
+| `DELETE` | `/assets/{id}` | Deregister an asset *(not yet implemented)* |
 
 #### `GET /assets`
 
@@ -51,6 +59,18 @@ Response:
 
 Response: `Asset` object (see [domain_model.md](domain_model.md))
 
+#### `POST /assets`
+
+> **Not yet implemented** — planned for future release
+
+#### `PATCH /assets/{id}`
+
+> **Not yet implemented** — planned for future release
+
+#### `DELETE /assets/{id}`
+
+> **Not yet implemented** — planned for future release
+
 ---
 
 ### 2.2 Missions
@@ -60,7 +80,7 @@ Response: `Asset` object (see [domain_model.md](domain_model.md))
 | `GET` | `/missions` | List missions |
 | `GET` | `/missions/{id}` | Get mission by ID |
 | `POST` | `/missions` | Create a new mission |
-| `PATCH` | `/missions/{id}` | Update mission fields |
+| `PATCH` | `/missions/{id}` | Update mission fields *(not yet implemented)* |
 | `POST` | `/missions/{id}/propose` | Submit mission for review |
 | `POST` | `/missions/{id}/approve` | Approve a proposed mission |
 | `POST` | `/missions/{id}/pause` | Pause an active mission |
@@ -109,6 +129,10 @@ Request body:
 
 Response: Created `Mission` object (state = `draft`)
 
+#### `PATCH /missions/{id}`
+
+> **Not yet implemented** — planned for future release
+
 #### `POST /missions/{id}/approve`
 
 Request body:
@@ -129,7 +153,7 @@ Response: Updated `Mission` object (state = `approved`)
 | `GET` | `/missions/{mission_id}/tasks` | List tasks for a mission |
 | `GET` | `/tasks/{id}` | Get task by ID |
 | `POST` | `/missions/{mission_id}/tasks` | Add task to a mission |
-| `PATCH` | `/tasks/{id}` | Update task fields |
+| `PATCH` | `/tasks/{id}` | Update task fields *(not yet implemented)* |
 | `DELETE` | `/tasks/{id}` | Remove task from mission |
 
 #### `POST /missions/{mission_id}/tasks`
@@ -158,6 +182,10 @@ Request body:
 ```
 
 Response: Created `Task` object (state = `waiting`)
+
+#### `PATCH /tasks/{id}`
+
+> **Not yet implemented** — planned for future release
 
 ---
 

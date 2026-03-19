@@ -1,5 +1,5 @@
 # Grid 11 — Planner Agent Briefing
-**Generated:** 2026-03-17
+**Generated:** 2026-03-19
 **Purpose:** Complete technical status of the codebase for planning next changes.
 
 ---
@@ -20,7 +20,7 @@ Grid 11 is a drone fleet management dashboard built on:
 
 ```
 start.py
-  └── backend/main.py (FastAPI, uvicorn, port 8012, reload=True)
+  └── backend/main.py (FastAPI, uvicorn, port 8012)
         ├── sim.py (SimulationModel: 20 UAVs, RomaniaMacroGrid)
         ├── app/adapters/simulator_adapter.py (bridges sim to services)
         ├── app/services/
@@ -102,7 +102,7 @@ User clicks drone on map:
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │  ┌─LEFT PANE (abs)─┐                     ┌─CAM CTRL─┐      │
-│  │ [M][A][O][!][G][C]                    │   🌐     │      │
+│  │ [M][A][O][!][G]                    │   🌐     │      │
 │  │                 │   CESIUM 3D MAP      │   ✖      │      │
 │  │  Active tab     │   (full viewport)    │   ⊡      │      │
 │  │  content area   │                     └──────────┘      │
@@ -118,7 +118,7 @@ User clicks drone on map:
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Left pane:** `position: absolute; top: 8px; left: 8px; bottom: 8px;` — floats over map with gaps. Tab bar uses 32x32 icon buttons that expand when active. Contains 6 tabs: Mission(M), Assets(A), Ops(O), Alerts(!), Grid(G), Cmds(C).
+**Left pane:** `position: absolute; top: 8px; left: 8px; bottom: 8px;` — floats over map with gaps. Tab bar uses 32x32 icon buttons that expand when active. Contains 5 tabs: Mission(M), Assets(A), Ops(O), Alerts(!), Grid(G).
 
 **Timeline pill:** Always visible at bottom-right. Shows live date+time. Click toggles drawer.
 
@@ -190,7 +190,7 @@ viewer.scene.maximumRenderTimeChange = Infinity;
 
 ### 5.1 Backend — Silent Error Spam
 
-These errors exist in the running backend but are **hidden** because `start.py` pipes stdout to `subprocess.PIPE` and doesn't display it:
+These errors exist in the running backend but are **hidden** because `start.py` pipes stdout to `subprocess.PIPE` and drains it via a daemon thread:
 
 **Bug 1: `UnboundLocalError` in `ws.py` line 26**
 ```python
@@ -265,19 +265,19 @@ The following changes were attempted in this session but **reverted** because th
 | File | Lines | Purpose | Cache Version |
 |------|-------|---------|---------------|
 | `index.html` | 196 | Entry point, DOM structure, script loading | N/A |
-| `app.js` | ~1250 | Cesium init, render loop, entity management, legacy WS | `?v=11` |
+| `app.js` | ~1250 | Cesium init, render loop, entity management, legacy WS | `?v=32` |
 | `state.js` | 319 | Centralized AppState with pub/sub | — |
 | `api-client.js` | ~120 | REST client for /api/v1/* | — |
 | `ws-client.js` | ~80 | WebSocket client for /ws/events | — |
-| `workspace-shell.js` | 654 | Layout: regions, splitters, tabs, timeline pill/drawer | `?v=11` |
-| `workspace-shell.css` | 391 | Layout styles, floating overlays | `?v=11` |
-| `map-tool-controller.js` | 496 | Map interaction tools (select, waypoint, zoom-lock) | `?v=11` |
+| `workspace-shell.js` | 654 | Layout: regions, splitters, tabs, timeline pill/drawer | `?v=14` |
+| `workspace-shell.css` | 391 | Layout styles, floating overlays | `?v=16` |
+| `map-tool-controller.js` | 496 | Map interaction tools (select, waypoint, zoom-lock) | `?v=14` |
 | `layout-persistence.js` | ~60 | localStorage layout save/load | — |
 | `pane-registry.js` | ~50 | Pane metadata registry | — |
 | `pane-definitions.js` | ~80 | Pane declarations | — |
-| `style.css` | 939 | Global component styles, theme | `?v=9` |
+| `style.css` | 939 | Global component styles, theme | `?v=17` |
 | `panels/toolbar.js` | 51 | Scrub controls for timeline header | `?v=11` |
-| `panels/timeline-panel.js` | 376 | Canvas swimlane timeline | `?v=9` |
+| `panels/timeline-panel.js` | 376 | Canvas swimlane timeline | `?v=19` |
 | `panels/mission-panel.js` | ~200 | Mission list + create form | — |
 | `panels/alerts-panel.js` | ~120 | Alert list + acknowledge | — |
 | `panels/inspector-panel.js` | ~150 | Entity detail inspector | — |
@@ -338,13 +338,13 @@ The following changes were attempted in this session but **reverted** because th
 The frontend uses Python's `http.server` which caches aggressively. When modifying JS/CSS files, you MUST bump the `?v=N` query param in `index.html`:
 
 ```html
-<script src="app.js?v=11"></script>                <!-- bump this -->
-<script src="workspace-shell.js?v=11"></script>     <!-- bump this -->
-<script src="map-tool-controller.js?v=11"></script> <!-- bump this -->
+<script src="app.js?v=32"></script>                <!-- bump this -->
+<script src="workspace-shell.js?v=14"></script>     <!-- bump this -->
+<script src="map-tool-controller.js?v=14"></script> <!-- bump this -->
 <script src="panels/toolbar.js?v=11"></script>      <!-- bump this -->
-<script src="panels/timeline-panel.js?v=9"></script><!-- bump this -->
-<link href="style.css?v=9" rel="stylesheet">        <!-- bump this -->
-<link href="workspace-shell.css?v=11" rel="stylesheet"> <!-- bump this -->
+<script src="panels/timeline-panel.js?v=19"></script><!-- bump this -->
+<link href="style.css?v=17" rel="stylesheet">        <!-- bump this -->
+<link href="workspace-shell.css?v=16" rel="stylesheet"> <!-- bump this -->
 ```
 
 Files without `?v=` (state.js, api-client.js, etc.) haven't been modified recently and can be added when needed.
@@ -399,7 +399,7 @@ Files without `?v=` (state.js, api-client.js, etc.) haven't been modified recent
 - Flow lines between zones
 - Drone selection → camera tracking
 - Waypoint placement via map click
-- Left sidebar with 6 tabs (Mission, Assets, Ops, Alerts, Grid, Cmds)
+- Left sidebar with 5 tabs (Mission, Assets, Ops, Alerts, Grid)
 - Mission CRUD (create, propose, approve, pause, abort)
 - Alert list with acknowledge
 - Macrogrid recommendations with convert-to-mission

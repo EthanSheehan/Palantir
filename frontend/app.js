@@ -292,11 +292,14 @@ function initOrUpdateZonesPrimitive(stateZones) {
         zonesPrimitive.show = (gridVisState === 2);
         zoneBordersPrimitive.show = (gridVisState === 1 || gridVisState === 2);
     } else {
+        // GroundPrimitive needs a render frame to compile geometry; skip until ready
+        if (!zonesPrimitive.ready) return;
+
         // High-performance update loop: cache attributes and don't re-allocate
         stateZones.forEach(z => {
             const zoneId = `z_${z.x_idx}_${z.y_idx}`;
             const color = getImbalanceColor(z.imbalance);
-            
+
             let attrs = zoneAttributesCache[zoneId];
             if (!attrs) {
                 // First time we look this up, we cache it

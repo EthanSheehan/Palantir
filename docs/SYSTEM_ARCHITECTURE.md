@@ -2,7 +2,7 @@
 
 > **Purpose**: Comprehensive technical reference for the planner agent. Describes every subsystem, file, data flow, interaction pattern, and known limitation in the Grid 11 codebase.
 >
-> **Last updated**: Grid 11 AMS v0.2 — reflects satellite lens, omnipresent right-click menu, compass resize, timeline fixes, workspace drag fixes, multi-UAV selection (Shift+click, drag-drop to timeline, × deselect).
+> **Last updated**: Grid 11 AMS v0.2 — reflects satellite lens, omnipresent right-click menu, compass resize, timeline fixes, workspace drag fixes, multi-UAV selection, start.py robustness (pipe draining, process tree cleanup, NoCache, GroundPrimitive ready guard).
 
 ---
 
@@ -24,7 +24,7 @@ AMS (Advanced Macro System) v0.1 is a real-time UAV fleet management platform bu
 
 ### Startup Sequence
 
-1. `start.py` spawns backend (`python main.py` in `backend/`) and frontend (`python -m http.server 8093 -d frontend/`)
+1. `start.py` checks ports 8012/8093 are free, spawns backend (`python main.py` in `backend/`), polls `/health` until ready, spawns frontend (`python -m http.server 8093` in `frontend/`), drains subprocess stdout pipes via daemon threads to prevent buffer deadlock, then opens PyQt5 window with `NoCache` profile
 2. Backend `main.py` initializes: SQLite schema → AppContext (repos + services + event bus) → event broadcast wiring → asset registration → starts `simulation_loop()` (10Hz) and `telemetry_ingestion_loop()` (1Hz)
 3. Frontend `index.html` loads all JS modules, initializes Cesium viewer, connects legacy WS (`/ws/stream`) and event WS (`/ws/events`), initializes all panel modules
 
@@ -718,22 +718,22 @@ The frontend is served by Python's built-in `http.server` with no cache headers.
 
 **The pattern**: All script and link tags in `index.html` use a query-string version suffix:
 ```html
-<script src="app.js?v=19"></script>
-<script src="workspace-shell.js?v=11"></script>
-<link href="style.css?v=9" rel="stylesheet">
+<script src="app.js?v=32"></script>
+<script src="workspace-shell.js?v=14"></script>
+<link href="style.css?v=17" rel="stylesheet">
 ```
 
 **Rule for agents**: Every time you edit a JS or CSS file, increment its `?v=N` counter in `index.html`. The number itself has no meaning — it just makes the browser treat the URL as new and bypass the cache. The current version numbers as of v0.2:
 
 | File | Current `?v=` |
 |------|--------------|
-| `app.js` | 19 |
-| `workspace-shell.js` | 11 |
-| `map-tool-controller.js` | 13 |
-| `panels/timeline-panel.js` | 14 |
+| `app.js` | 32 |
+| `workspace-shell.js` | 14 |
+| `map-tool-controller.js` | 14 |
+| `panels/timeline-panel.js` | 19 |
 | `panels/toolbar.js` | 11 |
-| `style.css` | 9 |
-| `workspace-shell.css` | 11 |
+| `style.css` | 17 |
+| `workspace-shell.css` | 16 |
 
 Files **without** a version suffix (loaded without `?v=`) do not need incrementing because they are either stable or infrequently edited: `state.js`, `api-client.js`, `ws-client.js`, `pane-registry.js`, `pane-definitions.js`, `layout-persistence.js`, and the panel files not listed above.
 
@@ -758,7 +758,7 @@ After incrementing the version and reloading, always do a **hard reload** (`Ctrl
 8. **No error boundaries** in frontend — JS errors can break the entire UI
 9. **Waypoint persistence** — Waypoints exist only in frontend memory, lost on refresh
 10. **Grid reimport** — `romania_grid.py` exists both at root and in backend, no symlink guarantee
-11. **Start.py cache** — PyQt5 WebEngine cache clearing is fragile
+11. **Start.py** — PyQt5 WebEngine cache is disabled (NoCache); process tree cleanup uses `taskkill /T` on Windows
 12. **No HTTPS/WSS** — All connections are unencrypted
 13. **Frozen Cesium clock** — Set to 2023-06-21 for lighting; real-time features may not work correctly with Cesium's time system
 14. **Mission→Task→Command pipeline** — Missions can be created but the full automation chain (auto-generate tasks, dispatch commands) is not wired end-to-end

@@ -18,20 +18,24 @@ The current implementation (`start.py`) uses PyQt5 with QWebEngineView. This spe
 
 ```python
 # start.py — current desktop launcher
-- Spawns backend: subprocess.Popen(["python", "main.py"], cwd="backend/")
-- Spawns frontend: subprocess.Popen(["python", "-m", "http.server", "8093", "-d", "frontend/"])
-- Creates QWebEngineView window (1600x900) pointing to http://localhost:8093
-- Clears QWebEngine cache on startup
-- Terminates both subprocesses on window close
+- Pre-flight port checks (8012, 8093) — exits with error if occupied
+- Spawns backend: subprocess.Popen([sys.executable, "main.py"], cwd="backend/", stdout=PIPE)
+- Polls GET /health every 200ms until 200 OK (15s timeout)
+- Spawns frontend: subprocess.Popen([sys.executable, "-m", "http.server", "8093"], cwd="frontend/", stdout=PIPE)
+- Polls frontend URL until ready (5s timeout)
+- Drains stdout pipes via daemon threads to prevent buffer deadlock
+- Creates QWebEngineView window (1600x900) with NoCache profile
+- Suppresses browser right-click context menu (custom _WebView subclass)
+- Periodic health timer (5s) checks if subprocesses are still alive
+- Cleanup uses taskkill /F /T /PID on Windows to kill entire process trees
+- atexit + SIGINT/SIGTERM handlers for graceful shutdown
 ```
 
-### 2.2 What's Missing
+### 2.2 What's Not Yet Implemented
 
-- No backend readiness detection (race condition: UI loads before backend is ready)
 - No window state persistence (size/position lost on restart)
-- No graceful shutdown (processes killed, not stopped)
-- No error recovery (if backend crashes, UI shows a blank page)
-- No application menu
+- No error recovery UI (if backend crashes, only a console warning is printed)
+- No application menu (File/View/Tools/Help)
 - No startup splash/loading state
 - No settings storage beyond what the browser provides
 
@@ -84,13 +88,14 @@ class BackendProcess:
         )
 
     def stop(self):
-        """Graceful shutdown: send SIGINT, wait 5s, then SIGKILL."""
+        """Kill process tree on Windows, terminate on other platforms."""
         if self.process and self.process.poll() is None:
-            # Send interrupt signal
             if sys.platform == 'win32':
-                self.process.send_signal(signal.CTRL_BREAK_EVENT)
+                # taskkill /T kills the full process tree (incl. uvicorn reload workers)
+                subprocess.run(['taskkill', '/F', '/T', '/PID', str(self.process.pid)],
+                               capture_output=True)
             else:
-                self.process.send_signal(signal.SIGINT)
+                self.process.terminate()
 
             try:
                 self.process.wait(timeout=5)
@@ -113,7 +118,7 @@ class BackendProcess:
 ### 4.2 Health Monitoring
 
 After startup, the desktop host periodically checks backend health:
-- Poll interval: every 10 seconds
+- Poll interval: every 5 seconds
 - If backend process exits unexpectedly:
   - Show notification: "Backend process stopped unexpectedly"
   - Offer: "Restart Backend" or "Quit"
@@ -417,9 +422,9 @@ If PyQt5 becomes limiting (e.g., QWebEngine version lags, WebChannel complexity)
 
 ### Phase 7a: Improve `start.py` Startup
 
-1. Add backend readiness polling before loading the frontend
+1. ~~Add backend readiness polling before loading the frontend~~ ✅ Done
 2. Show a loading message in the QWebEngineView while waiting
-3. Add graceful shutdown (SIGINT before SIGKILL)
+3. ~~Add graceful shutdown (SIGINT before SIGKILL)~~ ✅ Done (uses taskkill /T on Windows)
 4. Persist and restore window state
 
 ### Phase 7b: Settings Infrastructure
