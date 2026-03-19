@@ -17,7 +17,7 @@ export function Sidebar() {
   }, [viewerRef, setOnResize]);
 
   return (
-    <div style={{ width, flexShrink: 0, display: 'flex', position: 'relative' }}>
+    <div style={{ width, flexShrink: 0, display: 'flex', position: 'relative', height: '100%', overflow: 'hidden' }}>
       <Card
         elevation={Elevation.TWO}
         style={{
