@@ -2,9 +2,10 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { initLegacyBridge } from '../store/adapters/legacyAppStateBridge';
 
-// Import Blueprint CSS
+// Import Blueprint CSS + global overrides
 import '@blueprintjs/core/lib/css/blueprint.css';
 import '@blueprintjs/icons/lib/css/blueprint-icons.css';
+import '../theme/global-overrides.css';
 
 // Initialize the legacy AppState ↔ Zustand bridge
 initLegacyBridge();

@@ -37,7 +37,7 @@
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5),
               inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  border-radius: 6px;
+  border-radius: 2px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -75,7 +75,7 @@
   flex-shrink: 0;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(100, 116, 139, 0.2);
-  border-radius: 5px;
+  border-radius: 2px;
   color: #64748b;
   width: 32px;
   height: 32px;
@@ -142,7 +142,7 @@
 }
 .ws-tab-content::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
+  border-radius: 2px;
 }
 .ws-tab-content::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
@@ -197,14 +197,14 @@
   margin-left: 16px;
   padding: 2px;
   background: rgba(30, 41, 59, 0.6);
-  border-radius: 4px;
+  border-radius: 2px;
   border: 1px solid rgba(100, 116, 139, 0.2);
 }
 
 .ws-tool-btn {
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 3px;
+  border-radius: 2px;
   color: #94a3b8;
   font-size: 0.75rem;
   padding: 4px 10px;
@@ -235,7 +235,7 @@
   right: 12px;
   height: 34px;
   padding: 0 14px;
-  border-radius: 6px;
+  border-radius: 2px;
   background: rgba(8, 14, 28, 0.82);
   backdrop-filter: blur(12px) saturate(130%);
   -webkit-backdrop-filter: blur(12px) saturate(130%);
@@ -285,7 +285,7 @@
   left: calc(var(--ws-left-width, 380px) + 8px + 4px + 8px);
   height: 0;
   overflow: hidden;
-  border-radius: 6px;
+  border-radius: 2px;
   background: transparent;
   border: none;
   display: flex;
@@ -410,7 +410,7 @@
   font-size: 1.1rem;
   cursor: pointer;
   padding: 2px 6px;
-  border-radius: 3px;
+  border-radius: 2px;
   line-height: 1;
 }
 
@@ -431,7 +431,7 @@
 }
 .ws-right-drawer-content::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
+  border-radius: 2px;
 }
 
 .ws-right-splitter {

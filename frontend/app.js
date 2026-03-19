@@ -87,6 +87,7 @@ MapToolController.init(viewer, null); // ws set later after connectWebSocket
     const btnSatellite = document.getElementById('ctx-satellite');
     const btnWaypoint = document.getElementById('ctx-set-waypoint');
     const btnRange = document.getElementById('ctx-range');
+    const btnPaintTarget = document.getElementById('ctx-paint-target');
     let _ctxDroneId = null;
 
     function hideMenu() {
@@ -102,17 +103,36 @@ MapToolController.init(viewer, null); // ws set later after connectWebSocket
         // Range: only when right-clicking directly on a drone
         btnRange.style.display    = _ctxDroneId != null ? '' : 'none';
 
+        // Paint Target: only when targets tab is active
+        const isTargetsTab = window.AppState && typeof useAppStore !== 'undefined'
+            ? false // fallback
+            : false;
+        // Check React store via window
+        const _activeTab = document.querySelector('.ws-tab-btn.ws-active');
+        const _onTargetsTab = _activeTab && _activeTab.textContent.includes('TARGET');
+        btnPaintTarget.style.display = _onTargetsTab ? '' : 'none';
+        if (_onTargetsTab) {
+            const isPainting = MapToolController.getActiveTool() === 'paint_target';
+            btnPaintTarget.textContent = isPainting ? 'Stop Painting' : 'Paint Target';
+        }
+
         // Update satellite circle label to reflect current state
         btnSatellite.textContent = _lensActive ? 'Satellite Circle: ON' : 'Satellite Circle: OFF';
 
         // Position menu — keep it inside the window
-        const itemCount = 1 + (trackedDroneEntity ? 1 : 0) + (_ctxDroneId != null ? 1 : 0);
+        const itemCount = 1 + (trackedDroneEntity ? 1 : 0) + (_ctxDroneId != null ? 1 : 0) + (_onTargetsTab ? 1 : 0);
         const menuW = 170, menuH = itemCount * 38;
         const x = Math.min(screenPos.x, window.innerWidth  - menuW - 8);
         const y = Math.min(screenPos.y, window.innerHeight - menuH - 8);
         menu.style.left = x + 'px';
         menu.style.top  = y + 'px';
         menu.style.display = 'flex';
+    });
+
+    btnPaintTarget.addEventListener('click', () => {
+        const current = MapToolController.getActiveTool();
+        MapToolController.setTool(current === 'paint_target' ? 'select' : 'paint_target');
+        hideMenu();
     });
 
     btnSatellite.addEventListener('click', () => {
@@ -951,6 +971,43 @@ const compassRingEntity = viewer.entities.add({
     }
 });
 
+// ── Paint-mode Red X Crosshair (projected on globe like compass) ──
+let _paintCrosshairActive = false;
+
+function _makeCrosshairArm(angleDeg) {
+    return viewer.entities.add({
+        id: '_paint_crosshair_' + angleDeg,
+        polyline: {
+            positions: new Cesium.CallbackProperty(() => {
+                if (!_paintCrosshairActive) return [];
+                const center = currentMousePosition;
+                if (!center) return [];
+                const armLen = 1200.0 * _compassScale;
+                const transform = Cesium.Transforms.eastNorthUpToFixedFrame(center);
+                const rad = Cesium.Math.toRadians(angleDeg);
+                const local = new Cesium.Cartesian3(Math.sin(rad) * armLen, Math.cos(rad) * armLen, 0);
+                const tip = Cesium.Matrix4.multiplyByPoint(transform, local, new Cesium.Cartesian3());
+                const localNeg = new Cesium.Cartesian3(-local.x, -local.y, 0);
+                const tipNeg = Cesium.Matrix4.multiplyByPoint(transform, localNeg, new Cesium.Cartesian3());
+                return [tipNeg, center, tip];
+            }, false),
+            width: 2,
+            material: Cesium.Color.fromCssColorString('#ef4444').withAlpha(0.8),
+            clampToGround: true
+        }
+    });
+}
+const _crosshairArm1 = _makeCrosshairArm(45);
+const _crosshairArm2 = _makeCrosshairArm(-45);
+
+// Listen for tool changes to toggle crosshair
+if (typeof MapToolController !== 'undefined' && MapToolController.onToolChange) {
+    MapToolController.onToolChange((toolId) => {
+        _paintCrosshairActive = toolId === 'paint_target';
+        viewer.scene.requestRender();
+    });
+}
+
 AppState.subscribe('selection.changed', () => {
     _updateGroundRings();
     viewer.scene.requestRender();
@@ -1221,8 +1278,9 @@ function _diamondEntities(targetViewer, lon, lat, id) {
     return { topCone, botCone };
 }
 
-function _createTargetDiamond(lon, lat) {
+function _createTargetDiamond(lon, lat, type) {
     const id = ++_targetIdCounter;
+    const targetType = type || 'unknown';
 
     // Add to main viewer
     const { topCone, botCone } = _diamondEntities(viewer, lon, lat, id);
@@ -1234,7 +1292,7 @@ function _createTargetDiamond(lon, lat) {
         _lensViewer.scene.requestRender();
     }
 
-    const target = { id, lon, lat, topCone, botCone, lensTopCone, lensBotCone };
+    const target = { id, lon, lat, type: targetType, topCone, botCone, lensTopCone, lensBotCone };
     _targets.push(target);
     _renderTargetList();
     viewer.scene.requestRender();
@@ -1469,6 +1527,13 @@ viewer.scene.preUpdate.addEventListener(function(scene, time) {
 });
 
 // Mouse move now handled by MapToolController; sync currentMousePosition for compass
+// Request continuous renders during paint mode so crosshair follows mouse smoothly
+viewer.canvas.addEventListener('mousemove', () => {
+    if (_paintCrosshairActive) {
+        viewer.scene.requestRender();
+    }
+});
+
 viewer.scene.postRender.addEventListener(() => {
     if (MapToolController._currentMousePosition) {
         currentMousePosition = MapToolController._currentMousePosition;

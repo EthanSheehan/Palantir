@@ -101,7 +101,7 @@ h3 {
 
 .scale-bar {
     height: 6px;
-    border-radius: 3px;
+    border-radius: 2px;
     /* Red-to-Dark-to-Blue */
     background: linear-gradient(to right, 
         rgba(239, 68, 68, 0.9), 
@@ -133,7 +133,7 @@ h3 {
     color: #e2e8f0;
     border: 1px solid rgba(148, 163, 184, 0.2);
     padding: 10px 16px;
-    border-radius: 4px;
+    border-radius: 2px;
     font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
     font-size: 0.8rem;
     font-weight: 600;
@@ -215,7 +215,7 @@ h3 {
 }
 .tab-content::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.2);
-    border-radius: 3px;
+    border-radius: 2px;
 }
 .tab-content::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.3);
@@ -332,7 +332,7 @@ h3 {
     height: 22px;
     background: rgba(239, 68, 68, 0.08);
     border: 1px solid rgba(239, 68, 68, 0.3);
-    border-radius: 4px;
+    border-radius: 2px;
     color: #f87171;
     font-size: 1rem;
     line-height: 1;
@@ -481,7 +481,7 @@ h3 {
     margin-top: 40px;
     padding: 20px;
     border: 1px dashed rgba(100, 116, 139, 0.3);
-    border-radius: 4px;
+    border-radius: 2px;
 }
 
 /* --------------------------
@@ -520,7 +520,7 @@ h3 {
     -webkit-backdrop-filter: blur(12px) saturate(130%);
     border: 1px solid rgba(148, 163, 184, 0.1);
     border-top: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 6px;
+    border-radius: 2px;
     padding: 4px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45),
                 inset 0 1px 0 rgba(255, 255, 255, 0.04);
@@ -533,7 +533,7 @@ h3 {
     height: 32px;
     background: rgba(8, 14, 28, 0.72);
     border: 1px solid rgba(148, 163, 184, 0.1);
-    border-radius: 8px;
+    border-radius: 2px;
     color: #94a3b8;
     cursor: pointer;
     display: flex;
@@ -592,7 +592,7 @@ h3 {
     background: rgba(30, 41, 59, 0.6);
     color: #e2e8f0;
     border: 1px solid rgba(148, 163, 184, 0.2);
-    border-radius: 4px 0 0 4px;
+    border-radius: 2px 0 0 2px;
     padding: 10px 16px;
     font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
     font-size: 0.8rem;
@@ -668,7 +668,7 @@ h3 {
     height: 70vh;
     background: rgba(15, 23, 42, 0.95);
     border: 1px solid rgba(100, 116, 139, 0.4);
-    border-radius: 12px;
+    border-radius: 2px;
     display: flex;
     flex-direction: column;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
@@ -744,7 +744,7 @@ h3 {
     background: rgba(30, 41, 59, 0.6);
     color: #e2e8f0;
     border: 1px solid rgba(148, 163, 184, 0.2);
-    border-radius: 4px;
+    border-radius: 2px;
     padding: 4px 8px;
     font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
     font-size: 0.7rem;
@@ -783,7 +783,7 @@ h3 {
     background: transparent;
     color: #10b981;
     border: 1px solid #10b981;
-    border-radius: 4px;
+    border-radius: 2px;
     padding: 2px 8px;
     font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
     font-size: 0.6rem;
@@ -814,7 +814,7 @@ h3 {
     background: rgba(30, 41, 59, 0.6);
     color: #e2e8f0;
     border: 1px solid rgba(148, 163, 184, 0.2);
-    border-radius: 4px;
+    border-radius: 2px;
     padding: 6px 10px;
     font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
     font-size: 0.8rem;
@@ -837,7 +837,7 @@ h3 {
     background: rgba(30, 41, 59, 0.6);
     color: #e2e8f0;
     border: 1px solid rgba(148, 163, 184, 0.2);
-    border-radius: 3px;
+    border-radius: 2px;
     padding: 3px 8px;
     font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
     font-size: 0.65rem;
@@ -885,7 +885,7 @@ h3 {
 .mission-card {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 4px;
+    border-radius: 2px;
     padding: 8px 10px;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -920,7 +920,7 @@ h3 {
     text-transform: uppercase;
     letter-spacing: 0.05em;
     padding: 2px 6px;
-    border-radius: 3px;
+    border-radius: 2px;
     background: rgba(100, 116, 139, 0.3);
     color: #94a3b8;
 }
@@ -962,7 +962,7 @@ h3 {
 .alert-card {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 4px;
+    border-radius: 2px;
     padding: 8px 10px;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -1066,7 +1066,7 @@ h3 {
     width: 60px;
     height: 8px;
     background: rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
+    border-radius: 2px;
     overflow: hidden;
     display: inline-block;
     vertical-align: middle;
@@ -1074,7 +1074,7 @@ h3 {
 
 .battery-fill {
     height: 100%;
-    border-radius: 4px;
+    border-radius: 2px;
     transition: width 0.3s ease;
 }
 
@@ -1093,7 +1093,7 @@ h3 {
     width: 100%;
     height: 200px;
     border: 1px solid rgba(100, 116, 139, 0.2);
-    border-radius: 4px;
+    border-radius: 2px;
     cursor: grab;
 }
 
@@ -1107,7 +1107,7 @@ h3 {
 .rec-card {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 4px;
+    border-radius: 2px;
     padding: 8px 10px;
     margin-bottom: 6px;
 }
@@ -1158,7 +1158,7 @@ h3 {
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid rgba(100, 116, 139, 0.35);
-    border-radius: 6px;
+    border-radius: 2px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
     padding: 4px;
     min-width: 148px;
@@ -1170,7 +1170,7 @@ h3 {
 .drone-ctx-menu button {
     background: transparent;
     border: none;
-    border-radius: 4px;
+    border-radius: 2px;
     color: #cbd5e1;
     font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
     font-size: 0.78rem;

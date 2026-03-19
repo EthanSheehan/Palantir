@@ -48,7 +48,7 @@
 .inspector-row.clickable {
   cursor: pointer;
   padding: 3px 4px;
-  border-radius: 3px;
+  border-radius: 2px;
 }
 
 .inspector-row.clickable:hover {

@@ -13,7 +13,7 @@
     <!-- Custom Style -->
     <!-- fonts.css MUST be first: declares @font-face for self-hosted Inter before any rule uses it -->
     <link href="fonts.css" rel="stylesheet">
-    <link href="style.css?v=17" rel="stylesheet">
+    <link href="style.css?v=18" rel="stylesheet">
     <!-- workspace-shell.css replaced by React WorkspaceLayout.css -->
     <!-- <link href="workspace-shell.css?v=16" rel="stylesheet"> -->
 </head>
@@ -204,6 +204,7 @@
     <div id="drone-context-menu" class="drone-ctx-menu" style="display:none">
         <button id="ctx-set-waypoint">Set Waypoint</button>
         <button id="ctx-range">Range</button>
+        <button id="ctx-paint-target">Paint Target</button>
         <button id="ctx-satellite">Satellite Circle</button>
     </div>
 
@@ -240,7 +241,7 @@
     <script src="map-tool-controller.js?v=15"></script>
 
     <!-- Main Application Logic -->
-    <script src="app.js?v=40"></script>
+    <script src="app.js?v=44"></script>
 
     <!-- React + Blueprint Shell (module entry — loaded after legacy scripts) -->
     <script type="module" src="/app/bootstrap/main.tsx"></script>

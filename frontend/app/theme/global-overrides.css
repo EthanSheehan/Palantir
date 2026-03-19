@@ -1,0 +1,57 @@
+/* Global Blueprint overrides — squared 2px edges everywhere */
+
+#ams-react-app .bp5-button {
+  border-radius: 2px;
+}
+
+#ams-react-app .bp5-input {
+  border-radius: 2px;
+}
+
+#ams-react-app .bp5-card {
+  border-radius: 2px;
+}
+
+#ams-react-app .bp5-tag {
+  border-radius: 2px;
+}
+
+#ams-react-app .bp5-dialog {
+  border-radius: 2px;
+}
+
+#ams-react-app .bp5-popover {
+  border-radius: 2px;
+}
+
+#ams-react-app .bp5-menu {
+  border-radius: 2px;
+}
+
+#ams-react-app .bp5-toast {
+  border-radius: 2px;
+}
+
+#ams-react-app .bp5-progress-bar {
+  border-radius: 2px;
+}
+
+#ams-react-app .bp5-progress-bar .bp5-progress-meter {
+  border-radius: 2px;
+}
+
+#ams-react-app .bp5-html-select select {
+  border-radius: 2px;
+}
+
+#ams-react-app .bp5-segmented-control {
+  border-radius: 2px;
+}
+
+#ams-react-app .bp5-control-indicator {
+  border-radius: 2px;
+}
+
+#ams-react-app .bp5-non-ideal-state {
+  border-radius: 2px;
+}
