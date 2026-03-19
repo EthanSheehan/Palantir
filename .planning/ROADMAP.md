@@ -34,8 +34,6 @@ Phase 10: Upgraded Drone Feeds            [SENSOR DISPLAYS — EO/SAR/SIGINT]
 **Goal**: Migrate frontend from vanilla JS to React+TypeScript+Blueprint. Set up Vite build, wrap CesiumJS, establish component architecture. Fix known bugs. Wire unused theater config. Add event logging.
 
 **Why first**: Every subsequent phase adds UI. Building on vanilla JS means 9x the DOM manipulation work. React+Blueprint once → all phases benefit.
-
-
 **Plans:** 6/7 plans executed
 **Requirements:** [P0-BUILD, P0-STORE, P0-WS, P0-CESIUM, P0-SIDEBAR, P0-PANELS, P0-DRONECAM, P0-ASSISTANT, P0-ECHARTS, P0-LAUNCHER]
 
@@ -227,8 +225,6 @@ export function useCesiumDrones(viewerRef: RefObject<Cesium.Viewer>) {
 **Goal**: Multiple UAVs contribute detections to the same target. Fused confidence increases with more sensors. Foundation for everything else.
 
 **Depends on**: Phase 0 (React UI for displaying fusion data)
-
-
 **Plans:** 3/3 plans complete
 **Requirements:** [P1-FUSE-MODULE, P1-TARGET-FIELDS, P1-UAV-FIELDS, P1-DETECT-LOOP, P1-CANCEL, P1-ASSIGN, P1-BROADCAST, P1-TESTS, P1-TS-TYPES, P1-FUSIONBAR, P1-BADGE, P1-ENEMYCARD, P1-DRONECARD, P1-CESIUM-RING]
 
@@ -447,12 +443,13 @@ AUTONOMOUS_TRANSITIONS = {
 
 **Depends on**: Phase 3 (drone modes — reuses flight model, mode system, and autonomy framework)
 
-**Plans:** 0 plans
-**Requirements**: TBD
+**Plans:** 3 plans
+**Requirements:** [EUAV-01, EUAV-02, EUAV-03, EUAV-04, EUAV-05, EUAV-06, EUAV-07, EUAV-08, EUAV-09, EUAV-10, EUAV-11, EUAV-12, EUAV-13]
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 4 to break down)
-
+- [ ] 04-01-PLAN.md — TDD EnemyUAV class, behaviors (RECON/ATTACK/JAMMING), detection loop, get_state broadcast
+- [ ] 04-02-PLAN.md — Frontend types, Zustand store, Cesium enemy UAV hook, EnemyUAVCard in ENEMIES tab
+- [ ] 04-03-PLAN.md — Evasion with hysteresis, intercept kill mechanic, theater YAML config, demo autopilot auto-intercept
 ---
 
 ## Phase 5: Swarm Coordination
