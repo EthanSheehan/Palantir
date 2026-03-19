@@ -1,6 +1,10 @@
 import React, { useRef, createContext, useContext, RefObject } from 'react';
 import * as Cesium from 'cesium';
 import { useCesiumViewer } from '../hooks/useCesiumViewer';
+import { useCesiumDrones } from './useCesiumDrones';
+import { useCesiumTargets } from './useCesiumTargets';
+import { useCesiumZones } from './useCesiumZones';
+import { useCesiumFlowLines } from './useCesiumFlowLines';
 
 export const ViewerContext = createContext<RefObject<Cesium.Viewer | null>>({ current: null });
 
@@ -11,6 +15,12 @@ export function useViewerRef() {
 export function CesiumContainer({ children }: { children?: React.ReactNode }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useCesiumViewer(containerRef);
+
+  // Entity hooks — all take viewerRef, guard internally
+  const { entitiesRef: droneEntitiesRef } = useCesiumDrones(viewerRef);
+  const { entitiesRef: targetEntitiesRef } = useCesiumTargets(viewerRef);
+  useCesiumZones(viewerRef);
+  useCesiumFlowLines(viewerRef);
 
   return (
     <ViewerContext.Provider value={viewerRef}>
