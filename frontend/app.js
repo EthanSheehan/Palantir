@@ -884,6 +884,8 @@ let _haloMode = 'ground';
 let _secondaryGroundRings = []; // Cesium entities used in 'ground' mode
 let _lensActive = false;
 let _lensViewer = null;
+// Expose for React module access (let doesn't go on window)
+Object.defineProperty(window, '_lensViewer', { get() { return _lensViewer; } });
 let currentMousePosition = null;
 // trackedDroneEntity is the canonical read-path for legacy code (compass, drone cards, etc.)
 // MapToolController owns mutations; this var is synced by reading from the controller each frame.
