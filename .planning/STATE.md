@@ -1,19 +1,19 @@
 # Project State
 
-## Current Phase: 00-foundation-react-migration
+## Current Phase: 01-multi-sensor-target-fusion
 
 ## Position
-- **Current Phase:** 00 - Foundation & React Migration
-- **Current Plan:** 03 of 08 (Plans 01-02 complete)
-- **Last Session:** 2026-03-19 — Completed 00-02-PLAN.md (WebSocket hook, Cesium Viewer, App layout)
-- **Stopped At:** 00-03-PLAN.md (next to execute)
+- **Current Phase:** 01 - Multi-Sensor Target Fusion
+- **Current Plan:** 02 of 03 (Plan 01 complete)
+- **Last Session:** 2026-03-19 — Completed 01-01-PLAN.md (sensor fusion module, TDD)
+- **Stopped At:** 01-02-PLAN.md (next to execute)
 
 ## Phase Status
 
 | Phase | Status | Notes |
 |-------|--------|-------|
-| 0: Foundation & React Migration | IN PROGRESS | Plans 01-02 complete |
-| 1: Multi-Sensor Fusion | PLANNED | |
+| 0: Foundation & React Migration | COMPLETE | All 8 plans done |
+| 1: Multi-Sensor Fusion | IN PROGRESS | Plan 01 complete |
 | 2: Verification Workflow | PLANNED | |
 | 3: Drone Modes & Autonomy | PLANNED | |
 | 4: Swarm Coordination | PLANNED | |
@@ -28,6 +28,9 @@
 - Theater YAML `speed_kmh`, `threat_range_km`, `detection_range_km` parsed but not consumed by sim
 
 ## Decisions Log
+- 2026-03-19: Complementary fusion formula: max confidence per type, then 1-product(1-ci) across types
+- 2026-03-19: sensor_count tracks raw contribution count (not deduplicated type count)
+- 2026-03-19: fuse_detections() accepts Sequence (not just list) for forward compatibility
 - 2026-03-19: Full React + Blueprint migration (not hybrid)
 - 2026-03-19: ECharts for charting (Palantir-style dark theme)
 - 2026-03-19: Event logging (JSONL), not full sim replay
@@ -48,3 +51,4 @@
 |-------|------|----------|-------|-------|
 | 00 | 01 | 1m 41s | 2/2 | 12 |
 | 00 | 02 | ~2min | 2/2 | 5 |
+| 01 | 01 | 2min | 1/1 | 2 |

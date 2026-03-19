@@ -231,7 +231,7 @@ export function useCesiumDrones(viewerRef: RefObject<Cesium.Viewer>) {
 **Requirements:** [P1-FUSE-MODULE, P1-TARGET-FIELDS, P1-UAV-FIELDS, P1-DETECT-LOOP, P1-CANCEL, P1-ASSIGN, P1-BROADCAST, P1-TESTS, P1-TS-TYPES, P1-FUSIONBAR, P1-BADGE, P1-ENEMYCARD, P1-DRONECARD, P1-CESIUM-RING]
 
 Plans:
-- [ ] 01-01-PLAN.md — TDD sensor fusion module (pure functions + unit tests)
+- [x] 01-01-PLAN.md — TDD sensor fusion module (pure functions + unit tests)
 - [ ] 01-02-PLAN.md — sim_engine migration (multi-tracking fields, detection loop rewrite, integration tests)
 - [ ] 01-03-PLAN.md — React components (FusionBar, SensorBadge, EnemyCard, DroneCard, Cesium fusion ring)
 ### 1.1 Data Model Changes
