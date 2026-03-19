@@ -589,7 +589,8 @@ class SimulationModel:
             if t.state in ("DESTROYED", "ENGAGED"):
                 continue
 
-            best_detection = None
+            contributions: list = []
+
             for u in self.uavs:
                 if u.mode in ("RTB", "REPOSITIONING"):
                     continue
@@ -608,34 +609,53 @@ class SimulationModel:
                 bearing_deg = (math.degrees(bearing_rad) + 360.0) % 360.0
                 aspect_deg = (bearing_deg - t.heading_deg + 360.0) % 360.0
 
-                result = evaluate_detection(
-                    uav_lat=u.y,
-                    uav_lon=u.x,
-                    target_lat=t.y,
-                    target_lon=t.x,
-                    target_type=t.type,
-                    sensor_type=u.sensor_type,
-                    env=self.environment,
-                    aspect_deg=aspect_deg,
-                    emitting=t.is_emitting,
-                )
-                if result.detected:
-                    if best_detection is None or result.confidence > best_detection.confidence:
-                        best_detection = result
+                # Evaluate each sensor on this UAV
+                for sensor_type in u.sensors:
+                    result = evaluate_detection(
+                        uav_lat=u.y,
+                        uav_lon=u.x,
+                        target_lat=t.y,
+                        target_lon=t.x,
+                        target_type=t.type,
+                        sensor_type=sensor_type,
+                        env=self.environment,
+                        aspect_deg=aspect_deg,
+                        emitting=t.is_emitting,
+                    )
+                    if result.detected:
+                        contributions.append(SensorContribution(
+                            uav_id=u.id,
+                            sensor_type=sensor_type,
+                            confidence=result.confidence,
+                            range_m=result.range_m,
+                            bearing_deg=result.bearing_deg,
+                            timestamp=time.time(),
+                        ))
 
-            if best_detection is not None:
+            # Fuse all contributions
+            fused = fuse_detections(contributions)
+            t.sensor_contributions = list(fused.contributions)
+            t.fused_confidence = fused.fused_confidence
+            t.sensor_count = fused.sensor_count
+            # tracked_by_uav_ids is managed by the command system (_assign_target / cancel_track)
+
+            if contributions:
                 if t.state == "UNDETECTED":
                     t.state = "DETECTED"
-                t.detection_confidence = best_detection.confidence
-                t.detected_by_sensor = best_detection.sensor_type
+                t.detection_confidence = fused.fused_confidence
+                best = max(contributions, key=lambda c: c.confidence)
+                t.detected_by_sensor = best.sensor_type
             else:
-                # If no drone detects it, it may fade back to undetected
-                # (only if not being actively tracked)
-                if t.state == "DETECTED" and t.tracked_by_uav_id is None:
+                # Fade logic for targets that lost sensor contact
+                if t.state == "DETECTED" and not t.tracked_by_uav_ids:
                     t.detection_confidence *= 0.95
+                    t.fused_confidence *= 0.95
                     if t.detection_confidence < 0.1:
                         t.state = "UNDETECTED"
                         t.detection_confidence = 0.0
+                        t.fused_confidence = 0.0
+                        t.sensor_contributions = []
+                        t.sensor_count = 0
                         t.detected_by_sensor = None
 
     def _update_tracking_modes(self, dt_sec: float):
@@ -715,6 +735,7 @@ class SimulationModel:
 
             # Keep detection confidence high while actively tracking
             target.detection_confidence = min(1.0, target.detection_confidence + 0.1 * dt_sec)
+            target.fused_confidence = min(1.0, target.fused_confidence + 0.1 * dt_sec)
             target.detected_by_sensor = u.sensor_type
 
     def set_environment(self, time_of_day: float = 12.0, cloud_cover: float = 0.0, precipitation: float = 0.0):
