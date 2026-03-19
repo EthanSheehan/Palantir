@@ -4,15 +4,15 @@
 
 ## Position
 - **Current Phase:** 00 - Foundation & React Migration
-- **Current Plan:** 02 of 08 (Plan 01 complete)
-- **Last Session:** 2026-03-19 — Completed 00-01-PLAN.md (type defs, Zustand store, React entry)
-- **Stopped At:** 00-02-PLAN.md (next to execute)
+- **Current Plan:** 03 of 08 (Plans 01-02 complete)
+- **Last Session:** 2026-03-19 — Completed 00-02-PLAN.md (WebSocket hook, Cesium Viewer, App layout)
+- **Stopped At:** 00-03-PLAN.md (next to execute)
 
 ## Phase Status
 
 | Phase | Status | Notes |
 |-------|--------|-------|
-| 0: Foundation & React Migration | IN PROGRESS | Plan 01 complete |
+| 0: Foundation & React Migration | IN PROGRESS | Plans 01-02 complete |
 | 1: Multi-Sensor Fusion | PLANNED | |
 | 2: Verification Workflow | PLANNED | |
 | 3: Drone Modes & Autonomy | PLANNED | |
@@ -38,9 +38,13 @@
 - 2026-03-19: Vite as build tool
 - 2026-03-19: No StrictMode wrapper (Cesium Viewer double-mount breaks in StrictMode)
 - 2026-03-19: Zustand v4 create() pattern locked at 4.5.0 (not v5 createStore)
+- 2026-03-19: window.location.hostname in WS URL (not hardcoded localhost) for Vite proxy compatibility
+- 2026-03-19: ViewerContext default { current: null } so consumers skip null-check on the ref
+- 2026-03-19: WebSocketContext at App root mirrors vanilla state.ws without globals
 
 ## Performance Metrics
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 00 | 01 | 1m 41s | 2/2 | 12 |
+| 00 | 02 | ~2min | 2/2 | 5 |
