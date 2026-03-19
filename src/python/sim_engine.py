@@ -632,14 +632,13 @@ class SimulationModel:
                             timestamp=time.time(),
                         ))
 
-            # Fuse all contributions
-            fused = fuse_detections(contributions)
-            t.sensor_contributions = list(fused.contributions)
-            t.fused_confidence = fused.fused_confidence
-            t.sensor_count = fused.sensor_count
-            # tracked_by_uav_ids is managed by the command system (_assign_target / cancel_track)
-
             if contributions:
+                # Fuse all contributions and update state
+                fused = fuse_detections(contributions)
+                t.sensor_contributions = list(fused.contributions)
+                t.fused_confidence = fused.fused_confidence
+                t.sensor_count = fused.sensor_count
+                # tracked_by_uav_ids is managed by the command system (_assign_target / cancel_track)
                 if t.state == "UNDETECTED":
                     t.state = "DETECTED"
                 t.detection_confidence = fused.fused_confidence

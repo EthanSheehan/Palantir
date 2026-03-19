@@ -140,10 +140,13 @@ class TestMultiSensorFusion:
         pytest.skip("No target detected after 500 ticks")
 
     def test_detected_targets_have_fused_confidence(self, sim):
+        # ENGAGED and DESTROYED targets skip the detection loop by design,
+        # so they may have fused_confidence=0. Only check actively tracked states.
         _tick_n(sim, 100)
+        skip_states = {"UNDETECTED", "ENGAGED", "DESTROYED", "NEUTRALIZED"}
         for t in sim.targets:
-            if t.state != "UNDETECTED":
-                assert t.fused_confidence > 0, f"Target {t.id} detected but fused_confidence=0"
+            if t.state not in skip_states:
+                assert t.fused_confidence > 0, f"Target {t.id} state={t.state} but fused_confidence=0"
 
     def test_fused_confidence_matches_detection_confidence(self, sim):
         target = self._detect_first_target(sim)
