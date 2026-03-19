@@ -1,9 +1,46 @@
 # Documentation Update Summary
 
-**Update Date: 2026-03-17**
+**Update Date: 2026-03-18**
 **Status: Complete**
 
-## Overview
+## Update: 2026-03-18 — Mode Rework, Drone Camera, serve.py
+
+### What Changed
+
+**UAV Mode Rework** (`src/python/sim_engine.py`):
+- Old modes SCANNING, VIEWING, FOLLOWING, PAINTING replaced with SEARCH, FOLLOW, PAINT, INTERCEPT
+- IDLE, REPOSITIONING, RTB unchanged
+- New INTERCEPT mode: direct approach at 1.5x speed, ~300m danger-close orbit, sets target LOCKED
+- SEARCH: constant-rate circular loiter via MAX_TURN_RATE
+- FOLLOW: ~2km orbit using smooth fixed-wing arcs (`_turn_toward()`)
+- PAINT: ~1km tight orbit with laser designation, sets target LOCKED
+
+**WebSocket Action Changes** (`src/python/api_main.py`):
+- `view_target` removed
+- `scan` renamed to `scan_area`
+- `intercept_target` added (new)
+- `follow_target`, `paint_target`, `cancel_track` retained
+
+**New Frontend Features** (`src/frontend/`):
+- `dronecam.js` added — canvas-based Drone Camera PIP with HUD, tracking reticle, lock box
+- Inline mode command buttons in drone cards (SEARCH/FOLLOW/PAINT/INTERCEPT) replaced old droneActionBar
+- Auto-recenter camera on theater switch
+- `serve.py` added — no-cache dev HTTP server replacing `python3 -m http.server`
+
+**Backend State** (`src/python/sim_engine.py`):
+- `get_state()` now includes theater bounds in payload
+
+**Target Types** (`src/python/core/ontology.py`):
+- Full set of 10 types: SAM, TEL, TRUCK, CP, MANPADS, RADAR, C2_NODE, LOGISTICS, ARTILLERY, APC
+
+### Files Updated
+- `docs/API_REFERENCE.md` — Removed `view_target`, added `scan_area` and `intercept_target`, updated mode example
+- `docs/RUNBOOK.md` — Added palantir.sh auto-kill note, updated serve commands to `serve.py`
+- `docs/CODEMAPS.md` — Added `dronecam.js` and `serve.py` to directory listing and module descriptions, updated UAV modes, updated unit types
+
+---
+
+## Overview (2026-03-17)
 
 Updated Palantir C2 documentation to reflect current codebase state. All documentation is now generated from source code and configuration files, ensuring accuracy and freshness.
 

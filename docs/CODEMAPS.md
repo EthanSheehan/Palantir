@@ -1,6 +1,6 @@
 # Palantir Codemaps Index
 
-**Last Updated: 2026-03-17**
+**Last Updated: 2026-03-18**
 
 This document provides an architectural overview of Palantir C2. For detailed component guides, see the codemaps directory (coming soon).
 
@@ -101,13 +101,15 @@ src/
 │   ├── state.js                   # Application state management
 │   ├── websocket.js               # WebSocket client + event dispatch
 │   ├── map.js                     # Cesium viewer initialization
-│   ├── drones.js                  # UAV visualization + list UI
+│   ├── drones.js                  # UAV visualization + list UI with inline mode buttons
+│   ├── dronecam.js                # Drone Camera PIP — canvas synthetic feed with HUD
 │   ├── targets.js                 # Target/threat ring rendering
 │   ├── enemies.js                 # ENEMIES tab with threat assessment
 │   ├── strikeboard.js             # HITL approval UI
 │   ├── sidebar.js                 # Tab navigation + controls
 │   ├── assistant.js               # Tactical AIP message feed
 │   ├── theater.js                 # Theater selector
+│   ├── serve.py                   # No-cache dev HTTP server (replaces http.server)
 │   └── style.css                  # Dark theme styles
 │
 theaters/
@@ -171,7 +173,15 @@ docs/
   - `.reposition_uavs()` — Zone-based optimization
 - `UAV`, `Target`, `Zone` — Entity models
 
-**Unit Types**: SAM, TEL, TRUCK, CP, MANPADS, RADAR, ARTILLERY, APC
+**Unit Types**: SAM, TEL, TRUCK, CP, MANPADS, RADAR, C2_NODE, LOGISTICS, ARTILLERY, APC
+
+**UAV Modes**: IDLE, SEARCH, FOLLOW, PAINT, INTERCEPT, REPOSITIONING, RTB
+- SEARCH: circular loiter via MAX_TURN_RATE
+- FOLLOW: ~2km orbit, smooth fixed-wing arcs via `_turn_toward()`
+- PAINT: ~1km tight orbit, laser designation, target → LOCKED
+- INTERCEPT: direct approach at 1.5x speed, ~300m danger-close orbit, target → LOCKED
+- REPOSITIONING: zone rebalance flight at 3x turn rate
+- RTB: low fuel return to base
 
 **Target Behaviors**: patrol, ambush, shoot-and-scoot, concealment, flee
 
@@ -242,13 +252,14 @@ State/SITREP
 - `state.js` — Shared application state (drones, targets, UI state)
 - `websocket.js` — WebSocket client, event dispatcher
 - `map.js` — Cesium viewer setup, entity factory
-- `drones.js` — UAV rendering + drone list sidebar
+- `drones.js` — UAV rendering + drone list sidebar with inline mode command buttons (SEARCH/FOLLOW/PAINT/INTERCEPT)
+- `dronecam.js` — Drone Camera PIP (picture-in-picture): canvas-based synthetic feed with HUD, tracking reticle, lock box
 - `targets.js` — Target visualization, threat ring rendering
 - `enemies.js` — ENEMIES tab with threat assessment rows
 - `strikeboard.js` — HITL nomination + COA approval UI
 - `sidebar.js` — Tab navigation (MISSION / ASSETS / ENEMIES)
 - `assistant.js` — Tactical AIP message feed widget
-- `theater.js` — Theater selector dropdown
+- `theater.js` — Theater selector dropdown (triggers auto-recenter on switch)
 
 **UI Tabs**:
 1. **MISSION** — Map view with drones/targets/threat rings
@@ -365,7 +376,7 @@ Detection → Nomination Pending → Approved → COA Pending → Authorized →
 | Package | Source | Purpose |
 |---------|--------|---------|
 | Cesium | CDN (1.104) | 3D geospatial visualization |
-| No npm build | — | Direct HTML/JS serving (http.server) |
+| No npm build | — | Direct HTML/JS serving (serve.py — no-cache dev server) |
 
 ## Testing Overview
 

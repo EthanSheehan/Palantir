@@ -1,6 +1,6 @@
 # Palantir C2 API Reference
 
-**Last Updated: 2026-03-17**
+**Last Updated: 2026-03-18**
 
 Quick reference for all API endpoints and WebSocket messages. For full interactive documentation, run the system and visit `http://localhost:8000/docs`.
 
@@ -177,7 +177,7 @@ Broadcasted every 100ms (10Hz).
         "position": [46.0, 24.5],
         "altitude": 2500,
         "heading": 45,
-        "mode": "scanning",
+        "mode": "search",
         "fuel": 0.75,
         "status": "operational"
       }
@@ -335,15 +335,16 @@ Reposition UAV (manual control override).
 
 ---
 
-#### `view_target`
-Center camera on target.
+#### `scan_area`
+Command drone to enter SEARCH mode — constant-rate circular loiter over an area.
 
 **Message:**
 ```json
 {
-  "type": "view_target",
+  "type": "scan_area",
   "payload": {
-    "target_id": "SAM-1"
+    "drone_id": "UAV-1",
+    "position": [46.0, 24.5]
   }
 }
 ```
@@ -367,7 +368,7 @@ Enable camera following (drone stays centered).
 ---
 
 #### `paint_target`
-Command drone to lock onto target (for targeting).
+Command drone to enter PAINT mode — tight ~1km orbit with laser designation. Sets target state to LOCKED.
 
 **Message:**
 ```json
@@ -375,8 +376,23 @@ Command drone to lock onto target (for targeting).
   "type": "paint_target",
   "payload": {
     "drone_id": "UAV-1",
-    "target_id": "SAM-1",
-    "action": "lock"  // "lock" or "unlock"
+    "target_id": "SAM-1"
+  }
+}
+```
+
+---
+
+#### `intercept_target`
+Command drone to enter INTERCEPT mode — direct approach at 1.5x speed, ~300m danger-close orbit. Sets target state to LOCKED.
+
+**Message:**
+```json
+{
+  "type": "intercept_target",
+  "payload": {
+    "drone_id": "UAV-1",
+    "target_id": "SAM-1"
   }
 }
 ```
@@ -715,6 +731,6 @@ wscat -c ws://localhost:8000/ws
 
 ---
 
-**Last Updated**: 2026-03-17
+**Last Updated**: 2026-03-18
 **API Version**: v2 (F2T2EA kill chain)
 **Stability**: Stable (subject to change with PRD v2 upgrade)

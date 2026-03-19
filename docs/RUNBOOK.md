@@ -1,6 +1,6 @@
 # Palantir C2 Operations Runbook
 
-**Last Updated: 2026-03-17**
+**Last Updated: 2026-03-18**
 
 This guide covers deployment, health checks, monitoring, common issues, and rollback procedures for Palantir C2.
 
@@ -218,6 +218,8 @@ Monitor these key metrics:
 ERROR: Address already in use: ('0.0.0.0', 8000)
 ```
 
+**Note:** `palantir.sh` automatically kills stale processes on ports 8000 and 3000 before starting. This issue only occurs when running components manually.
+
 **Fix:**
 ```bash
 # Find process using port
@@ -255,7 +257,7 @@ cat .env | grep WS_BACKEND_URL
 WS_BACKEND_URL=ws://actual-host:8000/ws
 
 # Restart frontend
-cd src/frontend && python3 -m http.server 3000
+python3 src/frontend/serve.py
 ```
 
 ### Issue: "Agent inference failed" warnings
@@ -338,8 +340,8 @@ curl -s https://cesium.com/downloads/cesiumjs/releases/1.104/Cesium.js | head -5
 
 **Fix:**
 ```bash
-# Restart frontend server
-cd src/frontend && python3 -m http.server 3000
+# Restart frontend server (serve.py disables caching for dev)
+python3 src/frontend/serve.py
 
 # Clear browser cache: Ctrl+Shift+Delete → Clear All
 # Or use hard refresh: Ctrl+Shift+R
