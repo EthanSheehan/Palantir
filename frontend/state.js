@@ -330,3 +330,5 @@ const AppState = (() => {
         handleEvent,
     };
 })();
+// Expose on window for ES module access (const doesn't create window properties)
+window.AppState = AppState;

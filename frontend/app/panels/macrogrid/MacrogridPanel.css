@@ -1,0 +1,38 @@
+.macrogrid-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.macrogrid-empty {
+  color: #64748b;
+  padding: 24px 0;
+}
+
+.rec-card-bp.bp5-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(100, 116, 139, 0.15);
+  padding: 8px 10px;
+  border-radius: 4px;
+}
+
+.rec-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.rec-zones {
+  color: #e2e8f0;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.rec-meta {
+  display: flex;
+  justify-content: space-between;
+  color: #94a3b8;
+  font-size: 0.7rem;
+  margin-bottom: 6px;
+}

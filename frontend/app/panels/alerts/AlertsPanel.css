@@ -1,0 +1,78 @@
+.alerts-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alerts-title {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 4px 0;
+}
+
+.alerts-empty {
+  color: #64748b;
+  padding: 24px 0;
+}
+
+.alerts-empty .bp5-non-ideal-state-visual {
+  color: #475569;
+}
+
+.alert-card-bp.bp5-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(100, 116, 139, 0.15);
+  padding: 8px 10px;
+  border-radius: 4px;
+}
+
+.alert-card-bp.bp5-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(100, 116, 139, 0.3);
+}
+
+.alert-card-bp.alert-selected.bp5-card {
+  border-color: rgba(56, 189, 248, 0.4);
+  background: rgba(56, 189, 248, 0.06);
+}
+
+.alert-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.alert-type {
+  flex: 1;
+  color: #e2e8f0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.alert-state-tag {
+  font-size: 0.6rem !important;
+}
+
+.alert-message {
+  color: #94a3b8;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+
+.alert-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.alert-source {
+  color: #64748b;
+  font-size: 0.65rem;
+  font-family: 'JetBrains Mono', monospace;
+}

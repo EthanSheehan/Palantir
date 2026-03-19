@@ -62,8 +62,21 @@ viewer.camera.flyTo({
     duration: 0 
 });
 
-// 1b. Initialize Workspace Shell (reparents DOM into region layout)
-WorkspaceShell.init(viewer);
+// 1b. WorkspaceShell replaced by React layout (see app/layout/WorkspaceLayout.tsx)
+// Legacy WorkspaceShell.init(viewer) is no longer called.
+// React's WorkspaceLayout will reparent #cesiumContainer and #timelinePanel.
+window.viewer = viewer; // Expose for React CesiumSurfaceHost to adopt
+
+// Create temporary #ws-tool-palette for MapToolController (React will adopt its children later)
+(function() {
+    let palette = document.getElementById('ws-tool-palette');
+    if (!palette) {
+        palette = document.createElement('div');
+        palette.id = 'ws-tool-palette';
+        palette.className = 'ws-tool-palette';
+        document.body.appendChild(palette);
+    }
+})();
 
 // 1c. Initialize Map Tool Controller (click/tool modes)
 MapToolController.init(viewer, null); // ws set later after connectWebSocket
@@ -403,7 +416,7 @@ function updateSimulation(state) {
 
             const marker = viewer.entities.add({
                 id: `uav_${uav.id}`,
-                name: `UAV-${uav.id}`,
+                name: `Fixed - ${String(uav.id + 1).padStart(2, '0')}`,
                 position: positionProperty,
                 orientation: orientationProperty,
                 point: {
@@ -560,8 +573,10 @@ function updateSimulation(state) {
         }
     });
     
-    document.getElementById('uavCount').textContent = state.uavs.length;
-    document.getElementById('zoneCount').textContent = state.zones.length;
+    const _uavCountEl = document.getElementById('uavCount');
+    const _zoneCountEl = document.getElementById('zoneCount');
+    if (_uavCountEl) _uavCountEl.textContent = state.uavs.length;
+    if (_zoneCountEl) _zoneCountEl.textContent = state.zones.length;
     
     // Determine currently tracked drone ID
     let currentTrackedId = null;
@@ -569,9 +584,10 @@ function updateSimulation(state) {
         currentTrackedId = parseInt(trackedDroneEntity.id.replace('uav_', ''));
     }
     
-    // Update Sidebar Drone List
+    // Update Sidebar Drone List (legacy — only if element exists)
     const listContainer = document.getElementById('droneListContainer');
-    if (state.uavs.length === 0) {
+    if (!listContainer) { /* React owns the assets panel now */ }
+    else if (state.uavs.length === 0) {
         listContainer.innerHTML = '<div class="empty-state">No UAVs Active.</div>';
     } else {
         // Remove empty state message if it is there
@@ -1162,6 +1178,7 @@ function _renderHalos() {
 // ─── TARGET SYSTEM ────────────────────────────────────────────────────────────
 
 const _targets = [];       // [{ id, lon, lat, topCone, botCone, lensTopCone, lensBotCone }]
+window._targets = _targets; // Expose for React SearchBar target search
 let _targetIdCounter = 0;
 
 // NOTE: Cesium's DataSourceCollection does NOT support sharing one DataSource
@@ -1276,8 +1293,8 @@ function _renderTargetList() {
         });
         card.addEventListener('click', () => {
             viewer.camera.flyTo({
-                destination: Cesium.Cartesian3.fromDegrees(t.lon, t.lat, 2000),
-                orientation: { heading: 0, pitch: Cesium.Math.toRadians(-60), roll: 0 },
+                destination: Cesium.Cartesian3.fromDegrees(t.lon, t.lat, 5000),
+                orientation: { heading: 0, pitch: Cesium.Math.toRadians(-90), roll: 0 },
                 duration: 1.2
             });
         });
@@ -1494,15 +1511,13 @@ function connectWebSocket() {
     ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-        connStatus.textContent = "Uplink Active";
-        connStatus.className = "stat-value connected";
+        if (connStatus) { connStatus.textContent = "Uplink Active"; connStatus.className = "stat-value connected"; }
         wsReconnectDelay = 1000; // reset on success
         MapToolController.setWebSocket(ws);
     };
 
     ws.onclose = () => {
-        connStatus.textContent = "Signal Lost";
-        connStatus.className = "stat-value disconnected";
+        if (connStatus) { connStatus.textContent = "Signal Lost"; connStatus.className = "stat-value disconnected"; }
         setTimeout(connectWebSocket, wsReconnectDelay);
         wsReconnectDelay = Math.min(wsReconnectDelay * 2, 30000);
     };
@@ -1520,17 +1535,40 @@ function connectWebSocket() {
                 updateSimulation(payload.data);
             }
 
-            // Bridge legacy state into AppState for new panels
-            if (typeof AppState !== 'undefined' && payload.data.uavs) {
+            // Bridge live sim state into AppState for React panels (throttled to ~2Hz, only in live mode)
+            if (!window._lastReactBridgeMs) window._lastReactBridgeMs = 0;
+            if (!window._prevUavPos) window._prevUavPos = {};
+            const _now = Date.now();
+            const _isLive = typeof AppState === 'undefined' || AppState.state.timeMode === 'live';
+            if (_isLive && typeof AppState !== 'undefined' && payload.data.uavs && (_now - window._lastReactBridgeMs) > 500) {
+                window._lastReactBridgeMs = _now;
                 payload.data.uavs.forEach(u => {
+                    // Compute heading from position delta (sim doesn't send vx/vy)
+                    const prev = window._prevUavPos[u.id];
+                    let hdg = 0;
+                    if (prev) {
+                        const dlon = u.lon - prev.lon;
+                        const dlat = u.lat - prev.lat;
+                        if (Math.abs(dlon) > 0.0001 || Math.abs(dlat) > 0.0001) {
+                            hdg = ((Math.atan2(dlon * Math.cos(u.lat * Math.PI / 180), dlat) * 180 / Math.PI) + 360) % 360;
+                        } else {
+                            hdg = prev.hdg || 0; // Keep last heading when stationary
+                        }
+                    }
+                    window._prevUavPos[u.id] = { lon: u.lon, lat: u.lat, hdg: hdg };
+
+                    // Update the canonical uav_N entry (React filters on this prefix)
                     AppState.updateAsset({
-                        id: `ast_${u.id}`,
-                        name: `UAV-${u.id}`,
+                        id: `uav_${u.id}`,
+                        name: `Fixed - ${String(u.id + 1).padStart(2, '0')}`,
+                        type: 'quadrotor',
+                        mode: u.mode,
                         status: u.mode === 'serving' ? 'on_task' : u.mode === 'repositioning' ? 'transiting' : 'idle',
+                        health: 'nominal',
                         position: { lat: u.lat, lon: u.lon, alt_m: 1000 },
-                        battery_pct: 85,
-                        link_quality: 0.95,
-                        version: 1
+                        heading_deg: hdg,
+                        battery_pct: typeof u.battery_pct === 'number' ? u.battery_pct : 100 - (u.id * 0.3) - (_now % 60000) / 60000 * 2,
+                        link_quality: typeof u.link_quality === 'number' ? u.link_quality : 0.92 + Math.sin(u.id + _now / 10000) * 0.06,
                     });
                 });
             }
@@ -1571,6 +1609,33 @@ function scrubToSnapshot(state) {
         });
         flowLines.push(line);
     });
+
+    // Bridge scrub state into AppState so React panels show historical data
+    if (typeof AppState !== 'undefined') {
+        state.uavs.forEach(u => {
+            const prev = window._prevUavPos ? window._prevUavPos[u.id] : null;
+            let hdg = prev ? prev.hdg || 0 : 0;
+            if (prev) {
+                const dlon = u.lon - prev.lon;
+                const dlat = u.lat - prev.lat;
+                if (Math.abs(dlon) > 0.0001 || Math.abs(dlat) > 0.0001) {
+                    hdg = ((Math.atan2(dlon * Math.cos(u.lat * Math.PI / 180), dlat) * 180 / Math.PI) + 360) % 360;
+                }
+            }
+            AppState.updateAsset({
+                id: `uav_${u.id}`,
+                name: `UAV-${String(u.id).padStart(2, '0')}`,
+                type: 'quadrotor',
+                mode: u.mode,
+                status: u.mode === 'serving' ? 'on_task' : u.mode === 'repositioning' ? 'transiting' : 'idle',
+                health: 'nominal',
+                position: { lat: u.lat, lon: u.lon, alt_m: 1000 },
+                heading_deg: hdg,
+                battery_pct: 100 - (u.id * 0.3),
+                link_quality: 0.92,
+            });
+        });
+    }
 
     // Directly set UAV positions without touching the interpolation buffer
     state.uavs.forEach(uav => {
