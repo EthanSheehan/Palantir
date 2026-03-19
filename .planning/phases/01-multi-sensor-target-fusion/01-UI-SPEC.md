@@ -61,7 +61,7 @@ Inherited from Phase 0. No additions.
 | lg | 24px | Between EnemyCard sections (info row vs FusionBar row vs UAV list row) |
 
 FusionBar intrinsic size: height 12px, width 120px — these are component dimensions, not spacing tokens.
-SensorBadge: font 10px, Blueprint Tag minimal — inherits Blueprint Tag padding.
+SensorBadge: font 11px, Blueprint Tag minimal — inherits Blueprint Tag padding.
 
 ---
 
@@ -74,9 +74,9 @@ Inherited from Phase 0. No new sizes or weights.
 | Body | 14px | 400 | 1.5 | Contributing UAV list in EnemyCard; tracked targets list in DroneCard |
 | Label | 12px | 400 | 1.4 | Confidence percentage next to FusionBar; "PRIMARY" label on primary target |
 | Heading | 16px | 600 | 1.2 | No new headings in Phase 1 |
-| Display | 11px | 400 | 1.0 | No changes |
+| Display | 11px | 400 | 1.0 | Drone cam HUD; supplementary badge text (SensorBadge, PRIMARY badge) |
 
-SensorBadge text: 10px weight 400 — rendered inside Blueprint Tag `minimal`. This is the smallest text in the system; acceptable because it is a supplementary badge, not a primary readout.
+SensorBadge text: 11px weight 400 — rendered inside Blueprint Tag `minimal`. Smallest text in the system; acceptable because it is a supplementary badge, not a primary readout.
 
 ---
 
@@ -163,7 +163,7 @@ SensorBadge is a Blueprint `Tag` placed in the EnemyCard header row, directly af
 
 - Renders only when `sensor_count > 0`
 - Text: `{N} SENSOR` (N=1) or `{N} SENSORS` (N>=2) — all-caps
-- Font size: 10px via inline style
+- Font size: 11px via inline style
 - Blueprint Tag props: `minimal`, `intent` per mapping table above
 - No icon
 - Placement: inline in EnemyCardInfo header row, after the existing type badge, before the state badge
@@ -212,7 +212,7 @@ Phase 1 changes the tracked-target section of DroneCard from a single target dis
 │ TRACKING: TGT-004 [PRIMARY]  TGT-007  TGT-012              │
 ```
 
-- Primary target: rendered with `[PRIMARY]` badge (Blueprint Tag, `Intent.WARNING`, `minimal`, 10px text)
+- Primary target: rendered with `[PRIMARY]` badge (Blueprint Tag, `Intent.WARNING`, `minimal`, 11px text)
 - Primary target ID text: `#facc15` — reuses tracked-drone color token
 - Secondary targets: rendered at Label (12px, weight 400, `#94a3b8`)
 - When only one tracked target: no `[PRIMARY]` badge — just the target ID in `#facc15`
@@ -338,6 +338,8 @@ No new registries. All components use packages already installed in Phase 0.
 7. **SensorBadge placement**: Insert SensorBadge between the existing type Tag and the existing state Tag in EnemyCardInfo. Do not change the state Tag's position — it remains last in the header row.
 
 8. **DroneCard primary target — primary_target_id vs tracked_target_ids[0]**: Use `primary_target_id` from the UAV payload, not `tracked_target_ids[0]`. The backend sets `primary_target_id` to the commanded target. `tracked_target_ids[0]` is insertion order, which may differ.
+
+9. **SensorBadge and PRIMARY badge font size**: Both use `style={{ fontSize: 11 }}` as an inline style override on Blueprint Tag. Do not use `style={{ fontSize: 10 }}` — 10px is not part of the typography scale.
 
 ---
 
