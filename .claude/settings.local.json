@@ -141,7 +141,17 @@
       "Skill(gsd:execute-phase)",
       "Bash(mkdir -p /Users/Rocklord/Documents/GitHub/Palantir/src/frontend-react/src/hooks)",
       "Bash(mkdir -p /Users/Rocklord/Documents/GitHub/Palantir/src/frontend-react/src/cesium)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(./venv/bin/python3 -m pytest src/python/tests/ -x -q --tb=short)",
+      "Bash(./venv/bin/python3 -m pytest src/python/tests/test_sensor_fusion.py -v --tb=short)",
+      "Bash(./venv/bin/python3 -m pytest src/python/tests/test_sim_integration.py -v --tb=short)",
+      "Bash(./venv/bin/python3 -m pytest src/python/tests/ -x --tb=short)",
+      "Bash(/Users/Rocklord/Documents/GitHub/Palantir/.planning/phases/02-target-verification-workflow/02-03-SUMMARY.md:*)",
+      "Bash(git -C /Users/Rocklord/Documents/GitHub/Palantir log --oneline --all -20)",
+      "Bash(while read:*)",
+      "Bash(do basename:*)",
+      "Bash(done)",
+      "Bash(./venv/bin/python3 -m pytest src/python/tests/ --co -q)"
     ]
   }
 }
