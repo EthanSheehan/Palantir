@@ -27,9 +27,9 @@ decisions:
   - fusionRingRef cleanup added to both entity removal and targets.forEach tail
   - fused_confidence only written when contributions present (not zeroed on empty tick)
 metrics:
-  duration: 266s
-  completed_date: "2026-03-19T21:34:18Z"
-  tasks_completed: 2
+  duration: ~12min
+  completed_date: "2026-03-19"
+  tasks_completed: 3
   files_modified: 8
 ---
 
@@ -73,6 +73,20 @@ FusionBar (ECharts stacked bar) and SensorBadge (Blueprint Tag) integrated into 
 - **Fix:** Added `skip_states` set excluding ENGAGED, DESTROYED, NEUTRALIZED from the assertion.
 - **Commit:** ce9a80b
 
+## Task 3: Visual Verification (Human Checkpoint)
+
+User verified the app running in demo mode. Two issues found and fixed:
+
+**Fix 1: ENEMIES tab bouncing too fast** — EnemyCard and FusionBar re-rendered every 10Hz tick.
+- Wrapped EnemyCard in `React.memo` with custom comparator (rounds lat/lon to 3 decimals, confidence to whole %)
+- Wrapped FusionBar in `React.memo` with stable contribution key, disabled ECharts animation
+- Commit: b725df1
+
+**Fix 2: Inconsistent target naming** — Some cards/labels showed type names (SAM, TEL) instead of uniform TARGET-N.
+- Changed EnemyCard badge to always show "TGT"
+- Changed Cesium label to `TARGET-{id}` and SVG icon text to "TGT"
+- Commits: 78cd6d1, 80665c5
+
 ## Self-Check: PASSED
 
-All files present. Commits 3ee848c and ce9a80b confirmed in git log. 258/258 Python tests pass. TypeScript noEmit and npm run build exit 0.
+All files present. All commits confirmed in git log. 258/258 Python tests pass. TypeScript noEmit and npm run build exit 0. User visually approved.
