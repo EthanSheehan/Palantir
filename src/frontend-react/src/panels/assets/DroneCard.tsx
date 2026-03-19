@@ -70,6 +70,41 @@ export function DroneCard({ uav }: DroneCardProps) {
         </div>
       )}
 
+      {uav.tracked_target_ids && uav.tracked_target_ids.length > 0 && (
+        <div style={{ fontSize: '0.7rem', marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
+          <span style={{ color: '#64748b' }}>TRACKING:</span>
+          {uav.tracked_target_ids.map(tid => (
+            <span
+              key={tid}
+              style={{
+                cursor: 'pointer',
+                color: tid === uav.primary_target_id ? '#facc15' : '#94a3b8',
+                fontWeight: tid === uav.primary_target_id ? 700 : 400,
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = 'underline'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.textDecoration = 'none'; }}
+              onClick={(e) => {
+                e.stopPropagation();
+                useSimStore.getState().selectTarget(tid);
+              }}
+            >
+              TGT-{tid}
+              {tid === uav.primary_target_id && uav.tracked_target_ids.length > 1 && (
+                <span style={{
+                  marginLeft: 3,
+                  fontSize: '0.55rem',
+                  color: '#facc15',
+                  border: '1px solid rgba(250, 204, 21, 0.5)',
+                  borderRadius: 2,
+                  padding: '0px 3px',
+                  fontWeight: 700,
+                }}>PRIMARY</span>
+              )}
+            </span>
+          ))}
+        </div>
+      )}
+
       {isTracked && <DroneCardDetails uav={uav} />}
     </div>
   );

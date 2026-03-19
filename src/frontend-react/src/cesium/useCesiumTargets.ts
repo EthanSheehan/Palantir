@@ -44,6 +44,7 @@ interface TargetEntity extends Cesium.Entity {
 export function useCesiumTargets(viewerRef: React.RefObject<Cesium.Viewer | null>) {
   const entitiesRef = useRef<Record<number, TargetEntity>>({});
   const threatRingRef = useRef<Record<number, Cesium.Entity>>({});
+  const fusionRingRef = useRef<Record<number, Cesium.Entity>>({});
 
   useEffect(() => {
     const unsub = useSimStore.subscribe((state) => {
@@ -147,6 +148,40 @@ export function useCesiumTargets(viewerRef: React.RefObject<Cesium.Viewer | null
           viewer.entities.remove(threatRingRef.current[t.id]);
           delete threatRingRef.current[t.id];
         }
+
+        // Fusion ring (cyan) — scales with sensor_count
+        const sensorCount = t.sensor_count ?? 0;
+        if (sensorCount > 0) {
+          const fusionRadius = 1000 + sensorCount * 500;
+          const fusionAlpha = Math.min(0.6, 0.2 * sensorCount);
+          if (!fusionRingRef.current[t.id]) {
+            const ring = viewer.entities.add({
+              id: `fusion_ring_${t.id}`,
+              position: Cesium.Cartesian3.fromDegrees(t.lon, t.lat, 0),
+              ellipse: {
+                semiMajorAxis: fusionRadius,
+                semiMinorAxis: fusionRadius,
+                fill: true,
+                material: Cesium.Color.CYAN.withAlpha(fusionAlpha),
+                outline: true,
+                outlineColor: Cesium.Color.CYAN.withAlpha(0.8),
+                outlineWidth: 1,
+                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+              },
+            });
+            fusionRingRef.current[t.id] = ring;
+          } else {
+            fusionRingRef.current[t.id].position = Cesium.Cartesian3.fromDegrees(t.lon, t.lat, 0) as any;
+            fusionRingRef.current[t.id].ellipse!.semiMajorAxis = new Cesium.ConstantProperty(fusionRadius);
+            fusionRingRef.current[t.id].ellipse!.semiMinorAxis = new Cesium.ConstantProperty(fusionRadius);
+            fusionRingRef.current[t.id].ellipse!.material = new Cesium.ColorMaterialProperty(
+              Cesium.Color.CYAN.withAlpha(fusionAlpha)
+            );
+          }
+        } else if (fusionRingRef.current[t.id]) {
+          viewer.entities.remove(fusionRingRef.current[t.id]);
+          delete fusionRingRef.current[t.id];
+        }
       });
 
       // Cleanup removed targets
@@ -158,6 +193,10 @@ export function useCesiumTargets(viewerRef: React.RefObject<Cesium.Viewer | null
           if (threatRingRef.current[id]) {
             viewer.entities.remove(threatRingRef.current[id]);
             delete threatRingRef.current[id];
+          }
+          if (fusionRingRef.current[id]) {
+            viewer.entities.remove(fusionRingRef.current[id]);
+            delete fusionRingRef.current[id];
           }
         }
       });

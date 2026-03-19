@@ -2,6 +2,8 @@ import React from 'react';
 import { Target } from '../../store/types';
 import { useSimStore } from '../../store/SimulationStore';
 import { TARGET_MAP, STATE_COLORS } from '../../shared/constants';
+import { FusionBar } from './FusionBar';
+import { SensorBadge } from './SensorBadge';
 
 interface EnemyCardProps {
   target: Target;
@@ -63,6 +65,7 @@ export function EnemyCard({ target, trackers }: EnemyCardProps) {
             <span style={{ color: config.color, fontWeight: 600, fontSize: '0.8rem' }}>
               TARGET-{target.id}
             </span>
+            <SensorBadge sensor_count={target.sensor_count ?? 0} />
             {target.concealed && (
               <span style={{
                 color: '#94a3b8',
@@ -116,6 +119,28 @@ export function EnemyCard({ target, trackers }: EnemyCardProps) {
                   </span>
                 );
               })}
+            </div>
+          )}
+
+          {/* Fusion bar + contributing UAV list */}
+          {(target.sensor_count ?? 0) > 0 && (
+            <div style={{ marginTop: 6, marginBottom: 2 }}>
+              <FusionBar
+                contributions={target.sensor_contributions ?? []}
+                fused_confidence={target.fused_confidence ?? 0}
+              />
+              {(target.sensor_contributions ?? []).length > 0 && (
+                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>
+                  Contributing:{' '}
+                  {target.sensor_contributions.slice(0, 5).map((c, i) => (
+                    <span key={`${c.uav_id}-${c.sensor_type}`}>
+                      {i > 0 && ', '}
+                      UAV-{c.uav_id} (<span style={{ color: c.sensor_type === 'EO_IR' ? '#4A90E2' : c.sensor_type === 'SAR' ? '#7ED321' : '#F5A623' }}>{c.sensor_type}</span>)
+                    </span>
+                  ))}
+                  {target.sensor_contributions.length > 5 && ` ...+${target.sensor_contributions.length - 5} more`}
+                </div>
+              )}
             </div>
           )}
         </div>
