@@ -4,11 +4,55 @@
   gap: 6px;
 }
 
-.targets-legacy-content {
-  display: flex;
-  flex-direction: column;
+/* Apply Blueprint-style squared edges globally in targets panel */
+.targets-panel .search-bar-input-wrap {
+  border-radius: 2px;
 }
 
+.targets-panel .search-bar-dropdown {
+  border-radius: 2px;
+}
+
+/* ---- Toolbar (filter + paint) ---- */
+.targets-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.targets-type-select {
+  flex: 1;
+}
+
+.targets-type-select select {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(100, 116, 139, 0.2) !important;
+  color: #e2e8f0 !important;
+  font-size: 0.7rem !important;
+  font-family: 'Inter', sans-serif !important;
+  border-radius: 2px !important;
+}
+
+.targets-paint-btn.bp5-button {
+  border-radius: 2px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.targets-paint-btn.painting-active.bp5-button {
+  background: rgba(0, 0, 0, 0.8) !important;
+  border: 1px solid #ef4444 !important;
+  color: #ef4444 !important;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.3);
+  animation: paint-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes paint-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(239, 68, 68, 0.3); }
+  50% { box-shadow: 0 0 14px rgba(239, 68, 68, 0.5); }
+}
+
+/* ---- Sort Label ---- */
 .sort-anchor-label {
   font-size: 0.6rem;
   color: #64748b;
@@ -17,4 +61,87 @@
 
 .sort-anchor-label strong {
   color: #94a3b8;
+}
+
+/* ---- Target List ---- */
+.targets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.target-card-react {
+  padding: 6px 8px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(100, 116, 139, 0.1);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.target-card-react:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(100, 116, 139, 0.25);
+}
+
+.target-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.target-diamond {
+  color: #f97316;
+  font-size: 0.8rem;
+}
+
+.target-id {
+  color: #e2e8f0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  flex: 1;
+}
+
+.target-type-badge {
+  font-size: 0.55rem;
+  font-weight: 600;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 5px;
+  border-radius: 2px;
+  border: 1px solid rgba(100, 116, 139, 0.15);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.target-remove {
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0 3px;
+  line-height: 1;
+  border-radius: 2px;
+}
+
+.target-remove:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.target-coords {
+  color: #64748b;
+  font-size: 0.62rem;
+  font-family: 'JetBrains Mono', monospace;
+  margin-top: 2px;
+  padding-left: 20px;
+}
+
+.empty-state {
+  color: #475569;
+  font-size: 0.72rem;
+  text-align: center;
+  padding: 20px 0;
 }
