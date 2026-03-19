@@ -6,6 +6,7 @@ from romania_grid import RomaniaMacroGrid
 from sensor_model import evaluate_detection, EnvironmentConditions
 from theater_loader import load_theater, TheaterConfig, list_theaters
 from sensor_fusion import SensorContribution, fuse_detections
+from verification_engine import evaluate_target_state, VERIFICATION_THRESHOLDS, _DEFAULT_THRESHOLD
 
 import structlog
 
@@ -13,8 +14,9 @@ logger = structlog.get_logger()
 
 # Target states in the kill chain
 TARGET_STATES = (
-    "UNDETECTED", "DETECTED", "TRACKED", "IDENTIFIED",
-    "NOMINATED", "LOCKED", "ENGAGED", "DESTROYED", "ESCAPED",
+    "UNDETECTED", "DETECTED", "CLASSIFIED", "VERIFIED",
+    "TRACKED", "IDENTIFIED", "NOMINATED", "LOCKED",
+    "ENGAGED", "DESTROYED", "ESCAPED",
 )
 
 # UAV modes
@@ -127,6 +129,10 @@ class Target:
         # Theater-wired fields (set externally)
         self.threat_range_km: Optional[float] = None
         self.detection_range_km: Optional[float] = None
+
+        # Verification timer fields
+        self.time_in_state_sec: float = 0.0
+        self.last_sensor_contact_time: float = time.time()
 
     @property
     def detected(self) -> bool:
@@ -400,6 +406,7 @@ class SimulationModel:
         self.active_flows = []
         self.targets: List[Target] = []
         self.NUM_TARGETS = sum(c for _, c in self._build_target_pool())
+        self.demo_fast: bool = False
 
         self.initialize()
 
@@ -473,7 +480,7 @@ class SimulationModel:
         uav.commanded_target = None
         if uav_id not in target.tracked_by_uav_ids:
             target.tracked_by_uav_ids.append(uav_id)
-        if target_state == "LOCKED" or target.state in ("DETECTED", "UNDETECTED"):
+        if target_state == "LOCKED" or target.state in ("DETECTED", "CLASSIFIED", "VERIFIED", "UNDETECTED"):
             target.state = target_state
         logger.info("command_assign", mode=mode, uav_id=uav_id, target_id=target_id)
 
@@ -646,7 +653,7 @@ class SimulationModel:
                 t.detected_by_sensor = best.sensor_type
             else:
                 # Fade logic for targets that lost sensor contact
-                if t.state == "DETECTED" and not t.tracked_by_uav_ids:
+                if t.state in ("DETECTED", "CLASSIFIED", "VERIFIED") and not t.tracked_by_uav_ids:
                     t.detection_confidence *= 0.95
                     t.fused_confidence *= 0.95
                     if t.detection_confidence < 0.1:
@@ -656,6 +663,35 @@ class SimulationModel:
                         t.sensor_contributions = []
                         t.sensor_count = 0
                         t.detected_by_sensor = None
+
+        # --- Verification step (Phase 2) ---
+        _now = time.time()
+        for t in self.targets:
+            if t.state in ("UNDETECTED", "DESTROYED", "ENGAGED", "ESCAPED"):
+                continue
+            sensor_type_count = len(set(
+                c.sensor_type for c in t.sensor_contributions
+            )) if t.sensor_contributions else (1 if t.detection_confidence > 0 else 0)
+            new_state = evaluate_target_state(
+                current_state=t.state,
+                target_type=t.type,
+                fused_confidence=t.fused_confidence,
+                sensor_type_count=sensor_type_count,
+                time_in_current_state_sec=t.time_in_state_sec,
+                seconds_since_last_sensor=_now - t.last_sensor_contact_time,
+                demo_fast=self.demo_fast,
+            )
+            if new_state != t.state:
+                old_state = t.state
+                t.state = new_state
+                t.time_in_state_sec = 0.0
+                logger.info("target_state_transition", target_id=t.id, target_type=t.type,
+                            from_state=old_state, to_state=new_state,
+                            fused_confidence=t.fused_confidence)
+            else:
+                t.time_in_state_sec += dt_sec
+            if t.detection_confidence > 0.05:
+                t.last_sensor_contact_time = _now
 
     def _update_tracking_modes(self, dt_sec: float):
         speed = self.SPEED_DEG_PER_SEC
@@ -782,6 +818,14 @@ class SimulationModel:
             z.queue = 0
             z.demand_rate = z.base_lambda
 
+    def _get_next_threshold(self, target) -> Optional[float]:
+        thresh = VERIFICATION_THRESHOLDS.get(target.type, _DEFAULT_THRESHOLD)
+        if target.state == "DETECTED":
+            return thresh.classify_confidence
+        if target.state == "CLASSIFIED":
+            return thresh.verify_confidence
+        return None
+
     def get_state(self):
         return {
             "uavs": [
@@ -837,6 +881,9 @@ class SimulationModel:
                     ],
                     "threat_range_km": t.threat_range_km,
                     "detection_range_km": t.detection_range_km,
+                    "time_in_state_sec": round(t.time_in_state_sec, 1),
+                    "next_threshold": self._get_next_threshold(t),
+                    "concealed": getattr(t, 'concealed', False),
                 } for t in self.targets
             ],
             "environment": {
