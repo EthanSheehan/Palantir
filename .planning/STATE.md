@@ -5,7 +5,7 @@
 ## Position
 - **Current Phase:** 01 - Multi-Sensor Target Fusion
 - **Current Plan:** 02 of 03 (Plan 01 complete)
-- **Last Session:** 2026-03-19 — Completed 01-01-PLAN.md (sensor fusion module, TDD)
+- **Last Session:** 2026-03-19 — Completed 00-05-PLAN.md (ASSETS + ENEMIES panels, drone mode commands)
 - **Stopped At:** 01-02-PLAN.md (next to execute)
 
 ## Phase Status
@@ -51,4 +51,5 @@
 |-------|------|----------|-------|-------|
 | 00 | 01 | 1m 41s | 2/2 | 12 |
 | 00 | 02 | ~2min | 2/2 | 5 |
+| 00 | 05 | 4min | 2/2 | 9 |
 | 01 | 01 | 2min | 1/1 | 2 |

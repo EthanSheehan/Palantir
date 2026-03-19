@@ -34,7 +34,7 @@ Phase 9: Upgraded Drone Feeds             [SENSOR DISPLAYS — EO/SAR/SIGINT]
 **Why first**: Every subsequent phase adds UI. Building on vanilla JS means 9x the DOM manipulation work. React+Blueprint once → all phases benefit.
 
 
-**Plans:** 2/7 plans executed
+**Plans:** 5/7 plans executed
 **Requirements:** [P0-BUILD, P0-STORE, P0-WS, P0-CESIUM, P0-SIDEBAR, P0-PANELS, P0-DRONECAM, P0-ASSISTANT, P0-ECHARTS, P0-LAUNCHER]
 
 Plans:
@@ -714,7 +714,7 @@ Core patterns established in Phase 0 reused throughout:
 
 | Phase | New Python | New React/TS |
 |-------|-----------|-------------|
-| 0 | 2/7 | In Progress|  | 1 | `sensor_fusion.py`, test | `FusionBar.tsx`, `SensorBadge.tsx` |
+| 0 | 5/7 | In Progress|  | 1 | `sensor_fusion.py`, test | `FusionBar.tsx`, `SensorBadge.tsx` |
 | 2 | `verification_engine.py`, test | `VerificationStepper.tsx` |
 | 3 | test | `AutonomyToggle.tsx`, `TransitionToast.tsx` |
 | 4 | `swarm_coordinator.py`, test | `SwarmPanel.tsx`, `swarmLines.ts` |
