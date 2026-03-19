@@ -38,7 +38,7 @@ Phase 9: Upgraded Drone Feeds             [SENSOR DISPLAYS — EO/SAR/SIGINT]
 **Requirements:** [P0-BUILD, P0-STORE, P0-WS, P0-CESIUM, P0-SIDEBAR, P0-PANELS, P0-DRONECAM, P0-ASSISTANT, P0-ECHARTS, P0-LAUNCHER]
 
 Plans:
-- [ ] 00-01-PLAN.md — Fix Vite config, create types, Zustand store, shared utilities, React entry
+- [x] 00-01-PLAN.md — Fix Vite config, create types, Zustand store, shared utilities, React entry
 - [ ] 00-02-PLAN.md — WebSocket hook, Cesium Viewer lifecycle, CesiumContainer, App layout
 - [ ] 00-03-PLAN.md — Cesium entity hooks (drones, targets, zones, flow lines)
 - [ ] 00-04-PLAN.md — Sidebar, tabs, mission panel (theater, assistant, strike board, grid controls)
