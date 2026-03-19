@@ -1,6 +1,6 @@
 # Palantir Codemaps Index
 
-**Last Updated: 2026-03-18**
+**Last Updated: 2026-03-19**
 
 This document provides an architectural overview of Palantir C2. For detailed component guides, see the codemaps directory (coming soon).
 
@@ -459,9 +459,264 @@ zones:
     bounds: {n: 48.0, s: 46.5, e: 28.0, w: 24.0}
 ```
 
+## UAV Flight Mode State Machine
+
+```
+                    ┌─────────────┐
+         zone       │             │   fuel < 1h
+         demand  ┌──│    IDLE     │──────────────┐
+                 │  │             │               │
+                 │  └──────┬──────┘               │
+                 │         │ coverage              │
+                 │         │ imbalance             │
+                 │         ▼                       ▼
+                 │  ┌──────────────┐       ┌──────────┐
+                 │  │REPOSITIONING │       │   RTB    │
+                 │  │  (3x turn)   │       │(to base) │
+                 │  └──────┬───────┘       └──────────┘
+                 │         │ arrived
+                 │         ▼
+                 │  ┌──────────────┐
+                 └─▶│   SEARCH     │◀─── cancel_track
+                    │(circle loiter)│
+                    └──────┬───────┘
+                           │ user command + target selected
+                ┌──────────┼──────────┐
+                ▼          ▼          ▼
+         ┌──────────┐ ┌────────┐ ┌───────────┐
+         │  FOLLOW  │ │ PAINT  │ │ INTERCEPT │
+         │ (~2km    │ │(~1km   │ │(1.5x speed│
+         │  orbit)  │ │ orbit) │ │ ~300m)    │
+         │TGT:TRACK │ │TGT:LOCK│ │TGT:LOCK  │
+         └──────────┘ └────────┘ └───────────┘
+```
+
+### Mode Physics Parameters
+
+| Constant | Value | Physical Meaning |
+|----------|-------|-----------------|
+| `MAX_TURN_RATE` | 3 deg/sec | Standard rate turn for fixed-wing aircraft |
+| `FOLLOW_ORBIT_RADIUS_DEG` | 0.018 (~2 km) | Loose surveillance orbit |
+| `PAINT_ORBIT_RADIUS_DEG` | 0.009 (~1 km) | Tight laser designation orbit |
+| `INTERCEPT_CLOSE_DEG` | 0.003 (~300 m) | Danger-close engagement distance |
+| `LOITER_RADIUS_DEG` | 0.027 (~3 km) | SEARCH/IDLE circle radius |
+| `SPEED_DEG_PER_SEC` | 0.005 | Base UAV cruise speed |
+
+### Orbit Mechanics
+
+All orbit modes use a radial/tangential velocity mixing algorithm:
+
+```python
+# Compute unit vectors
+nx, ny = dx/dist, dy/dist      # radial (toward target)
+tx, ty = -ny, nx                # tangential (perpendicular, CCW)
+
+# Mix based on distance from ideal orbit
+if dist < orbit_r * 0.8:       # too close → push out
+    dvx = (-nx * weight + tx * (1-weight)) * speed
+elif dist > orbit_r * 1.2:     # too far → pull in
+    dvx = (nx * weight + tx * (1-weight)) * speed
+else:                           # in band → pure tangent
+    dvx = tx * speed
+
+# Smooth heading change
+uav._turn_toward(dvx, dvy, speed, dt_sec)
+```
+
+FOLLOW uses 0.3/0.7 radial/tangential weight. PAINT uses 0.4/0.6 (tighter correction).
+
+## Target Behavior AI
+
+```
+                      ┌──────────────┐
+                      │  STATIONARY  │ SAM, CP, RADAR, C2_NODE
+                      │   vx=vy=0    │
+                      └──────────────┘
+
+┌────────────────────────────────────────────────────────────┐
+│                      PATROL                                 │
+│  TRUCK, LOGISTICS (0.5x speed)                             │
+│                                                             │
+│  ┌───────────┐    ┌───────────┐    ┌───────────┐          │
+│  │   WP 1    │───▶│   WP 2    │───▶│   WP 3    │──loop──▶│
+│  └───────────┘    └───────────┘    └───────────┘          │
+│  3-5 random waypoints generated at spawn                    │
+└────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────┐
+│                  SHOOT AND SCOOT (TEL)                      │
+│                                                             │
+│  [stationary 30-60s] ──timer──▶ [teleport to random pos]  │
+│         ▲                              │                    │
+│         └──────────────────────────────┘                    │
+│  Conceals (stops moving) when UAV within 3km               │
+└────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────┐
+│                    AMBUSH (MANPADS)                         │
+│                                                             │
+│  [stationary] ──UAV within 5km──▶ [flee: random offset]   │
+│       ▲                                    │                │
+│       └────── 15s cooldown ────────────────┘                │
+│  Conceals when UAV within 3km                              │
+└────────────────────────────────────────────────────────────┘
+```
+
+## Probabilistic Sensor Model
+
+The detection pipeline evaluates each UAV-target pair every tick:
+
+```
+For each target:
+  For each UAV (skip RTB, REPOSITIONING):
+    1. Compute aspect angle (bearing from UAV to target vs target heading)
+    2. Look up base RCS from RCS_TABLE (e.g., SAM=15m², MANPADS=0.5m²)
+    3. Modulate RCS by aspect: broadside=1.5x, head-on=0.3x
+    4. Compute Pd via sigmoid(SNR_normalized)
+    5. Roll random() < Pd → detected/not
+    6. Keep best detection across all UAVs
+
+  If detected:
+    state: UNDETECTED → DETECTED
+    confidence = Pd × sensor_resolution_factor
+  If not detected and not actively tracked:
+    confidence decays by 0.95x per tick
+    Below 0.1 → reverts to UNDETECTED
+```
+
+### SNR Formula
+
+```
+snr_norm = range_term + rcs_gain - weather_penalty
+
+range_term   = 1 - (range / max_range)²
+rcs_gain     = log₁₀(effective_RCS / reference_RCS) × 0.3
+weather_pen  = sensitivity × (cloud + precip × 0.5) × 0.6
+
+Pd = sigmoid(snr_norm × 10 - 5)
+```
+
+## Drone Camera PIP Architecture
+
+`dronecam.js` renders a 400×300 canvas that simulates a forward-looking sensor:
+
+```
+┌──────────────────────────────────────────────────────┐
+│ UAV-3      ALT: 3.0km          45.23456N 24.56789E  │
+│ HDG: 127.4                     TRK: SAM #7          │
+│ MODE: PAINT                    RNG: 4521m BRG: 45.2 │
+│                                LOCK: ACTIVE          │
+│  ┌──────────────────────────────────────────────┐    │
+│  │              ◇ SAM #7 [0.92]                 │    │
+│  │           ┌─ ─ ─ ─ ─ ─┐                     │    │
+│  │           │  ◇ [LOCK]  │  ← pulsing red box  │    │
+│  │           └─ ─ ─ ─ ─ ─┘                     │    │
+│  │     ─── + ───  ← tracking reticle            │    │
+│  │                                               │    │
+│  └──────────────────────────────────────────────┘    │
+│ ┌─────────────────┐                                  │
+│ │TGT: SAM #7      │  ← target info panel             │
+│ │STATE: LOCKED     │                                  │
+│ │RNG: 4521m        │                                  │
+│ │CONF: 0.92        │                      12:34:56Z  │
+│ └─────────────────┘                                  │
+└──────────────────────────────────────────────────────┘
+```
+
+### Projection Pipeline
+
+1. Filter targets beyond `SENSOR_RANGE_KM` (15 km) using haversine distance
+2. Compute bearing from drone to target
+3. Subtract drone heading to get relative angle
+4. Clip to `HFOV_DEG` (±30 degrees from center)
+5. Map horizontal: `nx = (relAngle / HFOV) + 0.5`
+6. Map vertical: `ny = 0.3 + (1 - dist/maxDist) × 0.4` (closer = lower on screen)
+
+## Theater Switching Data Flow
+
+```
+1. User selects theater in dropdown (theater.js)
+   └── POST /api/theater {"theater": "south_china_sea"}
+
+2. Backend reloads SimulationModel (api_main.py)
+   ├── load_theater() parses theaters/south_china_sea.yaml
+   ├── Reset all UAVs, targets, zones from YAML config
+   └── get_state() now includes theater.bounds in payload
+
+3. Frontend receives state with new theater name (app.js)
+   ├── Detects theater name change: simState.theater.name !== currentTheater
+   ├── Stores bounds in state.theaterBounds
+   └── Calls flyToTheater(bounds)
+
+4. Camera recenters (map.js)
+   ├── Calculate center lat/lon from bounds
+   ├── Calculate altitude from bounds span
+   └── viewer.camera.flyTo() with smooth animation
+```
+
+## WebSocket Message Flow
+
+```
+┌──────────┐                          ┌──────────┐
+│ Frontend │                          │ Backend  │
+│(app.js)  │                          │(api_main)│
+└────┬─────┘                          └────┬─────┘
+     │  connect ws://localhost:8000/ws      │
+     │─────────────────────────────────────▶│
+     │                                      │
+     │  {client_type: "DASHBOARD"}          │
+     │─────────────────────────────────────▶│
+     │                                      │
+     │         {type: "state", payload:...} │ ← every 100ms (10Hz)
+     │◀─────────────────────────────────────│
+     │                                      │
+     │  {action: "follow_target",           │
+     │   drone_id: 3, target_id: 7}        │ ← user clicks FOLLOW button
+     │─────────────────────────────────────▶│
+     │                                      │ sim.command_follow(3, 7)
+     │                                      │
+     │  {type: "ASSISTANT_MESSAGE",         │
+     │   payload: {agent: "isr_observer",   │ ← agent notification
+     │   message: "New target detected"}}   │
+     │◀─────────────────────────────────────│
+     │                                      │
+     │  {action: "approve_nomination",      │
+     │   nomination_id: "nom-1"}            │ ← operator approves strike
+     │─────────────────────────────────────▶│
+     │                                      │
+     │  {type: "HITL_UPDATE",               │
+     │   payload: {event:                   │
+     │   "nomination_approved"}}            │ ← strike board update
+     │◀─────────────────────────────────────│
+```
+
+## Demo Auto-Pilot Mode
+
+When `DEMO_MODE=true` or `--demo` flag is passed, `demo_autopilot()` runs as an async background task:
+
+```
+Loop every 2 seconds:
+  1. Scan for targets in DETECTED/TRACKED state
+  2. For eligible targets (not already nominated):
+     ├── Create TargetNomination
+     └── Add to HITL pending queue
+  3. After 5s delay: auto-approve pending nominations
+  4. Generate 3 COAs via tactical_planner heuristics
+  5. After 3s delay: auto-authorize best COA
+  6. Simulate engagement:
+     ├── Roll probabilistic hit/kill
+     ├── Update target state (DESTROYED / DAMAGED / ESCAPED)
+     └── Broadcast HITL_UPDATE events
+  7. All actions appear in Tactical AIP Assistant feed
+```
+
+A red "DEMO MODE" banner appears on the dashboard. No API keys required.
+
 ## Related Documentation
 
 - **Contributing Guide**: [CONTRIBUTING.md](CONTRIBUTING.md)
 - **Operations Runbook**: [RUNBOOK.md](RUNBOOK.md)
+- **Simulation Deep-Dive**: [SIMULATION.md](SIMULATION.md)
+- **Frontend Guide**: [FRONTEND.md](FRONTEND.md)
 - **Product Requirements**: [PRD.md](PRD.md)
 - **Development Guide**: [CLAUDE.md](../CLAUDE.md)

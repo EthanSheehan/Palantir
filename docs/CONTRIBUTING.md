@@ -1,6 +1,6 @@
 # Contributing to Palantir C2
 
-**Last Updated: 2026-03-17**
+**Last Updated: 2026-03-19**
 
 This guide covers development setup, testing, code style, and the PR process for Palantir.
 
@@ -50,8 +50,10 @@ cp .env.example .env
 | Command | Purpose | Runs |
 |---------|---------|------|
 | `./palantir.sh` | Launch complete system (backend + frontend + simulator) | FastAPI (:8000) + HTTP Server (:3000) + Simulator |
+| `./palantir.sh --demo` | Launch in demo auto-pilot mode (full F2T2EA kill chain) | All components + auto-approvals |
+| `./palantir.sh --demo --no-sim` | Demo mode without drone video simulator | Backend + frontend only |
 | `./venv/bin/python3 src/python/api_main.py` | Run FastAPI backend only | WebSocket server on :8000 |
-| `cd src/frontend && python3 -m http.server 3000` | Run dashboard frontend only | Static server on :3000 |
+| `cd src/frontend && python3 serve.py 3000` | Run dashboard frontend only (no-cache) | Dev HTTP server on :3000 |
 | `./venv/bin/python3 src/python/vision/video_simulator.py` | Run drone simulator only | Connects to :8000/ws |
 | `./venv/bin/python3 -m pytest src/python/tests/` | Run all Python tests | 214+ test cases |
 | `./venv/bin/python3 -m pytest src/python/tests/test_FILENAME.py` | Run single test file | Single test module |
@@ -225,16 +227,24 @@ def process_detection(detection: Detection) -> str:
 
 ### Frontend Architecture
 
-- **Entry point**: `src/frontend/app.js` (~1500 lines)
-- **No build step**: Served by Python's `http.server`
+- **Entry point**: `src/frontend/app.js` — orchestrates module init, wires WebSocket state to all UI components
+- **No build step**: Served by `serve.py` (custom no-cache HTTP server, replaces `python3 -m http.server`)
 - **Modules**: Each feature has a dedicated `.js` file
-  - `state.js` — Application state management
+  - `state.js` — Shared application state (selected drone/target, viewer, WebSocket, theater bounds)
   - `websocket.js` — WebSocket client and event dispatch
-  - `map.js` — Cesium 3D viewer initialization
-  - `drones.js` — UAV visualization and list UI
-  - `targets.js` — Target and threat ring rendering
-  - `assistant.js` — Tactical AIP message feed
-  - `strikeboard.js` — HITL approval UI
+  - `map.js` — Cesium 3D viewer initialization, zone rendering, `flyToTheater()` for theater switching
+  - `drones.js` — UAV 3D entity rendering, model management, lock indicators
+  - `dronelist.js` — Drone card sidebar with inline mode command buttons (SEARCH/FOLLOW/PAINT/INTERCEPT)
+  - `dronecam.js` — Drone Camera PIP: canvas-based synthetic feed with HUD, crosshair, lock box
+  - `targets.js` — Target visualization and threat ring rendering
+  - `enemies.js` — ENEMIES tab with threat assessment, tracker tags showing which UAVs track each target
+  - `assistant.js` — Tactical AIP message feed widget
+  - `strikeboard.js` — HITL nomination + COA approval UI
+  - `sidebar.js` — Tab navigation (MISSION / ASSETS / ENEMIES) + global controls
+  - `theater.js` — Theater selector dropdown, triggers auto-recenter on switch
+  - `rangerings.js` — Sensor range ring overlays per drone
+  - `mapclicks.js` — Map click handlers (waypoints, spikes)
+  - `detailmap.js` — Detail waypoint placement modal
 
 ## Contributing Workflow
 
@@ -317,15 +327,22 @@ Every PR should address:
 
 **2. Simulation Engine** (`src/python/sim_engine.py`)
 - `SimulationModel` manages UAV and target states
-- Probabilistic detection with Pd/RCS models
-- Zone-based coverage optimization
-- 8 target unit types with type-specific behaviors
+- Probabilistic detection with Pd/RCS models (`sensor_model.py`)
+- Zone-based coverage optimization with imbalance-driven repositioning
+- 10 target unit types: SAM, TEL, TRUCK, CP, MANPADS, RADAR, C2_NODE, LOGISTICS, ARTILLERY, APC
+- 5 target behaviors: stationary, patrol, shoot-and-scoot, ambush, concealment/flee
+- 7 UAV flight modes: IDLE, SEARCH, FOLLOW, PAINT, INTERCEPT, REPOSITIONING, RTB
+- Fixed-wing physics with `_turn_toward()` for smooth heading changes
 
-**3. Cesium Frontend** (`src/frontend/app.js`)
-- Vanilla JS with Cesium for 3D visualization
-- WebSocket connection to backend
+**3. Cesium Frontend** (`src/frontend/`)
+- Vanilla JS with Cesium for 3D visualization (no build step, served by `serve.py`)
+- WebSocket connection to backend at `ws://localhost:8000/ws`
 - Tab-based UI: MISSION / ASSETS / ENEMIES
 - Real-time entity updates at 10Hz
+- Drone Camera PIP with HUD overlays, tracking reticle, lock box
+- Inline mode command buttons (SEARCH/FOLLOW/PAINT/INTERCEPT) in drone cards
+- Auto-recenter camera when switching theaters
+- ENEMIES tab shows tracker tags (which UAVs are tracking each target)
 
 ### AI Agent Pipeline
 
@@ -356,6 +373,144 @@ Each agent:
 3. Add error handling with meaningful messages
 4. Write integration test in `src/python/tests/test_agent_wiring.py`
 5. Document in README.md
+
+## UAV Flight Modes
+
+The simulation engine implements 7 UAV flight modes with fixed-wing physics. All modes use `_turn_toward()` for gradual heading changes (max 3 deg/sec standard rate turn).
+
+| Mode | Trigger | Behavior | Orbit Radius | Target State |
+|------|---------|----------|-------------|--------------|
+| **IDLE** | Default / service timer expired | Stationary hold at assigned position | N/A | N/A |
+| **SEARCH** | `scan_area` action or zone demand | Constant-rate circular loiter via `MAX_TURN_RATE` over assigned zone | ~3 km (`LOITER_RADIUS_DEG`) | N/A (releases target) |
+| **FOLLOW** | `follow_target` action | Loose orbit maintaining visual contact; smooth fixed-wing arcs | ~2 km (`FOLLOW_ORBIT_RADIUS_DEG`) | TRACKED |
+| **PAINT** | `paint_target` action | Tight orbit with laser designation for weapons guidance | ~1 km (`PAINT_ORBIT_RADIUS_DEG`) | LOCKED |
+| **INTERCEPT** | `intercept_target` action | Direct approach at 1.5x speed, then danger-close orbit | ~300 m (`INTERCEPT_CLOSE_DEG`) | LOCKED |
+| **REPOSITIONING** | Coverage imbalance or waypoint command | Direct flight to new position with 3x turn rate | N/A (transit) | N/A |
+| **RTB** | Fuel below 1.0 hours | Return to base coordinates | N/A (transit) | N/A |
+
+### Mode Transitions
+
+- **SEARCH** releases any target assignment and resumes area patrol
+- **FOLLOW/PAINT/INTERCEPT** require a target selection (via ENEMIES tab click or map click)
+- **RTB** triggers automatically when `fuel_hours < 1.0`
+- **cancel_track** returns the UAV to SEARCH and resets target state to DETECTED
+
+### Orbit Physics
+
+All tracking modes (FOLLOW, PAINT, INTERCEPT) use smooth fixed-wing arcs:
+
+1. Calculate desired velocity vector toward/around the target
+2. Mix radial (toward/away) and tangential (orbit) components based on distance
+3. `_turn_toward()` gradually adjusts heading within `MAX_TURN_RATE` limit
+4. Result: realistic fixed-wing circular orbits, not instantaneous position snaps
+
+For FOLLOW/PAINT, the orbit balance works like:
+- **Too close** (< 0.8x orbit radius): push outward (stronger radial, weaker tangential)
+- **Too far** (> 1.2x orbit radius): pull inward (stronger radial, weaker tangential)
+- **In band**: pure tangential (smooth circle)
+
+For INTERCEPT, the UAV flies straight at the target at 1.5x speed until within `INTERCEPT_CLOSE_DEG` (~300m), then switches to a tight tangential orbit.
+
+## Drone Camera PIP
+
+The Drone Camera (`dronecam.js`) provides a canvas-based synthetic sensor feed that appears as a picture-in-picture overlay when a UAV is selected.
+
+### Camera Projection
+
+Targets are projected into the camera view using:
+1. **Haversine distance** — filter targets beyond `SENSOR_RANGE_KM` (15 km)
+2. **Bearing calculation** — compute relative bearing from drone heading
+3. **FOV clipping** — discard targets outside `HFOV_DEG` (60 degrees)
+4. **Screen mapping** — horizontal position from relative angle, vertical from distance factor
+
+### HUD Elements
+
+| Element | Location | Content |
+|---------|----------|---------|
+| Telemetry | Top-left | UAV ID, altitude (km), heading |
+| Mode indicator | Below telemetry | Current mode with color coding |
+| Position | Top-right | Lat/Lon coordinates |
+| Tracking info | Top-right (when tracking) | Target type/ID, range, bearing |
+| Lock status | Top-right (PAINT mode) | "LOCK: ACTIVE" in red |
+| Target info panel | Bottom-left (when tracking) | Target state, range/bearing, confidence |
+| Timestamp | Bottom-center | UTC time |
+
+### Target Rendering
+
+Each target type has a unique shape and color:
+
+| Type | Shape | Color |
+|------|-------|-------|
+| SAM | Diamond | Red |
+| TEL | Triangle | Orange |
+| TRUCK | Rectangle | White |
+| CP | Square | Orange |
+| MANPADS | Circle | Purple |
+| RADAR | Hexagon | Cyan |
+| C2_NODE | Diamond | Yellow |
+| LOGISTICS | Rectangle | Gray |
+| ARTILLERY | Triangle | Red |
+| APC | Square | Green |
+
+### Tracking Overlays
+
+- **Reticle**: Green crosshair with gap (appears when tracking any target)
+- **Lock Box**: Pulsing red rectangle (PAINT mode only) — oscillates size and opacity
+- **Corner brackets**: Green L-shaped brackets at target bounding box corners
+
+## Target Behaviors
+
+The simulation models 5 distinct target behaviors based on unit type:
+
+| Behavior | Unit Types | Description |
+|----------|-----------|-------------|
+| **Stationary** | SAM, CP, RADAR, C2_NODE | Fixed position, no movement |
+| **Patrol** | TRUCK, LOGISTICS | Follow 3-5 random waypoints in a loop; LOGISTICS moves at 0.5x speed |
+| **Shoot-and-scoot** | TEL | Stationary until relocate timer expires (30-60s), then teleports to random position; hides when concealed |
+| **Ambush** | MANPADS | Stationary until UAV within 5 km, then flees to random position with 15s cooldown |
+| **Concealment** | TEL, MANPADS | Activates when UAV within 3 km; stops movement and reduces detectability |
+
+### Radar Emitter Toggle
+
+SAM and RADAR types periodically toggle `is_emitting` with `EMIT_TOGGLE_PROB` (0.5% per tick). SIGINT sensors can only detect emitting targets.
+
+## Probabilistic Detection Model
+
+Detection uses a physics-informed probability model (`sensor_model.py`):
+
+### Sensor Types
+
+| Sensor | Max Range | Weather Sensitivity | Requires Emitter | Resolution |
+|--------|-----------|-------------------|-------------------|------------|
+| **EO/IR** | 50 km | 0.8 (highly affected) | No | 1.0 (best) |
+| **SAR** | 100 km | 0.2 (mostly immune) | No | 0.7 |
+| **SIGINT** | 200 km | 0.0 (immune) | Yes | 0.3 (lowest) |
+
+### Detection Formula
+
+```
+snr_norm = (1 - (range/max_range)^2) + rcs_gain * 0.3 - weather_penalty
+Pd = sigmoid(snr_norm * 10 - 5)
+```
+
+Where:
+- **rcs_gain** = log10(effective_RCS / reference_RCS) — larger targets are easier to detect
+- **weather_penalty** = weather_sensitivity * (cloud_cover + precipitation * 0.5) * 0.6
+- **effective_RCS** = base_RCS * aspect_factor — broadside (90 degrees) gives 1.5x, head-on gives 0.3x
+- **confidence** = Pd * sensor_resolution_factor
+
+### RCS Table (Radar Cross-Section)
+
+| Unit Type | Base RCS (m^2) | Detectability |
+|-----------|---------------|---------------|
+| RADAR | 20.0 | Very easy |
+| SAM | 15.0 | Easy |
+| TEL | 10.0 | Medium |
+| CP | 8.0 | Medium |
+| C2_NODE | 6.0 | Medium |
+| TRUCK | 5.0 | Medium |
+| LOGISTICS | 4.0 | Harder |
+| MANPADS | 0.5 | Very hard |
 
 ## Environment Variables
 

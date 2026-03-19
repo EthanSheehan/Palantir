@@ -1,6 +1,6 @@
 # Palantir C2 Operations Runbook
 
-**Last Updated: 2026-03-18**
+**Last Updated: 2026-03-19**
 
 This guide covers deployment, health checks, monitoring, common issues, and rollback procedures for Palantir C2.
 
@@ -322,6 +322,26 @@ find . -type d -name __pycache__ -exec rm -r {} +
 ./venv/bin/python3 -m pytest src/python/tests/
 ```
 
+### Issue: Browser Cache Issues
+
+**Problem:** Frontend shows stale JavaScript after code changes, even with hard refresh.
+
+**Cause:** Browser caching persists old JS bundles despite file changes on disk.
+
+**Why `serve.py` exists:** The custom HTTP server at `src/frontend/serve.py` adds `Cache-Control: no-store` headers to all responses, preventing the browser from caching any assets. This is why you should always use it instead of `python3 -m http.server`.
+
+**Fix:**
+```bash
+# Use serve.py (not python3 -m http.server)
+python3 src/frontend/serve.py 3000
+
+# palantir.sh already uses serve.py automatically
+```
+
+**Nuclear option:** If stale code persists even with `serve.py`:
+- Clear all browser data: `chrome://settings/clearBrowserData` → Clear All
+- Or open an incognito/private window to bypass all caches
+
 ### Issue: Frontend shows blank page
 
 **Symptoms:** Browser at `:3000` shows empty/white screen
@@ -341,11 +361,86 @@ curl -s https://cesium.com/downloads/cesiumjs/releases/1.104/Cesium.js | head -5
 **Fix:**
 ```bash
 # Restart frontend server (serve.py disables caching for dev)
-python3 src/frontend/serve.py
+python3 src/frontend/serve.py 3000
 
 # Clear browser cache: Ctrl+Shift+Delete → Clear All
 # Or use hard refresh: Ctrl+Shift+R
 ```
+
+### Issue: Stale Process Cleanup
+
+**Problem:** Port 8000 or 3000 already in use from a previous run.
+
+**Note:** `palantir.sh` now auto-kills stale processes on ports 8000 and 3000 before launching, so this only applies when running components manually.
+
+**Fix:**
+```bash
+# Kill process on port 8000
+lsof -i :8000 | awk 'NR>1{print $2}' | xargs kill -9
+
+# Kill process on port 3000
+lsof -i :3000 | awk 'NR>1{print $2}' | xargs kill -9
+
+# Always check ports before launching components manually
+lsof -i :8000
+lsof -i :3000
+```
+
+### Issue: Theater Switching — Camera Doesn't Move
+
+**Symptoms:** After switching theaters, the 3D camera stays at the previous location instead of flying to the new theater.
+
+**How it works:** The backend includes theater bounds in every state payload. When the frontend detects a theater name change, it calls `flyToTheater()` to recenter the Cesium camera on the new theater's bounding box.
+
+**Debugging:**
+```bash
+# Open browser console (F12 → Console)
+# Look for the theater name in the state payload
+# Verify theater name changes when you switch
+```
+
+**Fix:**
+- Hard refresh the page: `Ctrl+Shift+R` (or `Cmd+Shift+R` on macOS)
+- If the camera still doesn't recenter, check that the backend is sending the correct theater name in the WebSocket state payload
+
+## Demo Mode Operations
+
+Demo mode runs the full F2T2EA kill chain autonomously with no human input required. It uses heuristic agents, so no API keys are needed.
+
+### Launching Demo Mode
+
+```bash
+# Full demo with drone video simulator
+./palantir.sh --demo
+
+# Lightweight demo (skips drone video simulator)
+./palantir.sh --demo --no-sim
+
+# Or set the environment variable directly
+DEMO_MODE=true ./venv/bin/python3 src/python/api_main.py
+```
+
+### What Demo Mode Does
+
+The `demo_autopilot()` async loop runs inside the backend and automates the entire kill chain:
+
+1. **Find/Fix** — Targets are detected by UAV sensors as normal
+2. **Track** — UAVs auto-assigned to track new detections
+3. **Target** — Auto-nominates detected targets to the strike board after initial assessment
+4. **Engage** — Auto-approves HITL nominations after ~5 seconds, generates COAs, auto-authorizes engagement after ~3 seconds
+5. **Assess** — Simulates engagement with probabilistic outcomes (hit/miss/partial), updates BDA
+
+### Monitoring Demo Mode
+
+- A red **DEMO MODE** banner appears at the top of the dashboard to indicate autonomous operation
+- Watch the **Tactical AIP Assistant** feed in the dashboard for real-time kill chain decisions (nominations, approvals, COA generation, engagement results)
+- The strike board updates automatically as targets move through the pipeline
+
+### Notes
+
+- No API keys are needed — demo mode uses heuristic-based agents exclusively
+- All operator approval gates are bypassed (auto-approve after configurable delays)
+- Demo mode is safe to run alongside manual interaction — you can still issue commands via the dashboard
 
 ## Rollback Procedures
 

@@ -1,6 +1,6 @@
 # Palantir C2 API Reference
 
-**Last Updated: 2026-03-18**
+**Last Updated: 2026-03-19**
 
 Quick reference for all API endpoints and WebSocket messages. For full interactive documentation, run the system and visit `http://localhost:8000/docs`.
 
@@ -731,6 +731,273 @@ wscat -c ws://localhost:8000/ws
 
 ---
 
-**Last Updated**: 2026-03-18
+## State Payload Reference
+
+The `state` message broadcast at 10Hz contains the full simulation state. Below is the exact structure of each sub-object within the payload.
+
+### UAV Object
+
+Each entry in the `uavs` array:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Unique UAV identifier (e.g. `"UAV-1"`) |
+| `lon` | float | Longitude in decimal degrees (WGS-84) |
+| `lat` | float | Latitude in decimal degrees (WGS-84) |
+| `mode` | string | Current flight mode (see below) |
+| `altitude_m` | float | Altitude in meters above ground level |
+| `sensor_type` | string | Sensor payload type (e.g. `"EO/IR"`, `"RADAR"`, `"SIGINT"`) |
+| `heading_deg` | float | Current heading in degrees (0-360, 0=North, clockwise) |
+| `tracked_target_id` | string or null | ID of target being tracked, null if none |
+| `fuel_hours` | float | Remaining fuel in hours |
+
+**UAV Modes**: `IDLE` (hold position), `SEARCH` (circular loiter over zone), `FOLLOW` (loose ~2km orbit tracking target), `PAINT` (tight ~1km orbit with laser lock), `INTERCEPT` (direct approach at 1.5x speed, ~300m danger-close orbit), `REPOSITIONING` (zone rebalance at 3x turn rate), `RTB` (low fuel return to base)
+
+### Target Object
+
+Each entry in the `targets` array:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Unique target identifier (e.g. `"SAM-1"`) |
+| `lon` | float | Longitude in decimal degrees (WGS-84) |
+| `lat` | float | Latitude in decimal degrees (WGS-84) |
+| `type` | string | Target classification (see below) |
+| `detected` | bool | Whether the target has been detected by any sensor |
+| `state` | string | Current kill chain state (see Target State Machine) |
+| `detection_confidence` | float | Confidence level 0.0-1.0 |
+| `detected_by_sensor` | string or null | Sensor type that detected this target |
+| `is_emitting` | bool | Whether target is actively emitting (radar/comms) |
+| `heading_deg` | float | Movement heading in degrees (0-360) |
+| `tracked_by_uav_id` | string or null | ID of UAV currently tracking this target |
+
+**Target Types**: `SAM`, `TEL`, `TRUCK`, `CP`, `MANPADS`, `RADAR`, `C2_NODE`, `LOGISTICS`, `ARTILLERY`, `APC`
+
+### Zone Object
+
+Each entry in the `zones` array:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `x_idx` | int | Grid column index |
+| `y_idx` | int | Grid row index |
+| `lon` | float | Center longitude of zone |
+| `lat` | float | Center latitude of zone |
+| `width` | float | Zone width in degrees |
+| `height` | float | Zone height in degrees |
+| `queue` | int | Number of unscanned targets in zone |
+| `uav_count` | int | Number of UAVs currently in zone |
+| `imbalance` | float | Coverage imbalance score (positive = under-covered, drives repositioning) |
+
+### Flow Object
+
+Each entry in the `flows` array represents a UAV-to-target tracking link:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `source` | [float, float] | `[lon, lat]` of the UAV |
+| `target` | [float, float] | `[lon, lat]` of the tracked target |
+
+### Environment Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `time_of_day` | float | Simulation time of day, 0-24 (decimal hours) |
+| `cloud_cover` | float | Cloud cover fraction, 0.0 (clear) to 1.0 (overcast) |
+| `precipitation` | float | Precipitation intensity, 0.0 (none) to 1.0 (heavy rain) |
+
+### Theater Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Active theater name (e.g. `"romania"`, `"south_china_sea"`, `"baltic"`) |
+| `bounds` | object | Geographic bounding box with `min_lon`, `max_lon`, `min_lat`, `max_lat` (all floats) |
+
+### Full Payload Example
+
+```json
+{
+  "type": "state",
+  "payload": {
+    "uavs": [
+      {
+        "id": "UAV-1",
+        "lon": 24.5,
+        "lat": 46.0,
+        "mode": "SEARCH",
+        "altitude_m": 2500,
+        "sensor_type": "EO/IR",
+        "heading_deg": 135.2,
+        "tracked_target_id": null,
+        "fuel_hours": 3.4
+      }
+    ],
+    "targets": [
+      {
+        "id": "SAM-1",
+        "lon": 24.8,
+        "lat": 45.2,
+        "type": "SAM",
+        "detected": true,
+        "state": "DETECTED",
+        "detection_confidence": 0.85,
+        "detected_by_sensor": "EO/IR",
+        "is_emitting": true,
+        "heading_deg": 0.0,
+        "tracked_by_uav_id": null
+      }
+    ],
+    "zones": [
+      {
+        "x_idx": 0,
+        "y_idx": 0,
+        "lon": 24.0,
+        "lat": 45.5,
+        "width": 1.0,
+        "height": 0.5,
+        "queue": 2,
+        "uav_count": 1,
+        "imbalance": -0.3
+      }
+    ],
+    "flows": [
+      {
+        "source": [24.5, 46.0],
+        "target": [24.8, 45.2]
+      }
+    ],
+    "environment": {
+      "time_of_day": 14.5,
+      "cloud_cover": 0.2,
+      "precipitation": 0.0
+    },
+    "theater": {
+      "name": "romania",
+      "bounds": {
+        "min_lon": 22.0,
+        "max_lon": 30.0,
+        "min_lat": 43.5,
+        "max_lat": 48.5
+      }
+    }
+  }
+}
+```
+
+---
+
+## Target State Machine
+
+Targets progress through kill chain states as the F2T2EA pipeline advances. Each target's `state` field reflects its current position in the chain.
+
+### States
+
+| State | Description |
+|-------|-------------|
+| `UNDETECTED` | Target exists in simulation but has not been sensed |
+| `DETECTED` | Sensor contact established, position known |
+| `TRACKED` | UAV assigned in FOLLOW mode, maintaining continuous observation |
+| `IDENTIFIED` | ISR Observer agent has analyzed and classified the target |
+| `NOMINATED` | Strategy Analyst has recommended the target for engagement |
+| `LOCKED` | UAV in PAINT or INTERCEPT mode, laser designation active |
+| `ENGAGED` | Strike authorized and executed |
+| `DESTROYED` | BDA confirms target destroyed |
+| `DAMAGED` | BDA confirms target damaged but not destroyed |
+| `ESCAPED` | Target evaded engagement or tracking was lost post-strike |
+
+### Transitions
+
+```
+UNDETECTED ──→ DETECTED          (sensor detection, confidence threshold met)
+    DETECTED ──→ TRACKED          (UAV assigned in FOLLOW mode)
+     TRACKED ──→ IDENTIFIED       (ISR Observer agent analysis complete)
+  IDENTIFIED ──→ NOMINATED        (Strategy Analyst recommendation, HITL Gate 1)
+   NOMINATED ──→ LOCKED           (UAV enters PAINT or INTERCEPT mode)
+      LOCKED ──→ ENGAGED          (strike authorized via HITL Gate 2)
+     ENGAGED ──→ DESTROYED        (BDA: target confirmed destroyed)
+     ENGAGED ──→ DAMAGED          (BDA: target damaged, not destroyed)
+     ENGAGED ──→ ESCAPED          (BDA: target evaded or assessment inconclusive)
+```
+
+### Reverse Transitions
+
+| From | To | Trigger |
+|------|----|---------|
+| `DETECTED` | `UNDETECTED` | Confidence decay — no UAV maintaining sensor contact |
+| `TRACKED` | `UNDETECTED` | Confidence decay — tracking UAV lost or reassigned |
+| `TRACKED` | `DETECTED` | `cancel_track` WebSocket action sent |
+| `LOCKED` | `DETECTED` | `cancel_track` WebSocket action sent |
+
+### State Machine Diagram
+
+```
+                    confidence decay
+              ┌─────────────────────────┐
+              ↓                         │
+         UNDETECTED ──→ DETECTED ──→ TRACKED ──→ IDENTIFIED ──→ NOMINATED ──→ LOCKED ──→ ENGAGED
+                           ↑            │                                        │          │ │ │
+                           │            │              cancel_track               │          │ │ │
+                           │            ←────────────────────────────────────────┘          │ │ │
+                           │                                                                │ │ │
+                           └──────────── cancel_track ──────────────────────────────────────┘ │ │
+                                                                                    ↓   ↓   ↓
+                                                                              DESTROYED DAMAGED ESCAPED
+```
+
+---
+
+## Demo Mode
+
+Demo mode runs the full F2T2EA kill chain automatically without human input, useful for demonstrations and system validation.
+
+### Enabling Demo Mode
+
+```bash
+# Via launch script (recommended)
+./palantir.sh --demo
+
+# Via launch script without drone video simulator
+./palantir.sh --demo --no-sim
+
+# Via environment variable (backend only)
+DEMO_MODE=true ./venv/bin/python3 src/python/api_main.py
+```
+
+### How It Works
+
+When `DEMO_MODE=true`, the backend starts `demo_autopilot()` as an async background task alongside the normal 10Hz simulation loop. The autopilot drives the entire kill chain:
+
+1. **Find/Fix**: Simulation detects targets normally via sensor coverage
+2. **Auto-Nominate**: Detected targets are automatically nominated for engagement
+3. **Auto-Approve** (HITL Gate 1): Nominations are auto-approved after a **5-second** delay
+4. **COA Generation**: 3 Courses of Action are generated per approved nomination
+5. **Auto-Authorize** (HITL Gate 2): Best COA is auto-authorized after a **3-second** delay
+6. **Engage**: Strike is simulated with probabilistic outcomes (DESTROYED / DAMAGED / ESCAPED)
+7. **Assess**: BDA result is logged and visible in the assistant feed
+
+### No API Keys Required
+
+Demo mode does not invoke LangChain/OpenAI agents. All AI reasoning is replaced with deterministic logic, making it fully self-contained with no external dependencies.
+
+### UI Indicators
+
+- A red **"DEMO MODE"** banner is displayed on the dashboard when demo mode is active
+- All auto-pilot actions (nominations, approvals, authorizations, strikes) appear in the **Tactical AIP Assistant** message feed with timestamps
+- The strike board updates in real time as targets progress through the kill chain
+
+### Timing Summary
+
+| Action | Delay |
+|--------|-------|
+| Target detection → nomination | Immediate (next autopilot cycle) |
+| Nomination → approval | ~5 seconds |
+| COA generation | 3 COAs generated immediately after approval |
+| COA → authorization | ~3 seconds |
+| Authorization → engagement | Immediate |
+| Engagement → BDA result | Immediate (probabilistic) |
+
+---
+
+**Last Updated**: 2026-03-19
 **API Version**: v2 (F2T2EA kill chain)
 **Stability**: Stable (subject to change with PRD v2 upgrade)
