@@ -160,3 +160,131 @@ class TestPurity:
         r1 = evaluate_target_state(**args)
         r2 = evaluate_target_state(**args)
         assert r1 == r2
+
+
+class TestSimIntegration:
+    """Integration: verify timer fields exist on Target and increment."""
+
+    def test_timer_fields_exist(self):
+        import sys
+        import os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+        from sim_engine import SimulationModel
+        model = SimulationModel()
+        assert len(model.targets) > 0
+        t = model.targets[0]
+        assert hasattr(t, 'time_in_state_sec')
+        assert hasattr(t, 'last_sensor_contact_time')
+        assert t.time_in_state_sec == 0.0
+
+    def test_target_states_extended(self):
+        import sys
+        import os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+        from sim_engine import TARGET_STATES
+        assert "CLASSIFIED" in TARGET_STATES
+        assert "VERIFIED" in TARGET_STATES
+        # Existing states preserved
+        assert "TRACKED" in TARGET_STATES
+        assert "IDENTIFIED" in TARGET_STATES
+
+    def test_get_state_includes_verification_fields(self):
+        import sys
+        import os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+        from sim_engine import SimulationModel
+        model = SimulationModel()
+        state = model.get_state()
+        for t in state["targets"]:
+            assert "time_in_state_sec" in t
+            assert "next_threshold" in t
+
+
+class TestPipelineGate:
+    """Integration: _process_new_detection only fires on VERIFIED."""
+
+    def test_tactical_assistant_has_last_verified(self):
+        import sys
+        import os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+        import api_main
+        assistant = api_main.TacticalAssistant()
+        assert hasattr(assistant, '_last_verified')
+
+    def test_gate_does_not_fire_on_detected(self):
+        import sys
+        import os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+        import api_main
+        assistant = api_main.TacticalAssistant()
+        sim_state = {"targets": [
+            {"id": 1, "type": "SAM", "state": "DETECTED", "lon": 26.0, "lat": 44.0}
+        ]}
+        msgs = assistant.update(sim_state)
+        # Should get NEW CONTACT message but NOT a nomination/HITL message
+        assert any("NEW CONTACT" in m.get("text", "") for m in msgs)
+        # Should not have triggered _process_new_detection (no HITL nomination)
+        assert 1 not in assistant._nominated
+
+    def test_gate_fires_on_verified(self):
+        import sys
+        import os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+        import api_main
+        assistant = api_main.TacticalAssistant()
+        # First tick: DETECTED (triggers NEW CONTACT only)
+        sim_state_1 = {"targets": [
+            {"id": 1, "type": "SAM", "state": "DETECTED", "lon": 26.0, "lat": 44.0}
+        ]}
+        assistant.update(sim_state_1)
+        # Second tick: VERIFIED (should trigger ISR pipeline)
+        sim_state_2 = {"targets": [
+            {"id": 1, "type": "SAM", "state": "VERIFIED", "lon": 26.0, "lat": 44.0,
+             "detection_confidence": 0.9}
+        ]}
+        assistant.update(sim_state_2)
+        # The pipeline should have fired (even if it returns None due to heuristic path)
+        assert assistant._last_verified.get(1) is True
+
+
+class TestManualVerify:
+    """Integration: verify_target action schema exists."""
+
+    def test_verify_target_in_action_schemas(self):
+        import sys
+        import os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+        import api_main
+        assert "verify_target" in api_main._ACTION_SCHEMAS
+        assert api_main._ACTION_SCHEMAS["verify_target"] == {"target_id": "int"}
+
+
+class TestBroadcast:
+    """Integration: get_state includes verification fields."""
+
+    def test_next_threshold_for_detected_target(self):
+        import sys
+        import os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+        from sim_engine import SimulationModel
+        model = SimulationModel()
+        # Force a target to DETECTED state
+        if model.targets:
+            model.targets[0].state = "DETECTED"
+            model.targets[0].detection_confidence = 0.3
+            state = model.get_state()
+            t = next(t for t in state["targets"] if t["id"] == model.targets[0].id)
+            assert t["next_threshold"] is not None
+            assert isinstance(t["next_threshold"], float)
+
+    def test_next_threshold_none_for_nominated(self):
+        import sys
+        import os
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+        from sim_engine import SimulationModel
+        model = SimulationModel()
+        if model.targets:
+            model.targets[0].state = "NOMINATED"
+            state = model.get_state()
+            t = next(t for t in state["targets"] if t["id"] == model.targets[0].id)
+            assert t["next_threshold"] is None

@@ -104,6 +104,7 @@ _ACTION_SCHEMAS: dict[str, dict[str, str]] = {
     "retask_nomination": {"entry_id": "str"},
     "authorize_coa": {"entry_id": "str", "coa_id": "str"},
     "reject_coa": {"entry_id": "str"},
+    "verify_target": {"target_id": "int"},
 }
 
 # ---------------------------------------------------------------------------
@@ -126,6 +127,7 @@ class TacticalAssistant:
     def __init__(self):
         self.message_history = []
         self.last_detected = {}  # target_id -> bool
+        self._last_verified: dict = {}  # target_id -> bool
         # track_id -> True for targets already nominated to avoid duplicates
         self._nominated: set = set()
 
@@ -133,10 +135,13 @@ class TacticalAssistant:
         new_messages = []
         for target in sim_state.get("targets", []):
             tid = target["id"]
-            is_detected = target.get("state", "UNDETECTED") != "UNDETECTED"
+            current_state = target.get("state", "UNDETECTED")
+            is_any_detected = current_state != "UNDETECTED"
+            is_verified = current_state == "VERIFIED"
             t_type = target["type"]
 
-            if is_detected and not self.last_detected.get(tid, False):
+            # UI visibility: fire "NEW CONTACT" on first detection (any non-UNDETECTED state)
+            if is_any_detected and not self.last_detected.get(tid, False):
                 msg = {
                     "type": "ASSISTANT_MESSAGE",
                     "text": f"NEW CONTACT: {t_type} localized at {target['lon']:.4f}, {target['lat']:.4f}",
@@ -144,12 +149,16 @@ class TacticalAssistant:
                     "timestamp": time.strftime("%H:%M:%S")
                 }
                 new_messages.append(msg)
-                # Fire ISR→Strategy→HITL pipeline for this new detection
+
+            # ISR pipeline gate: only fire on VERIFIED (was not verified last tick)
+            was_verified = self._last_verified.get(tid, False)
+            if is_verified and not was_verified:
                 hitl_msg = _process_new_detection(target, self._nominated)
                 if hitl_msg:
                     new_messages.append(hitl_msg)
 
-            self.last_detected[tid] = is_detected
+            self.last_detected[tid] = is_any_detected
+            self._last_verified[tid] = is_verified
 
         return new_messages
 
@@ -431,6 +440,7 @@ app.add_middleware(
 )
 
 sim = SimulationModel(theater_name=settings.default_theater)
+sim.demo_fast = settings.demo_mode
 hitl = HITLManager()
 clients = {} # websocket -> info dict
 
@@ -798,6 +808,22 @@ async def handle_payload(payload: dict, websocket: WebSocket, raw_data: str):
             await broadcast(response, target_type="DASHBOARD")
         except ValueError as exc:
             logger.warning("reject_coa_failed", error=str(exc))
+
+    elif action == "verify_target":
+        target_id = payload["target_id"]
+        target = sim._find_target(target_id)
+        if target and target.state == "CLASSIFIED":
+            old_state = target.state
+            target.state = "VERIFIED"
+            target.time_in_state_sec = 0.0
+            log_event("target_state_transition", {
+                "target_id": target_id,
+                "target_type": target.type,
+                "from": old_state,
+                "to": "VERIFIED",
+                "source": "manual_operator",
+            })
+            logger.info("manual_verify", target_id=target_id)
 
     elif action in ("sitrep_query", "generate_sitrep") or p_type == "SITREP_QUERY":
         query_text = payload.get("query", "Provide current situation report.")
