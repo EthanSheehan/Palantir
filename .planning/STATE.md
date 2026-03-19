@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 02
 current_plan: 1
 status: unknown
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-03-19T22:06:57.241Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-03-19T22:13:21.521Z"
 progress:
   total_phases: 11
   completed_phases: 2
-  total_plans: 21
-  completed_plans: 11
+  total_plans: 22
+  completed_plans: 12
 ---
 
 # Project State
@@ -22,8 +22,8 @@ progress:
 
 - **Current Phase:** 02
 - **Current Plan:** 1
-- **Last Session:** 2026-03-19T22:06:57.237Z
-- **Stopped At:** Completed 02-01-PLAN.md
+- **Last Session:** 2026-03-19T22:13:21.508Z
+- **Stopped At:** Completed 02-02-PLAN.md
 
 ## Phase Status
 
@@ -75,6 +75,8 @@ progress:
 - 2026-03-19: evaluate_target_state() is pure — takes state+evidence, returns new state string, never mutates input
 - 2026-03-19: High-threat types (SAM/TEL/MANPADS) have lower verification thresholds (0.5/0.7) than default (0.6/0.8)
 - 2026-03-19: DEMO_FAST halves time thresholds and lowers confidence by 0.1 (floor 0.3/0.4)
+- 2026-03-19: Fade logic extended to CLASSIFIED/VERIFIED states — verification promotion broke pre-existing decay test
+- 2026-03-19: ISR pipeline gate: only fires once per target on VERIFIED transition, tracked by _last_verified dict in TacticalAssistant
 
 ## Performance Metrics
 
@@ -88,3 +90,4 @@ progress:
 | 01 | 02 | ~15min | 2/2 | 2 |
 | Phase 01 P03 | 266s | 2 tasks | 8 files |
 | Phase 02 P01 | 162 | 2 tasks | 2 files |
+| Phase 02 P02 | 233s | 2 tasks | 3 files |
