@@ -70,6 +70,10 @@ export function useCesiumTargets(viewerRef: React.RefObject<Cesium.Viewer | null
           });
           positionProperty.addSample(viewer.clock.currentTime, position);
 
+          const config = TARGET_MAP[t.type] || { color: '#ffcc00', label: 'TGT' };
+          const labelColor = Cesium.Color.fromCssColorString(
+            targetState === 'NEUTRALIZED' ? '#4a5568' : config.color
+          );
           const marker = viewer.entities.add({
             id: `target_${t.id}`,
             name: `Target-${t.id}`,
@@ -79,6 +83,21 @@ export function useCesiumTargets(viewerRef: React.RefObject<Cesium.Viewer | null
               verticalOrigin: Cesium.VerticalOrigin.CENTER,
               heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
               color: Cesium.Color.WHITE.withAlpha(billboardAlpha),
+            },
+            label: {
+              text: `${config.label} #${t.id}`,
+              font: 'bold 12px monospace',
+              fillColor: labelColor,
+              outlineColor: Cesium.Color.BLACK,
+              outlineWidth: 3,
+              style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+              verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+              pixelOffset: new Cesium.Cartesian2(0, -36),
+              showBackground: true,
+              backgroundColor: Cesium.Color.BLACK.withAlpha(0.55),
+              backgroundPadding: new Cesium.Cartesian2(5, 3),
+              distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0.0, 1200000.0),
+              disableDepthTestDistance: Number.POSITIVE_INFINITY,
             },
           }) as TargetEntity;
           entitiesRef.current[t.id] = marker;
@@ -94,6 +113,11 @@ export function useCesiumTargets(viewerRef: React.RefObject<Cesium.Viewer | null
           (marker.position as Cesium.SampledPositionProperty).addSample(targetTime, position);
           marker.billboard!.image = new Cesium.ConstantProperty(getTargetIcon(t));
           marker.billboard!.color = new Cesium.ConstantProperty(Cesium.Color.WHITE.withAlpha(billboardAlpha));
+          const updConfig = TARGET_MAP[t.type] || { color: '#ffcc00', label: 'TGT' };
+          const updLabelColor = Cesium.Color.fromCssColorString(
+            targetState === 'NEUTRALIZED' ? '#4a5568' : updConfig.color
+          );
+          marker.label!.fillColor = new Cesium.ConstantProperty(updLabelColor);
         }
 
         // Threat rings for SAM/MANPADS

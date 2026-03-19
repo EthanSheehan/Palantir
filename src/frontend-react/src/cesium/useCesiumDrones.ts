@@ -80,6 +80,21 @@ function updateDrones(uavs: UAV[], viewer: Cesium.Viewer, entities: Record<numbe
           distanceDisplayCondition: new Cesium.DistanceDisplayCondition(2000.0, 800000.0),
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
         },
+        label: {
+          text: `UAV-${uav.id}`,
+          font: 'bold 13px monospace',
+          fillColor: color,
+          outlineColor: Cesium.Color.BLACK,
+          outlineWidth: 3,
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+          verticalOrigin: Cesium.VerticalOrigin.TOP,
+          pixelOffset: new Cesium.Cartesian2(0, 14),
+          showBackground: true,
+          backgroundColor: Cesium.Color.BLACK.withAlpha(0.55),
+          backgroundPadding: new Cesium.Cartesian2(5, 3),
+          distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0.0, 1200000.0),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
         model: {
           uri: 'Fixed V2.glb',
           minimumPixelSize: 100,
@@ -158,6 +173,7 @@ function updateDrones(uavs: UAV[], viewer: Cesium.Viewer, entities: Record<numbe
       if (marker._lastMode !== colorStr) {
         marker.billboard!.image = new Cesium.ConstantProperty(billboardImage);
         marker.point!.color = new Cesium.ConstantProperty(color);
+        marker.label!.fillColor = new Cesium.ConstantProperty(color);
         if (marker._tether) {
           marker._tether.polyline!.material = new Cesium.ColorMaterialProperty(color.withAlpha(0.3));
         }
