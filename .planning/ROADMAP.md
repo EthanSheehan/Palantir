@@ -458,6 +458,14 @@ Plans:
 
 **Depends on**: Phases 1+2+3+4 (fusion + verification + modes + enemy UAVs)
 
+**Plans:** 3 plans
+**Requirements:** [FR-4]
+
+Plans:
+- [ ] 05-01-PLAN.md — TDD SwarmCoordinator module (frozen dataclasses, greedy assignment, idle guard, unit tests)
+- [ ] 05-02-PLAN.md — sim_engine integration (tick hook, SUPPORT mode, get_state broadcast, WS actions, integration tests)
+- [ ] 05-03-PLAN.md — React frontend (SwarmTask types, SwarmPanel component, Cesium dashed swarm lines)
+
 ### 5.1 New Module: `src/python/swarm_coordinator.py`
 - `SwarmCoordinator` class: runs each tick after detection
 - `evaluate_and_assign()` — greedy assignment: identify sensor gaps per target, dispatch nearest matching UAV
