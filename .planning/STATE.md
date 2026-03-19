@@ -1,3 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+current_phase: 01 - Multi-Sensor Target Fusion
+current_plan: 02 of 03 (Plan 01 complete)
+status: unknown
+stopped_at: Completed 00-06-PLAN.md
+last_updated: "2026-03-19T20:33:07.778Z"
+progress:
+  total_phases: 10
+  completed_phases: 0
+  total_plans: 16
+  completed_plans: 7
+---
+
 # Project State
 
 ## Current Phase: 01-multi-sensor-target-fusion
@@ -5,8 +21,8 @@
 ## Position
 - **Current Phase:** 01 - Multi-Sensor Target Fusion
 - **Current Plan:** 02 of 03 (Plan 01 complete)
-- **Last Session:** 2026-03-19 — Completed 00-05-PLAN.md (ASSETS + ENEMIES panels, drone mode commands)
-- **Stopped At:** 01-02-PLAN.md (next to execute)
+- **Last Session:** 2026-03-19T20:33:07.764Z
+- **Stopped At:** Completed 00-06-PLAN.md
 
 ## Phase Status
 
@@ -44,6 +60,7 @@
 - 2026-03-19: window.location.hostname in WS URL (not hardcoded localhost) for Vite proxy compatibility
 - 2026-03-19: ViewerContext default { current: null } so consumers skip null-check on the ref
 - 2026-03-19: WebSocketContext at App root mirrors vanilla state.ws without globals
+- 2026-03-19: Window custom events (palantir:send, palantir:placeWaypoint, palantir:openDetailMap) bridge Cesium imperative hooks to React WebSocket context without prop drilling
 
 ## Performance Metrics
 
@@ -53,3 +70,5 @@
 | 00 | 02 | ~2min | 2/2 | 5 |
 | 00 | 05 | 4min | 2/2 | 9 |
 | 01 | 01 | 2min | 1/1 | 2 |
+| 00 | 06 | 10min | 2/2 | 13 |
+
