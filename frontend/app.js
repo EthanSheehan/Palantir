@@ -62,8 +62,21 @@ viewer.camera.flyTo({
     duration: 0 
 });
 
-// 1b. Initialize Workspace Shell (reparents DOM into region layout)
-WorkspaceShell.init(viewer);
+// 1b. WorkspaceShell replaced by React layout (see app/layout/WorkspaceLayout.tsx)
+// Legacy WorkspaceShell.init(viewer) is no longer called.
+// React's WorkspaceLayout will reparent #cesiumContainer and #timelinePanel.
+window.viewer = viewer; // Expose for React CesiumSurfaceHost to adopt
+
+// Create temporary #ws-tool-palette for MapToolController (React will adopt its children later)
+(function() {
+    let palette = document.getElementById('ws-tool-palette');
+    if (!palette) {
+        palette = document.createElement('div');
+        palette.id = 'ws-tool-palette';
+        palette.className = 'ws-tool-palette';
+        document.body.appendChild(palette);
+    }
+})();
 
 // 1c. Initialize Map Tool Controller (click/tool modes)
 MapToolController.init(viewer, null); // ws set later after connectWebSocket
@@ -557,8 +570,10 @@ function updateSimulation(state) {
         }
     });
     
-    document.getElementById('uavCount').textContent = state.uavs.length;
-    document.getElementById('zoneCount').textContent = state.zones.length;
+    const _uavCountEl = document.getElementById('uavCount');
+    const _zoneCountEl = document.getElementById('zoneCount');
+    if (_uavCountEl) _uavCountEl.textContent = state.uavs.length;
+    if (_zoneCountEl) _zoneCountEl.textContent = state.zones.length;
     
     // Determine currently tracked drone ID
     let currentTrackedId = null;
@@ -566,9 +581,10 @@ function updateSimulation(state) {
         currentTrackedId = parseInt(trackedDroneEntity.id.replace('uav_', ''));
     }
     
-    // Update Sidebar Drone List
+    // Update Sidebar Drone List (legacy — only if element exists)
     const listContainer = document.getElementById('droneListContainer');
-    if (state.uavs.length === 0) {
+    if (!listContainer) { /* React owns the assets panel now */ }
+    else if (state.uavs.length === 0) {
         listContainer.innerHTML = '<div class="empty-state">No UAVs Active.</div>';
     } else {
         // Remove empty state message if it is there
@@ -1491,15 +1507,13 @@ function connectWebSocket() {
     ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-        connStatus.textContent = "Uplink Active";
-        connStatus.className = "stat-value connected";
+        if (connStatus) { connStatus.textContent = "Uplink Active"; connStatus.className = "stat-value connected"; }
         wsReconnectDelay = 1000; // reset on success
         MapToolController.setWebSocket(ws);
     };
 
     ws.onclose = () => {
-        connStatus.textContent = "Signal Lost";
-        connStatus.className = "stat-value disconnected";
+        if (connStatus) { connStatus.textContent = "Signal Lost"; connStatus.className = "stat-value disconnected"; }
         setTimeout(connectWebSocket, wsReconnectDelay);
         wsReconnectDelay = Math.min(wsReconnectDelay * 2, 30000);
     };

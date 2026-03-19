@@ -1,0 +1,69 @@
+.assets-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.assets-filters {
+  margin-bottom: 4px;
+}
+
+.assets-filters .bp5-segmented-control {
+  background: rgba(30, 41, 59, 0.5);
+}
+
+.assets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.asset-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(100, 116, 139, 0.1);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.asset-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(100, 116, 139, 0.25);
+}
+
+/* Primary selection — gold, matches the globe halo */
+.asset-row.asset-primary {
+  border-color: rgba(250, 204, 21, 0.6);
+  background: rgba(250, 204, 21, 0.08);
+  box-shadow: inset 2px 0 0 #facc15;
+}
+
+.asset-row.asset-primary .asset-id {
+  color: #facc15;
+}
+
+/* Secondary selection — cyan, matches globe secondary rings */
+.asset-row.asset-secondary {
+  border-color: rgba(34, 211, 238, 0.4);
+  background: rgba(34, 211, 238, 0.06);
+  box-shadow: inset 2px 0 0 #22d3ee;
+}
+
+.asset-row.asset-secondary .asset-id {
+  color: #22d3ee;
+}
+
+.asset-id {
+  color: #e2e8f0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.asset-mode-tag {
+  font-size: 0.6rem !important;
+}

@@ -14,7 +14,8 @@
     <!-- fonts.css MUST be first: declares @font-face for self-hosted Inter before any rule uses it -->
     <link href="fonts.css" rel="stylesheet">
     <link href="style.css?v=17" rel="stylesheet">
-    <link href="workspace-shell.css?v=16" rel="stylesheet">
+    <!-- workspace-shell.css replaced by React WorkspaceLayout.css -->
+    <!-- <link href="workspace-shell.css?v=16" rel="stylesheet"> -->
 </head>
 <body>
 <div id="appContainer">
@@ -221,26 +222,27 @@
     </div>
 
     <!-- State Management & API -->
-    <script src="state.js"></script>
+    <script src="state.js?v=2"></script>
     <script src="api-client.js"></script>
     <script src="ws-client.js"></script>
 
-    <!-- Panel Modules -->
-    <script src="panels/inspector-panel.js"></script>
-    <script src="panels/mission-panel.js"></script>
-    <script src="panels/alerts-panel.js"></script>
-    <script src="panels/timeline-panel.js?v=19"></script>
-    <script src="panels/toolbar.js?v=11"></script>
-    <script src="panels/macrogrid-panel.js"></script>
+    <!-- Panel Modules (migrated panels removed — React handles them now) -->
+    <!-- inspector-panel.js → app/panels/inspector/InspectorPanel.tsx -->
+    <!-- mission-panel.js → app/panels/missions/MissionsPanel.tsx -->
+    <!-- alerts-panel.js → app/panels/alerts/AlertsPanel.tsx -->
+    <script src="panels/timeline-panel.js?v=20"></script>
+    <!-- toolbar.js → app/layout/TopCommandBar.tsx -->
+    <!-- macrogrid-panel.js → app/panels/macrogrid/MacrogridPanel.tsx -->
 
-    <!-- Workspace Shell -->
-    <script src="pane-registry.js"></script>
-    <script src="pane-definitions.js"></script>
-    <script src="layout-persistence.js"></script>
-    <script src="workspace-shell.js?v=14"></script>
-    <script src="map-tool-controller.js?v=14"></script>
+    <!-- Legacy modules removed (React handles layout + persistence) -->
+    <!-- workspace-shell.js → app/layout/WorkspaceLayout.tsx -->
+    <!-- pane-registry.js, pane-definitions.js, layout-persistence.js → React layout -->
+    <script src="map-tool-controller.js?v=15"></script>
 
     <!-- Main Application Logic -->
-    <script src="app.js?v=32"></script>
+    <script src="app.js?v=34"></script>
+
+    <!-- React + Blueprint Shell (module entry — loaded after legacy scripts) -->
+    <script type="module" src="/app/bootstrap/main.tsx"></script>
 </body>
 </html>

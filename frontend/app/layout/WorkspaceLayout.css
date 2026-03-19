@@ -1,0 +1,435 @@
+/* ============================================
+   WORKSPACE LAYOUT — React Shell
+   Replaces legacy workspace-shell.css
+   ============================================ */
+
+.workspace-shell {
+  display: grid;
+  grid-template-rows: 48px 1fr;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #000;
+  position: relative;
+}
+
+.ws-body {
+  display: flex;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ---- LEFT RAIL (floating overlay) ---- */
+.ws-left-rail {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  bottom: 8px;
+  width: var(--ws-left-width, 380px);
+  min-width: 240px;
+  max-width: 800px;
+  background: rgba(8, 14, 28, 0.82);
+  backdrop-filter: blur(12px) saturate(130%);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5),
+              inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 80;
+  transition: width 0.2s ease;
+}
+
+.ws-left-rail.ws-dragging {
+  transition: none !important;
+}
+
+.ws-left-rail.ws-collapsed {
+  width: 48px !important;
+  min-width: 48px;
+}
+
+/* ---- TAB BAR ---- */
+.ws-tab-bar {
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(100, 116, 139, 0.2);
+  flex-shrink: 0;
+  background: rgba(10, 15, 25, 0.6);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.ws-tab-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.ws-tab-btn {
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(100, 116, 139, 0.2);
+  border-radius: 5px;
+  color: #64748b;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ws-tab-btn .ws-tab-icon {
+  flex-shrink: 0;
+  width: 32px;
+  text-align: center;
+  font-size: 0.75rem;
+}
+
+.ws-tab-btn .ws-tab-label {
+  display: none;
+  font-size: 0.6rem;
+  padding-right: 10px;
+}
+
+.ws-tab-btn:hover {
+  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(100, 116, 139, 0.4);
+}
+
+.ws-tab-btn.ws-active {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.4);
+  width: auto;
+}
+
+.ws-tab-btn.ws-active .ws-tab-label {
+  display: inline;
+}
+
+/* ---- TAB CONTENT ---- */
+.ws-tab-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  padding: 12px;
+}
+
+.ws-tab-content::-webkit-scrollbar {
+  width: 6px;
+}
+.ws-tab-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+.ws-tab-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+.ws-tab-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* ---- SPLITTER (left edge of left rail) ---- */
+.ws-left-splitter {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: calc(var(--ws-left-width, 380px) + 8px);
+  width: 4px;
+  cursor: col-resize;
+  z-index: 85;
+  background: transparent;
+  transition: background-color 0.15s ease;
+}
+
+.ws-left-splitter:hover,
+.ws-left-splitter.ws-active {
+  background-color: rgba(56, 189, 248, 0.4);
+}
+
+/* ---- TOP COMMAND BAR ---- */
+.ws-top-bar {
+  background: rgba(10, 15, 25, 0.95);
+  border-bottom: 1px solid rgba(100, 116, 139, 0.3);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  z-index: 100;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ws-app-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #f8fafc;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-right: 24px;
+  white-space: nowrap;
+  font-family: 'Inter', sans-serif;
+}
+
+/* ---- TOOL PALETTE ---- */
+.ws-tool-palette {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 16px;
+  padding: 2px;
+  background: rgba(30, 41, 59, 0.6);
+  border-radius: 4px;
+  border: 1px solid rgba(100, 116, 139, 0.2);
+}
+
+.ws-tool-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  font-family: 'Inter', 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ws-tool-btn:hover {
+  background: rgba(100, 116, 139, 0.2);
+  color: #e2e8f0;
+}
+
+.ws-tool-btn.ws-active {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+}
+
+/* ---- FLOATING TIMELINE PILL ---- */
+.ws-timeline-pill {
+  position: absolute;
+  z-index: 95;
+  bottom: 16px;
+  right: 12px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 6px;
+  background: rgba(8, 14, 28, 0.82);
+  backdrop-filter: blur(12px) saturate(130%);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45),
+              inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: bottom 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.15s,
+              box-shadow 0.15s;
+}
+
+.ws-timeline-pill:hover {
+  border-color: rgba(56, 189, 248, 0.45);
+  box-shadow: 0 4px 28px rgba(56, 189, 248, 0.12),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.ws-date-day,
+.ws-date-month,
+.ws-date-year,
+.ws-date-time {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #94a3b8;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ws-date-sep {
+  font-size: 0.7rem;
+  color: rgba(100, 116, 139, 0.4);
+  margin: 0 2px;
+}
+
+/* ---- TIMELINE DRAWER ---- */
+.ws-timeline-drawer {
+  position: absolute;
+  z-index: 90;
+  bottom: 8px;
+  right: 8px;
+  left: calc(var(--ws-left-width, 380px) + 8px + 4px + 8px);
+  height: 0;
+  overflow: hidden;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  transition: height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.35s ease,
+              box-shadow 0.35s ease,
+              background 0.15s ease;
+  pointer-events: none;
+}
+
+.ws-timeline-drawer.ws-open {
+  background: rgba(8, 14, 28, 0.82);
+  backdrop-filter: blur(12px) saturate(130%);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.5),
+              inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  pointer-events: auto;
+}
+
+.ws-timeline-drawer.ws-dragging {
+  transition: none !important;
+}
+
+/* Resize handle at top of drawer */
+.ws-timeline-resize-handle {
+  display: none;
+}
+
+.ws-timeline-drawer.ws-open .ws-timeline-resize-handle {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: row-resize;
+  z-index: 20;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.ws-timeline-drawer.ws-open .ws-timeline-resize-handle:hover {
+  background: rgba(56, 189, 248, 0.18);
+  border-bottom-color: rgba(56, 189, 248, 0.35);
+}
+
+.ws-timeline-drawer-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  flex-shrink: 0;
+  min-height: 28px;
+}
+
+/* ---- RIGHT INSPECTOR DRAWER ---- */
+.ws-right-drawer {
+  flex-shrink: 0;
+  height: 100%;
+  min-width: 240px;
+  max-width: 600px;
+  background: rgba(8, 14, 28, 0.92);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-left: 1px solid rgba(100, 116, 139, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: ws-drawer-slide-in 0.2s ease;
+}
+
+@keyframes ws-drawer-slide-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.ws-right-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(100, 116, 139, 0.15);
+  flex-shrink: 0;
+}
+
+.ws-right-drawer-title {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.ws-right-drawer-close {
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  line-height: 1;
+}
+
+.ws-right-drawer-close:hover {
+  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ws-right-drawer-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px;
+}
+
+.ws-right-drawer-content::-webkit-scrollbar {
+  width: 6px;
+}
+.ws-right-drawer-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.ws-right-splitter {
+  width: 4px;
+  cursor: col-resize;
+  flex-shrink: 0;
+  background: transparent;
+  transition: background-color 0.15s ease;
+}
+
+.ws-right-splitter:hover {
+  background-color: rgba(56, 189, 248, 0.4);
+}
+
+/* ---- Camera Controls (repositioned into shell) ---- */
+#cameraControls {
+  position: absolute;
+  top: 56px; /* below 48px top bar + 8px gap */
+  right: 12px;
+  z-index: 85;
+}

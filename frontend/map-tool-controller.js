@@ -568,3 +568,5 @@ const MapToolController = (() => {
         _currentMousePosition: null,
     };
 })();
+// Expose on window for ES module access
+window.MapToolController = MapToolController;

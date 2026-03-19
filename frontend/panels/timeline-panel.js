@@ -443,3 +443,5 @@ const TimelinePanel = (() => {
 
     return { init, render, resize };
 })();
+// Expose on window for ES module access
+window.TimelinePanel = TimelinePanel;

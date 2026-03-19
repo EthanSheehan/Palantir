@@ -10,8 +10,9 @@
     },
     {
       "name": "frontend",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8093", "-d", "frontend"],
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["node_modules/vite/bin/vite.js"],
+      "cwd": "frontend",
       "port": 8093
     }
   ]

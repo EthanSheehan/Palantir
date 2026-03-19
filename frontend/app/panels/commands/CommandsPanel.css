@@ -1,0 +1,33 @@
+.commands-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.commands-empty {
+  color: #64748b;
+  padding: 24px 0;
+}
+
+.command-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px;
+  border-radius: 3px;
+  font-size: 0.72rem;
+}
+
+.command-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.command-type {
+  color: #e2e8f0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+}
+
+.command-state {
+  font-size: 0.6rem !important;
+}
