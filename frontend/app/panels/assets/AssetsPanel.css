@@ -5,23 +5,47 @@
 }
 
 .assets-filters {
-  margin-bottom: 4px;
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
 }
 
-.assets-filters .bp5-segmented-control {
-  background: rgba(30, 41, 59, 0.5);
+.filter-toggle {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(100, 116, 139, 0.2);
+  border-radius: 4px;
+  color: #64748b;
+  font-size: 0.65rem;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 0;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.filter-toggle:hover {
+  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(100, 116, 139, 0.4);
+}
+
+.filter-toggle.filter-active {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.4);
 }
 
 .assets-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
-.asset-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+/* ---- Asset Card ---- */
+.asset-card {
   padding: 6px 8px;
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.03);
@@ -30,40 +54,125 @@
   transition: all 0.15s;
 }
 
-.asset-row:hover {
+.asset-card:hover {
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(100, 116, 139, 0.25);
 }
 
-/* Primary selection — gold, matches the globe halo */
-.asset-row.asset-primary {
+/* Primary selection — gold */
+.asset-card.asset-primary {
   border-color: rgba(250, 204, 21, 0.6);
   background: rgba(250, 204, 21, 0.08);
   box-shadow: inset 2px 0 0 #facc15;
 }
 
-.asset-row.asset-primary .asset-id {
+.asset-card.asset-primary .asset-id {
   color: #facc15;
 }
 
-/* Secondary selection — cyan, matches globe secondary rings */
-.asset-row.asset-secondary {
+/* Secondary selection — cyan */
+.asset-card.asset-secondary {
   border-color: rgba(34, 211, 238, 0.4);
   background: rgba(34, 211, 238, 0.06);
   box-shadow: inset 2px 0 0 #22d3ee;
 }
 
-.asset-row.asset-secondary .asset-id {
+.asset-card.asset-secondary .asset-id {
   color: #22d3ee;
+}
+
+/* ---- Card Header ---- */
+.asset-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
 }
 
 .asset-id {
   color: #e2e8f0;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 700;
   font-family: 'JetBrains Mono', monospace;
 }
 
-.asset-mode-tag {
-  font-size: 0.6rem !important;
+.asset-card-tags {
+  display: flex;
+  gap: 3px;
+}
+
+.asset-tag-sm {
+  font-size: 0.55rem !important;
+  padding: 1px 4px !important;
+  min-height: 0 !important;
+  line-height: 1.3 !important;
+}
+
+/* ---- Telemetry Grid ---- */
+.asset-card-telem {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 2px;
+  margin-bottom: 4px;
+}
+
+.telem-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.telem-label {
+  font-size: 0.5rem;
+  font-weight: 600;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  line-height: 1;
+}
+
+.telem-value {
+  font-size: 0.62rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: #94a3b8;
+  line-height: 1.3;
+}
+
+/* ---- Systems Bars ---- */
+.asset-card-systems {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.system-bar-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.system-label {
+  font-size: 0.5rem;
+  font-weight: 600;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  width: 22px;
+  flex-shrink: 0;
+}
+
+.system-bar.bp5-progress-bar {
+  flex: 1;
+  height: 3px;
+  min-width: 0;
+}
+
+.system-pct {
+  font-size: 0.55rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: #94a3b8;
+  width: 26px;
+  text-align: right;
+  flex-shrink: 0;
 }
