@@ -16,7 +16,32 @@ const TRACKER_COLORS: Record<string, { color: string; border: string }> = {
   FOLLOW:    { color: '#a78bfa', border: 'rgba(167, 139, 250, 0.4)' },
 };
 
-export function EnemyCard({ target, trackers }: EnemyCardProps) {
+/** Dampen re-renders: only update when semantically meaningful fields change */
+function trackersEqual(a: EnemyCardProps['trackers'], b: EnemyCardProps['trackers']): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].id !== b[i].id || a[i].mode !== b[i].mode) return false;
+  }
+  return true;
+}
+
+function targetsShallowEqual(a: Target, b: Target): boolean {
+  return (
+    a.id === b.id &&
+    a.type === b.type &&
+    a.state === b.state &&
+    a.detected === b.detected &&
+    a.concealed === b.concealed &&
+    a.sensor_count === b.sensor_count &&
+    Math.round((a.lat ?? 0) * 1000) === Math.round((b.lat ?? 0) * 1000) &&
+    Math.round((a.lon ?? 0) * 1000) === Math.round((b.lon ?? 0) * 1000) &&
+    Math.round((a.detection_confidence ?? 0) * 100) === Math.round((b.detection_confidence ?? 0) * 100) &&
+    Math.round((a.fused_confidence ?? 0) * 100) === Math.round((b.fused_confidence ?? 0) * 100) &&
+    (a.sensor_contributions ?? []).length === (b.sensor_contributions ?? []).length
+  );
+}
+
+const EnemyCardInner = function EnemyCardInner({ target, trackers }: EnemyCardProps) {
   const selectedTargetId = useSimStore(s => s.selectedTargetId);
   const selectTarget = useSimStore(s => s.selectTarget);
 
@@ -148,7 +173,7 @@ export function EnemyCard({ target, trackers }: EnemyCardProps) {
         {/* Meta */}
         <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
           <div style={{ color: '#475569', fontSize: '0.65rem' }}>
-            {target.lat.toFixed(4)}, {target.lon.toFixed(4)}
+            {target.lat.toFixed(3)}, {target.lon.toFixed(3)}
           </div>
           <div style={{ color: '#64748b', fontSize: '0.65rem', marginTop: 2 }}>
             {confidence}% CONF
@@ -157,4 +182,8 @@ export function EnemyCard({ target, trackers }: EnemyCardProps) {
       </div>
     </div>
   );
-}
+};
+
+export const EnemyCard = React.memo(EnemyCardInner, (prev, next) => {
+  return targetsShallowEqual(prev.target, next.target) && trackersEqual(prev.trackers, next.trackers);
+});

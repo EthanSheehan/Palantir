@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import type { SensorContributionPayload } from '../../store/types';
 
@@ -15,8 +15,19 @@ interface FusionBarProps {
   fused_confidence: number;
 }
 
-export function FusionBar({ contributions, fused_confidence }: FusionBarProps) {
+/** Stabilize contributions into a string key so useMemo only fires on real changes */
+function contributionKey(contributions: SensorContributionPayload[]): string {
+  return contributions
+    .map(c => `${c.uav_id}:${c.sensor_type}:${Math.round(c.confidence * 100)}`)
+    .sort()
+    .join('|');
+}
+
+export const FusionBar = React.memo(function FusionBar({ contributions, fused_confidence }: FusionBarProps) {
   if (!contributions || contributions.length === 0) return null;
+
+  const stableKey = contributionKey(contributions);
+  const roundedConf = Math.round(fused_confidence * 100);
 
   const option = useMemo(() => {
     const perType: Record<string, number> = {};
@@ -26,6 +37,7 @@ export function FusionBar({ contributions, fused_confidence }: FusionBarProps) {
       }
     }
     return {
+      animation: false,
       tooltip: { trigger: 'axis' as const, axisPointer: { type: 'shadow' as const } },
       xAxis: { type: 'value' as const, max: 1.0, show: false },
       yAxis: { type: 'category' as const, data: ['FUSION'], show: false },
@@ -39,14 +51,15 @@ export function FusionBar({ contributions, fused_confidence }: FusionBarProps) {
         data: [perType[stype] ?? 0],
       })),
     };
-  }, [contributions, fused_confidence]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stableKey]);
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <ReactECharts option={option} style={{ height: 12, width: 120, flex: '0 0 120px' }} opts={{ renderer: 'canvas' }} />
+      <ReactECharts option={option} style={{ height: 12, width: 120, flex: '0 0 120px' }} opts={{ renderer: 'canvas' }} notMerge={false} />
       <span style={{ color: '#aaa', fontSize: 11 }}>
-        {(fused_confidence * 100).toFixed(0)}%
+        {roundedConf}%
       </span>
     </div>
   );
-}
+});
