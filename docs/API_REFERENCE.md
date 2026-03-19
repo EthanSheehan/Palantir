@@ -248,7 +248,7 @@ Sent when agents detect significant events.
 
 **Levels**: `INFO`, `WARNING`, `CRITICAL`
 
-**Agents**: `isr_observer`, `strategy_analyst`, `tactical_planner`, `effectors_agent`
+**Agents**: `isr_observer`, `strategy_analyst`, `tactical_planner`, `effectors_agent`, `pattern_analyzer`, `ai_tasking_manager`, `battlespace_manager`, `synthesis_query_agent`, `performance_auditor`
 
 **Use Case**: Tactical AIP Assistant message feed
 
@@ -495,6 +495,23 @@ Request a situation report.
 ```
 
 Response will be sent as `SITREP_RESPONSE` message.
+
+---
+
+#### `verify_target`
+Manually fast-track a CLASSIFIED target to VERIFIED (operator override).
+
+**Message:**
+```json
+{
+  "type": "verify_target",
+  "payload": {
+    "target_id": 5
+  }
+}
+```
+
+**Precondition**: Target must be in `CLASSIFIED` state. If target is not CLASSIFIED, the action is ignored.
 
 ---
 
@@ -770,6 +787,11 @@ Each entry in the `targets` array:
 | `is_emitting` | bool | Whether target is actively emitting (radar/comms) |
 | `heading_deg` | float | Movement heading in degrees (0-360) |
 | `tracked_by_uav_id` | string or null | ID of UAV currently tracking this target |
+| `fused_confidence` | float | Multi-sensor fused confidence 0.0-1.0 (complementary fusion) |
+| `sensor_count` | int | Number of distinct sensor types currently observing this target |
+| `sensor_contributions` | array | Per-sensor breakdown: `[{uav_id, sensor_type, confidence}]` |
+| `time_in_state_sec` | float | Seconds the target has been in its current verification state |
+| `next_threshold` | float or null | Confidence threshold needed for next verification state advance (null if at terminal state) |
 
 **Target Types**: `SAM`, `TEL`, `TRUCK`, `CP`, `MANPADS`, `RADAR`, `C2_NODE`, `LOGISTICS`, `ARTILLERY`, `APC`
 
@@ -839,12 +861,20 @@ Each entry in the `flows` array represents a UAV-to-target tracking link:
         "lat": 45.2,
         "type": "SAM",
         "detected": true,
-        "state": "DETECTED",
+        "state": "CLASSIFIED",
         "detection_confidence": 0.85,
         "detected_by_sensor": "EO/IR",
         "is_emitting": true,
         "heading_deg": 0.0,
-        "tracked_by_uav_id": null
+        "tracked_by_uav_id": null,
+        "fused_confidence": 0.88,
+        "sensor_count": 2,
+        "sensor_contributions": [
+          {"uav_id": 1, "sensor_type": "EO_IR", "confidence": 0.7},
+          {"uav_id": 3, "sensor_type": "SAR", "confidence": 0.6}
+        ],
+        "time_in_state_sec": 8.3,
+        "next_threshold": 0.7
       }
     ],
     "zones": [
@@ -890,14 +920,30 @@ Each entry in the `flows` array represents a UAV-to-target tracking link:
 
 Targets progress through kill chain states as the F2T2EA pipeline advances. Each target's `state` field reflects its current position in the chain.
 
-### States
+### Verification States (automated pipeline)
+
+Targets first pass through the verification pipeline before entering the kill chain:
+
+```
+DETECTED → CLASSIFIED → VERIFIED → NOMINATED
+```
+
+| State | Advance Condition |
+|-------|-------------------|
+| `DETECTED` → `CLASSIFIED` | `fused_confidence >= classify_confidence` (per-type threshold) |
+| `CLASSIFIED` → `VERIFIED` | `fused_confidence >= verify_confidence` AND (`sensor_count >= 2` OR `time_in_state >= sustained_sec`) |
+| `VERIFIED` → `NOMINATED` | ISR pipeline picks up target for nomination |
+
+Targets regress one state if no sensors observe them for `regression_timeout_sec`. Operators can manually fast-track CLASSIFIED → VERIFIED via `verify_target` action.
+
+### Kill Chain States
 
 | State | Description |
 |-------|-------------|
 | `UNDETECTED` | Target exists in simulation but has not been sensed |
 | `DETECTED` | Sensor contact established, position known |
-| `TRACKED` | UAV assigned in FOLLOW mode, maintaining continuous observation |
-| `IDENTIFIED` | ISR Observer agent has analyzed and classified the target |
+| `CLASSIFIED` | Target type confirmed via fused confidence threshold |
+| `VERIFIED` | Multi-source corroboration complete |
 | `NOMINATED` | Strategy Analyst has recommended the target for engagement |
 | `LOCKED` | UAV in PAINT or INTERCEPT mode, laser designation active |
 | `ENGAGED` | Strike authorized and executed |
@@ -909,9 +955,10 @@ Targets progress through kill chain states as the F2T2EA pipeline advances. Each
 
 ```
 UNDETECTED ──→ DETECTED          (sensor detection, confidence threshold met)
-    DETECTED ──→ TRACKED          (UAV assigned in FOLLOW mode)
-     TRACKED ──→ IDENTIFIED       (ISR Observer agent analysis complete)
-  IDENTIFIED ──→ NOMINATED        (Strategy Analyst recommendation, HITL Gate 1)
+    DETECTED ──→ CLASSIFIED       (fused_confidence >= classify threshold)
+  CLASSIFIED ──→ VERIFIED         (fused_confidence >= verify AND multi-sensor OR sustained time)
+  CLASSIFIED ──→ VERIFIED         (operator manual verify_target action)
+    VERIFIED ──→ NOMINATED        (ISR pipeline nomination, HITL Gate 1)
    NOMINATED ──→ LOCKED           (UAV enters PAINT or INTERCEPT mode)
       LOCKED ──→ ENGAGED          (strike authorized via HITL Gate 2)
      ENGAGED ──→ DESTROYED        (BDA: target confirmed destroyed)

@@ -53,8 +53,10 @@ Environment variables go in a `.env` file (loaded via python-dotenv). Required f
 - `demo_autopilot()` async loop (when `DEMO_MODE=true`): auto-approves HITL nominations, generates COAs, auto-authorizes, simulates engagement with probabilistic outcomes
 - Broadcasts full simulation state as JSON each tick
 
-**2. Simulation Engine (`src/python/sim_engine.py`)**
+**2. Simulation Engine (`src/python/sim_engine.py`) + Verification (`verification_engine.py`) + Fusion (`sensor_fusion.py`)**
 - `SimulationModel` manages UAV positions/modes and target movement (SAM, TEL, TRUCK, CP, MANPADS, RADAR, C2_NODE, LOGISTICS, ARTILLERY, APC)
+- `verification_engine.py` — pure-function state machine advancing targets through DETECTED → CLASSIFIED → VERIFIED → NOMINATED with per-target-type thresholds and regression timeouts; DEMO_FAST preset halves times for demo mode
+- `sensor_fusion.py` — complementary fusion across sensor types using `1 - ∏(1-ci)` with max-within-type deduplication; frozen `SensorContribution` and `FusionResult` dataclasses
 - UAV modes: IDLE (hold), SEARCH (circular loiter over zone), FOLLOW (loose ~2km orbit tracking target), PAINT (tight ~1km orbit with laser lock, target→LOCKED), INTERCEPT (direct approach at 1.5x speed, ~300m danger-close orbit, target→LOCKED), REPOSITIONING (zone rebalance at 3x turn rate), RTB (low fuel return to base)
 - Fixed-wing physics: `_turn_toward()` for smooth heading changes, `MAX_TURN_RATE` circular loiter in SEARCH, all tracking modes use gradual arcs
 - Mode commands from frontend: SEARCH (releases target), FOLLOW/PAINT/INTERCEPT (requires target selection)
@@ -66,17 +68,23 @@ Environment variables go in a `.env` file (loaded via python-dotenv). Required f
 - Served by Vite dev server on `:3000` (`npm run dev -- --port 3000`)
 - Tabs: MISSION / ASSETS / ENEMIES; Tactical AIP Assistant widget, Drone Camera PIP, Demo Banner
 - Drone cards in ASSETS tab with mode command buttons (SEARCH/FOLLOW/PAINT/INTERCEPT); clicking a card activates drone cam PIP
+- Enemy cards in ENEMIES tab with VerificationStepper (4-step progress dots), FusionBar (per-sensor confidence chart), SensorBadge (multi-sensor count), and manual VERIFY button
 - Cesium globe with all entity hooks: drones (mode-colored labels), targets (type+ID labels), zones, flow lines, compass, range rings, lock indicators
 - Custom event bridge (`palantir:send`, `palantir:placeWaypoint`, `palantir:openDetailMap`) for Cesium→React WebSocket communication
 - Legacy vanilla JS frontend remains in `src/frontend/` for reference
 
 ### AI Agent Layer (`src/python/agents/`)
 
-Four LangGraph/LangChain agents that form the kill chain pipeline:
+Nine LangGraph/LangChain agents — four in the kill chain pipeline plus five support agents:
 - `isr_observer.py` — sensor fusion (UAV, satellite, SIGINT)
 - `strategy_analyst.py` — ROE evaluation and priority scoring
 - `tactical_planner.py` — Course of Action (COA) generation
 - `effectors_agent.py` — execution and Battle Damage Assessment
+- `pattern_analyzer.py` — activity pattern analysis across targets
+- `ai_tasking_manager.py` — sensor retasking optimization
+- `battlespace_manager.py` — map layers + threat ring management
+- `synthesis_query_agent.py` — SITREP generation and NL queries
+- `performance_auditor.py` — system performance monitoring
 
 Agents communicate through Pydantic models defined in `src/python/core/ontology.py`. This is the shared data contract — all detection, identity, and tasking types live here.
 
@@ -88,7 +96,7 @@ Agents communicate through Pydantic models defined in `src/python/core/ontology.
 
 ### WebSocket Protocol
 
-The backend sends JSON payloads each tick containing drone positions, target positions, grid zone states, theater bounds, and tactical assistant messages. The frontend subscribes and updates Cesium entities in real time. Simulator clients send back video frames (base64 MJPEG) and telemetry. WebSocket actions: `scan_area`, `follow_target`, `paint_target`, `intercept_target`, `cancel_track`, `move_drone`, `spike`, `approve_nomination`, `reject_nomination`, `authorize_coa`.
+The backend sends JSON payloads each tick containing drone positions, target positions, grid zone states, theater bounds, and tactical assistant messages. The frontend subscribes and updates Cesium entities in real time. Simulator clients send back video frames (base64 MJPEG) and telemetry. WebSocket actions: `scan_area`, `follow_target`, `paint_target`, `intercept_target`, `cancel_track`, `move_drone`, `spike`, `approve_nomination`, `reject_nomination`, `authorize_coa`, `verify_target`.
 
 ## Integrated Agent Workflow (MANDATORY)
 

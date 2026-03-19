@@ -1,7 +1,7 @@
 # Palantir Simulation Engine -- Technical Reference
 
 **Date:** 2026-03-19
-**Source files:** `src/python/sim_engine.py`, `src/python/sensor_model.py`, `theaters/*.yaml`
+**Source files:** `src/python/sim_engine.py`, `src/python/sensor_model.py`, `src/python/sensor_fusion.py`, `src/python/verification_engine.py`, `theaters/*.yaml`
 
 ---
 
@@ -21,6 +21,8 @@
 12. [Environment Conditions](#environment-conditions)
 13. [WebSocket State Payload](#websocket-state-payload)
 14. [Constants Reference](#constants-reference)
+15. [Multi-Sensor Fusion](#multi-sensor-fusion)
+16. [Target Verification Engine](#target-verification-engine)
 
 ---
 
@@ -586,3 +588,115 @@ snr_norm        = range_term + rcs_gain * 0.3 - weather_penalty
 Pd              = sigmoid(snr_norm * 10 - 5)
 confidence      = Pd * resolution_factor
 ```
+
+---
+
+## Multi-Sensor Fusion
+
+**Source:** `src/python/sensor_fusion.py`
+
+The fusion module combines confidence readings from multiple sensors observing the same target into a single `fused_confidence` value. It uses **complementary fusion** — a standard technique where independent sensor readings combine multiplicatively.
+
+### Algorithm
+
+```
+fused_confidence = 1 - ∏(1 - max_confidence_per_sensor_type)
+```
+
+1. **Group by sensor type** — each sensor type (EO_IR, SAR, SIGINT) contributes at most one reading per target
+2. **Max within type** — if multiple UAVs of the same sensor type observe the same target, take the highest confidence
+3. **Complementary combine** — multiply the miss probabilities, then subtract from 1
+
+### Example
+
+A target observed by EO_IR (0.7) and SAR (0.6):
+```
+fused = 1 - (1 - 0.7) × (1 - 0.6) = 1 - 0.3 × 0.4 = 0.88
+```
+
+### Data Types
+
+All types are immutable frozen dataclasses:
+
+| Type | Fields | Description |
+|------|--------|-------------|
+| `SensorContribution` | `uav_id`, `sensor_type`, `confidence` | Single sensor reading |
+| `FusionResult` | `contributions`, `fused_confidence` | Combined result |
+
+### Integration with Sim Engine
+
+Each tick (step 9), the sim engine:
+1. Collects all successful sensor detections for each target
+2. Passes them to `fuse_sensors()` to compute `FusionResult`
+3. Updates `target.fused_confidence` and `target.sensor_contributions`
+4. Feeds `fused_confidence` into the verification engine for state advancement
+
+---
+
+## Target Verification Engine
+
+**Source:** `src/python/verification_engine.py`
+
+The verification engine is a pure-function state machine that gates targets before they can enter the kill chain. This prevents false positives and single-sensor flukes from being nominated for engagement.
+
+### Verification States
+
+```
+DETECTED → CLASSIFIED → VERIFIED → NOMINATED
+```
+
+### Pure Function Interface
+
+```python
+def evaluate_verification(
+    current_state: str,
+    fused_confidence: float,
+    distinct_sensor_count: int,
+    time_in_current_state_sec: float,
+    target_type: str,
+    thresholds: dict[str, VerificationThreshold] | None = None,
+) -> str:
+    """Returns the new state (may be same as current_state)."""
+```
+
+No side effects, no mutation — the caller (sim_engine) is responsible for applying the returned state.
+
+### Per-Target-Type Thresholds
+
+High-threat targets verify faster:
+
+| Type | Classify Conf | Verify Conf | Min Sensors | Sustained (s) | Regression (s) |
+|------|--------------|-------------|-------------|----------------|-----------------|
+| SAM | 0.50 | 0.70 | 2 | 10 | 8 |
+| TEL | 0.50 | 0.70 | 2 | 10 | 10 |
+| MANPADS | 0.50 | 0.70 | 2 | 10 | 8 |
+| RADAR | 0.55 | 0.75 | 2 | 12 | 10 |
+| C2_NODE | 0.55 | 0.75 | 2 | 12 | 10 |
+| ARTILLERY | 0.55 | 0.75 | 2 | 12 | 10 |
+| CP | 0.60 | 0.80 | 2 | 15 | 15 |
+| TRUCK | 0.60 | 0.80 | 2 | 15 | 15 |
+| LOGISTICS | 0.60 | 0.80 | 2 | 15 | 15 |
+| APC | 0.60 | 0.80 | 2 | 15 | 15 |
+
+### Advancement Rules
+
+- **DETECTED → CLASSIFIED**: `fused_confidence >= classify_confidence`
+- **CLASSIFIED → VERIFIED**: `fused_confidence >= verify_confidence` AND (`distinct_sensor_count >= verify_sensor_types` OR `time_in_state >= verify_sustained_sec`)
+- **VERIFIED → NOMINATED**: Handled externally by the ISR pipeline
+
+### Regression
+
+If `fused_confidence` drops to 0.0 (no sensor contact), the target regresses one state after `regression_timeout_sec`:
+- CLASSIFIED → DETECTED
+- VERIFIED → CLASSIFIED
+
+### Manual Override
+
+The `verify_target` WebSocket action fast-tracks a CLASSIFIED target to VERIFIED, bypassing the automated criteria. This allows operators to inject human intelligence.
+
+### DEMO_FAST Preset
+
+When `DEMO_MODE=true`, `DEMO_FAST_THRESHOLDS` are used:
+- All confidence thresholds reduced by 0.1 (minimum 0.3/0.4)
+- All time thresholds halved
+- Allows rapid kill chain progression for demonstrations

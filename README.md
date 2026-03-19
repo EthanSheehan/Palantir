@@ -8,8 +8,10 @@
 
 **Palantir C2** is a high-fidelity Command and Control system that automates the **F2T2EA kill chain** (Find, Fix, Track, Target, Engage, Assess) using multi-agent AI orchestration, a physics-based tactical simulator, and a Cesium 3D geospatial frontend.
 
-- **8 AI Agents** orchestrating the full kill chain with heuristic + LLM fallback
+- **9 AI Agents** orchestrating the full kill chain with heuristic + LLM fallback
 - **Human-in-the-Loop (HITL)** two-gate approval system for strike authorization
+- **Target Verification Pipeline** — 4-state machine (DETECTED → CLASSIFIED → VERIFIED → NOMINATED) with per-type thresholds, multi-sensor fusion, and operator manual override
+- **Multi-Sensor Fusion** — complementary fusion across EO/IR, SAR, and SIGINT with max-within-type dedup
 - **Physics-based simulation** with 10 enemy unit types, 7 UAV flight modes, and fuel/endurance modeling
 - **3 Theater configurations** (Romania, South China Sea, Baltic) with YAML scenario definition
 - **Real-time Cesium 3D globe** with WebSocket-driven 10 Hz updates, entity labels, range rings, and lock indicators
@@ -116,7 +118,7 @@ cd src/frontend-react && npm run build
 # Single test file
 ./venv/bin/python3 -m pytest src/python/tests/test_sim_integration.py
 
-# With output
+# With output (289 tests across 18 test files)
 ./venv/bin/python3 -m pytest src/python/tests/ -v
 ```
 
@@ -144,6 +146,60 @@ What the auto-pilot does:
 A red `DEMO MODE` banner with a pulsing indicator appears at the top of the dashboard. No API keys are required — all agents run in heuristic mode.
 
 > **To test manual HITL approval**: run without `--demo`. The kill chain will still run but nominations stop at the Strike Board and wait for your APPROVE / REJECT / AUTHORIZE actions.
+
+---
+
+## Target Verification Pipeline
+
+Before a target can be nominated for engagement, it must pass through a multi-stage verification pipeline. This prevents false positives from reaching the kill chain.
+
+### Verification States
+
+```
+DETECTED → CLASSIFIED → VERIFIED → NOMINATED
+```
+
+| State | Meaning | Advance Condition |
+|-------|---------|-------------------|
+| **DETECTED** | Initial sensor contact | `fused_confidence >= classify_confidence` threshold |
+| **CLASSIFIED** | Target type confirmed | `fused_confidence >= verify_confidence` AND (`sensor_count >= 2` OR `time_in_state >= sustained_sec`) |
+| **VERIFIED** | Multi-source corroboration | ISR pipeline picks up target for nomination |
+| **NOMINATED** | Awaiting HITL approval on Strike Board | Operator approves or rejects |
+
+### Per-Target-Type Thresholds
+
+High-threat targets (SAM, TEL, MANPADS) verify faster with lower confidence thresholds. Low-priority targets (TRUCK, LOGISTICS, APC) require higher confidence and longer sustained observation.
+
+| Type | Classify | Verify | Min Sensors | Sustained (s) | Regression (s) |
+|------|----------|--------|-------------|----------------|-----------------|
+| SAM | 0.50 | 0.70 | 2 | 10 | 8 |
+| TEL | 0.50 | 0.70 | 2 | 10 | 10 |
+| MANPADS | 0.50 | 0.70 | 2 | 10 | 8 |
+| RADAR | 0.55 | 0.75 | 2 | 12 | 10 |
+| C2_NODE | 0.55 | 0.75 | 2 | 12 | 10 |
+| ARTILLERY | 0.55 | 0.75 | 2 | 12 | 10 |
+| CP | 0.60 | 0.80 | 2 | 15 | 15 |
+| TRUCK | 0.60 | 0.80 | 2 | 15 | 15 |
+| LOGISTICS | 0.60 | 0.80 | 2 | 15 | 15 |
+| APC | 0.60 | 0.80 | 2 | 15 | 15 |
+
+### Regression
+
+If no sensors observe a target for `regression_timeout_sec`, the target regresses one verification state (e.g., CLASSIFIED → DETECTED). This prevents stale verifications from lingering.
+
+### Manual Override
+
+Operators can manually fast-track a CLASSIFIED target to VERIFIED by clicking the **VERIFY** button on the enemy card (sends `verify_target` WebSocket action). This is useful when human intelligence confirms the target outside the automated pipeline.
+
+### Demo Fast Mode
+
+When `DEMO_MODE=true`, all thresholds are halved (times) and lowered (confidence −0.1), allowing the verification pipeline to advance rapidly for demonstration purposes.
+
+### UI Components
+
+- **VerificationStepper** — color-coded dot stepper on each enemy card showing DETECTED → CLASSIFIED → VERIFIED → NOMINATED progression with a confidence progress bar
+- **FusionBar** — stacked bar chart showing per-sensor-type confidence contributions (EO/IR blue, SAR green, SIGINT orange)
+- **SensorBadge** — badge showing how many distinct sensor types are observing the target (color-coded: 1=neutral, 2=warning, 3+=success)
 
 ---
 
@@ -271,13 +327,17 @@ src/
   python/
     api_main.py              # FastAPI server, WebSocket hub, agent pipeline, demo autopilot
     sim_engine.py            # Physics simulation (UAVs, targets, zones, red force AI)
+    verification_engine.py   # Target verification state machine (DETECTED→CLASSIFIED→VERIFIED→NOMINATED)
+    sensor_fusion.py         # Multi-sensor complementary fusion (1 - ∏(1-ci)) with dedup
+    sensor_model.py          # Probabilistic detection model (Pd, RCS, weather)
     pipeline.py              # F2T2EA kill chain orchestrator
     config.py                # Pydantic-settings env var management
     hitl_manager.py          # Two-gate HITL approval system
     theater_loader.py        # YAML theater configuration loader
     llm_adapter.py           # Multi-provider LLM fallback (Gemini → Anthropic → heuristic)
-    sensor_model.py          # Probabilistic detection model (Pd, RCS, weather)
-    event_logger.py          # Structured event logging
+    event_logger.py          # Structured event logging (async JSONL with daily rotation)
+    websocket_manager.py     # WebSocket connection lifecycle management
+    logging_config.py        # Structured logging configuration (structlog)
     agents/
       isr_observer.py        # Find / Fix / Track — sensor fusion
       strategy_analyst.py    # Target — ROE evaluation + priority scoring
@@ -287,7 +347,8 @@ src/
       ai_tasking_manager.py  # Sensor retasking optimization
       battlespace_manager.py # Map layers + threat ring management
       synthesis_query_agent.py # SITREP generation
-    tests/                   # 214+ pytest tests
+      performance_auditor.py # System performance monitoring
+    tests/                   # 289 pytest tests (18 test files)
   frontend-react/            # React + Vite dashboard (primary)
     src/
       App.tsx                # Root layout — sidebar + globe + overlays
@@ -330,10 +391,13 @@ src/
           DroneCardDetails.tsx
           DroneModeButtons.tsx  # SEARCH / FOLLOW / PAINT / INTERCEPT buttons
           DroneActionButtons.tsx
-        enemies/             # ENEMIES tab — threat tracking
+        enemies/             # ENEMIES tab — threat tracking + verification
           EnemiesTab.tsx
           ThreatSummary.tsx
           EnemyCard.tsx
+          VerificationStepper.tsx  # 4-step verification progress dots + confidence bar
+          FusionBar.tsx            # Stacked sensor contribution bar chart (ECharts)
+          SensorBadge.tsx          # Multi-sensor count badge with intent color
       overlays/
         DroneCamPIP.tsx      # Synthetic drone camera picture-in-picture
         DemoBanner.tsx       # Demo mode indicator strip
@@ -355,6 +419,20 @@ theaters/
 ```
 ISR Observer → Strategy Analyst → [HITL Gate 1: Nomination] → Tactical Planner → [HITL Gate 2: COA Auth] → Effectors Agent
 ```
+
+**9 agents** in total:
+
+| Agent | Role |
+|-------|------|
+| ISR Observer | Find / Fix / Track — sensor fusion and target classification |
+| Strategy Analyst | ROE evaluation, priority scoring, nomination |
+| Tactical Planner | Course of Action (COA) generation |
+| Effectors Agent | Strike execution and Battle Damage Assessment |
+| Pattern Analyzer | Activity pattern analysis across targets |
+| AI Tasking Manager | Sensor retasking optimization |
+| Battlespace Manager | Map layers, threat ring management |
+| Synthesis Query Agent | SITREP generation and natural language queries |
+| Performance Auditor | System performance monitoring |
 
 Each agent runs in **heuristic mode** by default (no API keys needed). When LLM keys are configured in `.env`, agents upgrade to LLM-backed reasoning via the multi-provider fallback chain (Gemini → Anthropic → Ollama → heuristic).
 
@@ -395,6 +473,7 @@ Backend broadcasts full simulation state as JSON at 10 Hz. All messages include 
 | `reject_nomination` | `entry_id` | HITL Gate 1 — reject |
 | `authorize_coa` | `entry_id`, `coa_id` | HITL Gate 2 — authorize |
 | `sitrep_query` | `query` | Request situation report |
+| `verify_target` | `target_id` | Manual fast-track CLASSIFIED → VERIFIED |
 | `retask_sensors` | `zone_id` | Retask sensors to zone |
 
 ---
@@ -426,6 +505,8 @@ The system runs fully in heuristic mode without any API keys. Keys unlock LLM-ba
 | `SIMULATION_HZ` | `10` | Simulation tick rate |
 | `DEFAULT_THEATER` | `romania` | Default theater on startup |
 | `DEMO_MODE` | `false` | Enable demo auto-pilot (or use `--demo` flag) |
+| `LOG_LEVEL` | `INFO` | Logging verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
+| `WS_BACKEND_URL` | `ws://localhost:8000/ws` | WebSocket URL for simulator clients |
 
 ---
 

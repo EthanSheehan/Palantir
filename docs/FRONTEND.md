@@ -2,9 +2,129 @@
 
 **Date:** 2026-03-19
 
+> **Note:** This document covers both the **React frontend** (primary, `src/frontend-react/`) and the **legacy vanilla JS frontend** (`src/frontend/`, reference only). The React frontend is the active development target.
+
 ---
 
-## Table of Contents
+## React Frontend (Primary)
+
+### Stack
+
+| Property | Detail |
+|----------|--------|
+| Language | TypeScript |
+| Framework | React 18 |
+| Build tool | Vite 5 |
+| 3D Engine | Cesium JS v1.114 (`cesium` + `vite-plugin-cesium`) |
+| UI Kit | Blueprint.js 5 (dark theme) |
+| Charts | ECharts 5 (`echarts-for-react`) |
+| State | Zustand 4 |
+| Dev server | `npm run dev -- --port 3000` |
+
+### File Structure
+
+```
+src/frontend-react/src/
+  App.tsx                    # Root layout — sidebar + globe + overlays
+  main.tsx                   # Entry — Blueprint theme, Zustand, ECharts theme
+  store/
+    SimulationStore.ts       # Zustand store (sim state + UI state)
+    types.ts                 # TS types: UAV, Target, Zone, StrikeEntry, COA…
+  hooks/
+    useWebSocket.ts          # WebSocket connection, reconnect, message routing
+    useDroneCam.ts           # Canvas render loop — synthetic drone camera feed
+    useResizable.ts          # Resizable sidebar hook
+    useCesiumViewer.ts       # Cesium viewer lifecycle
+  cesium/
+    CesiumContainer.tsx      # Viewer lifecycle, wires all Cesium hooks
+    CameraControls.tsx       # Globe-return + camera decouple buttons
+    DetailMapDialog.tsx      # Precision waypoint placement modal
+    useCesiumDrones.ts       # UAV 3D entity rendering (mode-colored labels)
+    useCesiumTargets.ts      # Target entities (type/ID labels + threat rings)
+    useCesiumZones.ts        # Grid zone visualization
+    useCesiumFlowLines.ts    # Asset-to-target flow lines
+    useCesiumCompass.ts      # Compass needle + ring
+    useCesiumMacroTrack.ts   # Smooth camera follow (macro mode)
+    useCesiumClickHandlers.ts # Entity picking, waypoint placement, spike
+    useCesiumRangeRings.ts   # Sensor range ring overlays
+    useCesiumWaypoints.ts    # Waypoint cylinders + trajectory polylines
+    useCesiumLockIndicators.ts # Red pulsing lock ring on PAINT targets
+  panels/
+    Sidebar.tsx              # Resizable sidebar container
+    SidebarTabs.tsx          # MISSION / ASSETS / ENEMIES tab navigation
+    mission/
+      MissionTab.tsx         # Theater selector + assistant + strike board
+      TheaterSelector.tsx    # Theater dropdown
+      AssistantWidget.tsx    # Tactical AIP message feed
+      StrikeBoard.tsx        # Strike board container
+      StrikeBoardEntry.tsx   # Nomination entry (Gate 1)
+      StrikeBoardCoa.tsx     # COA entry (Gate 2)
+      GridControls.tsx       # Zone grid visibility controls
+    assets/
+      AssetsTab.tsx          # Drone card list
+      DroneCard.tsx          # Card with mode tag + drone cam activation
+      DroneCardDetails.tsx   # Expanded stats (altitude, sensor, coords)
+      DroneModeButtons.tsx   # SEARCH / FOLLOW / PAINT / INTERCEPT buttons
+      DroneActionButtons.tsx # Waypoint / range ring toggles
+    enemies/
+      EnemiesTab.tsx         # Enemy card list (sorted, hysteresis-filtered)
+      EnemyCard.tsx          # Target card with type badge, state, tracking info
+      VerificationStepper.tsx # 4-step dots + confidence progress bar
+      FusionBar.tsx          # Per-sensor confidence stacked bar (ECharts)
+      SensorBadge.tsx        # Sensor count badge with intent color
+      ThreatSummary.tsx      # Threat level summary
+  overlays/
+    DroneCamPIP.tsx          # Synthetic drone camera PIP (bottom-right)
+    DemoBanner.tsx           # Demo mode indicator strip
+  shared/
+    constants.ts             # Mode styles, target map, sensor constants
+    geo.ts                   # Haversine distance, bearing helpers
+    api.ts                   # WebSocket message builder
+  theme/
+    palantir.ts              # ECharts Palantir dark theme
+```
+
+### Enemy Card Components (Verification UI)
+
+The ENEMIES tab renders per-target cards with these verification-specific components:
+
+**VerificationStepper** — Shows the 4-step progression (DETECTED → CLASSIFIED → VERIFIED → NOMINATED) as color-coded dots:
+- Completed steps: green
+- Current step: orange
+- Future steps: gray
+- Includes a ProgressBar showing confidence progress toward the next threshold
+- Shows a **VERIFY** button on CLASSIFIED targets for manual operator override
+
+**FusionBar** — Stacked horizontal bar chart (ECharts) showing per-sensor-type confidence contributions:
+- EO_IR: blue (`#4A90E2`)
+- SAR: green (`#7ED321`)
+- SIGINT: orange (`#F5A623`)
+- Displays total fused confidence as a percentage label
+
+**SensorBadge** — Blueprint Tag showing how many distinct sensor types observe the target:
+- 1 sensor: neutral intent
+- 2 sensors: warning intent (yellow)
+- 3+ sensors: success intent (green)
+
+### Key Differences from Legacy Frontend
+
+| Aspect | Legacy (`src/frontend/`) | React (`src/frontend-react/`) |
+|--------|--------------------------|-------------------------------|
+| Language | Vanilla ES6 JS | TypeScript |
+| 3D engine | Cesium v1.104 (CDN) | Cesium v1.114 (npm) |
+| State | Mutable shared object | Zustand store |
+| Build | None | Vite |
+| UI kit | Custom CSS | Blueprint.js |
+| Charts | None | ECharts |
+| Verification UI | None | VerificationStepper, FusionBar, SensorBadge |
+
+---
+
+## Legacy Frontend (Reference Only)
+
+> The legacy frontend at `src/frontend/` is kept for reference. All active development uses the React frontend above.
+
+## Table of Contents (Legacy)
 
 1. [Architecture Overview](#architecture-overview)
 2. [Module Reference](#module-reference)
