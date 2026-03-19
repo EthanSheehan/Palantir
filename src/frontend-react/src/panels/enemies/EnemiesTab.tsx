@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { useSimStore } from '../../store/SimulationStore';
 import { ThreatSummary } from './ThreatSummary';
 import { EnemyCard } from './EnemyCard';
@@ -7,10 +7,28 @@ export function EnemiesTab() {
   const targets = useSimStore(s => s.targets);
   const uavs = useSimStore(s => s.uavs);
 
+  // Track which target IDs have been seen — once visible, keep showing
+  // (prevents flicker when confidence briefly dips below threshold)
+  const seenIdsRef = useRef<Set<number>>(new Set());
+
   const visibleTargets = targets.filter(t => {
     const targetState = t.state || (t.detected ? 'DETECTED' : 'UNDETECTED');
-    return targetState !== 'UNDETECTED';
+    if (targetState !== 'UNDETECTED') {
+      seenIdsRef.current.add(t.id);
+      return true;
+    }
+    // Keep showing if previously seen and confidence > 0
+    if (seenIdsRef.current.has(t.id) && t.detection_confidence > 0) {
+      return true;
+    }
+    if (t.detection_confidence === 0) {
+      seenIdsRef.current.delete(t.id);
+    }
+    return false;
   });
+
+  // Stable sort: by ID so cards don't jump around
+  visibleTargets.sort((a, b) => a.id - b.id);
 
   // Build target → UAV tracking map
   const trackingMap: Record<number, Array<{ id: number; mode: string }>> = {};

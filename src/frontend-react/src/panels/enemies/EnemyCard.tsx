@@ -44,8 +44,8 @@ function targetsShallowEqual(a: Target, b: Target): boolean {
     a.detected === b.detected &&
     a.concealed === b.concealed &&
     a.sensor_count === b.sensor_count &&
-    a.next_threshold === b.next_threshold &&
-    Math.round((a.time_in_state_sec ?? 0) * 10) === Math.round((b.time_in_state_sec ?? 0) * 10) &&
+    Math.round((a.next_threshold ?? 0) * 100) === Math.round((b.next_threshold ?? 0) * 100) &&
+    Math.round((a.time_in_state_sec ?? 0)) === Math.round((b.time_in_state_sec ?? 0)) &&
     Math.round((a.lat ?? 0) * 1000) === Math.round((b.lat ?? 0) * 1000) &&
     Math.round((a.lon ?? 0) * 1000) === Math.round((b.lon ?? 0) * 1000) &&
     Math.round((a.detection_confidence ?? 0) * 100) === Math.round((b.detection_confidence ?? 0) * 100) &&
