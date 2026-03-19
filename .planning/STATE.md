@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 01 - Multi-Sensor Target Fusion
-current_plan: 02 of 03 (Plan 01 complete)
-status: unknown
-stopped_at: Completed 00-06-PLAN.md
-last_updated: "2026-03-19T20:33:07.778Z"
+current_plan: 03 of 03 (Plan 02 complete)
+status: in_progress
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-03-19T21:00:00.000Z"
 progress:
   total_phases: 10
   completed_phases: 0
   total_plans: 16
-  completed_plans: 7
+  completed_plans: 8
 ---
 
 # Project State
@@ -20,16 +20,16 @@ progress:
 
 ## Position
 - **Current Phase:** 01 - Multi-Sensor Target Fusion
-- **Current Plan:** 02 of 03 (Plan 01 complete)
-- **Last Session:** 2026-03-19T20:33:07.764Z
-- **Stopped At:** Completed 00-06-PLAN.md
+- **Current Plan:** 03 of 03 (Plan 02 complete)
+- **Last Session:** 2026-03-19T21:00:00.000Z
+- **Stopped At:** Completed 01-02-PLAN.md
 
 ## Phase Status
 
 | Phase | Status | Notes |
 |-------|--------|-------|
 | 0: Foundation & React Migration | COMPLETE | All 8 plans done |
-| 1: Multi-Sensor Fusion | IN PROGRESS | Plan 01 complete |
+| 1: Multi-Sensor Fusion | IN PROGRESS | Plans 01+02 complete |
 | 2: Verification Workflow | PLANNED | |
 | 3: Drone Modes & Autonomy | PLANNED | |
 | 4: Swarm Coordination | PLANNED | |
@@ -40,10 +40,10 @@ progress:
 | 9: Drone Feeds | PLANNED | |
 
 ## Known Issues
-- `sim_engine.py:509` — INTERCEPT mode missing from update exclusion list (double-update bug)
 - Theater YAML `speed_kmh`, `threat_range_km`, `detection_range_km` parsed but not consumed by sim
 
 ## Decisions Log
+- 2026-03-19: tracked_by_uav_ids is command-managed only — detection loop does not mutate it
 - 2026-03-19: Complementary fusion formula: max confidence per type, then 1-product(1-ci) across types
 - 2026-03-19: sensor_count tracks raw contribution count (not deduplicated type count)
 - 2026-03-19: fuse_detections() accepts Sequence (not just list) for forward compatibility
@@ -71,4 +71,5 @@ progress:
 | 00 | 05 | 4min | 2/2 | 9 |
 | 01 | 01 | 2min | 1/1 | 2 |
 | 00 | 06 | 10min | 2/2 | 13 |
+| 01 | 02 | ~15min | 2/2 | 2 |
 

@@ -34,7 +34,7 @@ Phase 9: Upgraded Drone Feeds             [SENSOR DISPLAYS — EO/SAR/SIGINT]
 **Why first**: Every subsequent phase adds UI. Building on vanilla JS means 9x the DOM manipulation work. React+Blueprint once → all phases benefit.
 
 
-**Plans:** 5/7 plans executed
+**Plans:** 6/7 plans executed
 **Requirements:** [P0-BUILD, P0-STORE, P0-WS, P0-CESIUM, P0-SIDEBAR, P0-PANELS, P0-DRONECAM, P0-ASSISTANT, P0-ECHARTS, P0-LAUNCHER]
 
 Plans:
@@ -232,7 +232,7 @@ export function useCesiumDrones(viewerRef: RefObject<Cesium.Viewer>) {
 
 Plans:
 - [x] 01-01-PLAN.md — TDD sensor fusion module (pure functions + unit tests)
-- [ ] 01-02-PLAN.md — sim_engine migration (multi-tracking fields, detection loop rewrite, integration tests)
+- [x] 01-02-PLAN.md — sim_engine migration (multi-tracking fields, detection loop rewrite, integration tests)
 - [ ] 01-03-PLAN.md — React components (FusionBar, SensorBadge, EnemyCard, DroneCard, Cesium fusion ring)
 ### 1.1 Data Model Changes
 
@@ -722,7 +722,7 @@ Core patterns established in Phase 0 reused throughout:
 
 | Phase | New Python | New React/TS |
 |-------|-----------|-------------|
-| 0 | 5/7 | In Progress|  | 1 | `sensor_fusion.py`, test | `FusionBar.tsx`, `SensorBadge.tsx` |
+| 0 | 6/7 | In Progress|  | 1 | `sensor_fusion.py`, test | `FusionBar.tsx`, `SensorBadge.tsx` |
 | 2 | `verification_engine.py`, test | `VerificationStepper.tsx` |
 | 3 | test | `AutonomyToggle.tsx`, `TransitionToast.tsx` |
 | 4 | `swarm_coordinator.py`, test | `SwarmPanel.tsx`, `swarmLines.ts` |
