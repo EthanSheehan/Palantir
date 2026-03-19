@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 00 - Foundation & React Migration
-current_plan: "07 of 07 (Task 2 checkpoint:human-verify pending)"
+current_phase: 01
+current_plan: 3
 status: unknown
-stopped_at: 00-07 Task 2 — awaiting human integration verification
-last_updated: "2026-03-19T21:10:49.837Z"
+stopped_at: 01-03 Task 3 checkpoint — awaiting visual verification
+last_updated: "2026-03-19T21:35:07.041Z"
 progress:
   total_phases: 11
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 16
-  completed_plans: 9
+  completed_plans: 10
 ---
 
 # Project State
@@ -19,17 +19,18 @@ progress:
 ## Current Phase: 01-multi-sensor-target-fusion
 
 ## Position
-- **Current Phase:** 00 - Foundation & React Migration
-- **Current Plan:** 07 of 07 (Task 2 checkpoint:human-verify pending)
-- **Last Session:** 2026-03-19T21:35:00.000Z
-- **Stopped At:** 00-07 Task 2 — awaiting human integration verification
+
+- **Current Phase:** 01
+- **Current Plan:** 1
+- **Last Session:** 2026-03-19T21:35:07.038Z
+- **Stopped At:** 01-03 Task 3 checkpoint — awaiting visual verification
 
 ## Phase Status
 
 | Phase | Status | Notes |
 |-------|--------|-------|
 | 0: Foundation & React Migration | COMPLETE | All 8 plans done |
-| 1: Multi-Sensor Fusion | IN PROGRESS | Plans 01+02 complete |
+| 1: Multi-Sensor Fusion | IN PROGRESS | Plans 01+02+03 complete, awaiting checkpoint verification |
 | 2: Verification Workflow | PLANNED | |
 | 3: Drone Modes & Autonomy | PLANNED | |
 | 4: Enemy UAVs | PLANNED | |
@@ -43,16 +44,20 @@ progress:
 ## Accumulated Context
 
 ### Roadmap Evolution
+
 - Phase 4 inserted: enemy UAVs (old phases 4-9 renumbered to 5-10)
 
 ## Known Issues
+
 - Theater YAML `speed_kmh`, `threat_range_km`, `detection_range_km` parsed but not consumed by sim
 
 ## Decisions Log
+
 - 2026-03-19: tracked_by_uav_ids is command-managed only — detection loop does not mutate it
 - 2026-03-19: Complementary fusion formula: max confidence per type, then 1-product(1-ci) across types
 - 2026-03-19: sensor_count tracks raw contribution count (not deduplicated type count)
 - 2026-03-19: fuse_detections() accepts Sequence (not just list) for forward compatibility
+- 2026-03-19: fused_confidence only written when contributions present — prevents zeroing on empty detection ticks
 - 2026-03-19: Full React + Blueprint migration (not hybrid)
 - 2026-03-19: ECharts for charting (Palantir-style dark theme)
 - 2026-03-19: Event logging (JSONL), not full sim replay
@@ -78,4 +83,4 @@ progress:
 | 01 | 01 | 2min | 1/1 | 2 |
 | 00 | 06 | 10min | 2/2 | 13 |
 | 01 | 02 | ~15min | 2/2 | 2 |
-
+| Phase 01 P03 | 266s | 2 tasks | 8 files |

@@ -229,7 +229,7 @@ export function useCesiumDrones(viewerRef: RefObject<Cesium.Viewer>) {
 **Depends on**: Phase 0 (React UI for displaying fusion data)
 
 
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 **Requirements:** [P1-FUSE-MODULE, P1-TARGET-FIELDS, P1-UAV-FIELDS, P1-DETECT-LOOP, P1-CANCEL, P1-ASSIGN, P1-BROADCAST, P1-TESTS, P1-TS-TYPES, P1-FUSIONBAR, P1-BADGE, P1-ENEMYCARD, P1-DRONECARD, P1-CESIUM-RING]
 
 Plans:
@@ -630,8 +630,7 @@ Plans:
 ### 9.1 Map Modes
 | Mode | Key | Layers |
 |------|-----|--------|
-| OPERATIONAL | 1 | zones, drones, targets, flows, compass |
-| ISR COVERAGE | 2 | sensor cones, coverage heatmap, gaps |
+| OPERATIONAL | 1 | 3/3 | Complete   | 2026-03-19 | 2 | sensor cones, coverage heatmap, gaps |
 | THREAT | 3 | threat heatmap, clusters, SAM envelopes, corridors |
 | FUSION | 4 | fusion rings, sensor lines, verification bars |
 | SWARM | 5 | formation lines, assignment arrows, sensor diversity |
