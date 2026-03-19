@@ -42,12 +42,12 @@ export function EnemiesTab() {
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <ThreatSummary visibleTargets={visibleTargets} />
       {visibleTargets.length === 0 ? (
         <div style={{ padding: 16, color: '#94a3b8' }}>No hostile entities detected.</div>
       ) : (
-        <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6, overflow: 'auto', flex: 1 }}>
           {visibleTargets.map(t => (
             <EnemyCard key={t.id} target={t} trackers={trackingMap[t.id] || []} />
           ))}

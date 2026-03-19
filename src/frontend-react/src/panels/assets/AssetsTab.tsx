@@ -10,7 +10,7 @@ export function AssetsTab() {
   }
 
   return (
-    <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 8, overflow: 'auto', flex: 1 }}>
       {uavs.map(uav => (
         <DroneCard key={uav.id} uav={uav} />
       ))}
