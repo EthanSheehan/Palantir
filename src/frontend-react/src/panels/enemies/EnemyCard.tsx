@@ -45,12 +45,11 @@ function targetsShallowEqual(a: Target, b: Target): boolean {
     a.concealed === b.concealed &&
     a.sensor_count === b.sensor_count &&
     Math.round((a.next_threshold ?? 0) * 100) === Math.round((b.next_threshold ?? 0) * 100) &&
-    Math.round((a.time_in_state_sec ?? 0)) === Math.round((b.time_in_state_sec ?? 0)) &&
+    Math.round((a.time_in_state_sec ?? 0) / 2) === Math.round((b.time_in_state_sec ?? 0) / 2) &&
     Math.round((a.lat ?? 0) * 1000) === Math.round((b.lat ?? 0) * 1000) &&
     Math.round((a.lon ?? 0) * 1000) === Math.round((b.lon ?? 0) * 1000) &&
-    Math.round((a.detection_confidence ?? 0) * 100) === Math.round((b.detection_confidence ?? 0) * 100) &&
-    Math.round((a.fused_confidence ?? 0) * 100) === Math.round((b.fused_confidence ?? 0) * 100) &&
-    (a.sensor_contributions ?? []).length === (b.sensor_contributions ?? []).length
+    Math.round((a.detection_confidence ?? 0) * 20) === Math.round((b.detection_confidence ?? 0) * 20) &&
+    Math.round((a.fused_confidence ?? 0) * 20) === Math.round((b.fused_confidence ?? 0) * 20)
   );
 }
 
@@ -164,25 +163,13 @@ const EnemyCardInner = function EnemyCardInner({ target, trackers }: EnemyCardPr
             </div>
           )}
 
-          {/* Fusion bar + contributing UAV list */}
+          {/* Fusion bar */}
           {(target.sensor_count ?? 0) > 0 && (
             <div style={{ marginTop: 6, marginBottom: 2 }}>
               <FusionBar
                 contributions={target.sensor_contributions ?? []}
                 fused_confidence={target.fused_confidence ?? 0}
               />
-              {(target.sensor_contributions ?? []).length > 0 && (
-                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>
-                  Contributing:{' '}
-                  {target.sensor_contributions.slice(0, 5).map((c, i) => (
-                    <span key={`${c.uav_id}-${c.sensor_type}`}>
-                      {i > 0 && ', '}
-                      UAV-{c.uav_id} (<span style={{ color: c.sensor_type === 'EO_IR' ? '#4A90E2' : c.sensor_type === 'SAR' ? '#7ED321' : '#F5A623' }}>{c.sensor_type}</span>)
-                    </span>
-                  ))}
-                  {target.sensor_contributions.length > 5 && ` ...+${target.sensor_contributions.length - 5} more`}
-                </div>
-              )}
             </div>
           )}
 
