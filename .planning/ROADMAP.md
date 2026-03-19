@@ -378,6 +378,14 @@ Configurable thresholds per target type (SAMs verify faster due to high threat).
 
 **Depends on**: Phase 1 (sensor contribution for SUPPORT) + Phase 2 (verification triggers for VERIFY)
 
+**Plans:** 3 plans
+**Requirements:** [FR-3]
+
+Plans:
+- [ ] 03-01-PLAN.md — TDD new mode behaviors (SUPPORT/VERIFY/OVERWATCH/BDA) + autonomy system in sim_engine.py
+- [ ] 03-02-PLAN.md — Wire 4 new WS actions (set_autonomy_level, set_drone_autonomy, approve/reject_transition)
+- [ ] 03-03-PLAN.md — React frontend (AutonomyToggle, TransitionToast, mode buttons, store, Cesium colors)
+
 ### 3.1 New Modes
 - **SUPPORT**: wide orbit (~3km), provides secondary sensor data to target
 - **VERIFY**: sensor-specific pass (EO_IR: perpendicular cross, SAR: parallel track, SIGINT: loiter)
