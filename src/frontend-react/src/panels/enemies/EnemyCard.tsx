@@ -85,7 +85,7 @@ const EnemyCardInner = function EnemyCardInner({ target, trackers }: EnemyCardPr
               fontWeight: 800,
               letterSpacing: '0.03em',
             }}>
-              {config.label}
+              TGT
             </span>
             <span style={{ color: config.color, fontWeight: 600, fontSize: '0.8rem' }}>
               TARGET-{target.id}
