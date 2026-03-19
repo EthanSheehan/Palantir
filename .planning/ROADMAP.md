@@ -509,6 +509,14 @@ Plans:
 
 **Depends on**: Phases 1-5 (fusion, verification, modes, enemy UAVs, swarm data to feed)
 
+**Plans:** 3 plans
+**Requirements:** [FR-5, FR-10]
+
+Plans:
+- [ ] 06-01-PLAN.md — TDD IntelFeedRouter, subscription-filtered broadcast, event logger enhancement
+- [ ] 06-02-PLAN.md — Frontend feed types, Zustand slices, useWebSocket routing, IntelFeed + CommandLog components
+- [ ] 06-03-PLAN.md — 2Hz SENSOR_FEED loop, DroneCam fusion overlay, human verification
+
 ### 6.1 Feed Types
 - **STATE_FEED** (10Hz): existing, enhanced with fusion/swarm/autonomy data
 - **INTEL_FEED** (event-driven): target state transitions, verifications, threat assessments
