@@ -26,7 +26,7 @@ export function SigintDisplay({ droneId, width, height }: SigintDisplayProps) {
       const { uavs, targets } = useSimStore.getState();
       const drone = uavs.find(u => u.id === droneId);
 
-      const newColumn = Array(FREQ_BINS).fill(0).map(() => Math.random() * 0.08);
+      const newColumn = Array(FREQ_BINS).fill(0).map(() => Math.random() * 0.25);
 
       if (drone) {
         for (const target of targets) {
@@ -109,10 +109,9 @@ export function SigintDisplay({ droneId, width, height }: SigintDisplayProps) {
   return (
     <ReactECharts
       option={option}
-      style={{ width, height }}
+      style={{ width, height, background: '#000814' }}
       opts={{ renderer: 'canvas' }}
       notMerge={false}
-      theme="palantir"
     />
   );
 }
