@@ -80,6 +80,11 @@ class AssessmentResult:
 # BattlespaceAssessor
 # ---------------------------------------------------------------------------
 
+def _get_xy(t: dict) -> Tuple[float, float]:
+    """Extract lon/lat from a target dict, supporting both 'x'/'y' and 'lon'/'lat' keys."""
+    return (t.get("x") or t.get("lon", 0.0), t.get("y") or t.get("lat", 0.0))
+
+
 class BattlespaceAssessor:
     """
     Compute a frozen AssessmentResult from raw sim state dicts.
@@ -122,9 +127,10 @@ class BattlespaceAssessor:
             if anchor["id"] in visited:
                 continue
 
+            ax, ay = _get_xy(anchor)
             neighbors = [
                 t for t in detected
-                if math.hypot(t["x"] - anchor["x"], t["y"] - anchor["y"]) <= CLUSTER_RADIUS_DEG
+                if math.hypot(_get_xy(t)[0] - ax, _get_xy(t)[1] - ay) <= CLUSTER_RADIUS_DEG
             ]
 
             if len(neighbors) < MIN_CLUSTER_SIZE:
@@ -143,12 +149,12 @@ class BattlespaceAssessor:
                 type_votes[affinity] = type_votes.get(affinity, 0) + 1
             cluster_type = max(type_votes, key=lambda k: type_votes[k]) if type_votes else "MIXED"
 
-            centroid_lon = sum(t["x"] for t in neighbors) / len(neighbors)
-            centroid_lat = sum(t["y"] for t in neighbors) / len(neighbors)
+            centroid_lon = sum(_get_xy(t)[0] for t in neighbors) / len(neighbors)
+            centroid_lat = sum(_get_xy(t)[1] for t in neighbors) / len(neighbors)
 
             threat_score = sum(t.get("fused_confidence", 0.0) for t in neighbors) / len(neighbors)
 
-            points = [(t["x"], t["y"]) for t in neighbors]
+            points = [_get_xy(t) for t in neighbors]
             hull_points = _compute_convex_hull(points)
 
             clusters.append(ThreatCluster(
@@ -180,7 +186,7 @@ class BattlespaceAssessor:
             for target in targets:
                 if target.get("state", "UNDETECTED") == "UNDETECTED":
                     continue
-                tx, ty = target["x"], target["y"]
+                tx, ty = _get_xy(target)
                 best_dist = float("inf")
                 best_zone = None
                 for zone in zones:
@@ -219,7 +225,7 @@ class BattlespaceAssessor:
         scores: Dict[Tuple[int, int], float] = {}
 
         for target in detected:
-            tx, ty = target["x"], target["y"]
+            tx, ty = _get_xy(target)
             best_dist = float("inf")
             best_zone = None
             for zone in zones:
