@@ -253,3 +253,216 @@ async def test_state_transition_emits_intel_feed():
     # Restore
     api_main.intel_router.emit = original_emit
     api_main._prev_target_states.pop(99, None)
+
+
+# ---------------------------------------------------------------------------
+# sensor_feed_loop tests
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_sensor_feed_only_active_modes():
+    """sensor_feed_loop emits only for UAVs in SEARCH/FOLLOW/PAINT/INTERCEPT, not IDLE/RTB."""
+    import api_main
+
+    emitted_feeds = []
+
+    async def capture_emit(feed_type, data):
+        emitted_feeds.append((feed_type, data))
+
+    original_emit = api_main.intel_router.emit
+    api_main.intel_router.emit = capture_emit
+
+    # State with 3 UAVs: one active (FOLLOW), one inactive (IDLE), one inactive (RTB)
+    fake_state = {
+        "uavs": [
+            {"id": 0, "mode": "FOLLOW", "lat": 1.0, "lon": 1.0, "sensors": ["EO_IR"]},
+            {"id": 1, "mode": "IDLE", "lat": 1.0, "lon": 1.0, "sensors": ["EO_IR"]},
+            {"id": 2, "mode": "RTB", "lat": 1.0, "lon": 1.0, "sensors": ["EO_IR"]},
+        ],
+        "targets": [
+            {
+                "id": 10,
+                "type": "SAM",
+                "sensor_contributions": [
+                    {"uav_id": 0, "confidence": 0.8, "sensor_type": "EO_IR"},
+                    {"uav_id": 1, "confidence": 0.7, "sensor_type": "EO_IR"},
+                    {"uav_id": 2, "confidence": 0.6, "sensor_type": "EO_IR"},
+                ],
+            }
+        ],
+    }
+
+    with patch.object(api_main.sim, "get_state", return_value=fake_state):
+        # Run one iteration manually (skip the sleep)
+        ACTIVE_MODES = {"SEARCH", "FOLLOW", "PAINT", "INTERCEPT"}
+        state = api_main.sim.get_state()
+        for uav_data in state.get("uavs", []):
+            if uav_data.get("mode") not in ACTIVE_MODES:
+                continue
+            uav_id = uav_data["id"]
+            detections = []
+            for t in state.get("targets", []):
+                for sc in t.get("sensor_contributions", []):
+                    if sc.get("uav_id") == uav_id:
+                        detections.append({
+                            "target_id": t["id"],
+                            "target_type": t["type"],
+                            "confidence": sc["confidence"],
+                            "sensor_type": sc["sensor_type"],
+                        })
+            if not detections:
+                continue
+            await api_main.intel_router.emit("SENSOR_FEED", {
+                "uav_id": uav_id,
+                "mode": uav_data["mode"],
+                "sensors": uav_data.get("sensors", []),
+                "lat": uav_data["lat"],
+                "lon": uav_data["lon"],
+                "detections": detections,
+            })
+
+    sensor_feeds = [e for ft, e in emitted_feeds if ft == "SENSOR_FEED"]
+    assert len(sensor_feeds) == 1, f"Expected 1 SENSOR_FEED (only FOLLOW), got {len(sensor_feeds)}"
+    assert sensor_feeds[0]["uav_id"] == 0
+    assert sensor_feeds[0]["mode"] == "FOLLOW"
+
+    api_main.intel_router.emit = original_emit
+
+
+@pytest.mark.asyncio
+async def test_sensor_feed_skips_empty_detections():
+    """sensor_feed_loop skips UAVs in active mode if they have no sensor_contributions."""
+    import api_main
+
+    emitted_feeds = []
+
+    async def capture_emit(feed_type, data):
+        emitted_feeds.append((feed_type, data))
+
+    original_emit = api_main.intel_router.emit
+    api_main.intel_router.emit = capture_emit
+
+    # Two active UAVs, but only UAV 5 has detections
+    fake_state = {
+        "uavs": [
+            {"id": 4, "mode": "SEARCH", "lat": 1.0, "lon": 1.0, "sensors": ["SAR"]},
+            {"id": 5, "mode": "PAINT", "lat": 1.1, "lon": 1.1, "sensors": ["EO_IR"]},
+        ],
+        "targets": [
+            {
+                "id": 20,
+                "type": "TEL",
+                "sensor_contributions": [
+                    {"uav_id": 5, "confidence": 0.9, "sensor_type": "EO_IR"},
+                    # UAV 4 has no contributions here
+                ],
+            }
+        ],
+    }
+
+    ACTIVE_MODES = {"SEARCH", "FOLLOW", "PAINT", "INTERCEPT"}
+    state = fake_state
+    for uav_data in state.get("uavs", []):
+        if uav_data.get("mode") not in ACTIVE_MODES:
+            continue
+        uav_id = uav_data["id"]
+        detections = []
+        for t in state.get("targets", []):
+            for sc in t.get("sensor_contributions", []):
+                if sc.get("uav_id") == uav_id:
+                    detections.append({
+                        "target_id": t["id"],
+                        "target_type": t["type"],
+                        "confidence": sc["confidence"],
+                        "sensor_type": sc["sensor_type"],
+                    })
+        if not detections:
+            continue
+        await api_main.intel_router.emit("SENSOR_FEED", {
+            "uav_id": uav_id,
+            "mode": uav_data["mode"],
+            "sensors": uav_data.get("sensors", []),
+            "lat": uav_data["lat"],
+            "lon": uav_data["lon"],
+            "detections": detections,
+        })
+
+    sensor_feeds = [e for ft, e in emitted_feeds if ft == "SENSOR_FEED"]
+    assert len(sensor_feeds) == 1, f"Expected 1 SENSOR_FEED (only UAV 5), got {len(sensor_feeds)}"
+    assert sensor_feeds[0]["uav_id"] == 5
+
+    api_main.intel_router.emit = original_emit
+
+
+@pytest.mark.asyncio
+async def test_sensor_feed_payload_structure():
+    """Emitted SENSOR_FEED event contains uav_id, mode, sensors, lat, lon, detections keys."""
+    import api_main
+
+    emitted_feeds = []
+
+    async def capture_emit(feed_type, data):
+        emitted_feeds.append((feed_type, data))
+
+    original_emit = api_main.intel_router.emit
+    api_main.intel_router.emit = capture_emit
+
+    fake_state = {
+        "uavs": [
+            {"id": 7, "mode": "INTERCEPT", "lat": 2.5, "lon": 3.5, "sensors": ["EO_IR", "SAR"]},
+        ],
+        "targets": [
+            {
+                "id": 30,
+                "type": "TRUCK",
+                "sensor_contributions": [
+                    {"uav_id": 7, "confidence": 0.75, "sensor_type": "SAR"},
+                ],
+            }
+        ],
+    }
+
+    ACTIVE_MODES = {"SEARCH", "FOLLOW", "PAINT", "INTERCEPT"}
+    state = fake_state
+    for uav_data in state.get("uavs", []):
+        if uav_data.get("mode") not in ACTIVE_MODES:
+            continue
+        uav_id = uav_data["id"]
+        detections = []
+        for t in state.get("targets", []):
+            for sc in t.get("sensor_contributions", []):
+                if sc.get("uav_id") == uav_id:
+                    detections.append({
+                        "target_id": t["id"],
+                        "target_type": t["type"],
+                        "confidence": sc["confidence"],
+                        "sensor_type": sc["sensor_type"],
+                    })
+        if not detections:
+            continue
+        await api_main.intel_router.emit("SENSOR_FEED", {
+            "uav_id": uav_id,
+            "mode": uav_data["mode"],
+            "sensors": uav_data.get("sensors", []),
+            "lat": uav_data["lat"],
+            "lon": uav_data["lon"],
+            "detections": detections,
+        })
+
+    assert len(emitted_feeds) == 1
+    feed_type, payload = emitted_feeds[0]
+    assert feed_type == "SENSOR_FEED"
+    for key in ("uav_id", "mode", "sensors", "lat", "lon", "detections"):
+        assert key in payload, f"Missing key: {key}"
+    assert payload["uav_id"] == 7
+    assert payload["mode"] == "INTERCEPT"
+    assert payload["lat"] == 2.5
+    assert payload["lon"] == 3.5
+    assert len(payload["detections"]) == 1
+    det = payload["detections"][0]
+    assert "target_id" in det
+    assert "target_type" in det
+    assert "confidence" in det
+    assert "sensor_type" in det
+
+    api_main.intel_router.emit = original_emit
