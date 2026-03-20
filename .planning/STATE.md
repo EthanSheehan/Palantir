@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 03
-current_plan: 1
+current_plan: 2
 status: unknown
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-03-20T00:03:07.273Z"
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-03-20T00:08:31.186Z"
 progress:
   total_phases: 11
   completed_phases: 3
   total_plans: 25
-  completed_plans: 14
+  completed_plans: 15
 ---
 
 # Project State
@@ -22,8 +22,8 @@ progress:
 
 - **Current Phase:** 03
 - **Current Plan:** 1
-- **Last Session:** 2026-03-20T00:03:07.270Z
-- **Stopped At:** Completed 03-01-PLAN.md
+- **Last Session:** 2026-03-20T00:08:31.183Z
+- **Stopped At:** Completed 03-02-PLAN.md
 
 ## Phase Status
 
@@ -83,6 +83,8 @@ progress:
 - 2026-03-20: OVERWATCH mode does not require a tracked target — handled before target lookup in _update_tracking_modes()
 - 2026-03-20: BDA auto-transition (timer-based) baked into BDA physics block — not routed through autonomy layer
 - 2026-03-20: AUTONOMOUS_TRANSITIONS table at module level maps (mode, trigger) -> new_mode for 8 kill-chain events
+- 2026-03-20: set_drone_autonomy accepts level=None to clear per-drone override (reverts to fleet-level autonomy_level)
+- 2026-03-20: scan_area added to _ACTION_SCHEMAS — was handled but lacked schema validation for drone_id field
 
 ## Performance Metrics
 
@@ -99,3 +101,4 @@ progress:
 | Phase 02 P02 | 233s | 2 tasks | 3 files |
 | Phase 02 P03 | 141 | 2 tasks | 4 files |
 | Phase 03 P01 | 113s | 1 tasks | 2 files |
+| Phase 03 P02 | 60s | 1 tasks | 1 files |
