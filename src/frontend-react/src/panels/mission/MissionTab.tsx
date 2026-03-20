@@ -5,6 +5,7 @@ import { TheaterSelector } from './TheaterSelector';
 import { AssistantWidget } from './AssistantWidget';
 import { StrikeBoard } from './StrikeBoard';
 import { GridControls } from './GridControls';
+import { AutonomyToggle } from './AutonomyToggle';
 
 export function MissionTab() {
   const connected = useSimStore(s => s.connected);
@@ -19,6 +20,9 @@ export function MissionTab() {
         </Tag>
         <span style={{ color: '#94a3b8' }}>UAVs: {uavCount}</span>
         <span style={{ color: '#94a3b8' }}>Zones: {zoneCount}</span>
+      </div>
+      <div style={{ marginBottom: 0 }}>
+        <AutonomyToggle />
       </div>
       <TheaterSelector />
       <AssistantWidget />

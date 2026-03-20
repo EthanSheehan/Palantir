@@ -3,6 +3,7 @@ import { UAV } from '../../store/types';
 import { useSimStore } from '../../store/SimulationStore';
 import { MODE_STYLES } from '../../shared/constants';
 import { DroneCardDetails } from './DroneCardDetails';
+import { TransitionToast } from './TransitionToast';
 
 const verbMap: Record<string, string> = {
   FOLLOW: 'FOLLOWING',
@@ -20,8 +21,10 @@ export function DroneCard({ uav }: DroneCardProps) {
   const selectDrone = useSimStore(s => s.selectDrone);
   const setDroneCamVisible = useSimStore(s => s.setDroneCamVisible);
 
+  const pendingTransitions = useSimStore(s => s.pendingTransitions);
   const isTracked = uav.id === trackedDroneId;
   const modeStyle = MODE_STYLES[uav.mode] || { color: '#94a3b8', label: uav.mode };
+  const pendingTransition = pendingTransitions[uav.id] ?? null;
 
   const handleClick = () => {
     if (isTracked) {
@@ -50,18 +53,32 @@ export function DroneCard({ uav }: DroneCardProps) {
         <span style={{ color: isTracked ? '#facc15' : '#e2e8f0', fontWeight: 600, fontSize: '0.85rem' }}>
           UAV-{uav.id}
         </span>
-        <span style={{
-          color: modeStyle.color,
-          borderColor: modeStyle.color,
-          border: '1px solid',
-          borderRadius: 3,
-          padding: '1px 6px',
-          fontSize: '0.65rem',
-          fontWeight: 700,
-          letterSpacing: '0.05em',
-        }}>
-          {modeStyle.label}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{
+            color: modeStyle.color,
+            borderColor: modeStyle.color,
+            border: '1px solid',
+            borderRadius: 3,
+            padding: '1px 6px',
+            fontSize: '0.65rem',
+            fontWeight: 700,
+            letterSpacing: '0.05em',
+          }}>
+            {modeStyle.label}
+          </span>
+          {uav.mode_source === 'AUTO' && (
+            <span style={{
+              color: '#f59e0b',
+              border: '1px solid rgba(245, 158, 11, 0.5)',
+              borderRadius: 3,
+              padding: '1px 4px',
+              fontSize: '0.6rem',
+              fontWeight: 700,
+            }}>
+              AUTO
+            </span>
+          )}
+        </div>
       </div>
 
       {uav.tracked_target_id && verbMap[uav.mode] && (
@@ -103,6 +120,10 @@ export function DroneCard({ uav }: DroneCardProps) {
             </span>
           ))}
         </div>
+      )}
+
+      {pendingTransition && (
+        <TransitionToast uavId={uav.id} pending={pendingTransition} />
       )}
 
       {isTracked && <DroneCardDetails uav={uav} />}

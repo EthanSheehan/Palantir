@@ -2,6 +2,7 @@ import React from 'react';
 import { UAV } from '../../store/types';
 import { useSimStore } from '../../store/SimulationStore';
 import { useSendMessage } from '../../App';
+import { MODE_STYLES } from '../../shared/constants';
 
 interface ModeConfig {
   label: string;
@@ -15,6 +16,8 @@ const MODES: ModeConfig[] = [
   { label: 'FOLLOW', action: 'follow_target', color: '#a78bfa', needsTarget: true },
   { label: 'PAINT', action: 'paint_target', color: '#ef4444', needsTarget: true },
   { label: 'INTERCEPT', action: 'intercept_target', color: '#ff6400', needsTarget: true },
+  { label: 'SUPPORT', action: 'support_target', color: MODE_STYLES.SUPPORT.color, needsTarget: true },
+  { label: 'VERIFY', action: 'verify_target', color: MODE_STYLES.VERIFY.color, needsTarget: true },
 ];
 
 const ACTION_FOR_MODE: Record<string, string> = {
@@ -22,6 +25,8 @@ const ACTION_FOR_MODE: Record<string, string> = {
   FOLLOW: 'follow_target',
   PAINT: 'paint_target',
   INTERCEPT: 'intercept_target',
+  SUPPORT: 'support_target',
+  VERIFY: 'verify_target',
 };
 
 interface DroneModeButtonsProps {
