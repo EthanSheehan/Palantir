@@ -154,7 +154,9 @@
       "Bash(./venv/bin/python3 -m pytest src/python/tests/ --co -q)",
       "Skill(gsd:verify-work)",
       "Bash(./venv/bin/python3 -c \"\nimport sys, os\nsys.path.insert\\(0, 'src/python'\\)\nfrom api_main import _ACTION_SCHEMAS, handle_payload\nassert 'set_autonomy_level' in _ACTION_SCHEMAS, 'Missing set_autonomy_level schema'\nassert 'set_drone_autonomy' in _ACTION_SCHEMAS, 'Missing set_drone_autonomy schema'\nassert 'approve_transition' in _ACTION_SCHEMAS, 'Missing approve_transition schema'\nassert 'reject_transition' in _ACTION_SCHEMAS, 'Missing reject_transition schema'\nprint\\('All 4 action schemas present'\\)\nprint\\('Schema validation: PASS'\\)\n\")",
-      "Skill(gsd:autonomous)"
+      "Skill(gsd:autonomous)",
+      "Bash(venv/bin/python3 -m pytest src/python/tests/test_swarm_coordinator.py -q --tb=short 2>&1)",
+      "Bash(venv/bin/python3 -m pytest src/python/tests/ -q --tb=short)"
     ]
   }
 }
