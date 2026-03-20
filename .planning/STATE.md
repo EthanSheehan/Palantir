@@ -4,9 +4,9 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 06
 current_plan: 3
-status: in_progress
-stopped_at: Completed 06-03-PLAN.md — awaiting human verify checkpoint
-last_updated: "2026-03-20T10:44:58.229Z"
+status: complete
+stopped_at: Completed 06-03-PLAN.md — phase 06 complete, human verify approved
+last_updated: "2026-03-20T11:01:42.733Z"
 progress:
   total_phases: 11
   completed_phases: 7
@@ -22,8 +22,8 @@ progress:
 
 - **Current Phase:** 06
 - **Current Plan:** 1
-- **Last Session:** 2026-03-20T10:44:54.104Z
-- **Stopped At:** Completed 06-03-PLAN.md
+- **Last Session:** 2026-03-20T11:01:42.729Z
+- **Stopped At:** Completed 06-03-PLAN.md — phase 06 complete, human verify approved
 
 ## Phase Status
 
@@ -35,7 +35,7 @@ progress:
 | 3: Drone Modes & Autonomy | IN PROGRESS | Plan 01 complete — sim_engine modes + autonomy |
 | 4: Enemy UAVs | PLANNED | |
 | 5: Swarm Coordination | PLANNED | |
-| 6: Information Feeds | PLANNED | |
+| 6: Information Feeds | COMPLETE | Plans 01+02+03 complete, UAT approved |
 | 7: Battlespace Assessment | PLANNED | |
 | 8: Adaptive ISR | PLANNED | |
 | 9: Map Modes | PLANNED | |
@@ -113,6 +113,8 @@ progress:
 - 2026-03-20: sensor_feed_loop runs at 0.5s (2Hz) independent of 10Hz sim_loop — avoids UI saturation
 - 2026-03-20: primary_target_id drives DroneCam overlay target lookup (not legacy tracked_target_id)
 - 2026-03-20: HUD overlays as absolute-positioned React elements over canvas — never modify canvas draw code
+- 2026-03-20: Diff-based Cesium entity updates for flow/swarm lines — add/remove only changed entities, prevents flickering
+- 2026-03-20: request_swarm accepts all non-terminal target states (not just DETECTED/CLASSIFIED)
 
 ## Performance Metrics
 
