@@ -509,7 +509,7 @@ Plans:
 
 **Depends on**: Phases 1-5 (fusion, verification, modes, enemy UAVs, swarm data to feed)
 
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 **Requirements:** [FR-5, FR-10]
 
 Plans:
@@ -670,17 +670,7 @@ Plans:
 | COVERAGE | 2 | sensor footprint ellipses per UAV |
 | THREAT | 3 | SAM/MANPADS threat rings, cluster polygons |
 | FUSION | 4 | confidence heatmap at target positions |
-| SWARM | 5 | 3/3 | Complete   | 2026-03-20 | 6 | 3D terrain, LOS analysis, terrain masking |
-
-### 9.2 React Components
-- `MapModeBar.tsx` — Blueprint ButtonGroup for mode selection
-- `LayerPanel.tsx` — Blueprint Checkbox list for individual layer toggles
-- `CameraPresets.tsx` — Theater Overview, Top-Down, Oblique, Free Camera buttons
-- Cesium layers: `useCoverageLayer.ts`, `useThreatLayer.ts`, `useFusionLayer.ts`, `useTerrainLayer.ts`, `useSwarmLayer.ts`
-
-### 9.3 Files Changed
-
-| File | Action |
+| SWARM | 5 | 3/3 | Complete   | 2026-03-20 | 6 | 1/3 | In Progress|  | Action |
 |------|--------|
 | `src/frontend-react/src/store/types.ts` | MODIFY — MapMode type, MAP_MODE_DEFAULTS |
 | `src/frontend-react/src/store/SimulationStore.ts` | MODIFY — mapMode, layerVisibility, setMapMode, toggleLayer |
