@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 04
 current_plan: 1
 status: unknown
-stopped_at: Completed 04-02-PLAN.md
-last_updated: "2026-03-20T09:25:18.961Z"
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-03-20T09:28:35.016Z"
 progress:
   total_phases: 11
   completed_phases: 4
   total_plans: 25
-  completed_plans: 17
+  completed_plans: 18
 ---
 
 # Project State
@@ -22,8 +22,8 @@ progress:
 
 - **Current Phase:** 04
 - **Current Plan:** 1
-- **Last Session:** 2026-03-20T09:25:18.958Z
-- **Stopped At:** Completed 04-02-PLAN.md
+- **Last Session:** 2026-03-20T09:28:35.013Z
+- **Stopped At:** Completed 04-01-PLAN.md
 
 ## Phase Status
 
@@ -87,6 +87,10 @@ progress:
 - 2026-03-20: scan_area added to _ACTION_SCHEMAS — was handled but lacked schema validation for drone_id field
 - 2026-03-20: Blueprint SegmentedControl requires mutable array options — as const incompatible
 - 2026-03-20: TransitionToast renders inline (not OverlayToaster) — simpler countdown UI per research guidance
+- 2026-03-20: EnemyUAV IDs start at 1000 to avoid collision with target IDs (0-30) and UAV IDs (0-19)
+- 2026-03-20: JAMMING mode sets is_jamming=True enabling SIGINT detection via emitting=True gate
+- 2026-03-20: EnemyUAV._turn_toward uses MAX_TURN_RATE without 3x multiplier (standard turn, no urgency)
+- 2026-03-20: EVADING mode stubbed as RECON loiter — Plan 03 will implement actual evasion behavior
 - 2026-03-20: ConstantPositionProperty used for enemy UAVs — no interpolation needed for adversarial entities
 - 2026-03-20: enemy_uavs? optional in SimStatePayload for backward compat with pre-phase-04 backends
 - 2026-03-20: ENM-{id-1000} display convention — enemy UAV IDs start at 1001 in backend
@@ -109,3 +113,4 @@ progress:
 | Phase 03 P02 | 60s | 1 tasks | 1 files |
 | Phase 03 P03 | 246s | 2 tasks | 8 files |
 | Phase 04 P02 | 2 | 2 tasks | 7 files |
+| Phase 04 P01 | 318 | 2 tasks | 3 files |
