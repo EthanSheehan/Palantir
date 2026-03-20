@@ -5,6 +5,7 @@ import { useCesiumDrones } from './useCesiumDrones';
 import { useCesiumTargets } from './useCesiumTargets';
 import { useCesiumZones } from './useCesiumZones';
 import { useCesiumFlowLines } from './useCesiumFlowLines';
+import { useCesiumSwarmLines } from './useCesiumSwarmLines';
 import { useCesiumCompass } from './useCesiumCompass';
 import { useCesiumMacroTrack } from './useCesiumMacroTrack';
 import { useCesiumClickHandlers } from './useCesiumClickHandlers';
@@ -30,6 +31,7 @@ export function CesiumContainer({ children }: { children?: React.ReactNode }) {
   const { entitiesRef: targetEntitiesRef } = useCesiumTargets(viewerRef);
   useCesiumZones(viewerRef);
   useCesiumFlowLines(viewerRef);
+  useCesiumSwarmLines(viewerRef);
   useCesiumEnemyUAVs(viewerRef);
 
   // Interaction and overlay hooks
