@@ -443,7 +443,7 @@ AUTONOMOUS_TRANSITIONS = {
 
 **Depends on**: Phase 3 (drone modes — reuses flight model, mode system, and autonomy framework)
 
-**Plans:** 1/3 plans executed
+**Plans:** 3/3 plans complete
 **Requirements:** [EUAV-01, EUAV-02, EUAV-03, EUAV-04, EUAV-05, EUAV-06, EUAV-07, EUAV-08, EUAV-09, EUAV-10, EUAV-11, EUAV-12, EUAV-13]
 
 Plans:
@@ -643,7 +643,7 @@ Plans:
 ### 9.1 Map Modes
 | Mode | Key | Layers |
 |------|-----|--------|
-| OPERATIONAL | 1 | 3/3 | Complete   | 2026-03-19 | 2 | 3/3 | Complete   | 2026-03-19 | 3 | 3/3 | Complete   | 2026-03-20 | 4 | 1/3 | In Progress|  | 5 | formation lines, assignment arrows, sensor diversity |
+| OPERATIONAL | 1 | 3/3 | Complete   | 2026-03-19 | 2 | 3/3 | Complete   | 2026-03-19 | 3 | 3/3 | Complete   | 2026-03-20 | 4 | 3/3 | Complete   | 2026-03-20 | 5 | formation lines, assignment arrows, sensor diversity |
 | TERRAIN | 6 | 3D terrain, LOS analysis, terrain masking |
 
 ### 9.2 React Components

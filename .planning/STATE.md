@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 04
-current_plan: 1
-status: unknown
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-03-20T09:28:35.016Z"
+current_plan: 3
+status: in_progress
+stopped_at: Completed 04-03-PLAN.md
+last_updated: "2026-03-20T09:43:09.000Z"
 progress:
   total_phases: 11
-  completed_phases: 4
-  total_plans: 25
-  completed_plans: 18
+  completed_phases: 5
+  total_plans: 27
+  completed_plans: 19
 ---
 
 # Project State
@@ -94,6 +94,9 @@ progress:
 - 2026-03-20: ConstantPositionProperty used for enemy UAVs — no interpolation needed for adversarial entities
 - 2026-03-20: enemy_uavs? optional in SimStatePayload for backward compat with pre-phase-04 backends
 - 2026-03-20: ENM-{id-1000} display convention — enemy UAV IDs start at 1001 in backend
+- 2026-03-20: Evasion triggers at fused_confidence > 0.5 with 15s cooldown — prevents mode thrashing
+- 2026-03-20: Dwell kill holds UAV position (vx=vy=0) in close range zone for 3s to avoid orbit drift
+- 2026-03-20: enemy_intercept_dispatched set in demo_autopilot prevents repeated dispatches per enemy UAV
 
 ## Performance Metrics
 
@@ -114,3 +117,4 @@ progress:
 | Phase 03 P03 | 246s | 2 tasks | 8 files |
 | Phase 04 P02 | 2 | 2 tasks | 7 files |
 | Phase 04 P01 | 318 | 2 tasks | 3 files |
+| Phase 04 P03 | 298 | 1 tasks | 5 files |
