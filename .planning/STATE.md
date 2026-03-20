@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 06
 current_plan: 2
 status: in_progress
-stopped_at: Completed 06-02-PLAN.md
-last_updated: "2026-03-20T10:36:32.244Z"
+stopped_at: Completed 06-01-PLAN.md
+last_updated: "2026-03-20T10:38:48.687Z"
 progress:
   total_phases: 11
   completed_phases: 6
   total_plans: 37
-  completed_plans: 23
+  completed_plans: 24
 ---
 
 # Project State
@@ -22,8 +22,8 @@ progress:
 
 - **Current Phase:** 06
 - **Current Plan:** 1
-- **Last Session:** 2026-03-20T10:36:28.543Z
-- **Stopped At:** Completed 06-02-PLAN.md
+- **Last Session:** 2026-03-20T10:38:48.684Z
+- **Stopped At:** Completed 06-01-PLAN.md
 
 ## Phase Status
 
@@ -106,6 +106,9 @@ progress:
 - 2026-03-20: Autonomy tier integration deferred for swarm auto-dispatch — operator WS actions always available
 - 2026-03-20: SwarmPanel uses React.memo with custom comparator on sensor coverage set and assigned_uav_ids length only — avoids re-rendering on 10Hz ticks
 - 2026-03-20: PolylineDashMaterialProperty chosen over PolylineGlowMaterialProperty for swarm lines — semantic distinction from flow lines (glow)
+- 2026-03-20: IntelFeedRouter stores enriched events in collections.deque(maxlen=200) — fixed cap prevents memory growth
+- 2026-03-20: broadcast() feed= param added — legacy clients (no subscriptions key) receive all broadcasts unchanged
+- 2026-03-20: All log_event(command) calls replaced with intel_router.emit (15 total) — unified feed multiplexing layer
 - 2026-03-20: Blueprint HTMLTable does not support 'condensed' prop in installed version — row density handled via td cell padding (2px 4px)
 
 ## Performance Metrics
@@ -131,4 +134,6 @@ progress:
 | Phase 05 P01 | 150 | 2 tasks | 2 files |
 | Phase 05 P03 | 150 | 2 tasks | 6 files |
 | Phase 05 P02 | 169 | 2 tasks | 3 files |
+| Phase 06 P01 | 260 | 2 tasks | 4 files |
 | Phase 06 P02 | 180 | 2 tasks | 7 files |
+| Phase 06 P01 | 260 | 2 tasks | 4 files |
