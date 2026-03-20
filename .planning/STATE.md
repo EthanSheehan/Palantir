@@ -2,37 +2,37 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 02
+current_phase: 03
 current_plan: 1
 status: unknown
-stopped_at: Completed 02-03-PLAN.md (awaiting Task 3 human-verify checkpoint)
-last_updated: "2026-03-19T22:17:55.843Z"
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-03-20T00:03:07.273Z"
 progress:
   total_phases: 11
   completed_phases: 3
-  total_plans: 22
-  completed_plans: 13
+  total_plans: 25
+  completed_plans: 14
 ---
 
 # Project State
 
-## Current Phase: 01-multi-sensor-target-fusion
+## Current Phase: 03-drone-modes-autonomy
 
 ## Position
 
-- **Current Phase:** 02
+- **Current Phase:** 03
 - **Current Plan:** 1
-- **Last Session:** 2026-03-19T22:17:55.840Z
-- **Stopped At:** Completed 02-03-PLAN.md (awaiting Task 3 human-verify checkpoint)
+- **Last Session:** 2026-03-20T00:03:07.270Z
+- **Stopped At:** Completed 03-01-PLAN.md
 
 ## Phase Status
 
 | Phase | Status | Notes |
 |-------|--------|-------|
 | 0: Foundation & React Migration | COMPLETE | All 8 plans done |
-| 1: Multi-Sensor Fusion | IN PROGRESS | Plans 01+02+03 complete, awaiting checkpoint verification |
-| 2: Verification Workflow | PLANNED | |
-| 3: Drone Modes & Autonomy | PLANNED | |
+| 1: Multi-Sensor Fusion | COMPLETE | Plans 01+02+03 complete, UAT passed |
+| 2: Verification Workflow | COMPLETE | Plans 01+02+03 complete, UAT 9/10 pass, 1 fixed |
+| 3: Drone Modes & Autonomy | IN PROGRESS | Plan 01 complete — sim_engine modes + autonomy |
 | 4: Enemy UAVs | PLANNED | |
 | 5: Swarm Coordination | PLANNED | |
 | 6: Information Feeds | PLANNED | |
@@ -80,6 +80,9 @@ progress:
 - 2026-03-19: useSendMessage() from App.tsx WebSocketContext is the correct pattern for leaf-component WS sends (consistent with DroneModeButtons)
 - 2026-03-19: VerificationStepper onManualVerify only passed when state CLASSIFIED; component controls button render
 - 2026-03-19: fused_confidence falls back to detection_confidence when Phase 1 sensor fusion hasn't run yet
+- 2026-03-20: OVERWATCH mode does not require a tracked target — handled before target lookup in _update_tracking_modes()
+- 2026-03-20: BDA auto-transition (timer-based) baked into BDA physics block — not routed through autonomy layer
+- 2026-03-20: AUTONOMOUS_TRANSITIONS table at module level maps (mode, trigger) -> new_mode for 8 kill-chain events
 
 ## Performance Metrics
 
@@ -95,3 +98,4 @@ progress:
 | Phase 02 P01 | 162 | 2 tasks | 2 files |
 | Phase 02 P02 | 233s | 2 tasks | 3 files |
 | Phase 02 P03 | 141 | 2 tasks | 4 files |
+| Phase 03 P01 | 113s | 1 tasks | 2 files |
