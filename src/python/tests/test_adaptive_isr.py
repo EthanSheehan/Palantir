@@ -225,3 +225,102 @@ class TestBuildISRQueue:
         result = build_isr_queue(targets, [])
         assert len(result) == 1
         assert isinstance(result[0], ISRRequirement)
+
+
+# ---------------------------------------------------------------------------
+# TestCoverageMode — tests for sim_engine.py coverage_mode + adaptive dispatch
+# ---------------------------------------------------------------------------
+
+from sim_engine import SimulationModel, UAV
+
+
+def _make_sim_with_idle_uavs(n_idle: int = 5) -> SimulationModel:
+    """Create a minimal SimulationModel with n_idle UAVs all set to IDLE."""
+    sim = SimulationModel()
+    # Trim to n_idle UAVs
+    sim.uavs = sim.uavs[:n_idle]
+    for u in sim.uavs:
+        u.mode = "IDLE"
+        u.x = 28.0
+        u.y = 44.0
+    return sim
+
+
+class TestCoverageMode:
+
+    def test_coverage_mode_default(self):
+        """SimulationModel().coverage_mode == 'balanced' by default."""
+        sim = SimulationModel()
+        assert sim.coverage_mode == "balanced"
+
+    def test_set_coverage_mode_valid(self):
+        """set_coverage_mode('threat_adaptive') sets coverage_mode."""
+        sim = SimulationModel()
+        sim.set_coverage_mode("threat_adaptive")
+        assert sim.coverage_mode == "threat_adaptive"
+
+    def test_set_coverage_mode_back_to_balanced(self):
+        """set_coverage_mode('balanced') switches back."""
+        sim = SimulationModel()
+        sim.set_coverage_mode("threat_adaptive")
+        sim.set_coverage_mode("balanced")
+        assert sim.coverage_mode == "balanced"
+
+    def test_set_coverage_mode_invalid(self):
+        """set_coverage_mode with unknown value does not change coverage_mode."""
+        sim = SimulationModel()
+        sim.set_coverage_mode("invalid_mode")
+        assert sim.coverage_mode == "balanced"
+
+    def test_last_assessment_default_none(self):
+        """sim._last_assessment is None at initialisation."""
+        sim = SimulationModel()
+        assert sim._last_assessment is None
+
+    def test_threat_adaptive_dispatches_empty_assessment(self):
+        """_threat_adaptive_dispatches() returns [] when _last_assessment is None."""
+        sim = _make_sim_with_idle_uavs(5)
+        assert sim._last_assessment is None
+        result = sim._threat_adaptive_dispatches()
+        assert result == []
+
+    def test_min_idle_constraint(self):
+        """_threat_adaptive_dispatches() returns [] when idle UAVs <= MIN_IDLE_COUNT (3)."""
+        from sim_engine import MIN_IDLE_COUNT
+        sim = _make_sim_with_idle_uavs(MIN_IDLE_COUNT)
+        sim._last_assessment = {
+            "coverage_gaps": [{"zone_x": 0, "zone_y": 0, "lon": 29.0, "lat": 45.0, "threat_score": 0.9}],
+        }
+        result = sim._threat_adaptive_dispatches()
+        assert result == []
+
+    def test_threat_adaptive_dispatches_targets_gap(self):
+        """With idle > MIN_IDLE_COUNT and coverage_gaps, dispatches UAV toward gap."""
+        sim = _make_sim_with_idle_uavs(5)
+        gap_lon, gap_lat = 29.5, 45.5
+        sim._last_assessment = {
+            "coverage_gaps": [{"zone_x": 0, "zone_y": 0, "lon": gap_lon, "lat": gap_lat, "threat_score": 0.8}],
+        }
+        dispatches = sim._threat_adaptive_dispatches()
+        assert len(dispatches) == 1
+        assert dispatches[0]["target_coord"] == (gap_lon, gap_lat)
+
+    def test_threat_adaptive_dispatches_empty_gaps(self):
+        """With empty coverage_gaps list, returns no dispatches."""
+        sim = _make_sim_with_idle_uavs(5)
+        sim._last_assessment = {"coverage_gaps": []}
+        result = sim._threat_adaptive_dispatches()
+        assert result == []
+
+    def test_tasking_source_default(self):
+        """UAV.tasking_source defaults to 'ZONE_BALANCE'."""
+        sim = SimulationModel()
+        for u in sim.uavs:
+            assert u.tasking_source == "ZONE_BALANCE"
+
+    def test_tasking_source_in_get_state(self):
+        """get_state() UAV dicts contain 'tasking_source' key."""
+        sim = SimulationModel()
+        state = sim.get_state()
+        for uav_dict in state["uavs"]:
+            assert "tasking_source" in uav_dict
