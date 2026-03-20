@@ -438,22 +438,62 @@ async def demo_autopilot():
             in_flight.discard(entry_id)
 
 
+async def sensor_feed_loop():
+    """Emit per-UAV detection snapshots at 2Hz to SENSOR_FEED subscribers."""
+    ACTIVE_MODES = {"SEARCH", "FOLLOW", "PAINT", "INTERCEPT"}
+    while True:
+        await asyncio.sleep(0.5)
+        if not clients:
+            continue
+        state = sim.get_state()
+        for uav_data in state.get("uavs", []):
+            if uav_data.get("mode") not in ACTIVE_MODES:
+                continue
+            uav_id = uav_data["id"]
+            detections = []
+            for t in state.get("targets", []):
+                for sc in t.get("sensor_contributions", []):
+                    if sc.get("uav_id") == uav_id:
+                        detections.append({
+                            "target_id": t["id"],
+                            "target_type": t["type"],
+                            "confidence": sc["confidence"],
+                            "sensor_type": sc["sensor_type"],
+                        })
+            if not detections:
+                continue
+            await intel_router.emit("SENSOR_FEED", {
+                "uav_id": uav_id,
+                "mode": uav_data["mode"],
+                "sensors": uav_data.get("sensors", []),
+                "lat": uav_data["lat"],
+                "lon": uav_data["lon"],
+                "detections": detections,
+            })
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Start event logger, rotate old logs, and start simulation loop
     await start_event_logger()
     rotate_logs(max_days=7)
     task = asyncio.create_task(simulation_loop())
+    sensor_task = asyncio.create_task(sensor_feed_loop())
     demo_task = None
     if settings.demo_mode:
         demo_task = asyncio.create_task(demo_autopilot())
     yield
     # Shutdown: Cancel tasks
     task.cancel()
+    sensor_task.cancel()
     if demo_task:
         demo_task.cancel()
     try:
         await task
+    except asyncio.CancelledError:
+        pass
+    try:
+        await sensor_task
     except asyncio.CancelledError:
         pass
     if demo_task:
