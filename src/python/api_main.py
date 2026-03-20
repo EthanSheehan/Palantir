@@ -601,6 +601,7 @@ async def simulation_loop():
         global _last_assessment_time, _cached_assessment
         now = time.monotonic()
         if now - _last_assessment_time >= 5.0:
+            _last_assessment_time = now
             try:
                 state_snapshot = sim.get_state()
                 targets_with_history = []
@@ -608,13 +609,15 @@ async def simulation_loop():
                     td_copy = dict(td)
                     td_copy["position_history"] = list(t_obj.position_history)
                     targets_with_history.append(td_copy)
-                raw = assessor.assess(
-                    targets=targets_with_history,
-                    uavs=state_snapshot["uavs"],
-                    zones=state_snapshot["zones"],
-                )
-                _cached_assessment = _serialize_assessment(raw)
-                _last_assessment_time = now
+
+                def _run_assessment():
+                    return _serialize_assessment(assessor.assess(
+                        targets=targets_with_history,
+                        uavs=state_snapshot["uavs"],
+                        zones=state_snapshot["zones"],
+                    ))
+
+                _cached_assessment = await asyncio.to_thread(_run_assessment)
             except Exception:
                 logger.exception("battlespace_assessment_error")
 
