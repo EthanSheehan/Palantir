@@ -125,6 +125,29 @@ export interface HitlUpdate {
   entry_id?: string;
 }
 
+export interface IntelEvent {
+  feed: string;
+  timestamp: string;
+  event: string;
+  target_id: number;
+  target_type: string;
+  from?: string;
+  to?: string;
+  summary: string;
+  source?: string;
+}
+
+export interface CommandEvent {
+  feed: string;
+  timestamp: string;
+  action: string;
+  drone_id?: number;
+  target_id?: number;
+  entry_id?: string;
+  coa_id?: string;
+  source: string;
+}
+
 export interface SimStatePayload {
   uavs: UAV[];
   targets: Target[];

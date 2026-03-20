@@ -24,6 +24,7 @@ export function useWebSocket() {
       ws.onopen = () => {
         store.getState().setConnected(true);
         ws.send(JSON.stringify({ type: 'IDENTIFY', client_type: 'DASHBOARD' }));
+        ws.send(JSON.stringify({ action: 'subscribe', feeds: ['INTEL_FEED', 'COMMAND_FEED'] }));
       };
 
       ws.onclose = () => {
@@ -43,6 +44,26 @@ export function useWebSocket() {
             severity: (payload.severity || 'INFO').toUpperCase() as 'INFO' | 'WARNING' | 'CRITICAL',
           };
           store.getState().addAssistantMessage(msg);
+          return;
+        }
+
+        if (payload.type === 'FEED_EVENT') {
+          const feed = payload.feed;
+          if (feed === 'INTEL_FEED') {
+            store.getState().addIntelEvent(payload.data);
+          } else if (feed === 'COMMAND_FEED') {
+            store.getState().addCommandEvent(payload.data);
+          }
+          return;
+        }
+
+        if (payload.type === 'FEED_HISTORY') {
+          const feed = payload.feed;
+          if (feed === 'INTEL_FEED') {
+            store.getState().setIntelEvents(payload.events);
+          } else if (feed === 'COMMAND_FEED') {
+            store.getState().setCommandEvents(payload.events);
+          }
           return;
         }
 

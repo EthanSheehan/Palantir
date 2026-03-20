@@ -69,3 +69,5 @@ export const EARTH_R = 6378137;
 export const THREAT_RING_RADIUS = 5000;
 export const THREAT_RING_TYPES = new Set(['SAM', 'MANPADS']);
 export const MAX_ASSISTANT_MESSAGES = 50;
+export const MAX_INTEL_EVENTS = 100;
+export const MAX_COMMAND_EVENTS = 200;

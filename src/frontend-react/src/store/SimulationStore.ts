@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { UAV, Target, Zone, FlowLine, StrikeEntry, COA, TheaterInfo, AssistantMessage, HitlUpdate, EnemyUAV, SwarmTask } from './types';
-import { MAX_ASSISTANT_MESSAGES } from '../shared/constants';
+import { UAV, Target, Zone, FlowLine, StrikeEntry, COA, TheaterInfo, AssistantMessage, HitlUpdate, EnemyUAV, SwarmTask, IntelEvent, CommandEvent } from './types';
+import { MAX_ASSISTANT_MESSAGES, MAX_INTEL_EVENTS, MAX_COMMAND_EVENTS } from '../shared/constants';
 
 interface SimState {
   // Simulation data (from WS)
@@ -15,6 +15,10 @@ interface SimState {
 
   // Assistant messages
   assistantMessages: AssistantMessage[];
+
+  // Feed slices
+  intelEvents: IntelEvent[];
+  commandEvents: CommandEvent[];
 
   // Cached COAs per entry_id
   cachedCoas: Record<string, COA[]>;
@@ -57,6 +61,10 @@ interface SimState {
   }) => void;
   setConnected: (connected: boolean) => void;
   addAssistantMessage: (msg: AssistantMessage) => void;
+  addIntelEvent: (e: IntelEvent) => void;
+  addCommandEvent: (e: CommandEvent) => void;
+  setIntelEvents: (events: IntelEvent[]) => void;
+  setCommandEvents: (events: CommandEvent[]) => void;
   setCachedCoas: (entryId: string, coas: COA[]) => void;
   selectDrone: (id: number | null) => void;
   selectTarget: (id: number | null) => void;
@@ -80,6 +88,8 @@ export const useSimStore = create<SimState>((set, get) => ({
   demoMode: false,
   connected: false,
   assistantMessages: [],
+  intelEvents: [],
+  commandEvents: [],
   cachedCoas: {},
   selectedDroneId: null,
   selectedTargetId: null,
@@ -159,6 +169,18 @@ export const useSimStore = create<SimState>((set, get) => ({
   addAssistantMessage: (msg) => set((state) => ({
     assistantMessages: [...state.assistantMessages, msg].slice(-MAX_ASSISTANT_MESSAGES),
   })),
+
+  addIntelEvent: (e) => set((state) => ({
+    intelEvents: [...state.intelEvents, e].slice(-MAX_INTEL_EVENTS),
+  })),
+
+  addCommandEvent: (e) => set((state) => ({
+    commandEvents: [...state.commandEvents, e].slice(-MAX_COMMAND_EVENTS),
+  })),
+
+  setIntelEvents: (events) => set({ intelEvents: events.slice(-MAX_INTEL_EVENTS) }),
+
+  setCommandEvents: (events) => set({ commandEvents: events.slice(-MAX_COMMAND_EVENTS) }),
 
   setCachedCoas: (entryId, coas) => set((state) => ({
     cachedCoas: { ...state.cachedCoas, [entryId]: coas },
