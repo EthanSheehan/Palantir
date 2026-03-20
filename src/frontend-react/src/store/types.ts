@@ -9,7 +9,7 @@ export interface UAV {
   lat: number;
   lon: number;
   altitude_m: number;
-  mode: 'IDLE' | 'SEARCH' | 'FOLLOW' | 'PAINT' | 'INTERCEPT' | 'REPOSITIONING' | 'RTB';
+  mode: 'IDLE' | 'SEARCH' | 'FOLLOW' | 'PAINT' | 'INTERCEPT' | 'REPOSITIONING' | 'RTB' | 'SUPPORT' | 'VERIFY' | 'OVERWATCH' | 'BDA';
   heading_deg: number;
   tracked_target_id: number | null;
   tracked_target_ids: number[];
@@ -17,6 +17,9 @@ export interface UAV {
   sensor_type: string;
   sensors: string[];
   fuel_hours: number;
+  autonomy_override: 'MANUAL' | 'SUPERVISED' | 'AUTONOMOUS' | null;
+  mode_source: 'HUMAN' | 'AUTO';
+  pending_transition: { mode: string; reason: string; expires_at: number } | null;
 }
 
 export interface Target {
@@ -110,6 +113,7 @@ export interface SimStatePayload {
   strike_board: StrikeEntry[];
   theater: TheaterInfo | null;
   demo_mode: boolean;
+  autonomy_level: 'MANUAL' | 'SUPERVISED' | 'AUTONOMOUS';
   sitrep_response?: string;
   hitl_update?: HitlUpdate | string;
 }

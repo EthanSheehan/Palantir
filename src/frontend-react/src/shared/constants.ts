@@ -6,6 +6,10 @@ export const MODE_STYLES: Record<string, { color: string; label: string }> = {
   INTERCEPT:     { color: '#ff6400', label: 'INTERCEPT' },
   REPOSITIONING: { color: '#eab308', label: 'TRANSIT' },
   RTB:           { color: '#64748b', label: 'RTB' },
+  SUPPORT:       { color: '#00b3a4', label: 'SUPPORT' },
+  VERIFY:        { color: '#d97008', label: 'VERIFY' },
+  OVERWATCH:     { color: '#5c5fd6', label: 'OVERWATCH' },
+  BDA:           { color: '#7f8fa4', label: 'BDA' },
 };
 
 export const TARGET_MAP: Record<string, { color: string; label: string }> = {

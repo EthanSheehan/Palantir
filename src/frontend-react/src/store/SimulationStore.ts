@@ -19,6 +19,10 @@ interface SimState {
   // Cached COAs per entry_id
   cachedCoas: Record<string, COA[]>;
 
+  // Autonomy state
+  autonomyLevel: 'MANUAL' | 'SUPERVISED' | 'AUTONOMOUS';
+  pendingTransitions: Record<number, { mode: string; reason: string; expires_at: number }>;
+
   // UI state
   selectedDroneId: number | null;
   selectedTargetId: number | null;
@@ -38,6 +42,7 @@ interface SimState {
     strike_board: StrikeEntry[];
     theater: TheaterInfo | null;
     demo_mode: boolean;
+    autonomy_level?: 'MANUAL' | 'SUPERVISED' | 'AUTONOMOUS';
     sitrep_response?: string;
     hitl_update?: HitlUpdate | string;
   }) => void;
@@ -52,6 +57,7 @@ interface SimState {
   toggleAllWaypoints: () => void;
   setDroneCamVisible: (visible: boolean) => void;
   setIsSettingWaypoint: (setting: boolean) => void;
+  setAutonomyLevel: (level: 'MANUAL' | 'SUPERVISED' | 'AUTONOMOUS') => void;
 }
 
 export const useSimStore = create<SimState>((set, get) => ({
@@ -73,6 +79,8 @@ export const useSimStore = create<SimState>((set, get) => ({
   showAllWaypoints: false,
   droneCamVisible: false,
   isSettingWaypoint: false,
+  autonomyLevel: 'MANUAL',
+  pendingTransitions: {},
 
   setSimData: (data) => {
     const newMessages: AssistantMessage[] = [...get().assistantMessages];
@@ -117,6 +125,18 @@ export const useSimStore = create<SimState>((set, get) => ({
       demoMode: data.demo_mode,
       assistantMessages: trimmed,
     });
+
+    if (data.autonomy_level) {
+      set({ autonomyLevel: data.autonomy_level });
+    }
+
+    const pending: Record<number, { mode: string; reason: string; expires_at: number }> = {};
+    for (const uav of data.uavs) {
+      if (uav.pending_transition) {
+        pending[uav.id] = uav.pending_transition;
+      }
+    }
+    set({ pendingTransitions: pending });
   },
 
   setConnected: (connected) => set({ connected }),
@@ -147,4 +167,6 @@ export const useSimStore = create<SimState>((set, get) => ({
   setDroneCamVisible: (visible) => set({ droneCamVisible: visible }),
 
   setIsSettingWaypoint: (setting) => set({ isSettingWaypoint: setting }),
+
+  setAutonomyLevel: (level) => set({ autonomyLevel: level }),
 }));
