@@ -14,7 +14,8 @@ from contextlib import asynccontextmanager
 
 from logging_config import configure_logging
 from config import load_settings
-from event_logger import log_event, start_logger as start_event_logger, stop_logger as stop_event_logger
+from event_logger import log_event, start_logger as start_event_logger, stop_logger as stop_event_logger, rotate_logs
+from intel_feed import IntelFeedRouter, _client_subscribed
 
 from sim_engine import SimulationModel
 from hitl_manager import HITLManager
@@ -439,8 +440,9 @@ async def demo_autopilot():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Start event logger and simulation loop
+    # Startup: Start event logger, rotate old logs, and start simulation loop
     await start_event_logger()
+    rotate_logs(max_days=7)
     task = asyncio.create_task(simulation_loop())
     demo_task = None
     if settings.demo_mode:
@@ -476,7 +478,7 @@ sim.demo_fast = settings.demo_mode
 hitl = HITLManager()
 clients = {} # websocket -> info dict
 
-async def broadcast(message: str, target_type: str = None, sender: WebSocket = None):
+async def broadcast(message: str, target_type: str = None, sender: WebSocket = None, feed: str = None):
     """Parallel broadcast to all matching clients with a strict timeout."""
     if not clients:
         return
@@ -487,6 +489,9 @@ async def broadcast(message: str, target_type: str = None, sender: WebSocket = N
             continue
         if target_type and info.get("type") != target_type:
             continue
+        if feed is not None:
+            if not _client_subscribed(info, feed):
+                continue
         targets.append(ws)
 
     if not targets:
@@ -507,13 +512,34 @@ async def broadcast(message: str, target_type: str = None, sender: WebSocket = N
         if failed_ws and failed_ws in clients:
             clients.pop(failed_ws, None)
 
+intel_router = IntelFeedRouter(broadcast_fn=broadcast, max_history=200)
+
+_prev_target_states: dict[int, str] = {}
+
 async def simulation_loop():
     tick_interval = 1.0 / settings.simulation_hz
     logger.info("simulation_loop_started", hz=settings.simulation_hz)
     while True:
         sim.tick()
+        state = sim.get_state()
+
+        # Detect and emit INTEL_FEED events for target state transitions
+        for t in state.get("targets", []):
+            tid = t["id"]
+            new_state = t["state"]
+            prev = _prev_target_states.get(tid)
+            if prev and prev != new_state and new_state != "UNDETECTED":
+                await intel_router.emit("INTEL_FEED", {
+                    "event": new_state,
+                    "target_id": tid,
+                    "target_type": t["type"],
+                    "from": prev,
+                    "to": new_state,
+                    "summary": f"Target {tid} ({t['type']}): {prev} -> {new_state}",
+                })
+            _prev_target_states[tid] = new_state
+
         if clients:
-            state = sim.get_state()
             state["strike_board"] = hitl.get_strike_board()
             state["demo_mode"] = settings.demo_mode
             state_json = json.dumps({"type": "state", "data": state})
@@ -770,29 +796,29 @@ async def handle_payload(payload: dict, websocket: WebSocket, raw_data: str):
 
     elif action == "follow_target":
         sim.command_follow(payload["drone_id"], payload["target_id"])
-        log_event("command", {"action": "follow_target", "drone_id": payload["drone_id"], "target_id": payload["target_id"]})
+        await intel_router.emit("COMMAND_FEED", {"action": "follow_target", "drone_id": payload["drone_id"], "target_id": payload["target_id"], "source": "operator"})
 
     elif action == "paint_target":
         sim.command_paint(payload["drone_id"], payload["target_id"])
-        log_event("command", {"action": "paint_target", "drone_id": payload["drone_id"], "target_id": payload["target_id"]})
+        await intel_router.emit("COMMAND_FEED", {"action": "paint_target", "drone_id": payload["drone_id"], "target_id": payload["target_id"], "source": "operator"})
 
     elif action == "intercept_target":
         sim.command_intercept(payload["drone_id"], payload["target_id"])
-        log_event("command", {"action": "intercept_target", "drone_id": payload["drone_id"], "target_id": payload["target_id"]})
+        await intel_router.emit("COMMAND_FEED", {"action": "intercept_target", "drone_id": payload["drone_id"], "target_id": payload["target_id"], "source": "operator"})
 
     elif action == "intercept_enemy":
         sim.command_intercept_enemy(payload["uav_id"], payload["enemy_uav_id"])
-        log_event("command", {"action": "intercept_enemy", "uav_id": payload["uav_id"], "enemy_uav_id": payload["enemy_uav_id"]})
+        await intel_router.emit("COMMAND_FEED", {"action": "intercept_enemy", "uav_id": payload["uav_id"], "enemy_uav_id": payload["enemy_uav_id"], "source": "operator"})
 
     elif action in ("cancel_track", "scan_area"):
         sim.cancel_track(payload["drone_id"])
-        log_event("command", {"action": action, "drone_id": payload["drone_id"]})
+        await intel_router.emit("COMMAND_FEED", {"action": action, "drone_id": payload["drone_id"], "source": "operator"})
 
     elif action == "approve_nomination":
         rationale = payload.get("rationale", "")
         try:
             hitl.approve_nomination(payload["entry_id"], rationale)
-            log_event("nomination", {"action": "approved", "entry_id": payload["entry_id"]})
+            await intel_router.emit("COMMAND_FEED", {"action": "approved", "entry_id": payload["entry_id"], "source": "operator"})
             response = json.dumps({"type": "HITL_UPDATE", "action": "approved", "entry": hitl.get_strike_board()})
             await broadcast(response, target_type="DASHBOARD")
         except ValueError as exc:
@@ -820,7 +846,7 @@ async def handle_payload(payload: dict, websocket: WebSocket, raw_data: str):
         rationale = payload.get("rationale", "")
         try:
             hitl.authorize_coa(payload["entry_id"], payload["coa_id"], rationale)
-            log_event("engagement", {"action": "coa_authorized", "entry_id": payload["entry_id"], "coa_id": payload["coa_id"]})
+            await intel_router.emit("COMMAND_FEED", {"action": "coa_authorized", "entry_id": payload["entry_id"], "coa_id": payload["coa_id"], "source": "operator"})
             response = json.dumps({
                 "type": "HITL_UPDATE",
                 "action": "coa_authorized",
@@ -852,12 +878,14 @@ async def handle_payload(payload: dict, websocket: WebSocket, raw_data: str):
             old_state = target.state
             target.state = "VERIFIED"
             target.time_in_state_sec = 0.0
-            log_event("target_state_transition", {
+            await intel_router.emit("INTEL_FEED", {
+                "event": "state_transition",
                 "target_id": target_id,
                 "target_type": target.type,
                 "from": old_state,
                 "to": "VERIFIED",
                 "source": "manual_operator",
+                "summary": f"Target {target_id} ({target.type}) manually verified",
             })
             logger.info("manual_verify", target_id=target_id)
 
@@ -881,7 +909,7 @@ async def handle_payload(payload: dict, websocket: WebSocket, raw_data: str):
             await _send_error(websocket, "Invalid autonomy level. Must be MANUAL, SUPERVISED, or AUTONOMOUS.", action)
             return
         sim.autonomy_level = level
-        log_event("command", {"action": "set_autonomy_level", "level": level})
+        await intel_router.emit("COMMAND_FEED", {"action": "set_autonomy_level", "level": level, "source": "operator"})
         logger.info("autonomy_level_set", level=level)
 
     elif action == "set_drone_autonomy":
@@ -894,26 +922,56 @@ async def handle_payload(payload: dict, websocket: WebSocket, raw_data: str):
             await _send_error(websocket, "Invalid autonomy level for drone override.", action)
             return
         uav.autonomy_override = override_level
-        log_event("command", {"action": "set_drone_autonomy", "drone_id": payload["drone_id"], "level": override_level})
+        await intel_router.emit("COMMAND_FEED", {"action": "set_drone_autonomy", "drone_id": payload["drone_id"], "level": override_level, "source": "operator"})
         logger.info("drone_autonomy_set", drone_id=payload["drone_id"], level=override_level)
 
     elif action == "approve_transition":
         sim.approve_transition(payload["drone_id"])
-        log_event("command", {"action": "approve_transition", "drone_id": payload["drone_id"]})
+        await intel_router.emit("COMMAND_FEED", {"action": "approve_transition", "drone_id": payload["drone_id"], "source": "operator"})
         logger.info("transition_approved", drone_id=payload["drone_id"])
 
     elif action == "reject_transition":
         sim.reject_transition(payload["drone_id"])
-        log_event("command", {"action": "reject_transition", "drone_id": payload["drone_id"]})
+        await intel_router.emit("COMMAND_FEED", {"action": "reject_transition", "drone_id": payload["drone_id"], "source": "operator"})
         logger.info("transition_rejected", drone_id=payload["drone_id"])
 
     elif action == "request_swarm":
         sim.request_swarm(payload["target_id"])
-        log_event("command", {"action": "request_swarm", "target_id": payload["target_id"]})
+        await intel_router.emit("COMMAND_FEED", {"action": "request_swarm", "target_id": payload["target_id"], "source": "operator"})
 
     elif action == "release_swarm":
         sim.release_swarm(payload["target_id"])
-        log_event("command", {"action": "release_swarm", "target_id": payload["target_id"]})
+        await intel_router.emit("COMMAND_FEED", {"action": "release_swarm", "target_id": payload["target_id"], "source": "operator"})
+
+    elif action == "subscribe":
+        feeds = payload.get("feeds", [])
+        if isinstance(feeds, list):
+            client_info = clients.get(websocket, {})
+            client_info["subscriptions"] = set(feeds)
+            # Send history catch-up for subscribed feeds
+            if "INTEL_FEED" in feeds:
+                history = intel_router.get_history("INTEL_FEED")
+                if history:
+                    await websocket.send_text(json.dumps({
+                        "type": "FEED_HISTORY",
+                        "feed": "INTEL_FEED",
+                        "events": history,
+                    }))
+            if "COMMAND_FEED" in feeds:
+                history = intel_router.get_history("COMMAND_FEED")
+                if history:
+                    await websocket.send_text(json.dumps({
+                        "type": "FEED_HISTORY",
+                        "feed": "COMMAND_FEED",
+                        "events": history,
+                    }))
+
+    elif action == "subscribe_sensor_feed":
+        uav_ids = payload.get("uav_ids", [])
+        if isinstance(uav_ids, list):
+            client_info = clients.get(websocket, {})
+            client_info.setdefault("subscriptions", set()).add("SENSOR_FEED")
+            client_info["sensor_feed_uav_ids"] = set(uav_ids)
 
 if __name__ == "__main__":
     uvicorn.run(app, host=settings.host, port=settings.port)

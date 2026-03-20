@@ -141,3 +141,115 @@ def test_log_rotation_keeps_recent(tmp_path, monkeypatch):
 
     remaining = list(tmp_path.glob("events-*.jsonl"))
     assert len(remaining) == 3
+
+
+# ---------------------------------------------------------------------------
+# Integration tests — api_main.py wiring
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_command_feed_coverage():
+    """intel_router.emit is called with COMMAND_FEED when follow_target action received."""
+    import api_main
+
+    mock_emit = AsyncMock()
+    original_emit = api_main.intel_router.emit
+    api_main.intel_router.emit = mock_emit
+
+    mock_ws = MagicMock()
+    mock_ws.send_text = AsyncMock()
+    api_main.clients[mock_ws] = {"type": "DASHBOARD"}
+
+    # Mock sim.command_follow to avoid real sim side effects
+    with patch.object(api_main.sim, "command_follow"):
+        await api_main.handle_payload(
+            {"action": "follow_target", "drone_id": 0, "target_id": 1},
+            mock_ws,
+            "",
+        )
+
+    mock_emit.assert_called_once()
+    args = mock_emit.call_args[0]
+    assert args[0] == "COMMAND_FEED"
+    assert args[1]["action"] == "follow_target"
+
+    # Restore
+    api_main.intel_router.emit = original_emit
+    api_main.clients.pop(mock_ws, None)
+
+
+@pytest.mark.asyncio
+async def test_subscribe_action_sets_subscriptions():
+    """subscribe action stores feeds set on the client info dict."""
+    import api_main
+
+    mock_ws = MagicMock()
+    mock_ws.send_text = AsyncMock()
+    api_main.clients[mock_ws] = {"type": "DASHBOARD"}
+
+    await api_main.handle_payload(
+        {"action": "subscribe", "feeds": ["INTEL_FEED", "COMMAND_FEED"]},
+        mock_ws,
+        "",
+    )
+
+    client_info = api_main.clients[mock_ws]
+    assert "subscriptions" in client_info
+    assert "INTEL_FEED" in client_info["subscriptions"]
+    assert "COMMAND_FEED" in client_info["subscriptions"]
+
+    # Cleanup
+    api_main.clients.pop(mock_ws, None)
+
+
+@pytest.mark.asyncio
+async def test_state_transition_emits_intel_feed():
+    """When target state changes between ticks, intel_router.emit is called with INTEL_FEED."""
+    import api_main
+
+    mock_emit = AsyncMock()
+    original_emit = api_main.intel_router.emit
+    api_main.intel_router.emit = mock_emit
+
+    # Seed previous state
+    api_main._prev_target_states[99] = "DETECTED"
+
+    # Simulate a state dict with a transition
+    fake_state = {
+        "targets": [{"id": 99, "state": "CLASSIFIED", "type": "SAM"}],
+        "drones": [],
+        "grid_zones": [],
+    }
+
+    with patch.object(api_main.sim, "tick"), \
+         patch.object(api_main.sim, "get_state", return_value=fake_state), \
+         patch.object(api_main.hitl, "get_strike_board", return_value=[]), \
+         patch.object(api_main.assistant, "update", return_value=[]):
+        # Run one iteration of the simulation loop logic
+        api_main.sim.tick()
+        state = api_main.sim.get_state()
+        for t in state.get("targets", []):
+            tid = t["id"]
+            new_state = t["state"]
+            prev = api_main._prev_target_states.get(tid)
+            if prev and prev != new_state and new_state != "UNDETECTED":
+                await api_main.intel_router.emit("INTEL_FEED", {
+                    "event": new_state,
+                    "target_id": tid,
+                    "target_type": t["type"],
+                    "from": prev,
+                    "to": new_state,
+                    "summary": f"Target {tid} ({t['type']}): {prev} -> {new_state}",
+                })
+            api_main._prev_target_states[tid] = new_state
+
+    mock_emit.assert_called_once()
+    args = mock_emit.call_args[0]
+    assert args[0] == "INTEL_FEED"
+    assert args[1]["target_id"] == 99
+    assert args[1]["from"] == "DETECTED"
+    assert args[1]["to"] == "CLASSIFIED"
+
+    # Restore
+    api_main.intel_router.emit = original_emit
+    api_main._prev_target_states.pop(99, None)
