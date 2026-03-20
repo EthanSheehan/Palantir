@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 07
-current_plan: Not started
+current_plan: 1
 status: unknown
-stopped_at: Completed 06-03-PLAN.md — phase 06 complete, human verify approved
-last_updated: "2026-03-20T11:01:42.733Z"
+stopped_at: Completed 07-01-PLAN.md
+last_updated: "2026-03-20T11:14:44.141Z"
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 37
-  completed_plans: 25
+  completed_plans: 26
 ---
 
 # Project State
@@ -21,9 +21,9 @@ progress:
 ## Position
 
 - **Current Phase:** 07
-- **Current Plan:** Not started
-- **Last Session:** 2026-03-20T11:01:42.729Z
-- **Stopped At:** Completed 06-03-PLAN.md — phase 06 complete, human verify approved
+- **Current Plan:** 1
+- **Last Session:** 2026-03-20T11:14:44.137Z
+- **Stopped At:** Completed 07-01-PLAN.md
 
 ## Phase Status
 
@@ -115,6 +115,10 @@ progress:
 - 2026-03-20: HUD overlays as absolute-positioned React elements over canvas — never modify canvas draw code
 - 2026-03-20: Diff-based Cesium entity updates for flow/swarm lines — add/remove only changed entities, prevents flickering
 - 2026-03-20: request_swarm accepts all non-terminal target states (not just DETECTED/CLASSIFIED)
+- 2026-03-20: CLUSTER_RADIUS_DEG = 0.135 (15km / 111km per degree) for BattlespaceAssessor greedy neighbor clustering
+- 2026-03-20: Cluster ID = CLU-<sorted member IDs> for stability across ticks
+- 2026-03-20: position_history NOT serialized in get_state() — assessor reads Target objects directly to prevent 10Hz WS payload bloat
+- 2026-03-20: Movement corridor requires >= 10 position history entries AND total displacement > 0.005 degrees
 
 ## Performance Metrics
 
@@ -143,3 +147,4 @@ progress:
 | Phase 06 P02 | 180 | 2 tasks | 7 files |
 | Phase 06 P01 | 260 | 2 tasks | 4 files |
 | Phase 06 P03 | 240 | 2 tasks | 3 files |
+| Phase 07 P01 | 198 | 2 tasks | 3 files |

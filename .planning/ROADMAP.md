@@ -562,7 +562,7 @@ Plans:
 
 **Depends on**: Phase 2 (verification states) + Phase 5 (swarm for addressing gaps)
 
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 **Requirements:** [FR-6.1, FR-6.2, FR-6.3, FR-6.4, FR-6.5, FR-6.6]
 
 Plans:
