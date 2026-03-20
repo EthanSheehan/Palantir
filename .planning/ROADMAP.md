@@ -611,6 +611,14 @@ Plans:
 
 **Depends on**: All prior phases (capstone)
 
+**Plans:** 3 plans
+**Requirements:** [FR-7]
+
+Plans:
+- [ ] 08-01-PLAN.md — TDD ISR priority queue module (build_isr_queue, ISRRequirement, threat scoring)
+- [ ] 08-02-PLAN.md — coverage_mode + threat-adaptive dispatch in sim_engine, set_coverage_mode WS action, ISR queue broadcast, heuristic tasking
+- [ ] 08-03-PLAN.md — React frontend (ISRQueue table, CoverageModeToggle, DroneCard tasking badge, visual checkpoint)
+
 ### 8.1 Activate AI Tasking Manager
 - Implement `_generate_response_heuristic()` — score targets by verification gap, match UAV sensors
 - ISR priority queue: outstanding intelligence requirements ranked by urgency
