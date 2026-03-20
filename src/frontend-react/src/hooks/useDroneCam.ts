@@ -1,3 +1,4 @@
+// @deprecated — Phase 10 replaced this with useSensorCanvas.ts. Kept for reference.
 import { useEffect, useRef } from 'react';
 import { useSimStore } from '../store/SimulationStore';
 import { TARGET_STYLES, SENSOR_RANGE_KM, HFOV_DEG } from '../shared/constants';
