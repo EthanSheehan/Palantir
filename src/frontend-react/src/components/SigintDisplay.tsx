@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo, useState } from 'react';
+import { useRef, useEffect, useMemo, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { useSimStore } from '../store/SimulationStore';
 

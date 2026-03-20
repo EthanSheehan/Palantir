@@ -1,4 +1,3 @@
-import React from 'react';
 import { Button, ButtonGroup, Intent } from '@blueprintjs/core';
 import type { CamLayout } from '../store/types';
 
