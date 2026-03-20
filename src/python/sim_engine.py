@@ -1,6 +1,7 @@
 import math
 import random
 import time
+from collections import deque
 from typing import Dict, List, Optional, Tuple
 from romania_grid import RomaniaMacroGrid
 from sensor_model import evaluate_detection, EnvironmentConditions
@@ -65,6 +66,9 @@ CONCEALMENT_DIST_DEG = 0.03
 
 # Logistics patrol speed multiplier (slower than TRUCK)
 LOGISTICS_SPEED_MULT = 0.5
+
+# Maximum number of position history entries per target
+POSITION_HISTORY_MAXLEN = 60
 
 # Follow orbit radius (degrees, ~2km — loose orbit)
 FOLLOW_ORBIT_RADIUS_DEG = 0.018
@@ -162,6 +166,9 @@ class Target:
         self.time_in_state_sec: float = 0.0
         self.last_sensor_contact_time: float = time.time()
 
+        # Position history for movement corridor detection (not serialized in get_state)
+        self.position_history: deque = deque(maxlen=POSITION_HISTORY_MAXLEN)
+
     @property
     def detected(self) -> bool:
         return self.state != "UNDETECTED"
@@ -256,6 +263,8 @@ class Target:
 
         if self.type in EMITTING_TYPES and random.random() < EMIT_TOGGLE_PROB:
             self.is_emitting = not self.is_emitting
+
+        self.position_history.append((self.x, self.y))
 
 
 class UAV:
