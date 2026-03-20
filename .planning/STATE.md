@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 05
 current_plan: 3
 status: unknown
-stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-03-20T10:24:34.104Z"
+stopped_at: Completed 05-02-PLAN.md
+last_updated: "2026-03-20T10:25:38.462Z"
 progress:
   total_phases: 11
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 37
-  completed_plans: 21
+  completed_plans: 22
 ---
 
 # Project State
@@ -22,8 +22,8 @@ progress:
 
 - **Current Phase:** 05
 - **Current Plan:** 3
-- **Last Session:** 2026-03-20T10:24:34.101Z
-- **Stopped At:** Completed 05-03-PLAN.md
+- **Last Session:** 2026-03-20T10:25:38.459Z
+- **Stopped At:** Completed 05-02-PLAN.md
 
 ## Phase Status
 
@@ -102,6 +102,8 @@ progress:
 - 2026-03-20: already_assigned set initialized before target loop prevents duplicate UAV dispatch in one evaluate_and_assign pass
 - 2026-03-20: Auto-release triggered on target state VERIFIED/NOMINATED/LOCKED/ENGAGED/DESTROYED
 - 2026-03-20: THREAT_WEIGHTS: SAM=1.0, TEL/RADAR=0.9, MANPADS/ARTILLERY=0.8, CP=0.7, APC/C2_NODE=0.6, TRUCK=0.5, LOGISTICS=0.3
+- 2026-03-20: 50-tick throttle gates swarm evaluate_and_assign (every 5s at 10Hz)
+- 2026-03-20: Autonomy tier integration deferred for swarm auto-dispatch — operator WS actions always available
 - 2026-03-20: SwarmPanel uses React.memo with custom comparator on sensor coverage set and assigned_uav_ids length only — avoids re-rendering on 10Hz ticks
 - 2026-03-20: PolylineDashMaterialProperty chosen over PolylineGlowMaterialProperty for swarm lines — semantic distinction from flow lines (glow)
 
@@ -127,3 +129,4 @@ progress:
 | Phase 04 P03 | 298 | 1 tasks | 5 files |
 | Phase 05 P01 | 150 | 2 tasks | 2 files |
 | Phase 05 P03 | 150 | 2 tasks | 6 files |
+| Phase 05 P02 | 169 | 2 tasks | 3 files |
