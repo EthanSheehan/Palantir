@@ -7,7 +7,9 @@ Events are enqueued non-blocking via ``log_event()`` and drained to
 from __future__ import annotations
 
 import asyncio
+import glob
 import json
+import os
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -68,3 +70,14 @@ async def stop_logger() -> None:
         pass
     _writer_task_handle = None
     _queue = None
+
+
+def rotate_logs(max_days: int = 7) -> None:
+    """Delete event log files older than max_days, keeping the most recent ones."""
+    files = sorted(glob.glob(str(LOG_DIR / "events-*.jsonl")))
+    if len(files) > max_days:
+        for old in files[:-max_days]:
+            try:
+                os.remove(old)
+            except OSError:
+                pass
