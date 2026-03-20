@@ -707,6 +707,14 @@ Plans:
 **Goal**: Multi-mode sensor feeds (EO/IR, SAR, SIGINT), enhanced HUD, PIP/SPLIT/QUAD layouts.
 
 **Depends on**: Phase 1 (fusion data), Phase 3 (modes), Phase 6 (SENSOR_FEED)
+**Plans:** 3 plans
+**Requirements:** [FR-9]
+
+Plans:
+- [ ] 10-01-PLAN.md — Backend fov_targets/sensor_quality + TS types + Zustand store + useSensorCanvas hook
+- [ ] 10-02-PLAN.md — SigintDisplay waterfall + CamLayoutSelector + SensorHUD DOM overlay
+- [ ] 10-03-PLAN.md — DroneCamPIP rewrite (multi-layout orchestrator) + visual checkpoint
+
 
 ### 10.1 Sensor Feed Modes
 - **EO/IR**: green thermal, hot targets glow, terrain noise texture
