@@ -94,6 +94,12 @@ MAX_TURN_RATE = math.radians(3.0)
 # Degrees per km (approximate)
 DEG_PER_KM = 1.0 / 111.0
 
+# Enemy UAV modes
+ENEMY_UAV_MODES = ("RECON", "ATTACK", "JAMMING", "EVADING", "DESTROYED")
+
+# Enemy UAV speed (deg/sec, ~440 km/h)
+ENEMY_SPEED = 0.004
+
 # Sensor distribution weights: (sensors, weight)
 _SENSOR_DISTRIBUTION = [
     (["EO_IR"],          50),
@@ -380,6 +386,101 @@ class UAV:
         self.heading_deg = _heading_from_velocity(self.vx, self.vy)
 
 
+class EnemyUAV:
+    def __init__(self, id: int, x: float, y: float, mode: str = "RECON", behavior: str = "recon"):
+        self.id = id
+        self.x = x
+        self.y = y
+        self.vx: float = 0.0
+        self.vy: float = 0.0
+        self.heading_deg: float = 0.0
+        self.mode: str = mode
+        self.behavior: str = behavior
+        self.detected: bool = False
+        self.fused_confidence: float = 0.0
+        self.sensor_count: int = 0
+        self.sensor_contributions: list = []
+        self.is_jamming: bool = mode == "JAMMING"
+        self.speed: float = ENEMY_SPEED
+        self.evasion_cooldown: float = 0.0
+        self.attack_waypoint: Optional[Tuple[float, float]] = None
+
+    def _turn_toward(self, target_vx: float, target_vy: float, speed: float, dt_sec: float):
+        """Gradually turn toward desired direction (fixed-wing turn rate limit, no 3x multiplier)."""
+        curr_heading = math.atan2(self.vx, self.vy) if math.hypot(self.vx, self.vy) > 1e-9 else 0.0
+        desired_heading = math.atan2(target_vx, target_vy)
+        diff = desired_heading - curr_heading
+        while diff > math.pi:
+            diff -= 2 * math.pi
+        while diff < -math.pi:
+            diff += 2 * math.pi
+        max_delta = MAX_TURN_RATE * dt_sec
+        if abs(diff) > max_delta:
+            diff = math.copysign(max_delta, diff)
+        new_heading = curr_heading + diff
+        self.vx = math.sin(new_heading) * speed
+        self.vy = math.cos(new_heading) * speed
+
+    def update(self, dt_sec: float, bounds: dict):
+        if self.mode == "DESTROYED":
+            return
+
+        if self.mode == "RECON":
+            # Circular loiter: constant heading turn
+            if math.hypot(self.vx, self.vy) < self.speed * 0.3:
+                # Kick-start with initial velocity
+                angle = math.radians(self.heading_deg) if self.heading_deg else random.uniform(0, 2 * math.pi)
+                self.vx = math.sin(angle) * self.speed
+                self.vy = math.cos(angle) * self.speed
+            heading_rad = math.atan2(self.vx, self.vy)
+            heading_rad += MAX_TURN_RATE * dt_sec
+            self.vx = math.sin(heading_rad) * self.speed
+            self.vy = math.cos(heading_rad) * self.speed
+
+        elif self.mode == "ATTACK":
+            if self.attack_waypoint is not None:
+                wp_x, wp_y = self.attack_waypoint
+                dx = wp_x - self.x
+                dy = wp_y - self.y
+                dist = math.hypot(dx, dy)
+                if dist > 0.001:
+                    target_vx = (dx / dist) * self.speed
+                    target_vy = (dy / dist) * self.speed
+                    self._turn_toward(target_vx, target_vy, self.speed, dt_sec)
+                # If no velocity yet, initialize toward waypoint
+                if math.hypot(self.vx, self.vy) < self.speed * 0.3 and dist > 0.001:
+                    self.vx = (dx / dist) * self.speed
+                    self.vy = (dy / dist) * self.speed
+
+        elif self.mode == "JAMMING":
+            # Station keeping — no movement
+            self.vx = 0.0
+            self.vy = 0.0
+            self.is_jamming = True
+
+        elif self.mode == "EVADING":
+            # Stub: same as RECON for now (Plan 03 will implement evasion)
+            if math.hypot(self.vx, self.vy) < self.speed * 0.3:
+                angle = math.radians(self.heading_deg) if self.heading_deg else random.uniform(0, 2 * math.pi)
+                self.vx = math.sin(angle) * self.speed
+                self.vy = math.cos(angle) * self.speed
+            heading_rad = math.atan2(self.vx, self.vy)
+            heading_rad += MAX_TURN_RATE * dt_sec
+            self.vx = math.sin(heading_rad) * self.speed
+            self.vy = math.cos(heading_rad) * self.speed
+
+        # Move
+        self.x += self.vx * dt_sec
+        self.y += self.vy * dt_sec
+
+        # Clamp to bounds
+        self.x = max(bounds['min_lon'], min(bounds['max_lon'], self.x))
+        self.y = max(bounds['min_lat'], min(bounds['max_lat'], self.y))
+
+        # Update heading
+        self.heading_deg = _heading_from_velocity(self.vx, self.vy)
+
+
 class SimulationModel:
     def __init__(self, theater_name: str = "romania"):
         self.theater_name = theater_name
@@ -438,6 +539,7 @@ class SimulationModel:
         self.last_update_time = time.time()
         self.active_flows = []
         self.targets: List[Target] = []
+        self.enemy_uavs: List[EnemyUAV] = []
         self.NUM_TARGETS = sum(c for _, c in self._build_target_pool())
         self.demo_fast: bool = False
 
@@ -489,6 +591,24 @@ class SimulationModel:
                 t.detection_range_km = self._unit_detection_range_map.get(unit_type)
                 target_id += 1
                 self.targets.append(t)
+
+        self._spawn_enemy_uavs()
+
+    def _spawn_enemy_uavs(self):
+        """Spawn enemy UAVs at random positions within bounds. IDs start at 1000."""
+        self.enemy_uavs = []
+        for i in range(3):
+            eid = 1000 + i
+            ex = random.uniform(self.bounds['min_lon'], self.bounds['max_lon'])
+            ey = random.uniform(self.bounds['min_lat'], self.bounds['max_lat'])
+            e = EnemyUAV(id=eid, x=ex, y=ey, mode="RECON", behavior="recon")
+            self.enemy_uavs.append(e)
+
+    def _find_enemy_uav(self, enemy_uav_id: int) -> Optional[EnemyUAV]:
+        for e in self.enemy_uavs:
+            if e.id == enemy_uav_id:
+                return e
+        return None
 
     def _find_uav(self, uav_id: int) -> Optional[UAV]:
         for u in self.uavs:
@@ -1133,6 +1253,20 @@ class SimulationModel:
                     "next_threshold": self._get_next_threshold(t),
                     "concealed": getattr(t, 'concealed', False),
                 } for t in self.targets
+            ],
+            "enemy_uavs": [
+                {
+                    "id": e.id,
+                    "lon": e.x,
+                    "lat": e.y,
+                    "mode": e.mode,
+                    "behavior": e.behavior,
+                    "heading_deg": round(e.heading_deg, 1),
+                    "detected": e.detected,
+                    "fused_confidence": round(e.fused_confidence, 3),
+                    "sensor_count": e.sensor_count,
+                    "is_jamming": e.is_jamming,
+                } for e in self.enemy_uavs
             ],
             "environment": {
                 "time_of_day": self.environment.time_of_day,

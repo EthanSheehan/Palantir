@@ -64,6 +64,7 @@ RCS_TABLE: dict[str, float] = {
     "RADAR": 20.0,
     "C2_NODE": 6.0,
     "LOGISTICS": 4.0,
+    "ENEMY_UAV": 0.1,
 }
 
 _FALLBACK_RCS_M2 = 3.0
