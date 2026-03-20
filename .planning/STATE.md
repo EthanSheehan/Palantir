@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 08
-current_plan: 2
-status: unknown
-stopped_at: Completed 08-01-PLAN.md
-last_updated: "2026-03-20T13:58:55.592Z"
+current_plan: 3
+status: in_progress
+stopped_at: Completed 08-02-PLAN.md
+last_updated: "2026-03-20T14:06:41.097Z"
 progress:
   total_phases: 11
   completed_phases: 8
   total_plans: 37
-  completed_plans: 29
+  completed_plans: 30
 ---
 
 # Project State
@@ -22,8 +22,8 @@ progress:
 
 - **Current Phase:** 08
 - **Current Plan:** 2
-- **Last Session:** 2026-03-20T13:58:55.587Z
-- **Stopped At:** Completed 08-01-PLAN.md
+- **Last Session:** 2026-03-20T14:06:41.090Z
+- **Stopped At:** Completed 08-02-PLAN.md
 
 ## Phase Status
 
@@ -126,6 +126,10 @@ progress:
 - 2026-03-20: ZoneThreatHeatmap returns null on empty scores — prevents ECharts blank render
 - 2026-03-20: ISRRequirement frozen dataclass; urgency = threat_weight * (1 - fused_confidence) * (0.5 + 0.5 * time_factor); EXCLUDED_STATES = {DESTROYED, ESCAPED, UNDETECTED}; only IDLE UAVs recommended
 - 2026-03-20: assessment_result param accepted by build_isr_queue but not consumed in Plan 01 — reserved for Plan 02 zone-weighted scoring
+- 2026-03-20: MIN_IDLE_COUNT=3 guards threat-adaptive dispatch — never dispatches below 3 idle UAVs
+- 2026-03-20: ISR queue built inside existing 5s assessment block — no new timer; sim._last_assessment set from _cached_assessment
+- 2026-03-20: Heuristic AITaskingManager uses SensorTaskingOrder objects (not plain dicts) for Pydantic round-trip correctness
+- 2026-03-20: set_coverage_mode validates against whitelist ('balanced', 'threat_adaptive') — silent reject on invalid values
 
 ## Performance Metrics
 
@@ -158,3 +162,4 @@ progress:
 | Phase 07 P02 | 300 | 2 tasks | 4 files |
 | Phase 07 P03 | 124 | 2 tasks | 7 files |
 | Phase 08 P01 | 109 | 1 tasks | 2 files |
+| Phase 08 P02 | 307s | 2 tasks | 4 files |
