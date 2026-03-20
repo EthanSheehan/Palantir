@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 10
 current_plan: 1
 status: unknown
-stopped_at: Completed 09-01-PLAN.md
-last_updated: "2026-03-20T14:47:50.348Z"
+stopped_at: Completed 10-02-PLAN.md
+last_updated: "2026-03-20T14:49:36.735Z"
 progress:
   total_phases: 11
   completed_phases: 9
   total_plans: 37
-  completed_plans: 32
+  completed_plans: 34
 ---
 
 # Project State
@@ -22,8 +22,8 @@ progress:
 
 - **Current Phase:** 10
 - **Current Plan:** 1
-- **Last Session:** 2026-03-20T14:47:50.343Z
-- **Stopped At:** Completed 09-01-PLAN.md
+- **Last Session:** 2026-03-20T14:49:11.067Z
+- **Stopped At:** Completed 10-02-PLAN.md
 
 ## Phase Status
 
@@ -130,6 +130,9 @@ progress:
 - 2026-03-20: ISR queue built inside existing 5s assessment block — no new timer; sim._last_assessment set from _cached_assessment
 - 2026-03-20: Heuristic AITaskingManager uses SensorTaskingOrder objects (not plain dicts) for Pydantic round-trip correctness
 - 2026-03-20: set_coverage_mode validates against whitelist ('balanced', 'threat_adaptive') — silent reject on invalid values
+- 2026-03-20: ButtonGroup small prop absent in installed Blueprint version — omitted without visual loss
+- 2026-03-20: SigintDisplay ring buffer via useRef + useState tick counter forces useMemo recalc without recreating buffer
+- 2026-03-20: Threat warning gates on fov_targets inclusion before haversine distance check to avoid O(n) full scans
 - 2026-03-20: setMapMode does atomic replace of layerVisibility from MAP_MODE_DEFAULTS — clean state on mode switch
 - 2026-03-20: layerVisibility is flat Record<string, boolean> — layer hooks in Plan 02 read individual keys directly
 - 2026-03-20: MapModeBar keyboard shortcuts guard against HTMLInputElement/HTMLTextAreaElement focus to prevent mode switching while typing
@@ -167,3 +170,4 @@ progress:
 | Phase 08 P01 | 109 | 1 tasks | 2 files |
 | Phase 08 P02 | 307s | 2 tasks | 4 files |
 | Phase 09 P01 | 165 | 3 tasks | 4 files |
+| Phase 10 P02 | 142 | 2 tasks | 4 files |
