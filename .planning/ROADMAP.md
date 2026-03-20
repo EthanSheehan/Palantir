@@ -578,9 +578,9 @@ Plans:
 - `_detect_movement_corridors()` — patrol routes from target movement history
 - Consume theater YAML `threat_range_km` for SAM engagement envelopes
 
-### 7.2 Activate Dormant Agents
-- `battlespace_manager.py` — activate threat ring generation from verified SAM/RADAR positions
-- Wire `threat_range_km` from theater YAML into ring radius
+### 7.2 ~~Activate Dormant Agents~~ (DEFERRED)
+- `battlespace_manager.py` — **deferred**. SAM engagement envelopes are rendered directly in Cesium via `threat_range_km` from `state.targets` (simpler, no agent overhead). The dormant agent is not needed for Phase 7 scope.
+- If threat ring logic grows complex in Phase 8+, consider activating `battlespace_manager.py` then.
 
 ### 8.3 React Components
 - `AssessmentTab.tsx` — new sidebar tab with Blueprint Cards
@@ -596,7 +596,6 @@ Plans:
 | `src/python/battlespace_assessment.py` | **NEW** (~350 lines) |
 | `src/python/sim_engine.py` | MODIFY (~40 lines — position history) |
 | `src/python/api_main.py` | MODIFY (~40 lines) |
-| `src/python/agents/battlespace_manager.py` | MODIFY (~60 lines) |
 | `src/python/tests/test_battlespace.py` | **NEW** (~120 lines) |
 | `src/frontend/src/components/AssessmentTab.tsx` | **NEW** (~200 lines) |
 | `src/frontend/src/components/ThreatClusterCard.tsx` | **NEW** (~80 lines) |
