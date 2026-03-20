@@ -13,6 +13,7 @@ import { useCesiumRangeRings } from './useCesiumRangeRings';
 import { useCesiumWaypoints } from './useCesiumWaypoints';
 import { useCesiumLockIndicators } from './useCesiumLockIndicators';
 import { useCesiumEnemyUAVs } from './useCesiumEnemyUAVs';
+import { useCesiumAssessment } from './useCesiumAssessment';
 import { CameraControls } from './CameraControls';
 import { DroneCamPIP } from '../overlays/DroneCamPIP';
 
@@ -33,6 +34,7 @@ export function CesiumContainer({ children }: { children?: React.ReactNode }) {
   useCesiumFlowLines(viewerRef);
   useCesiumSwarmLines(viewerRef);
   useCesiumEnemyUAVs(viewerRef);
+  useCesiumAssessment(viewerRef);
 
   // Interaction and overlay hooks
   useCesiumCompass(viewerRef, droneEntitiesRef);
