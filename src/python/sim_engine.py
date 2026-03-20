@@ -7,6 +7,7 @@ from sensor_model import evaluate_detection, EnvironmentConditions
 from theater_loader import load_theater, TheaterConfig, list_theaters
 from sensor_fusion import SensorContribution, fuse_detections
 from verification_engine import evaluate_target_state, VERIFICATION_THRESHOLDS, _DEFAULT_THRESHOLD
+from swarm_coordinator import SwarmCoordinator, TaskingOrder
 
 import structlog
 
@@ -557,6 +558,10 @@ class SimulationModel:
         self.NUM_TARGETS = sum(c for _, c in self._build_target_pool())
         self.demo_fast: bool = False
 
+        # Phase 5: swarm coordination
+        self.swarm_coordinator = SwarmCoordinator(min_idle_count=2)  # 2 per locked decision
+        self._swarm_tick_counter = 0
+
         self.initialize()
 
     def _build_target_pool(self) -> list:
@@ -708,6 +713,25 @@ class SimulationModel:
                 if not target.tracked_by_uav_ids and target.state in ("TRACKED", "LOCKED"):
                     target.state = "DETECTED"
         logger.info("cancel_track", uav_id=uav_id, old_target_id=old_target_id)
+
+    def request_swarm(self, target_id: int):
+        """Force-assign UAVs to fill sensor gaps for target (operator request).
+        Runs unconditionally regardless of autonomy tier — operator request always executes.
+        """
+        target = self._find_target(target_id)
+        if not target:
+            return
+        orders = self.swarm_coordinator.evaluate_and_assign([target], self.uavs)
+        for order in orders:
+            uav = self._find_uav(order.uav_id)
+            if uav and not (uav.mode == "SUPPORT" and order.target_id in uav.tracked_target_ids):
+                self._assign_target(order.uav_id, order.target_id, "SUPPORT", "DETECTED")
+
+    def release_swarm(self, target_id: int):
+        """Release all SUPPORT UAVs from target, set them to SEARCH."""
+        for u in self.uavs:
+            if u.mode == "SUPPORT" and target_id in u.tracked_target_ids:
+                self.cancel_track(u.id)
 
     def tick(self):
         now = time.time()
@@ -942,6 +966,19 @@ class SimulationModel:
             else:
                 e.fused_confidence = max(0.0, e.fused_confidence * 0.95)
                 e.detected = e.fused_confidence > 0.1
+
+        # 11. Swarm coordination — auto-dispatch complementary sensors (throttled: every 50 ticks = 5s)
+        # Note: autonomy tier integration deferred — full AUTONOMOUS/SUPERVISED/MANUAL gating
+        # will be added when the autonomy tier selector phase is implemented. Operator
+        # request_swarm/release_swarm WS actions always available regardless of tier.
+        self._swarm_tick_counter += 1
+        if self._swarm_tick_counter % 50 == 0:
+            swarm_orders = self.swarm_coordinator.evaluate_and_assign(self.targets, self.uavs)
+            for order in swarm_orders:
+                uav = self._find_uav(order.uav_id)
+                # Guard: skip if UAV already in SUPPORT for this target
+                if uav and not (uav.mode == "SUPPORT" and order.target_id in uav.tracked_target_ids):
+                    self._assign_target(order.uav_id, order.target_id, "SUPPORT", "DETECTED")
 
     def _update_enemy_intercept(self, u: UAV, dt_sec: float):
         """Handle UAV intercept of an enemy UAV (primary_target_id >= 1000)."""
@@ -1419,4 +1456,13 @@ class SimulationModel:
                 "name": self.theater_name,
                 "bounds": self.bounds,
             },
+            "swarm_tasks": [
+                {
+                    "target_id": task.target_id,
+                    "assigned_uav_ids": list(task.assigned_uav_ids),
+                    "sensor_coverage": list(task.sensor_coverage),
+                    "formation_type": task.formation_type,
+                }
+                for task in self.swarm_coordinator.get_active_tasks().values()
+            ],
         }
