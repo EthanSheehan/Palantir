@@ -112,6 +112,8 @@ _ACTION_SCHEMAS: dict[str, dict[str, str]] = {
     "approve_transition": {"drone_id": "int"},
     "reject_transition": {"drone_id": "int"},
     "intercept_enemy": {"uav_id": "int", "enemy_uav_id": "int"},
+    "request_swarm": {"target_id": "int"},
+    "release_swarm": {"target_id": "int"},
 }
 
 # ---------------------------------------------------------------------------
@@ -904,6 +906,14 @@ async def handle_payload(payload: dict, websocket: WebSocket, raw_data: str):
         sim.reject_transition(payload["drone_id"])
         log_event("command", {"action": "reject_transition", "drone_id": payload["drone_id"]})
         logger.info("transition_rejected", drone_id=payload["drone_id"])
+
+    elif action == "request_swarm":
+        sim.request_swarm(payload["target_id"])
+        log_event("command", {"action": "request_swarm", "target_id": payload["target_id"]})
+
+    elif action == "release_swarm":
+        sim.release_swarm(payload["target_id"])
+        log_event("command", {"action": "release_swarm", "target_id": payload["target_id"]})
 
 if __name__ == "__main__":
     uvicorn.run(app, host=settings.host, port=settings.port)

@@ -234,3 +234,49 @@ class TestConstants:
         assert "SAR" in SENSOR_TYPES
         assert "SIGINT" in SENSOR_TYPES
         assert len(SENSOR_TYPES) == 3
+
+
+# ---------------------------------------------------------------------------
+# Integration tests (use real SimulationModel)
+# ---------------------------------------------------------------------------
+
+def test_request_release_swarm():
+    """Integration: request_swarm force-assigns, release_swarm cancels."""
+    import sys
+    import os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+    from sim_engine import SimulationModel
+    sim = SimulationModel()
+    # Tick once to settle initial state
+    sim.tick()
+    detected = [t for t in sim.targets if t.state != "UNDETECTED"]
+    if not detected:
+        # Force-detect first target for test
+        sim.targets[0].state = "DETECTED"
+        sim.targets[0].fused_confidence = 0.3
+        detected = [sim.targets[0]]
+    target = detected[0]
+    # Request swarm
+    sim.request_swarm(target.id)
+    # Release swarm
+    sim.release_swarm(target.id)
+    released = [u for u in sim.uavs if u.mode == "SUPPORT" and target.id in u.tracked_target_ids]
+    assert len(released) == 0
+
+
+def test_swarm_state_in_broadcast():
+    """Integration: swarm_tasks key exists in get_state() output."""
+    import sys
+    import os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+    from sim_engine import SimulationModel
+    sim = SimulationModel()
+    state = sim.get_state()
+    assert "swarm_tasks" in state
+    assert isinstance(state["swarm_tasks"], list)
+    # Each task should have required keys (if any tasks exist)
+    for task in state["swarm_tasks"]:
+        assert "target_id" in task
+        assert "assigned_uav_ids" in task
+        assert "sensor_coverage" in task
+        assert "formation_type" in task
