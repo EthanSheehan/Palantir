@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 07
-current_plan: 1
-status: unknown
-stopped_at: "Completed 07-03-PLAN.md (checkpoint:human-verify at Task 3)"
+current_plan: 3
+status: complete
+stopped_at: "Completed 07-03-PLAN.md — phase 07 complete"
 last_updated: "2026-03-20T11:24:47.619Z"
 progress:
   total_phases: 11
@@ -21,9 +21,9 @@ progress:
 ## Position
 
 - **Current Phase:** 07
-- **Current Plan:** 1
-- **Last Session:** 2026-03-20T11:24:47.612Z
-- **Stopped At:** Completed 07-03-PLAN.md (checkpoint:human-verify at Task 3)
+- **Current Plan:** 3
+- **Last Session:** 2026-03-20T11:26:00Z
+- **Stopped At:** Completed 07-03-PLAN.md -- phase 07 complete
 
 ## Phase Status
 
@@ -36,7 +36,7 @@ progress:
 | 4: Enemy UAVs | COMPLETE | Plans 01+02+03 complete |
 | 5: Swarm Coordination | COMPLETE | Plans 01+02+03 complete |
 | 6: Information Feeds | COMPLETE | Plans 01+02+03 complete, UAT approved |
-| 7: Battlespace Assessment | PLANNED | Next phase |
+| 7: Battlespace Assessment | COMPLETE | Plans 01+02+03 complete, coverage gap fix during UAT |
 | 8: Adaptive ISR | PLANNED | |
 | 9: Map Modes | PLANNED | |
 | 10: Drone Feeds | PLANNED | |
@@ -121,6 +121,9 @@ progress:
 - 2026-03-20: Movement corridor requires >= 10 position history entries AND total displacement > 0.005 degrees
 - 2026-03-20: get_state() called twice per tick when assessment fires — snapshot for history enrichment, then fresh for broadcast
 - 2026-03-20: assessment key omitted from WS payload when _cached_assessment is None (first 5s of run)
+- 2026-03-20: Coverage gaps only flag zones with detected targets but no UAV coverage — empty zones are not gaps
+- 2026-03-20: useCesiumAssessment uses full teardown+rebuild (not diff) — assessment data changes structurally every 5s
+- 2026-03-20: ZoneThreatHeatmap returns null on empty scores — prevents ECharts blank render
 
 ## Performance Metrics
 
