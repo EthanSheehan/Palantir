@@ -19,6 +19,7 @@ export interface UAV {
   fuel_hours: number;
   autonomy_override: 'MANUAL' | 'SUPERVISED' | 'AUTONOMOUS' | null;
   mode_source: 'HUMAN' | 'AUTO';
+  tasking_source: 'ZONE_BALANCE' | 'ISR_PRIORITY' | 'OPERATOR';
   pending_transition: { mode: string; reason: string; expires_at: number } | null;
 }
 
@@ -177,6 +178,15 @@ export interface AssessmentPayload {
   movement_corridors: MovementCorridor[];
 }
 
+export interface ISRRequirement {
+  target_id: number;
+  target_type: string;
+  urgency_score: number;
+  verification_gap: number;
+  missing_sensor_types: string[];
+  recommended_uav_ids: number[];
+}
+
 export interface SimStatePayload {
   uavs: UAV[];
   targets: Target[];
@@ -191,4 +201,6 @@ export interface SimStatePayload {
   enemy_uavs?: EnemyUAV[];
   swarm_tasks?: SwarmTask[];
   assessment?: AssessmentPayload;
+  isr_queue?: ISRRequirement[];
+  coverage_mode?: 'balanced' | 'threat_adaptive';
 }

@@ -8,6 +8,8 @@ import { CommandLog } from './CommandLog';
 import { StrikeBoard } from './StrikeBoard';
 import { GridControls } from './GridControls';
 import { AutonomyToggle } from './AutonomyToggle';
+import { ISRQueue } from './ISRQueue';
+import { CoverageModeToggle } from './CoverageModeToggle';
 
 export function MissionTab() {
   const connected = useSimStore(s => s.connected);
@@ -28,6 +30,10 @@ export function MissionTab() {
       </div>
       <TheaterSelector />
       <AssistantWidget />
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '8px 0' }} />
+      <CoverageModeToggle />
+      <ISRQueue />
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '8px 0' }} />
       <IntelFeed />
       <CommandLog />
       <StrikeBoard />

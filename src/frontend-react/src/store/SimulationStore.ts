@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { UAV, Target, Zone, FlowLine, StrikeEntry, COA, TheaterInfo, AssistantMessage, HitlUpdate, EnemyUAV, SwarmTask, IntelEvent, CommandEvent, AssessmentPayload } from './types';
+import { UAV, Target, Zone, FlowLine, StrikeEntry, COA, TheaterInfo, AssistantMessage, HitlUpdate, EnemyUAV, SwarmTask, IntelEvent, CommandEvent, AssessmentPayload, ISRRequirement } from './types';
 import { MAX_ASSISTANT_MESSAGES, MAX_INTEL_EVENTS, MAX_COMMAND_EVENTS } from '../shared/constants';
 
 interface SimState {
@@ -36,6 +36,10 @@ interface SimState {
   // Assessment data
   assessment: AssessmentPayload | null;
 
+  // ISR state
+  isrQueue: ISRRequirement[];
+  coverageMode: 'balanced' | 'threat_adaptive';
+
   // UI state
   selectedDroneId: number | null;
   selectedTargetId: number | null;
@@ -62,6 +66,8 @@ interface SimState {
     enemy_uavs?: EnemyUAV[];
     swarm_tasks?: SwarmTask[];
     assessment?: AssessmentPayload;
+    isr_queue?: ISRRequirement[];
+    coverage_mode?: 'balanced' | 'threat_adaptive';
   }) => void;
   setConnected: (connected: boolean) => void;
   addAssistantMessage: (msg: AssistantMessage) => void;
@@ -109,6 +115,8 @@ export const useSimStore = create<SimState>((set, get) => ({
   autonomyLevel: 'MANUAL',
   pendingTransitions: {},
   assessment: null,
+  isrQueue: [],
+  coverageMode: 'balanced',
 
   setSimData: (data) => {
     const newMessages: AssistantMessage[] = [...get().assistantMessages];
@@ -162,6 +170,14 @@ export const useSimStore = create<SimState>((set, get) => ({
 
     if (data.assessment) {
       set({ assessment: data.assessment });
+    }
+
+    if (data.isr_queue) {
+      set({ isrQueue: data.isr_queue });
+    }
+
+    if (data.coverage_mode) {
+      set({ coverageMode: data.coverage_mode as 'balanced' | 'threat_adaptive' });
     }
 
     const pending: Record<number, { mode: string; reason: string; expires_at: number }> = {};
