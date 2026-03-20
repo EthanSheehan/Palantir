@@ -1429,6 +1429,28 @@ class SimulationModel:
             return thresh.verify_confidence
         return None
 
+    def _compute_fov_targets(self, uav) -> list:
+        """Return list of target IDs that are detected and within detection range of this UAV."""
+        result = []
+        for t in self.targets:
+            if t.state == "UNDETECTED":
+                continue
+            dist_deg = math.hypot(uav.x - t.x, uav.y - t.y)
+            range_km = t.detection_range_km if t.detection_range_km is not None else 15.0
+            if dist_deg / DEG_PER_KM <= range_km:
+                result.append(t.id)
+        return result
+
+    _SENSOR_QUALITY_MAP = {
+        "PAINT": 1.0,
+        "FOLLOW": 0.8,
+        "INTERCEPT": 0.8,
+        "SEARCH": 0.6,
+        "SUPPORT": 0.7,
+        "VERIFY": 0.9,
+        "OVERWATCH": 0.5,
+    }
+
     def get_state(self):
         return {
             "autonomy_level": self.autonomy_level,
@@ -1450,6 +1472,8 @@ class SimulationModel:
                     "mode_source": u.mode_source,
                     "tasking_source": u.tasking_source,
                     "pending_transition": self.pending_transitions.get(u.id),
+                    "fov_targets": self._compute_fov_targets(u),
+                    "sensor_quality": self._SENSOR_QUALITY_MAP.get(u.mode, 0.6),
                 } for u in self.uavs
             ],
             "zones": [
