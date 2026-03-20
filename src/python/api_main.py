@@ -105,6 +105,11 @@ _ACTION_SCHEMAS: dict[str, dict[str, str]] = {
     "authorize_coa": {"entry_id": "str", "coa_id": "str"},
     "reject_coa": {"entry_id": "str"},
     "verify_target": {"target_id": "int"},
+    "scan_area": {"drone_id": "int"},
+    "set_autonomy_level": {"level": "str"},
+    "set_drone_autonomy": {"drone_id": "int"},
+    "approve_transition": {"drone_id": "int"},
+    "reject_transition": {"drone_id": "int"},
 }
 
 # ---------------------------------------------------------------------------
@@ -838,6 +843,38 @@ async def handle_payload(payload: dict, websocket: WebSocket, raw_data: str):
     elif action == "reset":
         sim.reset_queues()
         logger.info("grid_state_reset")
+
+    elif action == "set_autonomy_level":
+        level = payload.get("level")
+        if level not in ("MANUAL", "SUPERVISED", "AUTONOMOUS"):
+            await _send_error(websocket, "Invalid autonomy level. Must be MANUAL, SUPERVISED, or AUTONOMOUS.", action)
+            return
+        sim.autonomy_level = level
+        log_event("command", {"action": "set_autonomy_level", "level": level})
+        logger.info("autonomy_level_set", level=level)
+
+    elif action == "set_drone_autonomy":
+        uav = sim._find_uav(payload["drone_id"])
+        if not uav:
+            await _send_error(websocket, f"UAV {payload['drone_id']} not found", action)
+            return
+        override_level = payload.get("level")  # None clears override
+        if override_level is not None and override_level not in ("MANUAL", "SUPERVISED", "AUTONOMOUS"):
+            await _send_error(websocket, "Invalid autonomy level for drone override.", action)
+            return
+        uav.autonomy_override = override_level
+        log_event("command", {"action": "set_drone_autonomy", "drone_id": payload["drone_id"], "level": override_level})
+        logger.info("drone_autonomy_set", drone_id=payload["drone_id"], level=override_level)
+
+    elif action == "approve_transition":
+        sim.approve_transition(payload["drone_id"])
+        log_event("command", {"action": "approve_transition", "drone_id": payload["drone_id"]})
+        logger.info("transition_approved", drone_id=payload["drone_id"])
+
+    elif action == "reject_transition":
+        sim.reject_transition(payload["drone_id"])
+        log_event("command", {"action": "reject_transition", "drone_id": payload["drone_id"]})
+        logger.info("transition_rejected", drone_id=payload["drone_id"])
 
 if __name__ == "__main__":
     uvicorn.run(app, host=settings.host, port=settings.port)
