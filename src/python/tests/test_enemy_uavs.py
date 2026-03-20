@@ -304,6 +304,149 @@ class TestJammingDetection:
         assert e.detected is False, "SIGINT should NOT detect non-jamming enemy (requires_emitter=True)"
 
 
+# ---------------------------------------------------------------------------
+# TestEvasion
+# ---------------------------------------------------------------------------
+
+class TestEvasion:
+    def test_evasion_triggers_at_high_confidence(self):
+        """set enemy.fused_confidence=0.6, call evasion check, mode becomes EVADING."""
+        random.seed(42)
+        e = EnemyUAV(id=1000, x=25.0, y=45.0, mode="RECON", behavior="recon")
+        e.fused_confidence = 0.6
+        bounds = {"min_lon": 20.0, "max_lon": 30.0, "min_lat": 40.0, "max_lat": 50.0}
+        e.update(0.1, bounds)
+        assert e.mode == "EVADING", f"Expected EVADING, got {e.mode}"
+
+    def test_evasion_cooldown_prevents_thrash(self):
+        """After entering EVADING, even if confidence drops, mode stays EVADING for at least 15 seconds."""
+        random.seed(42)
+        e = EnemyUAV(id=1000, x=25.0, y=45.0, mode="RECON", behavior="recon")
+        e.fused_confidence = 0.6
+        bounds = {"min_lon": 20.0, "max_lon": 30.0, "min_lat": 40.0, "max_lat": 50.0}
+        e.update(0.1, bounds)
+        assert e.mode == "EVADING"
+        # Drop confidence below threshold
+        e.fused_confidence = 0.1
+        # Tick for 10 seconds — should still be EVADING (cooldown=15s not expired)
+        for _ in range(100):
+            e.update(0.1, bounds)
+        assert e.mode == "EVADING", f"Should still be EVADING after 10s, got {e.mode}"
+
+    def test_evasion_returns_to_original(self):
+        """After cooldown expires and confidence < 0.3, mode returns to original mode."""
+        random.seed(42)
+        e = EnemyUAV(id=1000, x=25.0, y=45.0, mode="RECON", behavior="recon")
+        e.fused_confidence = 0.6
+        bounds = {"min_lon": 20.0, "max_lon": 30.0, "min_lat": 40.0, "max_lat": 50.0}
+        e.update(0.1, bounds)
+        assert e.mode == "EVADING"
+        # Expire the cooldown manually
+        e.evasion_cooldown = 0.0
+        e.fused_confidence = 0.1
+        e.update(0.1, bounds)
+        assert e.mode == "RECON", f"Should return to RECON, got {e.mode}"
+
+    def test_evasion_speed_boost(self):
+        """EVADING mode speed is 1.5x normal speed."""
+        random.seed(42)
+        e = EnemyUAV(id=1000, x=25.0, y=45.0, mode="EVADING", behavior="recon")
+        e.evasion_cooldown = 15.0
+        e._original_mode = "RECON"
+        bounds = {"min_lon": 20.0, "max_lon": 30.0, "min_lat": 40.0, "max_lat": 50.0}
+        # Give initial velocity
+        e.vx = e.speed
+        e.vy = 0.0
+        e.update(0.1, bounds)
+        current_speed = math.hypot(e.vx, e.vy)
+        # Speed in EVADING should be 1.5x normal
+        assert abs(current_speed - e.speed * 1.5) < 0.001, (
+            f"EVADING speed should be {e.speed * 1.5:.5f}, got {current_speed:.5f}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# TestInterceptKill
+# ---------------------------------------------------------------------------
+
+class TestInterceptKill:
+    def test_intercept_command(self):
+        """command_intercept_enemy(uav_id=0, enemy_uav_id=1000) sets UAV mode to INTERCEPT."""
+        random.seed(42)
+        sim = SimulationModel()
+        uav = sim.uavs[0]
+        enemy = sim.enemy_uavs[0]
+        sim.command_intercept_enemy(uav.id, enemy.id)
+        assert uav.mode == "INTERCEPT", f"UAV mode should be INTERCEPT, got {uav.mode}"
+        assert uav.primary_target_id == enemy.id, (
+            f"UAV primary_target_id should be {enemy.id}, got {uav.primary_target_id}"
+        )
+
+    def test_kill_at_close_range(self):
+        """UAV within INTERCEPT_CLOSE_DEG of enemy, after 3s dwell (30 ticks), enemy mode becomes DESTROYED."""
+        random.seed(42)
+        sim = SimulationModel()
+        uav = sim.uavs[0]
+        enemy = sim.enemy_uavs[0]
+        # Place UAV directly on top of enemy
+        uav.x = enemy.x
+        uav.y = enemy.y
+        uav.mode = "INTERCEPT"
+        uav.primary_target_id = enemy.id
+        uav._intercept_dwell = 0.0
+        # Tick 31 times at 0.1s = 3.1s dwell
+        for _ in range(31):
+            sim._update_tracking_modes(0.1)
+        assert enemy.mode == "DESTROYED", f"Enemy should be DESTROYED, got {enemy.mode}"
+
+    def test_uav_returns_to_search_after_kill(self):
+        """After enemy destroyed, friendly UAV mode becomes SEARCH."""
+        random.seed(42)
+        sim = SimulationModel()
+        uav = sim.uavs[0]
+        enemy = sim.enemy_uavs[0]
+        uav.x = enemy.x
+        uav.y = enemy.y
+        uav.mode = "INTERCEPT"
+        uav.primary_target_id = enemy.id
+        uav._intercept_dwell = 0.0
+        for _ in range(31):
+            sim._update_tracking_modes(0.1)
+        assert uav.mode == "SEARCH", f"UAV should revert to SEARCH, got {uav.mode}"
+
+    def test_destroyed_enemy_no_movement(self):
+        """DESTROYED enemy vx=vy=0."""
+        random.seed(42)
+        e = EnemyUAV(id=1000, x=25.0, y=45.0, mode="DESTROYED", behavior="recon")
+        e.vx = 0.005
+        e.vy = 0.003
+        bounds = {"min_lon": 20.0, "max_lon": 30.0, "min_lat": 40.0, "max_lat": 50.0}
+        e.update(0.1, bounds)
+        assert e.vx == 0.005 and e.vy == 0.003, "DESTROYED mode should not move (update returns early)"
+
+
+# ---------------------------------------------------------------------------
+# TestTheaterConfig
+# ---------------------------------------------------------------------------
+
+class TestTheaterConfig:
+    def test_enemy_uavs_from_yaml(self):
+        """SimulationModel with romania theater spawns enemy UAVs per YAML config."""
+        random.seed(42)
+        sim = SimulationModel(theater_name="romania")
+        assert len(sim.enemy_uavs) > 0, "Romania theater should spawn enemy UAVs from YAML config"
+
+    def test_enemy_uav_count_matches_yaml(self):
+        """Number of enemy_uavs matches sum of counts in YAML."""
+        random.seed(42)
+        sim = SimulationModel(theater_name="romania")
+        # romania.yaml has 2 recon + 1 jamming = 3 total
+        expected = 3
+        assert len(sim.enemy_uavs) == expected, (
+            f"Expected {expected} enemy UAVs from YAML, got {len(sim.enemy_uavs)}"
+        )
+
+
 class TestPerformance:
     def test_10hz_with_8_enemies(self):
         """100 ticks with 8 enemy UAVs completes in < 10 seconds."""
