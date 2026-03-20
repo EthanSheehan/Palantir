@@ -58,6 +58,9 @@ AUTONOMOUS_TRANSITIONS = {
     ("IDLE", "coverage_gap_detected"): "OVERWATCH",
 }
 
+# Minimum idle UAV count to maintain before threat-adaptive dispatch
+MIN_IDLE_COUNT = 3
+
 # Distance threshold for MANPADS flee trigger (~5km in degrees)
 MANPADS_FLEE_DIST_DEG = 0.045
 
@@ -293,6 +296,7 @@ class UAV:
         # Phase 3: autonomy and new mode fields
         self.autonomy_override: Optional[str] = None
         self.mode_source: str = "HUMAN"
+        self.tasking_source: str = "ZONE_BALANCE"
         self.bda_timer: float = 0.0
         self.overwatch_waypoints: list = []
         self.overwatch_wp_idx: int = 0
@@ -562,6 +566,10 @@ class SimulationModel:
 
         self.last_update_time = time.time()
         self.active_flows = []
+
+        # Phase 8: adaptive ISR coverage mode
+        self.coverage_mode: str = "balanced"
+        self._last_assessment: Optional[dict] = None
         self.targets: List[Target] = []
         self.enemy_uavs: List[EnemyUAV] = []
         self.NUM_TARGETS = sum(c for _, c in self._build_target_pool())
@@ -742,6 +750,43 @@ class SimulationModel:
             if u.mode == "SUPPORT" and target_id in u.tracked_target_ids:
                 self.cancel_track(u.id)
 
+    def set_coverage_mode(self, mode: str):
+        """Switch between 'balanced' (zone-grid dispatch) and 'threat_adaptive' (ISR-driven dispatch)."""
+        if mode in ("balanced", "threat_adaptive"):
+            self.coverage_mode = mode
+
+    def _threat_adaptive_dispatches(self) -> list:
+        """Generate dispatch orders toward coverage gaps ranked by threat score.
+
+        Respects MIN_IDLE_COUNT — never dispatches if idle UAVs <= MIN_IDLE_COUNT.
+        Returns a list of dispatch dicts compatible with the standard dispatch loop.
+        """
+        if self._last_assessment is None:
+            return []
+        idle_uavs = [u for u in self.uavs if u.mode == "IDLE"]
+        if len(idle_uavs) <= MIN_IDLE_COUNT:
+            return []
+        gaps = sorted(
+            self._last_assessment.get("coverage_gaps", []),
+            key=lambda g: -g.get("threat_score", 0.0),
+        )
+        dispatches = []
+        available = list(idle_uavs)
+        for gap in gaps:
+            if len(available) <= MIN_IDLE_COUNT:
+                break
+            nearest = min(available, key=lambda u: (u.x - gap["lon"]) ** 2 + (u.y - gap["lat"]) ** 2)
+            dispatches.append({
+                "source_id": nearest.zone_id,
+                "count": 1,
+                "source_coord": (nearest.x, nearest.y),
+                "target_coord": (gap["lon"], gap["lat"]),
+            })
+            nearest.tasking_source = "ISR_PRIORITY"
+            nearest.mode_source = "AUTO"
+            available.remove(nearest)
+        return dispatches
+
     def tick(self):
         now = time.time()
         dt_sec = now - self.last_update_time
@@ -784,7 +829,10 @@ class SimulationModel:
                     z.queue -= 1
 
         # 4. Calculate imbalances and dispatches via the grid logic
-        dispatches = self.grid.calculate_macro_flow(dt_sec)
+        if self.coverage_mode == "threat_adaptive" and self._last_assessment is not None:
+            dispatches = self._threat_adaptive_dispatches()
+        else:
+            dispatches = self.grid.calculate_macro_flow(dt_sec)
 
         # 5. Execute Dispatches
         self.active_flows = []
@@ -800,6 +848,8 @@ class SimulationModel:
                 u = idle_in_r[i]
                 u.mode = "REPOSITIONING"
                 u.target = target_coord
+                if self.coverage_mode == "balanced":
+                    u.tasking_source = "ZONE_BALANCE"
                 self.active_flows.append({
                     "source": d["source_coord"],
                     "target": target_coord
@@ -1348,6 +1398,7 @@ class SimulationModel:
         if uav:
             uav.commanded_target = (lon, lat)
             uav.mode = "REPOSITIONING"
+            uav.tasking_source = "OPERATOR"
             # Clear any tracking
             if uav.tracked_target_id is not None:
                 old_target = self._find_target(uav.tracked_target_id)
@@ -1397,6 +1448,7 @@ class SimulationModel:
                     "fuel_hours": round(u.fuel_hours, 2),
                     "autonomy_override": u.autonomy_override,
                     "mode_source": u.mode_source,
+                    "tasking_source": u.tasking_source,
                     "pending_transition": self.pending_transitions.get(u.id),
                 } for u in self.uavs
             ],
