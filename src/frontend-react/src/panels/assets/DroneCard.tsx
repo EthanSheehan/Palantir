@@ -78,6 +78,19 @@ export function DroneCard({ uav }: DroneCardProps) {
               AUTO
             </span>
           )}
+          {uav.tasking_source && uav.tasking_source !== 'ZONE_BALANCE' && (
+            <span style={{
+              color: uav.tasking_source === 'ISR_PRIORITY' ? '#f59e0b' : '#60a5fa',
+              border: `1px solid ${uav.tasking_source === 'ISR_PRIORITY' ? 'rgba(245, 158, 11, 0.5)' : 'rgba(96, 165, 250, 0.5)'}`,
+              borderRadius: 3,
+              padding: '1px 4px',
+              fontSize: '0.6rem',
+              fontWeight: 700,
+              marginLeft: 4,
+            }}>
+              {uav.tasking_source === 'ISR_PRIORITY' ? 'ISR' : 'CMD'}
+            </span>
+          )}
         </div>
       </div>
 
