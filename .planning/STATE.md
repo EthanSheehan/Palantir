@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 06
-current_plan: 2
+current_plan: 3
 status: in_progress
-stopped_at: Completed 06-01-PLAN.md
-last_updated: "2026-03-20T10:38:48.687Z"
+stopped_at: Completed 06-03-PLAN.md — awaiting human verify checkpoint
+last_updated: "2026-03-20T10:44:58.229Z"
 progress:
   total_phases: 11
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 37
-  completed_plans: 24
+  completed_plans: 25
 ---
 
 # Project State
@@ -22,8 +22,8 @@ progress:
 
 - **Current Phase:** 06
 - **Current Plan:** 1
-- **Last Session:** 2026-03-20T10:38:48.684Z
-- **Stopped At:** Completed 06-01-PLAN.md
+- **Last Session:** 2026-03-20T10:44:54.104Z
+- **Stopped At:** Completed 06-03-PLAN.md
 
 ## Phase Status
 
@@ -110,6 +110,9 @@ progress:
 - 2026-03-20: broadcast() feed= param added — legacy clients (no subscriptions key) receive all broadcasts unchanged
 - 2026-03-20: All log_event(command) calls replaced with intel_router.emit (15 total) — unified feed multiplexing layer
 - 2026-03-20: Blueprint HTMLTable does not support 'condensed' prop in installed version — row density handled via td cell padding (2px 4px)
+- 2026-03-20: sensor_feed_loop runs at 0.5s (2Hz) independent of 10Hz sim_loop — avoids UI saturation
+- 2026-03-20: primary_target_id drives DroneCam overlay target lookup (not legacy tracked_target_id)
+- 2026-03-20: HUD overlays as absolute-positioned React elements over canvas — never modify canvas draw code
 
 ## Performance Metrics
 
@@ -137,3 +140,4 @@ progress:
 | Phase 06 P01 | 260 | 2 tasks | 4 files |
 | Phase 06 P02 | 180 | 2 tasks | 7 files |
 | Phase 06 P01 | 260 | 2 tasks | 4 files |
+| Phase 06 P03 | 240 | 2 tasks | 3 files |
