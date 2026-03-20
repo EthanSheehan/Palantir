@@ -611,7 +611,7 @@ Plans:
 
 **Depends on**: All prior phases (capstone)
 
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 **Requirements:** [FR-7]
 
 Plans:
