@@ -23,6 +23,7 @@ TARGET_STATES = (
 UAV_MODES = (
     "IDLE", "SEARCH", "FOLLOW",
     "PAINT", "INTERCEPT", "REPOSITIONING", "RTB",
+    "SUPPORT", "VERIFY", "OVERWATCH", "BDA",
 )
 
 # Types that emit radar signals
@@ -41,6 +42,18 @@ UNIT_BEHAVIOR = {
     "RADAR": "stationary",
     "C2_NODE": "stationary",
     "LOGISTICS": "patrol",
+}
+
+# Autonomous transition table: (current_mode, trigger) -> new_mode
+AUTONOMOUS_TRANSITIONS = {
+    ("IDLE", "target_detected_in_zone"): "SEARCH",
+    ("SEARCH", "high_confidence_detection"): "FOLLOW",
+    ("FOLLOW", "verification_gap"): "VERIFY",
+    ("FOLLOW", "target_verified_nominated"): "PAINT",
+    ("PAINT", "engagement_complete"): "BDA",
+    ("BDA", "assessment_complete"): "SEARCH",
+    ("IDLE", "swarm_support_requested"): "SUPPORT",
+    ("IDLE", "coverage_gap_detected"): "OVERWATCH",
 }
 
 # Distance threshold for MANPADS flee trigger (~5km in degrees)
@@ -66,6 +79,14 @@ FOLLOW_OFFSET_DEG = 0.01
 
 # Fixed-wing loiter circle radius (degrees, ~3km)
 LOITER_RADIUS_DEG = 0.027
+
+# New mode orbit/pattern radii (Phase 3)
+SUPPORT_ORBIT_RADIUS_DEG = 0.027       # ~3km wide orbit for secondary coverage
+VERIFY_CROSS_DISTANCE_DEG = 0.009      # ~1km perpendicular offset for sensor passes
+OVERWATCH_RACETRACK_LENGTH_DEG = 0.045 # ~5km racetrack legs for area coverage
+BDA_ORBIT_RADIUS_DEG = 0.009           # ~1km tight orbit for damage assessment
+BDA_DURATION_SEC = 30.0                # Auto-transition to SEARCH after 30s
+SUPERVISED_TIMEOUT_SEC = 10.0          # Supervised pending transition auto-approve timeout
 
 # Max turn rate for fixed-wing (radians/sec, ~3 deg/sec standard rate turn)
 MAX_TURN_RATE = math.radians(3.0)
@@ -253,6 +274,13 @@ class UAV:
         self.fuel_hours: float = 24.0
         self.fuel_rate: float = 1.0
 
+        # Phase 3: autonomy and new mode fields
+        self.autonomy_override: Optional[str] = None
+        self.mode_source: str = "HUMAN"
+        self.bda_timer: float = 0.0
+        self.overwatch_waypoints: list = []
+        self.overwatch_wp_idx: int = 0
+
     @property
     def tracked_target_id(self) -> Optional[int]:
         return self.primary_target_id
@@ -384,6 +412,11 @@ class SimulationModel:
                 'max_lat': self.grid.MAX_LAT,
             }
             self.environment = EnvironmentConditions()
+
+        # Phase 3: autonomy system fields
+        self.autonomy_level: str = "MANUAL"
+        self.pending_transitions: dict = {}
+        self.supervised_timeout_sec: float = SUPERVISED_TIMEOUT_SEC
 
         self.SPEED_DEG_PER_SEC = 0.005
         self.SERVICE_TIME_SEC = 2.0
@@ -573,12 +606,15 @@ class SimulationModel:
                     "target": target_coord
                 })
 
-        # 6. Handle target-tracking modes (VIEWING, FOLLOWING, PAINTING)
+        # 6. Handle target-tracking modes (VIEWING, FOLLOWING, PAINTING, and new modes)
         self._update_tracking_modes(dt_sec)
+
+        # 6b. Evaluate autonomy transitions
+        self._evaluate_autonomy(dt_sec)
 
         # 7. Update Kinematics (handles IDLE, SCANNING, REPOSITIONING, RTB)
         for u in self.uavs:
-            if u.mode not in ("FOLLOW", "PAINT", "INTERCEPT"):
+            if u.mode not in ("FOLLOW", "PAINT", "INTERCEPT", "SUPPORT", "VERIFY", "OVERWATCH", "BDA"):
                 u.update(dt_sec, self.SPEED_DEG_PER_SEC)
 
         # 8. Decrement service timers for SCANNING UAVs
@@ -696,7 +732,35 @@ class SimulationModel:
     def _update_tracking_modes(self, dt_sec: float):
         speed = self.SPEED_DEG_PER_SEC
         for u in self.uavs:
-            if u.mode not in ("FOLLOW", "PAINT", "INTERCEPT"):
+            if u.mode not in ("FOLLOW", "PAINT", "INTERCEPT", "SUPPORT", "VERIFY", "OVERWATCH", "BDA"):
+                continue
+
+            # OVERWATCH does not require a target — handle it first before target lookup
+            if u.mode == "OVERWATCH":
+                if not u.overwatch_waypoints:
+                    cx, cy = u.x, u.y
+                    half = OVERWATCH_RACETRACK_LENGTH_DEG / 2
+                    u.overwatch_waypoints = [
+                        (
+                            max(self.bounds['min_lon'], min(self.bounds['max_lon'], cx - half)),
+                            max(self.bounds['min_lat'], min(self.bounds['max_lat'], cy)),
+                        ),
+                        (
+                            max(self.bounds['min_lon'], min(self.bounds['max_lon'], cx + half)),
+                            max(self.bounds['min_lat'], min(self.bounds['max_lat'], cy)),
+                        ),
+                    ]
+                    u.overwatch_wp_idx = 0
+                wp = u.overwatch_waypoints[u.overwatch_wp_idx]
+                dx, dy = wp[0] - u.x, wp[1] - u.y
+                dist = math.hypot(dx, dy)
+                if dist < 0.005:
+                    u.overwatch_wp_idx = (u.overwatch_wp_idx + 1) % len(u.overwatch_waypoints)
+                else:
+                    u._turn_toward((dx / dist) * speed, (dy / dist) * speed, speed, dt_sec)
+                u.x += u.vx * dt_sec
+                u.y += u.vy * dt_sec
+                u.heading_deg = _heading_from_velocity(u.vx, u.vy)
                 continue
 
             target = self._find_target(u.tracked_target_id) if u.tracked_target_id is not None else None
@@ -766,12 +830,192 @@ class SimulationModel:
                 u.x += u.vx * dt_sec
                 u.y += u.vy * dt_sec
 
+            elif u.mode == "SUPPORT":
+                # Wide orbit at ~3km — secondary sensor coverage
+                orbit_r = SUPPORT_ORBIT_RADIUS_DEG
+                if dist < 0.001:
+                    u.x -= orbit_r
+                    dist = orbit_r
+                    dx, dy = target.x - u.x, target.y - u.y
+                nx, ny = dx / dist, dy / dist
+                tx, ty = -ny, nx
+                if dist < orbit_r * 0.8:
+                    dvx = (-nx * 0.2 + tx * 0.8) * speed
+                    dvy = (-ny * 0.2 + ty * 0.8) * speed
+                elif dist > orbit_r * 1.2:
+                    dvx = (nx * 0.2 + tx * 0.8) * speed
+                    dvy = (ny * 0.2 + ty * 0.8) * speed
+                else:
+                    dvx, dvy = tx * speed, ty * speed
+                u._turn_toward(dvx, dvy, speed, dt_sec)
+                u.x += u.vx * dt_sec
+                u.y += u.vy * dt_sec
+
+            elif u.mode == "VERIFY":
+                # Sensor-specific pass pattern over target
+                primary_sensor = u.sensors[0] if u.sensors else "EO_IR"
+                orbit_r = VERIFY_CROSS_DISTANCE_DEG
+
+                if primary_sensor == "EO_IR":
+                    # Perpendicular cross pattern: alternate tangent directions
+                    if dist < 0.001:
+                        u.x -= orbit_r
+                        dist = orbit_r
+                        dx, dy = target.x - u.x, target.y - u.y
+                    nx, ny = dx / dist, dy / dist
+                    tx, ty = -ny, nx
+                    if dist < orbit_r * 0.8:
+                        dvx = (-nx * 0.3 + tx * 0.7) * speed
+                        dvy = (-ny * 0.3 + ty * 0.7) * speed
+                    elif dist > orbit_r * 1.5:
+                        dvx = (nx * 0.5 + tx * 0.5) * speed
+                        dvy = (ny * 0.5 + ty * 0.5) * speed
+                    else:
+                        dvx, dvy = tx * speed, ty * speed
+                    u._turn_toward(dvx, dvy, speed, dt_sec)
+
+                elif primary_sensor == "SAR":
+                    # Parallel track: fly along heading axis of target
+                    track_heading = math.radians(target.heading_deg) if hasattr(target, 'heading_deg') else 0.0
+                    track_vx = math.sin(track_heading) * speed
+                    track_vy = math.cos(track_heading) * speed
+                    if dist > orbit_r * 2.0:
+                        # Approach target
+                        approach_vx = (dx / dist) * speed
+                        approach_vy = (dy / dist) * speed
+                        u._turn_toward(approach_vx, approach_vy, speed, dt_sec)
+                    else:
+                        u._turn_toward(track_vx, track_vy, speed, dt_sec)
+
+                else:  # SIGINT — loiter circle over target
+                    if dist < 0.001:
+                        u.x -= orbit_r
+                        dist = orbit_r
+                        dx, dy = target.x - u.x, target.y - u.y
+                    nx, ny = dx / dist, dy / dist
+                    tx, ty = -ny, nx
+                    if dist < orbit_r * 0.8:
+                        dvx = (-nx * 0.3 + tx * 0.7) * speed
+                        dvy = (-ny * 0.3 + ty * 0.7) * speed
+                    elif dist > orbit_r * 1.2:
+                        dvx = (nx * 0.3 + tx * 0.7) * speed
+                        dvy = (ny * 0.3 + ty * 0.7) * speed
+                    else:
+                        dvx, dvy = tx * speed, ty * speed
+                    u._turn_toward(dvx, dvy, speed, dt_sec)
+
+                u.x += u.vx * dt_sec
+                u.y += u.vy * dt_sec
+
+            elif u.mode == "BDA":
+                # Tight orbit for damage assessment — same radius as PAINT
+                orbit_r = BDA_ORBIT_RADIUS_DEG
+                u.bda_timer -= dt_sec
+                if u.bda_timer <= 0:
+                    u.mode = "SEARCH"
+                    u.tracked_target_id = None
+                    u.vx = 0
+                    u.vy = 0
+                    continue
+
+                if dist < 0.001:
+                    u.x -= orbit_r
+                    dist = orbit_r
+                    dx, dy = target.x - u.x, target.y - u.y
+                nx, ny = dx / dist, dy / dist
+                tx, ty = -ny, nx
+                if dist < orbit_r * 0.8:
+                    dvx = (-nx * 0.4 + tx * 0.6) * speed
+                    dvy = (-ny * 0.4 + ty * 0.6) * speed
+                elif dist > orbit_r * 1.2:
+                    dvx = (nx * 0.4 + tx * 0.6) * speed
+                    dvy = (ny * 0.4 + ty * 0.6) * speed
+                else:
+                    dvx, dvy = tx * speed, ty * speed
+                u._turn_toward(dvx, dvy, speed, dt_sec)
+                u.x += u.vx * dt_sec
+                u.y += u.vy * dt_sec
+
             u.heading_deg = _heading_from_velocity(u.vx, u.vy)
 
             # Keep detection confidence high while actively tracking
             target.detection_confidence = min(1.0, target.detection_confidence + 0.1 * dt_sec)
             target.fused_confidence = min(1.0, target.fused_confidence + 0.1 * dt_sec)
             target.detected_by_sensor = u.sensor_type
+
+    def _effective_autonomy(self, uav: UAV) -> str:
+        """Return the effective autonomy level for a UAV (override takes precedence)."""
+        return uav.autonomy_override or self.autonomy_level
+
+    def _detect_trigger(self, uav: UAV) -> Optional[str]:
+        """Detect autonomy trigger conditions for a UAV. Returns trigger name or None."""
+        if uav.mode == "IDLE":
+            # Check if any target in same zone is DETECTED
+            for t in self.targets:
+                if t.state in ("DETECTED", "CLASSIFIED", "VERIFIED", "NOMINATED"):
+                    z = self.grid.get_zone_at(t.x, t.y)
+                    if z and z.id == uav.zone_id:
+                        return "target_detected_in_zone"
+
+        elif uav.mode == "SEARCH" and uav.tracked_target_id is not None:
+            # Check if tracked target has high confidence
+            target = self._find_target(uav.tracked_target_id)
+            if target and target.detection_confidence >= 0.7:
+                return "high_confidence_detection"
+
+        return None
+
+    def _evaluate_autonomy(self, dt_sec: float):
+        """Evaluate autonomous transitions for all UAVs."""
+        import time as _time
+        now = _time.monotonic()
+
+        # Expire timed-out pending transitions (auto-approve in SUPERVISED)
+        for uav_id, pending in list(self.pending_transitions.items()):
+            if now >= pending["expires_at"]:
+                uav = self._find_uav(uav_id)
+                if uav:
+                    uav.mode = pending["mode"]
+                    uav.mode_source = "AUTO"
+                del self.pending_transitions[uav_id]
+
+        for u in self.uavs:
+            effective = self._effective_autonomy(u)
+            if effective == "MANUAL":
+                continue
+            if u.id in self.pending_transitions:
+                continue  # already has a pending transition
+
+            trigger = self._detect_trigger(u)
+            if trigger is None:
+                continue
+            key = (u.mode, trigger)
+            new_mode = AUTONOMOUS_TRANSITIONS.get(key)
+            if new_mode is None:
+                continue
+
+            if effective == "AUTONOMOUS":
+                u.mode = new_mode
+                u.mode_source = "AUTO"
+            elif effective == "SUPERVISED":
+                self.pending_transitions[u.id] = {
+                    "mode": new_mode,
+                    "reason": trigger,
+                    "expires_at": now + self.supervised_timeout_sec,
+                }
+
+    def approve_transition(self, uav_id: int):
+        """Apply a pending transition immediately."""
+        pending = self.pending_transitions.pop(uav_id, None)
+        if pending:
+            uav = self._find_uav(uav_id)
+            if uav:
+                uav.mode = pending["mode"]
+                uav.mode_source = "AUTO"
+
+    def reject_transition(self, uav_id: int):
+        """Remove a pending transition without changing mode."""
+        self.pending_transitions.pop(uav_id, None)
 
     def set_environment(self, time_of_day: float = 12.0, cloud_cover: float = 0.0, precipitation: float = 0.0):
         self.environment = EnvironmentConditions(
@@ -828,6 +1072,7 @@ class SimulationModel:
 
     def get_state(self):
         return {
+            "autonomy_level": self.autonomy_level,
             "uavs": [
                 {
                     "id": u.id,
@@ -842,6 +1087,9 @@ class SimulationModel:
                     "tracked_target_ids": list(u.tracked_target_ids),
                     "primary_target_id": u.primary_target_id,
                     "fuel_hours": round(u.fuel_hours, 2),
+                    "autonomy_override": u.autonomy_override,
+                    "mode_source": u.mode_source,
+                    "pending_transition": self.pending_transitions.get(u.id),
                 } for u in self.uavs
             ],
             "zones": [
