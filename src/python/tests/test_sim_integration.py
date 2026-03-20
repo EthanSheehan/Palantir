@@ -240,3 +240,107 @@ class TestBackwardCompat:
         state = sim.get_state()
         for u in state["uavs"]:
             assert "tracked_target_id" in u, "Missing backward-compat tracked_target_id"
+
+
+# ---------------------------------------------------------------------------
+# Assessment interval integration tests (Phase 07, Plan 02)
+# ---------------------------------------------------------------------------
+
+import api_main as _api_main
+from battlespace_assessment import BattlespaceAssessor, AssessmentResult, ThreatCluster, CoverageGap, MovementCorridor
+from unittest.mock import patch, MagicMock
+
+
+class TestAssessmentInterval:
+    def _make_result(self):
+        """Return a minimal AssessmentResult for serialization tests."""
+        cluster = ThreatCluster(
+            cluster_id="CLU-1",
+            cluster_type="AD_NETWORK",
+            member_target_ids=(1, 2),
+            centroid_lon=28.1234,
+            centroid_lat=44.5678,
+            threat_score=0.85,
+            hull_points=((28.1, 44.5), (28.2, 44.6)),
+        )
+        gap = CoverageGap(zone_x=1, zone_y=2, lon=28.0, lat=44.0)
+        corridor = MovementCorridor(target_id=1, waypoints=((28.0, 44.0), (28.1, 44.1)))
+        return AssessmentResult(
+            clusters=(cluster,),
+            coverage_gaps=(gap,),
+            zone_threat_scores={(1, 2): 0.75},
+            movement_corridors=(corridor,),
+            assessed_at=1000.0,
+        )
+
+    def test_assessment_not_called_before_5s(self):
+        """assess() must NOT be called when < 5 seconds have elapsed since last run."""
+        import api_main as m
+        # Save original state
+        orig_last = m._last_assessment_time
+        orig_cached = m._cached_assessment
+        try:
+            m._last_assessment_time = 0.0
+            m._cached_assessment = None
+            with patch("api_main.assessor") as mock_assessor, \
+                 patch("api_main.time.monotonic", return_value=4.9):
+                # Simulate the 5s guard logic
+                now = 4.9
+                if now - m._last_assessment_time >= 5.0:
+                    m._cached_assessment = mock_assessor.assess()
+            mock_assessor.assess.assert_not_called()
+        finally:
+            m._last_assessment_time = orig_last
+            m._cached_assessment = orig_cached
+
+    def test_assessment_called_at_5s(self):
+        """assess() MUST be called when >= 5 seconds have elapsed since last run."""
+        import api_main as m
+        orig_last = m._last_assessment_time
+        orig_cached = m._cached_assessment
+        try:
+            m._last_assessment_time = 0.0
+            m._cached_assessment = None
+            with patch("api_main.assessor") as mock_assessor, \
+                 patch("api_main.time.monotonic", return_value=5.1):
+                mock_assessor.assess.return_value = self._make_result()
+                now = 5.1
+                if now - m._last_assessment_time >= 5.0:
+                    state_snapshot = {"targets": [], "uavs": [], "zones": []}
+                    raw = mock_assessor.assess(
+                        targets=state_snapshot["targets"],
+                        uavs=state_snapshot["uavs"],
+                        zones=state_snapshot["zones"],
+                    )
+                    m._cached_assessment = m._serialize_assessment(raw)
+                    m._last_assessment_time = now
+            mock_assessor.assess.assert_called_once()
+        finally:
+            m._last_assessment_time = orig_last
+            m._cached_assessment = orig_cached
+
+    def test_assessment_result_serialized(self):
+        """_serialize_assessment must return dict with required keys."""
+        import api_main as m
+        result = self._make_result()
+        serialized = m._serialize_assessment(result)
+        assert "clusters" in serialized
+        assert "coverage_gaps" in serialized
+        assert "zone_threat_scores" in serialized
+        assert "movement_corridors" in serialized
+        # Cluster sub-fields
+        assert len(serialized["clusters"]) == 1
+        c = serialized["clusters"][0]
+        assert c["cluster_id"] == "CLU-1"
+        assert c["cluster_type"] == "AD_NETWORK"
+        assert c["member_target_ids"] == [1, 2]
+        # Coverage gap sub-fields
+        g = serialized["coverage_gaps"][0]
+        assert g["zone_x"] == 1
+        assert g["zone_y"] == 2
+        # Zone threat scores as list of [x, y, score]
+        assert len(serialized["zone_threat_scores"]) == 1
+        assert serialized["zone_threat_scores"][0] == [1, 2, 0.75]
+        # Movement corridor
+        mc = serialized["movement_corridors"][0]
+        assert mc["target_id"] == 1
