@@ -73,6 +73,13 @@ export interface FlowLine {
   target: [number, number];
 }
 
+export interface SwarmTask {
+  target_id: number;
+  assigned_uav_ids: number[];
+  sensor_coverage: string[];
+  formation_type: string;
+}
+
 export interface StrikeEntry {
   id: string;
   target_type: string;
@@ -130,4 +137,5 @@ export interface SimStatePayload {
   sitrep_response?: string;
   hitl_update?: HitlUpdate | string;
   enemy_uavs?: EnemyUAV[];
+  swarm_tasks?: SwarmTask[];
 }

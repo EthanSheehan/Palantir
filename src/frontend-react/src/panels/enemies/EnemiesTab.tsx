@@ -1,13 +1,16 @@
 import { useRef } from 'react';
 import { useSimStore } from '../../store/SimulationStore';
+import { SwarmTask } from '../../store/types';
 import { ThreatSummary } from './ThreatSummary';
 import { EnemyCard } from './EnemyCard';
 import { EnemyUAVCard } from './EnemyUAVCard';
+import { SwarmPanel } from './SwarmPanel';
 
 export function EnemiesTab() {
   const targets = useSimStore(s => s.targets);
   const uavs = useSimStore(s => s.uavs);
   const enemyUavs = useSimStore(s => s.enemyUavs);
+  const swarmTasks = useSimStore(s => s.swarmTasks);
 
   // Track which target IDs have been seen — once visible, keep showing
   // (prevents flicker when confidence briefly dips below threshold)
@@ -34,6 +37,10 @@ export function EnemiesTab() {
 
   const detectedEnemyUavs = enemyUavs.filter(e => e.detected);
 
+  // Build swarm task lookup map
+  const swarmByTarget: Record<number, SwarmTask> = {};
+  swarmTasks.forEach(st => { swarmByTarget[st.target_id] = st; });
+
   // Build target → UAV tracking map
   const trackingMap: Record<number, Array<{ id: number; mode: string }>> = {};
   uavs.forEach(u => {
@@ -53,7 +60,10 @@ export function EnemiesTab() {
       ) : (
         <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6, overflow: 'auto', flex: 1 }}>
           {visibleTargets.map(t => (
-            <EnemyCard key={t.id} target={t} trackers={trackingMap[t.id] || []} />
+            <div key={t.id}>
+              <EnemyCard target={t} trackers={trackingMap[t.id] || []} />
+              <SwarmPanel target={t} swarmTask={swarmByTarget[t.id]} />
+            </div>
           ))}
           {detectedEnemyUavs.length > 0 && (
             <>

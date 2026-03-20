@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { UAV, Target, Zone, FlowLine, StrikeEntry, COA, TheaterInfo, AssistantMessage, HitlUpdate, EnemyUAV } from './types';
+import { UAV, Target, Zone, FlowLine, StrikeEntry, COA, TheaterInfo, AssistantMessage, HitlUpdate, EnemyUAV, SwarmTask } from './types';
 import { MAX_ASSISTANT_MESSAGES } from '../shared/constants';
 
 interface SimState {
@@ -21,6 +21,9 @@ interface SimState {
 
   // Enemy UAVs
   enemyUavs: EnemyUAV[];
+
+  // Swarm tasks
+  swarmTasks: SwarmTask[];
 
   // Autonomy state
   autonomyLevel: 'MANUAL' | 'SUPERVISED' | 'AUTONOMOUS';
@@ -50,6 +53,7 @@ interface SimState {
     sitrep_response?: string;
     hitl_update?: HitlUpdate | string;
     enemy_uavs?: EnemyUAV[];
+    swarm_tasks?: SwarmTask[];
   }) => void;
   setConnected: (connected: boolean) => void;
   addAssistantMessage: (msg: AssistantMessage) => void;
@@ -87,6 +91,7 @@ export const useSimStore = create<SimState>((set, get) => ({
   droneCamVisible: false,
   isSettingWaypoint: false,
   enemyUavs: [],
+  swarmTasks: [],
   autonomyLevel: 'MANUAL',
   pendingTransitions: {},
 
@@ -133,6 +138,7 @@ export const useSimStore = create<SimState>((set, get) => ({
       demoMode: data.demo_mode,
       assistantMessages: trimmed,
       enemyUavs: data.enemy_uavs || [],
+      swarmTasks: data.swarm_tasks || [],
     });
 
     if (data.autonomy_level) {
