@@ -18,6 +18,7 @@ from event_logger import log_event, start_logger as start_event_logger, stop_log
 from intel_feed import IntelFeedRouter, _client_subscribed
 
 from sim_engine import SimulationModel
+from battlespace_assessment import BattlespaceAssessor
 from hitl_manager import HITLManager
 from agents.isr_observer import ISRObserverAgent
 from agents.strategy_analyst import StrategyAnalystAgent
@@ -38,6 +39,7 @@ configure_logging()
 logger = structlog.get_logger()
 
 settings = load_settings()
+assessor = BattlespaceAssessor()
 
 # ---------------------------------------------------------------------------
 # WebSocket hardening constants
@@ -556,11 +558,66 @@ intel_router = IntelFeedRouter(broadcast_fn=broadcast, max_history=200)
 
 _prev_target_states: dict[int, str] = {}
 
+_last_assessment_time: float = 0.0
+_cached_assessment: dict | None = None
+
+
+def _serialize_assessment(result) -> dict:
+    """Convert frozen AssessmentResult to JSON-serializable dict."""
+    return {
+        "clusters": [
+            {
+                "cluster_id": c.cluster_id,
+                "cluster_type": c.cluster_type,
+                "member_target_ids": list(c.member_target_ids),
+                "centroid_lon": round(c.centroid_lon, 4),
+                "centroid_lat": round(c.centroid_lat, 4),
+                "threat_score": round(c.threat_score, 3),
+                "hull_points": [list(p) for p in c.hull_points],
+            }
+            for c in result.clusters
+        ],
+        "coverage_gaps": [
+            {"zone_x": g.zone_x, "zone_y": g.zone_y, "lon": round(g.lon, 4), "lat": round(g.lat, 4)}
+            for g in result.coverage_gaps
+        ],
+        "zone_threat_scores": [
+            [k[0], k[1], round(v, 3)]
+            for k, v in result.zone_threat_scores.items()
+        ],
+        "movement_corridors": [
+            {"target_id": mc.target_id, "waypoints": [list(w) for w in mc.waypoints]}
+            for mc in result.movement_corridors
+        ],
+    }
+
+
 async def simulation_loop():
     tick_interval = 1.0 / settings.simulation_hz
     logger.info("simulation_loop_started", hz=settings.simulation_hz)
     while True:
         sim.tick()
+
+        global _last_assessment_time, _cached_assessment
+        now = time.monotonic()
+        if now - _last_assessment_time >= 5.0:
+            try:
+                state_snapshot = sim.get_state()
+                targets_with_history = []
+                for td, t_obj in zip(state_snapshot["targets"], sim.targets):
+                    td_copy = dict(td)
+                    td_copy["position_history"] = list(t_obj.position_history)
+                    targets_with_history.append(td_copy)
+                raw = assessor.assess(
+                    targets=targets_with_history,
+                    uavs=state_snapshot["uavs"],
+                    zones=state_snapshot["zones"],
+                )
+                _cached_assessment = _serialize_assessment(raw)
+                _last_assessment_time = now
+            except Exception:
+                logger.exception("battlespace_assessment_error")
+
         state = sim.get_state()
 
         # Detect and emit INTEL_FEED events for target state transitions
@@ -582,6 +639,8 @@ async def simulation_loop():
         if clients:
             state["strike_board"] = hitl.get_strike_board()
             state["demo_mode"] = settings.demo_mode
+            if _cached_assessment is not None:
+                state["assessment"] = _cached_assessment
             state_json = json.dumps({"type": "state", "data": state})
             # Only send simulation state to dashboard clients
             await broadcast(state_json, target_type="DASHBOARD")
