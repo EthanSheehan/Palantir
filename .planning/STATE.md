@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 05
-current_plan: 1
+current_plan: 3
 status: unknown
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-03-20T10:19:14.754Z"
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-03-20T10:24:34.104Z"
 progress:
   total_phases: 11
   completed_phases: 5
-  total_plans: 36
-  completed_plans: 20
+  total_plans: 37
+  completed_plans: 21
 ---
 
 # Project State
@@ -21,9 +21,9 @@ progress:
 ## Position
 
 - **Current Phase:** 05
-- **Current Plan:** 1
-- **Last Session:** 2026-03-20T10:19:14.750Z
-- **Stopped At:** Completed 05-01-PLAN.md
+- **Current Plan:** 3
+- **Last Session:** 2026-03-20T10:24:34.101Z
+- **Stopped At:** Completed 05-03-PLAN.md
 
 ## Phase Status
 
@@ -102,6 +102,8 @@ progress:
 - 2026-03-20: already_assigned set initialized before target loop prevents duplicate UAV dispatch in one evaluate_and_assign pass
 - 2026-03-20: Auto-release triggered on target state VERIFIED/NOMINATED/LOCKED/ENGAGED/DESTROYED
 - 2026-03-20: THREAT_WEIGHTS: SAM=1.0, TEL/RADAR=0.9, MANPADS/ARTILLERY=0.8, CP=0.7, APC/C2_NODE=0.6, TRUCK=0.5, LOGISTICS=0.3
+- 2026-03-20: SwarmPanel uses React.memo with custom comparator on sensor coverage set and assigned_uav_ids length only — avoids re-rendering on 10Hz ticks
+- 2026-03-20: PolylineDashMaterialProperty chosen over PolylineGlowMaterialProperty for swarm lines — semantic distinction from flow lines (glow)
 
 ## Performance Metrics
 
@@ -124,3 +126,4 @@ progress:
 | Phase 04 P01 | 318 | 2 tasks | 3 files |
 | Phase 04 P03 | 298 | 1 tasks | 5 files |
 | Phase 05 P01 | 150 | 2 tasks | 2 files |
+| Phase 05 P03 | 150 | 2 tasks | 6 files |
