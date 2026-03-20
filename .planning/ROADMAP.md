@@ -562,6 +562,14 @@ Plans:
 
 **Depends on**: Phase 2 (verification states) + Phase 5 (swarm for addressing gaps)
 
+**Plans:** 3 plans
+**Requirements:** [FR-6.1, FR-6.2, FR-6.3, FR-6.4, FR-6.5, FR-6.6]
+
+Plans:
+- [ ] 07-01-PLAN.md — TDD BattlespaceAssessor module (clustering, gaps, scoring, corridors) + Target position history
+- [ ] 07-02-PLAN.md — Wire assessor into simulation_loop (5s timer, serialization, TS types, Zustand store)
+- [ ] 07-03-PLAN.md — React UI (AssessmentTab, ThreatClusterCard, CoverageGapAlert, ZoneThreatHeatmap) + Cesium overlays
+
 ### 7.1 New Module: `src/python/battlespace_assessment.py`
 - `BattlespaceAssessor` class: runs every 5s
 - `_cluster_targets()` — DBSCAN-like with type affinity (SAM_BATTERY, CONVOY, CP_COMPLEX, AD_NETWORK)
