@@ -672,6 +672,7 @@ async def simulation_loop():
                 state["assessment"] = _cached_assessment
             if _cached_isr_queue is not None:
                 state["isr_queue"] = _cached_isr_queue
+            state["coverage_mode"] = sim.coverage_mode
             state_json = json.dumps({"type": "state", "data": state})
             # Only send simulation state to dashboard clients
             await broadcast(state_json, target_type="DASHBOARD")
