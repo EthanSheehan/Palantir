@@ -3,6 +3,8 @@ import { Tag, Intent } from '@blueprintjs/core';
 import { useSimStore } from '../../store/SimulationStore';
 import { TheaterSelector } from './TheaterSelector';
 import { AssistantWidget } from './AssistantWidget';
+import { IntelFeed } from './IntelFeed';
+import { CommandLog } from './CommandLog';
 import { StrikeBoard } from './StrikeBoard';
 import { GridControls } from './GridControls';
 import { AutonomyToggle } from './AutonomyToggle';
@@ -26,6 +28,8 @@ export function MissionTab() {
       </div>
       <TheaterSelector />
       <AssistantWidget />
+      <IntelFeed />
+      <CommandLog />
       <StrikeBoard />
       <GridControls />
     </div>
