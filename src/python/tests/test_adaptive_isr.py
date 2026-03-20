@@ -324,3 +324,97 @@ class TestCoverageMode:
         state = sim.get_state()
         for uav_dict in state["uavs"]:
             assert "tasking_source" in uav_dict
+
+
+# ---------------------------------------------------------------------------
+# TestHeuristicTasking — integration tests for AITaskingManagerAgent heuristic
+# ---------------------------------------------------------------------------
+
+from agents.ai_tasking_manager import AITaskingManagerAgent
+from schemas.ontology import (
+    Detection,
+    SensorAsset,
+    SensorSource,
+    SensorStatusEnum,
+    CollectionType,
+    TargetClassification,
+    TaskingManagerOutput,
+)
+
+
+def _make_detection(confidence: float = 0.3) -> Detection:
+    return Detection(
+        source=SensorSource.UAV,
+        lat=44.0,
+        lon=28.0,
+        confidence=confidence,
+        classification=TargetClassification.SAM,
+        timestamp="2026-03-20T00:00:00Z",
+    )
+
+
+def _make_sensor_asset(asset_id: str, lat: float, lon: float) -> SensorAsset:
+    return SensorAsset(
+        asset_id=asset_id,
+        asset_name=f"MQ-9 {asset_id}",
+        sensor_type=SensorSource.UAV,
+        status=SensorStatusEnum.AVAILABLE,
+        lat=lat,
+        lon=lon,
+        capabilities=[CollectionType.EO_IR],
+    )
+
+
+class TestHeuristicTasking:
+
+    def test_heuristic_returns_valid_output(self):
+        """AITaskingManagerAgent with llm_client=None uses heuristic and returns valid TaskingManagerOutput."""
+        agent = AITaskingManagerAgent(llm_client=None, confidence_threshold=0.7)
+        detection = _make_detection(confidence=0.3)
+        assets = [
+            _make_sensor_asset("UAV-1", lat=44.1, lon=28.1),
+            _make_sensor_asset("UAV-2", lat=44.5, lon=28.5),
+        ]
+        result = agent.evaluate_and_retask(detection, assets)
+        assert isinstance(result, TaskingManagerOutput)
+        assert len(result.reasoning) > 0
+        assert "Heuristic" in result.reasoning
+
+    def test_heuristic_selects_nearest_asset(self):
+        """Heuristic selects nearest asset first."""
+        agent = AITaskingManagerAgent(llm_client=None, confidence_threshold=0.7)
+        detection = _make_detection(confidence=0.2)
+        assets = [
+            _make_sensor_asset("FAR", lat=46.0, lon=30.0),
+            _make_sensor_asset("NEAR", lat=44.05, lon=28.05),
+        ]
+        result = agent.evaluate_and_retask(detection, assets)
+        assert isinstance(result, TaskingManagerOutput)
+        assert len(result.tasking_orders) >= 1
+        assert result.tasking_orders[0].asset_id == "NEAR"
+
+    def test_heuristic_skips_unavailable_assets(self):
+        """Heuristic does not assign unavailable assets."""
+        agent = AITaskingManagerAgent(llm_client=None, confidence_threshold=0.7)
+        detection = _make_detection(confidence=0.2)
+        unavailable = SensorAsset(
+            asset_id="OFFLINE-1",
+            asset_name="Offline UAV",
+            sensor_type=SensorSource.UAV,
+            status=SensorStatusEnum.OFFLINE,
+            lat=44.01,
+            lon=28.01,
+            capabilities=[CollectionType.EO_IR],
+        )
+        result = agent.evaluate_and_retask(detection, [unavailable])
+        # All assets unavailable — no orders but valid output
+        assert isinstance(result, TaskingManagerOutput)
+
+    def test_no_retask_above_threshold(self):
+        """High-confidence detection skips heuristic entirely (normal gate)."""
+        agent = AITaskingManagerAgent(llm_client=None, confidence_threshold=0.7)
+        detection = _make_detection(confidence=0.9)
+        assets = [_make_sensor_asset("UAV-1", lat=44.0, lon=28.0)]
+        result = agent.evaluate_and_retask(detection, assets)
+        assert isinstance(result, TaskingManagerOutput)
+        assert result.tasking_orders == []

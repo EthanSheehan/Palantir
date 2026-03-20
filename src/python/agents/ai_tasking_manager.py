@@ -1,10 +1,13 @@
 import json
+import uuid
 from typing import Any, List
 
 from schemas.ontology import (
     Detection,
     SensorAsset,
     SensorStatusEnum,
+    SensorTaskingOrder,
+    CollectionType,
     TaskingManagerOutput,
 )
 
@@ -56,6 +59,42 @@ class AITaskingManagerAgent:
         # )
         # return response.choices[0].message.content
         raise NotImplementedError("LLM integration needs to be completed.")
+
+    def _generate_response_heuristic(
+        self, detection: Detection, available_assets: List[SensorAsset]
+    ) -> str:
+        """Score assets by proximity and sensor match. No LLM needed."""
+        import math
+        det_lat = getattr(detection, 'lat', 0.0)
+        det_lon = getattr(detection, 'lon', 0.0)
+        ranked = []
+        for asset in available_assets:
+            if asset.status != SensorStatusEnum.AVAILABLE:
+                continue
+            a_lat = getattr(asset, 'lat', 0.0)
+            a_lon = getattr(asset, 'lon', 0.0)
+            dist = math.hypot(a_lon - det_lon, a_lat - det_lat)
+            ranked.append((dist, asset))
+        ranked.sort(key=lambda x: x[0])
+        track_id = getattr(detection, 'track_id', 'UNKNOWN')
+        tasking_orders = []
+        for dist, asset in ranked[:2]:
+            cap = asset.capabilities[0] if asset.capabilities else CollectionType.EO_IR
+            tasking_orders.append(SensorTaskingOrder(
+                order_id=str(uuid.uuid4()),
+                asset_id=asset.asset_id,
+                target_detection_id=str(track_id),
+                collection_type=cap,
+                priority=5 if dist < 0.5 else 3,
+                estimated_collection_time_minutes=round(dist * 10.0, 1),
+                reasoning=f"Nearest available asset at distance {dist:.3f} deg",
+            ))
+        output = TaskingManagerOutput(
+            tasking_orders=tasking_orders,
+            confidence_gap=round(self.confidence_threshold - detection.confidence, 4),
+            reasoning=f"Heuristic: assigned {len(tasking_orders)} nearest assets for secondary verification.",
+        )
+        return output.model_dump_json()
 
     def _build_prompt(self, detection: Detection, available_assets: List[SensorAsset]) -> str:
         """Build the user prompt from a detection and the sensor ledger."""
@@ -110,9 +149,12 @@ class AITaskingManagerAgent:
                 reasoning="No sensor assets currently available for retasking.",
             )
 
-        # Build prompt and invoke the LLM
+        # Build prompt and invoke LLM (or heuristic fallback when llm_client is None)
         prompt = self._build_prompt(detection, ready_assets)
-        response_content = self._generate_response(prompt)
+        if self.llm_client is None:
+            response_content = self._generate_response_heuristic(detection, ready_assets)
+        else:
+            response_content = self._generate_response(prompt)
 
         # Parse the JSON string into the Pydantic model
         output = TaskingManagerOutput.model_validate_json(response_content)

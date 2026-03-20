@@ -19,6 +19,7 @@ from intel_feed import IntelFeedRouter, _client_subscribed
 
 from sim_engine import SimulationModel
 from battlespace_assessment import BattlespaceAssessor
+from isr_priority import build_isr_queue
 from hitl_manager import HITLManager
 from agents.isr_observer import ISRObserverAgent
 from agents.strategy_analyst import StrategyAnalystAgent
@@ -117,6 +118,7 @@ _ACTION_SCHEMAS: dict[str, dict[str, str]] = {
     "intercept_enemy": {"uav_id": "int", "enemy_uav_id": "int"},
     "request_swarm": {"target_id": "int"},
     "release_swarm": {"target_id": "int"},
+    "set_coverage_mode": {"mode": "str"},
 }
 
 # ---------------------------------------------------------------------------
@@ -560,6 +562,7 @@ _prev_target_states: dict[int, str] = {}
 
 _last_assessment_time: float = 0.0
 _cached_assessment: dict | None = None
+_cached_isr_queue: list | None = None
 
 
 def _serialize_assessment(result) -> dict:
@@ -618,6 +621,29 @@ async def simulation_loop():
                     ))
 
                 _cached_assessment = await asyncio.to_thread(_run_assessment)
+
+                # Build ISR queue from current state + assessment
+                global _cached_isr_queue
+                state_snap = sim.get_state()
+                isr_reqs = build_isr_queue(
+                    targets=state_snap["targets"],
+                    uavs=state_snap["uavs"],
+                    assessment_result=_cached_assessment,
+                    max_requirements=10,
+                )
+                _cached_isr_queue = [
+                    {
+                        "target_id": r.target_id,
+                        "target_type": r.target_type,
+                        "urgency_score": r.urgency_score,
+                        "verification_gap": r.verification_gap,
+                        "missing_sensor_types": list(r.missing_sensor_types),
+                        "recommended_uav_ids": list(r.recommended_uav_ids),
+                    }
+                    for r in isr_reqs
+                ]
+                # Pass assessment to sim for threat-adaptive dispatch
+                sim._last_assessment = _cached_assessment
             except Exception:
                 logger.exception("battlespace_assessment_error")
 
@@ -644,6 +670,8 @@ async def simulation_loop():
             state["demo_mode"] = settings.demo_mode
             if _cached_assessment is not None:
                 state["assessment"] = _cached_assessment
+            if _cached_isr_queue is not None:
+                state["isr_queue"] = _cached_isr_queue
             state_json = json.dumps({"type": "state", "data": state})
             # Only send simulation state to dashboard clients
             await broadcast(state_json, target_type="DASHBOARD")
@@ -1044,6 +1072,11 @@ async def handle_payload(payload: dict, websocket: WebSocket, raw_data: str):
     elif action == "release_swarm":
         sim.release_swarm(payload["target_id"])
         await intel_router.emit("COMMAND_FEED", {"action": "release_swarm", "target_id": payload["target_id"], "source": "operator"})
+
+    elif action == "set_coverage_mode":
+        mode = payload["mode"]
+        sim.set_coverage_mode(mode)
+        await intel_router.emit("COMMAND_FEED", {"action": "set_coverage_mode", "mode": mode, "source": "operator"})
 
     elif action == "subscribe":
         feeds = payload.get("feeds", [])
