@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { UAV, Target, Zone, FlowLine, StrikeEntry, COA, TheaterInfo, AssistantMessage, HitlUpdate, EnemyUAV, SwarmTask, IntelEvent, CommandEvent, AssessmentPayload, ISRRequirement, MapMode, MAP_MODE_DEFAULTS } from './types';
+import { UAV, Target, Zone, FlowLine, StrikeEntry, COA, TheaterInfo, AssistantMessage, HitlUpdate, EnemyUAV, SwarmTask, IntelEvent, CommandEvent, AssessmentPayload, ISRRequirement, MapMode, MAP_MODE_DEFAULTS, CamLayout } from './types';
 import { MAX_ASSISTANT_MESSAGES, MAX_INTEL_EVENTS, MAX_COMMAND_EVENTS } from '../shared/constants';
 
 interface SimState {
@@ -43,6 +43,9 @@ interface SimState {
   // Map mode state
   mapMode: MapMode;
   layerVisibility: Record<string, boolean>;
+
+  // Drone cam layout
+  camLayout: CamLayout;
 
   // UI state
   selectedDroneId: number | null;
@@ -92,6 +95,7 @@ interface SimState {
   setAutonomyLevel: (level: 'MANUAL' | 'SUPERVISED' | 'AUTONOMOUS') => void;
   setMapMode: (mode: MapMode) => void;
   toggleLayer: (layer: string) => void;
+  setCamLayout: (layout: CamLayout) => void;
 }
 
 export const useSimStore = create<SimState>((set, get) => ({
@@ -125,6 +129,7 @@ export const useSimStore = create<SimState>((set, get) => ({
   coverageMode: 'balanced',
   mapMode: 'OPERATIONAL' as MapMode,
   layerVisibility: { ...MAP_MODE_DEFAULTS['OPERATIONAL'] },
+  camLayout: 'SINGLE' as CamLayout,
 
   setSimData: (data) => {
     const newMessages: AssistantMessage[] = [...get().assistantMessages];
@@ -247,4 +252,6 @@ export const useSimStore = create<SimState>((set, get) => ({
   toggleLayer: (layer) => set((state) => ({
     layerVisibility: { ...state.layerVisibility, [layer]: !state.layerVisibility[layer] },
   })),
+
+  setCamLayout: (layout) => set({ camLayout: layout }),
 }));

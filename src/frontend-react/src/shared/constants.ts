@@ -63,6 +63,12 @@ export const ENEMY_MODE_STYLES: Record<string, { color: string; label: string }>
   DESTROYED: { color: '#6b7280', label: 'DESTROYED' },
 };
 
+export const SENSOR_COLORS: Record<string, string> = {
+  EO_IR: '#4A90E2',
+  SAR: '#7ED321',
+  SIGINT: '#F5A623',
+};
+
 export const SENSOR_RANGE_KM = 15;
 export const HFOV_DEG = 60;
 export const EARTH_R = 6378137;
