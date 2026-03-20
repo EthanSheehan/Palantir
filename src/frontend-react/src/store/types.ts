@@ -21,6 +21,8 @@ export interface UAV {
   mode_source: 'HUMAN' | 'AUTO';
   tasking_source: 'ZONE_BALANCE' | 'ISR_PRIORITY' | 'OPERATOR';
   pending_transition: { mode: string; reason: string; expires_at: number } | null;
+  fov_targets: number[];
+  sensor_quality: number;
 }
 
 export interface Target {
@@ -215,3 +217,6 @@ export interface SimStatePayload {
   isr_queue?: ISRRequirement[];
   coverage_mode?: 'balanced' | 'threat_adaptive';
 }
+
+export type CamLayout = 'SINGLE' | 'PIP' | 'SPLIT' | 'QUAD';
+export type SensorMode = 'EO_IR' | 'SAR' | 'SIGINT' | 'FUSION';
