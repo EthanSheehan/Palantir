@@ -148,6 +148,35 @@ export interface CommandEvent {
   source: string;
 }
 
+export interface ThreatCluster {
+  cluster_id: string;
+  cluster_type: 'SAM_BATTERY' | 'CONVOY' | 'CP_COMPLEX' | 'AD_NETWORK' | 'MIXED';
+  member_target_ids: number[];
+  centroid_lon: number;
+  centroid_lat: number;
+  threat_score: number;
+  hull_points: [number, number][];
+}
+
+export interface CoverageGap {
+  zone_x: number;
+  zone_y: number;
+  lon: number;
+  lat: number;
+}
+
+export interface MovementCorridor {
+  target_id: number;
+  waypoints: [number, number][];
+}
+
+export interface AssessmentPayload {
+  clusters: ThreatCluster[];
+  coverage_gaps: CoverageGap[];
+  zone_threat_scores: [number, number, number][];
+  movement_corridors: MovementCorridor[];
+}
+
 export interface SimStatePayload {
   uavs: UAV[];
   targets: Target[];
@@ -161,4 +190,5 @@ export interface SimStatePayload {
   hitl_update?: HitlUpdate | string;
   enemy_uavs?: EnemyUAV[];
   swarm_tasks?: SwarmTask[];
+  assessment?: AssessmentPayload;
 }

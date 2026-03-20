@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { UAV, Target, Zone, FlowLine, StrikeEntry, COA, TheaterInfo, AssistantMessage, HitlUpdate, EnemyUAV, SwarmTask, IntelEvent, CommandEvent } from './types';
+import { UAV, Target, Zone, FlowLine, StrikeEntry, COA, TheaterInfo, AssistantMessage, HitlUpdate, EnemyUAV, SwarmTask, IntelEvent, CommandEvent, AssessmentPayload } from './types';
 import { MAX_ASSISTANT_MESSAGES, MAX_INTEL_EVENTS, MAX_COMMAND_EVENTS } from '../shared/constants';
 
 interface SimState {
@@ -33,6 +33,9 @@ interface SimState {
   autonomyLevel: 'MANUAL' | 'SUPERVISED' | 'AUTONOMOUS';
   pendingTransitions: Record<number, { mode: string; reason: string; expires_at: number }>;
 
+  // Assessment data
+  assessment: AssessmentPayload | null;
+
   // UI state
   selectedDroneId: number | null;
   selectedTargetId: number | null;
@@ -58,6 +61,7 @@ interface SimState {
     hitl_update?: HitlUpdate | string;
     enemy_uavs?: EnemyUAV[];
     swarm_tasks?: SwarmTask[];
+    assessment?: AssessmentPayload;
   }) => void;
   setConnected: (connected: boolean) => void;
   addAssistantMessage: (msg: AssistantMessage) => void;
@@ -104,6 +108,7 @@ export const useSimStore = create<SimState>((set, get) => ({
   swarmTasks: [],
   autonomyLevel: 'MANUAL',
   pendingTransitions: {},
+  assessment: null,
 
   setSimData: (data) => {
     const newMessages: AssistantMessage[] = [...get().assistantMessages];
@@ -153,6 +158,10 @@ export const useSimStore = create<SimState>((set, get) => ({
 
     if (data.autonomy_level) {
       set({ autonomyLevel: data.autonomy_level });
+    }
+
+    if (data.assessment) {
+      set({ assessment: data.assessment });
     }
 
     const pending: Record<number, { mode: string; reason: string; expires_at: number }> = {};
