@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useSimStore } from '../store/SimulationStore';
 import { useSensorCanvas } from '../hooks/useSensorCanvas';
 import { SigintDisplay } from '../components/SigintDisplay';
