@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 09
-current_plan: Not started
+current_phase: 10
+current_plan: 1
 status: unknown
-stopped_at: Completed 08-02-PLAN.md
-last_updated: "2026-03-20T14:43:49.156Z"
+stopped_at: Completed 09-01-PLAN.md
+last_updated: "2026-03-20T14:47:50.348Z"
 progress:
   total_phases: 11
   completed_phases: 9
   total_plans: 37
-  completed_plans: 31
+  completed_plans: 32
 ---
 
 # Project State
@@ -20,10 +20,10 @@ progress:
 
 ## Position
 
-- **Current Phase:** 09
-- **Current Plan:** Not started
-- **Last Session:** 2026-03-20T14:06:41.090Z
-- **Stopped At:** Completed 08-02-PLAN.md
+- **Current Phase:** 10
+- **Current Plan:** 1
+- **Last Session:** 2026-03-20T14:47:50.343Z
+- **Stopped At:** Completed 09-01-PLAN.md
 
 ## Phase Status
 
@@ -130,6 +130,9 @@ progress:
 - 2026-03-20: ISR queue built inside existing 5s assessment block — no new timer; sim._last_assessment set from _cached_assessment
 - 2026-03-20: Heuristic AITaskingManager uses SensorTaskingOrder objects (not plain dicts) for Pydantic round-trip correctness
 - 2026-03-20: set_coverage_mode validates against whitelist ('balanced', 'threat_adaptive') — silent reject on invalid values
+- 2026-03-20: setMapMode does atomic replace of layerVisibility from MAP_MODE_DEFAULTS — clean state on mode switch
+- 2026-03-20: layerVisibility is flat Record<string, boolean> — layer hooks in Plan 02 read individual keys directly
+- 2026-03-20: MapModeBar keyboard shortcuts guard against HTMLInputElement/HTMLTextAreaElement focus to prevent mode switching while typing
 
 ## Performance Metrics
 
@@ -163,3 +166,4 @@ progress:
 | Phase 07 P03 | 124 | 2 tasks | 7 files |
 | Phase 08 P01 | 109 | 1 tasks | 2 files |
 | Phase 08 P02 | 307s | 2 tasks | 4 files |
+| Phase 09 P01 | 165 | 3 tasks | 4 files |
