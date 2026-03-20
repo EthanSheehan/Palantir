@@ -43,7 +43,7 @@ created: 2026-03-19
 | 5-01-03 | 01 | 1 | FR-4 | unit | `pytest tests/test_swarm_coordinator.py::test_no_assignment_when_fully_covered -x` | ❌ W0 | ⬜ pending |
 | 5-01-04 | 01 | 1 | FR-4 | unit | `pytest tests/test_swarm_coordinator.py::test_no_duplicate_sensor -x` | ❌ W0 | ⬜ pending |
 | 5-02-01 | 02 | 1 | FR-4 | integration | `pytest tests/test_swarm_coordinator.py::test_request_release_swarm -x` | ❌ W0 | ⬜ pending |
-| 5-02-02 | 02 | 1 | FR-4 | integration | `pytest tests/test_sim_integration.py::test_swarm_state_in_broadcast -x` | ❌ W0 | ⬜ pending |
+| 5-02-02 | 02 | 1 | FR-4 | integration | `pytest tests/test_swarm_coordinator.py::test_swarm_state_in_broadcast -x` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
