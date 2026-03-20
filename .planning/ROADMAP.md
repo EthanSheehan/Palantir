@@ -651,34 +651,53 @@ Plans:
 
 ## Phase 9: Map Modes & Tactical Views
 
-**Goal**: 6 map visualization modes with keyboard shortcuts.
+**Goal**: 6 map visualization modes with keyboard shortcuts, individual layer toggles, camera presets.
 
 **Depends on**: Phase 1 (FUSION mode), Phase 5 (SWARM mode), Phase 7 (THREAT mode)
+
+**Plans:** 3 plans
+**Requirements:** [FR-8]
+
+Plans:
+- [ ] 09-01-PLAN.md — MapMode type, Zustand store extension (mapMode + layerVisibility), MapModeBar overlay, LayerPanel overlay
+- [ ] 09-02-PLAN.md — 5 Cesium layer hooks (coverage, threat, fusion, swarm, terrain) using GroundPrimitive patterns
+- [ ] 09-03-PLAN.md — Wire layers into CesiumContainer, CameraPresets, existing hook visibility gates, visual checkpoint
 
 ### 9.1 Map Modes
 | Mode | Key | Layers |
 |------|-----|--------|
-| OPERATIONAL | 1 | 3/3 | Complete   | 2026-03-19 | 2 | 3/3 | Complete   | 2026-03-19 | 3 | 3/3 | Complete   | 2026-03-20 | 4 | 3/3 | Complete   | 2026-03-20 | 5 | formation lines, assignment arrows, sensor diversity |
+| OPERATIONAL | 1 | drones, targets, zones, flows (default) |
+| COVERAGE | 2 | sensor footprint ellipses per UAV |
+| THREAT | 3 | SAM/MANPADS threat rings, cluster polygons |
+| FUSION | 4 | confidence heatmap at target positions |
+| SWARM | 5 | formation lines, assignment arrows, sensor diversity |
 | TERRAIN | 6 | 3D terrain, LOS analysis, terrain masking |
 
 ### 9.2 React Components
 - `MapModeBar.tsx` — Blueprint ButtonGroup for mode selection
 - `LayerPanel.tsx` — Blueprint Checkbox list for individual layer toggles
 - `CameraPresets.tsx` — Theater Overview, Top-Down, Oblique, Free Camera buttons
-- Cesium layers: `coverageLayer.ts`, `threatLayer.ts`, `fusionLayer.ts`, `terrainLayer.ts`, `swarmLayer.ts`
+- Cesium layers: `useCoverageLayer.ts`, `useThreatLayer.ts`, `useFusionLayer.ts`, `useTerrainLayer.ts`, `useSwarmLayer.ts`
 
 ### 9.3 Files Changed
 
 | File | Action |
 |------|--------|
-| `src/frontend/src/components/MapModeBar.tsx` | **NEW** (~100 lines) |
-| `src/frontend/src/components/LayerPanel.tsx` | **NEW** (~80 lines) |
-| `src/frontend/src/cesium/layers/coverageLayer.ts` | **NEW** (~150 lines) |
-| `src/frontend/src/cesium/layers/threatLayer.ts` | **NEW** (~150 lines) |
-| `src/frontend/src/cesium/layers/fusionLayer.ts` | **NEW** (~120 lines) |
-| `src/frontend/src/cesium/layers/terrainLayer.ts` | **NEW** (~150 lines) |
-| `src/frontend/src/cesium/layers/swarmLayer.ts` | **NEW** (~100 lines) |
-| `src/frontend/src/cesium/droneManager.ts` | MODIFY (~60 lines) |
+| `src/frontend-react/src/store/types.ts` | MODIFY — MapMode type, MAP_MODE_DEFAULTS |
+| `src/frontend-react/src/store/SimulationStore.ts` | MODIFY — mapMode, layerVisibility, setMapMode, toggleLayer |
+| `src/frontend-react/src/overlays/MapModeBar.tsx` | **NEW** (~100 lines) |
+| `src/frontend-react/src/overlays/LayerPanel.tsx` | **NEW** (~80 lines) |
+| `src/frontend-react/src/overlays/CameraPresets.tsx` | **NEW** (~60 lines) |
+| `src/frontend-react/src/cesium/layers/useCoverageLayer.ts` | **NEW** (~130 lines) |
+| `src/frontend-react/src/cesium/layers/useThreatLayer.ts` | **NEW** (~130 lines) |
+| `src/frontend-react/src/cesium/layers/useFusionLayer.ts` | **NEW** (~120 lines) |
+| `src/frontend-react/src/cesium/layers/useTerrainLayer.ts` | **NEW** (~100 lines) |
+| `src/frontend-react/src/cesium/layers/useSwarmLayer.ts` | **NEW** (~100 lines) |
+| `src/frontend-react/src/cesium/CesiumContainer.tsx` | MODIFY — mount layer hooks + overlays |
+| `src/frontend-react/src/cesium/useCesiumDrones.ts` | MODIFY — layerVisibility gate |
+| `src/frontend-react/src/cesium/useCesiumTargets.ts` | MODIFY — layerVisibility gate |
+| `src/frontend-react/src/cesium/useCesiumZones.ts` | MODIFY — layerVisibility gate |
+| `src/frontend-react/src/cesium/useCesiumFlowLines.ts` | MODIFY — layerVisibility gate |
 
 **Risk**: LOW — layer visibility toggles are non-destructive. Performance with all layers needs testing.
 
