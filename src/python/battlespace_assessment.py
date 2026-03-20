@@ -94,7 +94,7 @@ class BattlespaceAssessor:
         zones: List[dict],
     ) -> AssessmentResult:
         clusters = self._cluster_targets(targets)
-        coverage_gaps = self._identify_coverage_gaps(zones, uavs)
+        coverage_gaps = self._identify_coverage_gaps(zones, uavs, targets)
         zone_threat_scores = self._score_zone_threats(zones, targets)
         movement_corridors = self._detect_movement_corridors(targets)
 
@@ -168,23 +168,34 @@ class BattlespaceAssessor:
     # ------------------------------------------------------------------
 
     def _identify_coverage_gaps(
-        self, zones: List[dict], uavs: List[dict]
+        self, zones: List[dict], uavs: List[dict],
+        targets: Optional[List[dict]] = None,
     ) -> List[CoverageGap]:
         if not zones:
             return []
 
-        # Build set of (x_idx, y_idx) covered by SEARCH/OVERWATCH/REPOSITIONING UAVs
-        covered: set = set()
-        active_modes = {"SEARCH", "OVERWATCH", "REPOSITIONING"}
-        for uav in uavs:
-            if uav.get("mode") in active_modes:
-                covered.add((uav.get("zone_x"), uav.get("zone_y")))
+        # Build set of zone keys that have detected targets nearby
+        zones_with_targets: set = set()
+        if targets:
+            for target in targets:
+                if target.get("state", "UNDETECTED") == "UNDETECTED":
+                    continue
+                tx, ty = target["x"], target["y"]
+                best_dist = float("inf")
+                best_zone = None
+                for zone in zones:
+                    dist = math.hypot(zone["lon"] - tx, zone["lat"] - ty)
+                    if dist < best_dist:
+                        best_dist = dist
+                        best_zone = (zone["x_idx"], zone["y_idx"])
+                if best_zone is not None:
+                    zones_with_targets.add(best_zone)
 
         gaps: List[CoverageGap] = []
         for zone in zones:
             x_idx = zone["x_idx"]
             y_idx = zone["y_idx"]
-            if zone.get("uav_count", 0) == 0 and (x_idx, y_idx) not in covered:
+            if zone.get("uav_count", 0) == 0 and (x_idx, y_idx) in zones_with_targets:
                 gaps.append(CoverageGap(
                     zone_x=x_idx,
                     zone_y=y_idx,

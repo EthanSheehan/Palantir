@@ -140,28 +140,29 @@ class TestClustering:
 # ---------------------------------------------------------------------------
 
 class TestCoverageGaps:
-    def test_zone_with_no_uav_is_gap(self):
-        """Zone with uav_count=0 and no UAV in SEARCH mode -> is a gap."""
+    def test_zone_with_target_no_uav_is_gap(self):
+        """Zone with uav_count=0 and a detected target -> is a gap."""
         zones = [_make_zone(0, 0, 28.0, 44.0, uav_count=0)]
+        targets = [_make_target(1, 28.0, 44.0, "SAM")]
         assessor = BattlespaceAssessor()
-        result = assessor.assess([], [], zones)
+        result = assessor.assess(targets, [], zones)
         assert len(result.coverage_gaps) == 1
         assert result.coverage_gaps[0].zone_x == 0
         assert result.coverage_gaps[0].zone_y == 0
 
     def test_zone_with_uav_not_gap(self):
-        """Zone with uav_count=1 -> not a gap."""
+        """Zone with uav_count=1 -> not a gap even with targets."""
         zones = [_make_zone(0, 0, 28.0, 44.0, uav_count=1)]
+        targets = [_make_target(1, 28.0, 44.0, "SAM")]
         assessor = BattlespaceAssessor()
-        result = assessor.assess([], [], zones)
+        result = assessor.assess(targets, [], zones)
         assert len(result.coverage_gaps) == 0
 
-    def test_covered_by_search_uav_not_gap(self):
-        """Zone with uav_count=0 but UAV at same x_idx/y_idx in SEARCH mode -> not a gap."""
+    def test_zone_without_targets_not_gap(self):
+        """Zone with uav_count=0 but no nearby targets -> not a gap."""
         zones = [_make_zone(0, 0, 28.0, 44.0, uav_count=0)]
-        uavs = [_make_uav(1, 28.05, 44.05, mode="SEARCH", x_idx=0, y_idx=0)]
         assessor = BattlespaceAssessor()
-        result = assessor.assess([], uavs, zones)
+        result = assessor.assess([], [], zones)
         assert len(result.coverage_gaps) == 0
 
 
