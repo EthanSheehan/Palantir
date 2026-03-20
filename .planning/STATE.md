@@ -5,13 +5,13 @@ milestone_name: milestone
 current_phase: 10
 current_plan: 1
 status: unknown
-stopped_at: Completed 09-02-PLAN.md
-last_updated: "2026-03-20T14:49:49.453Z"
+stopped_at: Completed 10-01-PLAN.md
+last_updated: "2026-03-20T14:51:17.298Z"
 progress:
   total_phases: 11
   completed_phases: 9
   total_plans: 37
-  completed_plans: 34
+  completed_plans: 35
 ---
 
 # Project State
@@ -22,8 +22,8 @@ progress:
 
 - **Current Phase:** 10
 - **Current Plan:** 1
-- **Last Session:** 2026-03-20T14:49:49.450Z
-- **Stopped At:** Completed 09-02-PLAN.md
+- **Last Session:** 2026-03-20T14:51:17.293Z
+- **Stopped At:** Completed 10-01-PLAN.md
 
 ## Phase Status
 
@@ -139,6 +139,10 @@ progress:
 - 2026-03-20: GroundPrimitive for ellipse layers (coverage/threat/fusion) — rebuild on count-change only, not every 10Hz tick
 - 2026-03-20: useTerrainLayer resets terrainExaggeration to 1.0 in both hide branch and cleanup — prevents mode bleed
 - 2026-03-20: confidenceColor maps 4 bands: red(0-0.3), orange(0.3-0.6), yellow(0.6-0.9), green(0.9-1.0) for fusion layer
+- 2026-03-20: _SENSOR_QUALITY_MAP class variable on SimulationModel: PAINT=1.0, VERIFY=0.9, FOLLOW/INTERCEPT=0.8, SUPPORT=0.7, SEARCH=0.6, OVERWATCH=0.5
+- 2026-03-20: useSensorCanvas uses module-level lockPulsePhase (not useRef) — persists across rAF frames without hook overhead
+- 2026-03-20: FUSION mode renders via ctx.save/clip/translate/restore — each half-canvas is fully isolated
+- 2026-03-20: primary_target_id drives reticle/lock-box in useSensorCanvas; tracked_target_ids drives dashed bounding boxes
 
 ## Performance Metrics
 
@@ -175,3 +179,4 @@ progress:
 | Phase 09 P01 | 165 | 3 tasks | 4 files |
 | Phase 10 P02 | 142 | 2 tasks | 4 files |
 | Phase 09 P02 | 260 | 2 tasks | 5 files |
+| Phase 10 P01 | 275 | 2 tasks | 6 files |
