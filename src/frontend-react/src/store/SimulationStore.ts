@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { UAV, Target, Zone, FlowLine, StrikeEntry, COA, TheaterInfo, AssistantMessage, HitlUpdate } from './types';
+import { UAV, Target, Zone, FlowLine, StrikeEntry, COA, TheaterInfo, AssistantMessage, HitlUpdate, EnemyUAV } from './types';
 import { MAX_ASSISTANT_MESSAGES } from '../shared/constants';
 
 interface SimState {
@@ -18,6 +18,9 @@ interface SimState {
 
   // Cached COAs per entry_id
   cachedCoas: Record<string, COA[]>;
+
+  // Enemy UAVs
+  enemyUavs: EnemyUAV[];
 
   // Autonomy state
   autonomyLevel: 'MANUAL' | 'SUPERVISED' | 'AUTONOMOUS';
@@ -45,6 +48,7 @@ interface SimState {
     autonomy_level?: 'MANUAL' | 'SUPERVISED' | 'AUTONOMOUS';
     sitrep_response?: string;
     hitl_update?: HitlUpdate | string;
+    enemy_uavs?: EnemyUAV[];
   }) => void;
   setConnected: (connected: boolean) => void;
   addAssistantMessage: (msg: AssistantMessage) => void;
@@ -79,6 +83,7 @@ export const useSimStore = create<SimState>((set, get) => ({
   showAllWaypoints: false,
   droneCamVisible: false,
   isSettingWaypoint: false,
+  enemyUavs: [],
   autonomyLevel: 'MANUAL',
   pendingTransitions: {},
 
@@ -124,6 +129,7 @@ export const useSimStore = create<SimState>((set, get) => ({
       theater: data.theater,
       demoMode: data.demo_mode,
       assistantMessages: trimmed,
+      enemyUavs: data.enemy_uavs || [],
     });
 
     if (data.autonomy_level) {

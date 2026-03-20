@@ -45,6 +45,19 @@ export interface Target {
   next_threshold: number | null;
 }
 
+export interface EnemyUAV {
+  id: number;
+  lat: number;
+  lon: number;
+  mode: 'RECON' | 'ATTACK' | 'JAMMING' | 'EVADING' | 'DESTROYED';
+  behavior: string;
+  heading_deg: number;
+  detected: boolean;
+  fused_confidence: number;
+  sensor_count: number;
+  is_jamming: boolean;
+}
+
 export interface Zone {
   x_idx: number;
   y_idx: number;
@@ -116,4 +129,5 @@ export interface SimStatePayload {
   autonomy_level: 'MANUAL' | 'SUPERVISED' | 'AUTONOMOUS';
   sitrep_response?: string;
   hitl_update?: HitlUpdate | string;
+  enemy_uavs?: EnemyUAV[];
 }

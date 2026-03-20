@@ -55,6 +55,14 @@ export const SEVERITY_STYLES: Record<string, { color: string; border: string }> 
   CRITICAL: { color: '#ef4444', border: '#ef4444' },
 };
 
+export const ENEMY_MODE_STYLES: Record<string, { color: string; label: string }> = {
+  RECON:     { color: '#ef4444', label: 'RECON' },
+  ATTACK:    { color: '#dc2626', label: 'ATTACK' },
+  JAMMING:   { color: '#f59e0b', label: 'JAMMING' },
+  EVADING:   { color: '#a855f7', label: 'EVADING' },
+  DESTROYED: { color: '#6b7280', label: 'DESTROYED' },
+};
+
 export const SENSOR_RANGE_KM = 15;
 export const HFOV_DEG = 60;
 export const EARTH_R = 6378137;
