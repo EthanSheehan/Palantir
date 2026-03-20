@@ -1,3 +1,17 @@
+/* Suppress focus outlines/halos on all interactive elements */
+#ams-react-app *:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+#ams-react-app .bp5-button:focus,
+#ams-react-app .bp5-input:focus,
+#ams-react-app .bp5-html-select select:focus,
+#ams-react-app .bp5-tag:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 /* Global Blueprint overrides — squared 2px edges everywhere */
 
 #ams-react-app .bp5-button {

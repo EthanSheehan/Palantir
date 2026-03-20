@@ -63,21 +63,46 @@ function searchEntities(query: string, assets: Asset[], getDisplayName: (a: Asse
     }));
 }
 
-/** Search targets from the legacy _targets array. */
+/** Search targets from both simple _targets and complex _complexTargets arrays. */
 function searchTargets(query: string): SearchResult[] {
-  const targets = (window as any)._targets as Array<{ id: number; lon: number; lat: number }> | undefined;
-  if (!targets) return [];
   const q = query.toLowerCase();
-  return targets
-    .filter((t) => `tgt-${String(t.id).padStart(3, '0')}`.includes(q) || `target ${t.id}`.includes(q))
-    .slice(0, 5)
-    .map((t) => ({
-      label: `TGT-${String(t.id).padStart(3, '0')}`,
-      sublabel: `${t.lat.toFixed(3)}, ${t.lon.toFixed(3)}`,
-      type: 'target' as const,
-      lon: t.lon,
-      lat: t.lat,
-    }));
+  const results: SearchResult[] = [];
+
+  // Simple targets
+  const targets = (window as any)._targets as Array<{ id: number; lon: number; lat: number }> | undefined;
+  if (targets) {
+    targets
+      .filter((t) => `tgt-${String(t.id).padStart(3, '0')}`.includes(q) || `target ${t.id}`.includes(q))
+      .slice(0, 3)
+      .forEach((t) => results.push({
+        label: `TGT-${String(t.id).padStart(3, '0')}`,
+        sublabel: `${t.lat.toFixed(3)}, ${t.lon.toFixed(3)}`,
+        type: 'target' as const,
+        lon: t.lon,
+        lat: t.lat,
+      }));
+  }
+
+  // Complex (MAP) targets
+  const complexTargets = (window as any)._complexTargets as Array<{ id: string; name: string; aimpoints: Array<{ lon: number; lat: number }> }> | undefined;
+  if (complexTargets) {
+    complexTargets
+      .filter((c) => c.name.toLowerCase().includes(q) || c.id.toLowerCase().includes(q) || 'map'.includes(q) || 'multi'.includes(q))
+      .slice(0, 3)
+      .forEach((c) => {
+        const centLon = c.aimpoints.reduce((s, a) => s + a.lon, 0) / c.aimpoints.length;
+        const centLat = c.aimpoints.reduce((s, a) => s + a.lat, 0) / c.aimpoints.length;
+        results.push({
+          label: c.name,
+          sublabel: `${c.aimpoints.length} aimpoints`,
+          type: 'target' as const,
+          lon: centLon,
+          lat: centLat,
+        });
+      });
+  }
+
+  return results.slice(0, 5);
 }
 
 // ── SearchBar Component ──

@@ -164,7 +164,7 @@ MapToolController.init(viewer, null); // ws set later after connectWebSocket
 // 2. Data Structures for ultra-fast rendering
 let zonesPrimitive = null;
 let zoneBordersPrimitive = null;
-let gridVisState = 2; // 2 = ON, 1 = OUTLINES ONLY, 0 = OFF
+let gridVisState = 1; // 2 = ON, 1 = OUTLINES ONLY (default), 0 = OFF
 const zoneAttributesCache = {}; // Cache to prevent lookup overhead
 const flowLines = []; 
 const uavEntities = {};
