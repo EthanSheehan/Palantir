@@ -1,9 +1,21 @@
 import { useEffect, useRef } from 'react';
 import * as Cesium from 'cesium';
 import { useSimStore } from '../store/SimulationStore';
+import type { FlowLine } from '../store/types';
+
+/** Build a stable key for a flow line so we can diff without teardown. */
+function flowKey(flow: FlowLine): string {
+  return `${flow.source[0]},${flow.source[1]}->${flow.target[0]},${flow.target[1]}`;
+}
+
+/** Serialize flow array to a fingerprint for cheap equality check. */
+function flowsFingerprint(flows: FlowLine[]): string {
+  return flows.map(flowKey).sort().join('|');
+}
 
 export function useCesiumFlowLines(viewerRef: React.RefObject<Cesium.Viewer | null>) {
-  const entitiesRef = useRef<Cesium.Entity[]>([]);
+  const entityMapRef = useRef<Map<string, Cesium.Entity>>(new Map());
+  const prevFingerprintRef = useRef('');
 
   useEffect(() => {
     const unsub = useSimStore.subscribe((state) => {
@@ -11,14 +23,25 @@ export function useCesiumFlowLines(viewerRef: React.RefObject<Cesium.Viewer | nu
       if (!viewer || viewer.isDestroyed()) return;
 
       const flows = state.flows;
+      const fp = flowsFingerprint(flows);
+      if (fp === prevFingerprintRef.current) return; // no change — skip
+      prevFingerprintRef.current = fp;
 
-      // Remove all existing flow entities
-      entitiesRef.current.forEach((e) => viewer.entities.remove(e));
-      entitiesRef.current = [];
+      const nextKeys = new Set(flows.map(flowKey));
 
-      // Add new flow lines
-      flows.forEach((flow) => {
-        const line = viewer.entities.add({
+      // Remove stale lines
+      for (const [key, entity] of entityMapRef.current) {
+        if (!nextKeys.has(key)) {
+          viewer.entities.remove(entity);
+          entityMapRef.current.delete(key);
+        }
+      }
+
+      // Add new lines (skip existing — flow lines are static per key)
+      for (const flow of flows) {
+        const key = flowKey(flow);
+        if (entityMapRef.current.has(key)) continue;
+        const entity = viewer.entities.add({
           polyline: {
             positions: Cesium.Cartesian3.fromDegreesArrayHeights([
               flow.source[0], flow.source[1], 2000,
@@ -32,8 +55,8 @@ export function useCesiumFlowLines(viewerRef: React.RefObject<Cesium.Viewer | nu
             arcType: Cesium.ArcType.GEODESIC,
           },
         });
-        entitiesRef.current.push(line);
-      });
+        entityMapRef.current.set(key, entity);
+      }
 
       viewer.scene.requestRender();
     });
@@ -42,9 +65,10 @@ export function useCesiumFlowLines(viewerRef: React.RefObject<Cesium.Viewer | nu
       unsub();
       const viewer = viewerRef.current;
       if (viewer && !viewer.isDestroyed()) {
-        entitiesRef.current.forEach((e) => viewer.entities.remove(e));
+        entityMapRef.current.forEach((e) => viewer.entities.remove(e));
       }
-      entitiesRef.current = [];
+      entityMapRef.current.clear();
+      prevFingerprintRef.current = '';
     };
   }, [viewerRef]);
 }
