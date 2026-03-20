@@ -187,6 +187,17 @@ export interface ISRRequirement {
   recommended_uav_ids: number[];
 }
 
+export type MapMode = 'OPERATIONAL' | 'COVERAGE' | 'THREAT' | 'FUSION' | 'SWARM' | 'TERRAIN';
+
+export const MAP_MODE_DEFAULTS: Record<MapMode, Record<string, boolean>> = {
+  OPERATIONAL: { drones: true, targets: true, zones: true, flows: true, coverage: false, threat: false, fusion: false, swarm: false, terrain: false },
+  COVERAGE:    { drones: true, targets: false, zones: true, flows: false, coverage: true, threat: false, fusion: false, swarm: false, terrain: false },
+  THREAT:      { drones: false, targets: true, zones: false, flows: false, coverage: false, threat: true, fusion: false, swarm: false, terrain: false },
+  FUSION:      { drones: true, targets: true, zones: false, flows: false, coverage: false, threat: false, fusion: true, swarm: false, terrain: false },
+  SWARM:       { drones: true, targets: true, zones: false, flows: true, coverage: false, threat: false, fusion: false, swarm: true, terrain: false },
+  TERRAIN:     { drones: true, targets: true, zones: false, flows: false, coverage: false, threat: false, fusion: false, swarm: false, terrain: true },
+};
+
 export interface SimStatePayload {
   uavs: UAV[];
   targets: Target[];

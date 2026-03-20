@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { UAV, Target, Zone, FlowLine, StrikeEntry, COA, TheaterInfo, AssistantMessage, HitlUpdate, EnemyUAV, SwarmTask, IntelEvent, CommandEvent, AssessmentPayload, ISRRequirement } from './types';
+import { UAV, Target, Zone, FlowLine, StrikeEntry, COA, TheaterInfo, AssistantMessage, HitlUpdate, EnemyUAV, SwarmTask, IntelEvent, CommandEvent, AssessmentPayload, ISRRequirement, MapMode, MAP_MODE_DEFAULTS } from './types';
 import { MAX_ASSISTANT_MESSAGES, MAX_INTEL_EVENTS, MAX_COMMAND_EVENTS } from '../shared/constants';
 
 interface SimState {
@@ -39,6 +39,10 @@ interface SimState {
   // ISR state
   isrQueue: ISRRequirement[];
   coverageMode: 'balanced' | 'threat_adaptive';
+
+  // Map mode state
+  mapMode: MapMode;
+  layerVisibility: Record<string, boolean>;
 
   // UI state
   selectedDroneId: number | null;
@@ -86,6 +90,8 @@ interface SimState {
   setDroneCamVisible: (visible: boolean) => void;
   setIsSettingWaypoint: (setting: boolean) => void;
   setAutonomyLevel: (level: 'MANUAL' | 'SUPERVISED' | 'AUTONOMOUS') => void;
+  setMapMode: (mode: MapMode) => void;
+  toggleLayer: (layer: string) => void;
 }
 
 export const useSimStore = create<SimState>((set, get) => ({
@@ -117,6 +123,8 @@ export const useSimStore = create<SimState>((set, get) => ({
   assessment: null,
   isrQueue: [],
   coverageMode: 'balanced',
+  mapMode: 'OPERATIONAL' as MapMode,
+  layerVisibility: { ...MAP_MODE_DEFAULTS['OPERATIONAL'] },
 
   setSimData: (data) => {
     const newMessages: AssistantMessage[] = [...get().assistantMessages];
@@ -233,4 +241,10 @@ export const useSimStore = create<SimState>((set, get) => ({
   setIsSettingWaypoint: (setting) => set({ isSettingWaypoint: setting }),
 
   setAutonomyLevel: (level) => set({ autonomyLevel: level }),
+
+  setMapMode: (mode) => set({ mapMode: mode, layerVisibility: { ...MAP_MODE_DEFAULTS[mode] } }),
+
+  toggleLayer: (layer) => set((state) => ({
+    layerVisibility: { ...state.layerVisibility, [layer]: !state.layerVisibility[layer] },
+  })),
 }));
