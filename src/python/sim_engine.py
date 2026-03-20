@@ -849,6 +849,54 @@ class SimulationModel:
             if t.detection_confidence > 0.05:
                 t.last_sensor_contact_time = _now
 
+        # 9b. Update Enemy UAVs (movement)
+        for e in self.enemy_uavs:
+            if e.mode != "DESTROYED":
+                e.update(dt_sec, self.bounds)
+
+        # 10. Enemy UAV Detection
+        for e in self.enemy_uavs:
+            if e.mode == "DESTROYED":
+                continue
+            contributions = []
+            for u in self.uavs:
+                if u.mode in ("RTB", "REPOSITIONING"):
+                    continue
+                dlat = e.y - u.y
+                dlon = (e.x - u.x) * math.cos(math.radians((u.y + e.y) / 2.0))
+                bearing_deg = (math.degrees(math.atan2(dlon, dlat)) + 360.0) % 360.0
+                aspect_deg = (bearing_deg - e.heading_deg + 360.0) % 360.0
+                for sensor_type in u.sensors:
+                    result = evaluate_detection(
+                        uav_lat=u.y,
+                        uav_lon=u.x,
+                        target_lat=e.y,
+                        target_lon=e.x,
+                        target_type="ENEMY_UAV",
+                        sensor_type=sensor_type,
+                        env=self.environment,
+                        aspect_deg=aspect_deg,
+                        emitting=e.is_jamming,
+                    )
+                    if result.detected:
+                        contributions.append(SensorContribution(
+                            uav_id=u.id,
+                            sensor_type=sensor_type,
+                            confidence=result.confidence,
+                            range_m=result.range_m,
+                            bearing_deg=result.bearing_deg,
+                            timestamp=time.time(),
+                        ))
+            if contributions:
+                fused = fuse_detections(contributions)
+                e.fused_confidence = fused.fused_confidence
+                e.sensor_count = fused.sensor_count
+                e.sensor_contributions = list(fused.contributions)
+                e.detected = True
+            else:
+                e.fused_confidence = max(0.0, e.fused_confidence * 0.95)
+                e.detected = e.fused_confidence > 0.1
+
     def _update_tracking_modes(self, dt_sec: float):
         speed = self.SPEED_DEG_PER_SEC
         for u in self.uavs:

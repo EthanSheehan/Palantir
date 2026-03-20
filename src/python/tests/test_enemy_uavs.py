@@ -160,6 +160,150 @@ class TestGetState:
 # TestPerformance
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# TestEnemyUAVDetection
+# ---------------------------------------------------------------------------
+
+class TestEnemyUAVDetection:
+    def test_friendly_uav_detects_nearby_enemy(self, sim):
+        """Place friendly UAV very close to enemy, tick 50 times — enemy.detected == True."""
+        # Place first enemy UAV at a known position
+        e = sim.enemy_uavs[0]
+        e.mode = "RECON"
+        e.x = 25.0
+        e.y = 45.0
+        # Place first friendly UAV right next to it (within 0.01 deg ~ 1km)
+        u = sim.uavs[0]
+        u.x = 25.01
+        u.y = 45.0
+        u.mode = "SEARCH"
+        # Give the UAV at least one optical sensor
+        if "EO_IR" not in u.sensors:
+            u.sensors = ["EO_IR"]
+        _tick_n(sim, 50)
+        assert e.detected is True, f"Enemy at ({e.x},{e.y}) should be detected by nearby UAV"
+
+    def test_distant_enemy_not_detected(self, sim):
+        """Enemy 5 degrees away from all UAVs — should not be detected after 50 ticks."""
+        # Push enemy far away
+        e = sim.enemy_uavs[0]
+        e.x = sim.bounds['min_lon']
+        e.y = sim.bounds['min_lat']
+        e.detected = False
+        e.fused_confidence = 0.0
+        # Move all friendly UAVs to the opposite corner
+        for u in sim.uavs:
+            u.x = sim.bounds['max_lon']
+            u.y = sim.bounds['max_lat']
+        _tick_n(sim, 50)
+        assert e.detected is False, "Enemy 5+ degrees away should not be detected"
+
+    def test_fused_confidence_positive(self, sim):
+        """After detection, enemy.fused_confidence > 0."""
+        e = sim.enemy_uavs[0]
+        e.mode = "RECON"
+        e.x = 25.0
+        e.y = 45.0
+        u = sim.uavs[0]
+        u.x = 25.01
+        u.y = 45.0
+        u.mode = "SEARCH"
+        if "EO_IR" not in u.sensors:
+            u.sensors = ["EO_IR"]
+        _tick_n(sim, 50)
+        if e.detected:
+            assert e.fused_confidence > 0, "Detected enemy must have positive fused_confidence"
+
+    def test_sensor_count_positive(self, sim):
+        """After detection, enemy.sensor_count > 0."""
+        e = sim.enemy_uavs[0]
+        e.mode = "RECON"
+        e.x = 25.0
+        e.y = 45.0
+        u = sim.uavs[0]
+        u.x = 25.01
+        u.y = 45.0
+        u.mode = "SEARCH"
+        if "EO_IR" not in u.sensors:
+            u.sensors = ["EO_IR"]
+        _tick_n(sim, 50)
+        if e.detected:
+            assert e.sensor_count > 0, "Detected enemy must have positive sensor_count"
+
+    def test_confidence_fades_without_sensors(self, sim):
+        """After detection, move all UAVs far away — fused_confidence should decrease."""
+        e = sim.enemy_uavs[0]
+        e.mode = "RECON"
+        e.x = 25.0
+        e.y = 45.0
+        u = sim.uavs[0]
+        u.x = 25.01
+        u.y = 45.0
+        u.mode = "SEARCH"
+        if "EO_IR" not in u.sensors:
+            u.sensors = ["EO_IR"]
+        # Detect it
+        _tick_n(sim, 50)
+        initial_confidence = e.fused_confidence
+        if initial_confidence == 0.0:
+            pytest.skip("Enemy not detected — cannot test fade")
+        # Now move all UAVs far away
+        for fu in sim.uavs:
+            fu.x = sim.bounds['max_lon']
+            fu.y = sim.bounds['max_lat']
+        _tick_n(sim, 100)
+        assert e.fused_confidence < initial_confidence, (
+            f"Confidence should fade after UAVs leave: initial={initial_confidence}, after={e.fused_confidence}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# TestJammingDetection
+# ---------------------------------------------------------------------------
+
+class TestJammingDetection:
+    def test_jamming_enemy_detected_by_sigint(self, sim):
+        """Enemy with is_jamming=True: UAV with SIGINT can detect at range."""
+        e = sim.enemy_uavs[0]
+        e.mode = "JAMMING"
+        e.is_jamming = True
+        e.x = 25.0
+        e.y = 45.0
+        e.detected = False
+        e.fused_confidence = 0.0
+        # Place UAV with SIGINT at medium range (~0.5 deg = ~55km, within SIGINT 200km max)
+        u = sim.uavs[0]
+        u.sensors = ["SIGINT"]
+        u.x = 25.5
+        u.y = 45.0
+        u.mode = "SEARCH"
+        # SIGINT has 200km range — should detect jamming target at 55km
+        _tick_n(sim, 50)
+        assert e.detected is True, "SIGINT should detect jamming enemy at medium range"
+
+    def test_non_jamming_invisible_to_sigint_only(self, sim):
+        """Enemy NOT jamming: SIGINT-only UAV should NOT detect (requires_emitter=True)."""
+        e = sim.enemy_uavs[0]
+        e.mode = "RECON"
+        e.is_jamming = False
+        e.x = 25.0
+        e.y = 45.0
+        e.detected = False
+        e.fused_confidence = 0.0
+        # Place UAV with SIGINT only at close range
+        u = sim.uavs[0]
+        u.sensors = ["SIGINT"]
+        u.x = 25.01
+        u.y = 45.0
+        u.mode = "SEARCH"
+        # Remove all other UAVs by pushing them far away
+        for other_u in sim.uavs[1:]:
+            other_u.x = sim.bounds['max_lon']
+            other_u.y = sim.bounds['max_lat']
+        _tick_n(sim, 50)
+        assert e.detected is False, "SIGINT should NOT detect non-jamming enemy (requires_emitter=True)"
+
+
 class TestPerformance:
     def test_10hz_with_8_enemies(self):
         """100 ticks with 8 enemy UAVs completes in < 10 seconds."""
