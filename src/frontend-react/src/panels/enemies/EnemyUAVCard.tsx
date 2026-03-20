@@ -1,4 +1,3 @@
-import React from 'react';
 import { Tag } from '@blueprintjs/core';
 import { EnemyUAV } from '../../store/types';
 import { ENEMY_MODE_STYLES } from '../../shared/constants';

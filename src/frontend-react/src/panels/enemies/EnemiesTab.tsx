@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import { useRef } from 'react';
 import { useSimStore } from '../../store/SimulationStore';
 import { ThreatSummary } from './ThreatSummary';
 import { EnemyCard } from './EnemyCard';
