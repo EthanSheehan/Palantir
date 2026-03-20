@@ -4,6 +4,7 @@ import { useSimStore } from '../store/SimulationStore';
 import { MissionTab } from './mission/MissionTab';
 import { AssetsTab } from './assets/AssetsTab';
 import { EnemiesTab } from './enemies/EnemiesTab';
+import { AssessmentTab } from './assessment/AssessmentTab';
 
 export function SidebarTabs() {
   const activeTab = useSimStore(s => s.activeTab);
@@ -46,6 +47,7 @@ export function SidebarTabs() {
         <Tab id="mission" title="MISSION" panel={<MissionTab />} />
         <Tab id="assets" title="ASSETS" panel={<AssetsTab />} />
         <Tab id="enemies" title="ENEMIES" panel={<EnemiesTab />} />
+        <Tab id="assess" title="ASSESS" panel={<AssessmentTab />} />
       </Tabs>
     </div>
   );
