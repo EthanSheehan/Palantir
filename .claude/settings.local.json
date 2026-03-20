@@ -166,7 +166,14 @@
       "Bash(./venv/bin/python3 -m pytest src/python/tests/ -x -q --timeout=30)",
       "Bash(PYTHONPATH=src/python ./venv/bin/python3 -c \":*)",
       "Bash(./venv/bin/python3 -m pytest src/python/tests/test_sim_integration.py -q --tb=short -k \"assessment\" 2>&1)",
-      "Skill(gsd:discuss-phase)"
+      "Skill(gsd:discuss-phase)",
+      "Bash(./venv/bin/python3 -m pytest src/python/tests/test_adaptive_isr.py -x -v)",
+      "Bash(./venv/bin/python3 -m pytest src/python/tests/ -x --timeout=30 -q)",
+      "Bash(git ls-tree:*)",
+      "Bash(./venv/bin/python3 -m pytest src/python/tests/test_drone_feed_fields.py -x -q)",
+      "Bash(echo \"exit:$?\")",
+      "Skill(gsd:map-codebase)",
+      "Bash(git tag:*)"
     ]
   }
 }
