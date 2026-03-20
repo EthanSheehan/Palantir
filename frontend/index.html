@@ -13,7 +13,7 @@
     <!-- Custom Style -->
     <!-- fonts.css MUST be first: declares @font-face for self-hosted Inter before any rule uses it -->
     <link href="fonts.css" rel="stylesheet">
-    <link href="style.css?v=18" rel="stylesheet">
+    <link href="style.css?v=20" rel="stylesheet">
     <!-- workspace-shell.css replaced by React WorkspaceLayout.css -->
     <!-- <link href="workspace-shell.css?v=16" rel="stylesheet"> -->
 </head>
@@ -194,7 +194,7 @@
             <button id="lockZoomBtn" class="square-btn" title="Zoom to drone on select (click to disable)">⚂</button>
             <button id="haloModeBtn" class="square-btn" title="Multi Halo Adaptive Visualisation">○</button>
             <div class="cam-ctrl-sep"></div>
-            <button id="toggleGridBtn" class="square-btn square-btn-on" title="Grid Visibility — cycles ON → Outlines → OFF">⊞</button>
+            <button id="toggleGridBtn" class="square-btn square-btn-outlines" title="Grid Visibility — cycles ON → Outlines → OFF">⊞</button>
             <button id="toggleWaypointsBtn" class="square-btn" title="All Waypoints Visibility">⌖</button>
         </div>
     </div>
@@ -238,10 +238,10 @@
     <!-- Legacy modules removed (React handles layout + persistence) -->
     <!-- workspace-shell.js → app/layout/WorkspaceLayout.tsx -->
     <!-- pane-registry.js, pane-definitions.js, layout-persistence.js → React layout -->
-    <script src="map-tool-controller.js?v=15"></script>
+    <script src="map-tool-controller.js?v=16"></script>
 
     <!-- Main Application Logic -->
-    <script src="app.js?v=47"></script>
+    <script src="app.js?v=48"></script>
 
     <!-- React + Blueprint Shell (module entry — loaded after legacy scripts) -->
     <script type="module" src="/app/bootstrap/main.tsx"></script>

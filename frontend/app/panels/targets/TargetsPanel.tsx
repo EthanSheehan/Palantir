@@ -82,6 +82,26 @@ function mergeTargetsIntoComplex(targetIds: number[]): ComplexTarget | null {
   return complex;
 }
 
+/** Generate a small orange diamond icon for billboard fallback at distance */
+let _orangeDiamondIcon: string | null = null;
+function _makeOrangeDiamondIcon(): string {
+  if (_orangeDiamondIcon) return _orangeDiamondIcon;
+  const canvas = document.createElement('canvas');
+  canvas.width = 16;
+  canvas.height = 16;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#f97316';
+  ctx.beginPath();
+  ctx.moveTo(8, 0);
+  ctx.lineTo(16, 8);
+  ctx.lineTo(8, 16);
+  ctx.lineTo(0, 8);
+  ctx.closePath();
+  ctx.fill();
+  _orangeDiamondIcon = canvas.toDataURL();
+  return _orangeDiamondIcon;
+}
+
 /** Add Cesium polyline connecting all aimpoints of a complex target */
 function addComplexTargetVisualization(complex: ComplexTarget) {
   const viewer = (window as any).viewer;
@@ -108,13 +128,63 @@ function addComplexTargetVisualization(complex: ComplexTarget) {
     },
   });
 
-  // Add a label at the centroid
+  // Compute centroid and coverage radius
   const centLon = complex.aimpoints.reduce((s, a) => s + a.lon, 0) / complex.aimpoints.length;
   const centLat = complex.aimpoints.reduce((s, a) => s + a.lat, 0) / complex.aimpoints.length;
 
+  // Coverage radius: max distance from centroid to any aimpoint (in degrees → meters)
+  let maxDistDeg = 0;
+  complex.aimpoints.forEach((ap) => {
+    const d = Math.sqrt((ap.lon - centLon) ** 2 + (ap.lat - centLat) ** 2);
+    if (d > maxDistDeg) maxDistDeg = d;
+  });
+  const coverageKm = maxDistDeg * 111; // rough deg→km
+
+  // Diamond size proportional to coverage, clamped
+  const diamondRadius = Math.max(60, Math.min(200, coverageKm * 2));
+  const diamondHalfH = diamondRadius * 1.4;
+  const diamondAlt = 500 + coverageKm * 5; // higher up than simple targets
+
+  // Sample terrain at centroid
+  let terrainH = 0;
+  const carto = Cesium.Cartographic.fromDegrees(centLon, centLat);
+  const globe = viewer.scene.globe;
+  if (globe) { const h = globe.getHeight(carto); if (h !== undefined) terrainH = h; }
+  const baseAlt = terrainH + diamondAlt;
+
+  const color = Cesium.Color.fromCssColorString('#f97316').withAlpha(0.7);
+  const outline = Cesium.Color.fromCssColorString('#fdba74');
+
+  // Upper cone (tip up)
+  viewer.entities.add({
+    id: `_complex_diamond_top_${complex.id}`,
+    position: Cesium.Cartesian3.fromDegrees(centLon, centLat, baseAlt + diamondHalfH / 2),
+    cylinder: {
+      length: diamondHalfH, topRadius: 0, bottomRadius: diamondRadius,
+      material: color, outline: true, outlineColor: outline,
+      outlineWidth: 1, numberOfVerticalLines: 0,
+    },
+  });
+
+  // Lower cone (tip down)
+  const botPos = Cesium.Cartesian3.fromDegrees(centLon, centLat, baseAlt - diamondHalfH / 2);
+  const flipped = Cesium.Transforms.headingPitchRollQuaternion(
+    botPos, new Cesium.HeadingPitchRoll(0, Math.PI, 0));
+  viewer.entities.add({
+    id: `_complex_diamond_bot_${complex.id}`,
+    position: botPos,
+    orientation: flipped,
+    cylinder: {
+      length: diamondHalfH, topRadius: 0, bottomRadius: diamondRadius,
+      material: color, outline: true, outlineColor: outline,
+      outlineWidth: 1, numberOfVerticalLines: 0,
+    },
+  });
+
+  // Label next to the diamond
   viewer.entities.add({
     id: `_complex_label_${complex.id}`,
-    position: Cesium.Cartesian3.fromDegrees(centLon, centLat, 200),
+    position: Cesium.Cartesian3.fromDegrees(centLon, centLat, baseAlt + diamondHalfH + 50),
     label: {
       text: complex.name,
       font: '12px Inter, sans-serif',
@@ -123,8 +193,31 @@ function addComplexTargetVisualization(complex: ComplexTarget) {
       outlineWidth: 2,
       style: Cesium.LabelStyle.FILL_AND_OUTLINE,
       verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-      pixelOffset: new Cesium.Cartesian2(0, -8),
+      pixelOffset: new Cesium.Cartesian2(0, -4),
       disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      scaleByDistance: new Cesium.NearFarScalar(1000, 1.0, 500000, 0.4),
+    },
+    // Billboard for adaptive sizing — keeps diamond visible when zoomed out
+    billboard: {
+      image: _makeOrangeDiamondIcon(),
+      width: 16,
+      height: 16,
+      verticalOrigin: Cesium.VerticalOrigin.CENTER,
+      scaleByDistance: new Cesium.NearFarScalar(5000, 0.0, 50000, 1.0),
+      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+    },
+  });
+
+  // Vertical line from ground to diamond
+  viewer.entities.add({
+    id: `_complex_stalk_${complex.id}`,
+    polyline: {
+      positions: [
+        Cesium.Cartesian3.fromDegrees(centLon, centLat, terrainH),
+        Cesium.Cartesian3.fromDegrees(centLon, centLat, baseAlt),
+      ],
+      width: 1,
+      material: Cesium.Color.fromCssColorString('#f97316').withAlpha(0.3),
     },
   });
 
@@ -313,12 +406,12 @@ export function TargetsPanel() {
 
     list.splice(idx, 1);
 
-    // Remove connecting line and label
+    // Remove all complex target Cesium entities
     if (viewer) {
-      const line = viewer.entities.getById(`_complex_line_${id}`);
-      if (line) viewer.entities.remove(line);
-      const label = viewer.entities.getById(`_complex_label_${id}`);
-      if (label) viewer.entities.remove(label);
+      ['_complex_line_', '_complex_label_', '_complex_diamond_top_', '_complex_diamond_bot_', '_complex_stalk_'].forEach((prefix) => {
+        const e = viewer.entities.getById(`${prefix}${id}`);
+        if (e) viewer.entities.remove(e);
+      });
       viewer.scene.requestRender();
     }
     setTick((v) => v + 1);

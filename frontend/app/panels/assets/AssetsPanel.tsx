@@ -150,7 +150,22 @@ export function AssetsPanel() {
 
     if (result.type === 'asset' && result.assetId) {
       selectOnGlobe(result.assetId, false);
-      handleSearchLocation(null); // remove marker when selecting asset
+      handleSearchLocation(null);
+      return;
+    }
+
+    if (result.type === 'target') {
+      // Fly to target location
+      const viewer = (window as any).viewer;
+      const Cesium = (window as any).Cesium;
+      if (viewer && Cesium) {
+        viewer.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(result.lon, result.lat, 5000),
+          orientation: { heading: 0, pitch: Cesium.Math.toRadians(-90), roll: 0 },
+          duration: 1.2,
+        });
+      }
+      handleSearchLocation(null);
       return;
     }
 

@@ -129,18 +129,25 @@ def main():
             backend_proc.terminate()
         sys.exit(1)
 
-    # ── 3. Start frontend ──
-    print(f"[3/4] Starting Frontend (HTTP server on port {FRONTEND_PORT})...")
+    # ── 3. Start frontend (Vite dev server) ──
+    print(f"[3/4] Starting Frontend (Vite on port {FRONTEND_PORT})...")
+    # Check if node_modules exists; if not, run npm install
+    node_modules = os.path.join(frontend_dir, "node_modules")
+    if not os.path.isdir(node_modules):
+        print("       Installing npm dependencies...")
+        subprocess.run(["npm", "install"], cwd=frontend_dir, check=True,
+                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    vite_bin = os.path.join(frontend_dir, "node_modules", "vite", "bin", "vite.js")
     frontend_proc = subprocess.Popen(
-        [sys.executable, "-m", "http.server", str(FRONTEND_PORT)],
+        ["node", vite_bin, "--port", str(FRONTEND_PORT)],
         cwd=frontend_dir,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     )
     _procs.append(frontend_proc)
 
-    if _wait_for_health(FRONTEND_URL, FRONTEND_TIMEOUT, frontend_proc):
-        print("       Frontend is serving!")
+    if _wait_for_health(FRONTEND_URL, FRONTEND_TIMEOUT + 10, frontend_proc):
+        print("       Frontend (Vite) is serving!")
         threading.Thread(target=_drain_pipe, args=(frontend_proc.stdout,), daemon=True).start()
     else:
         print(f"[ERROR] Frontend did not start within {FRONTEND_TIMEOUT}s")

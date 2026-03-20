@@ -74,22 +74,42 @@ const MapToolController = (() => {
         }
 
         // Return to global button
+        let _globalViewClicks = 0;
         const returnBtn = document.getElementById('returnGlobalBtn');
         if (returnBtn) {
             returnBtn.addEventListener('click', () => {
                 _deselectDrone();
                 viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
-                viewer.camera.flyTo({
-                    destination: Cesium.Cartesian3.fromDegrees(24.9668, 41.2, 500000.0),
-                    orientation: {
-                        heading: Cesium.Math.toRadians(0),
-                        pitch: Cesium.Math.toRadians(-45.0),
-                        roll: 0.0
-                    },
-                    duration: 1.5
-                });
-                // cameraControls is always visible now
+
+                if (_globalViewClicks === 0) {
+                    // First click: Romania overview (standard)
+                    viewer.camera.flyTo({
+                        destination: Cesium.Cartesian3.fromDegrees(24.9668, 41.2, 500000.0),
+                        orientation: {
+                            heading: Cesium.Math.toRadians(0),
+                            pitch: Cesium.Math.toRadians(-45.0),
+                            roll: 0.0
+                        },
+                        duration: 1.5
+                    });
+                    _globalViewClicks = 1;
+                } else {
+                    // Second click: full globe view, 0 tilt
+                    viewer.camera.flyTo({
+                        destination: Cesium.Cartesian3.fromDegrees(25.0, 46.0, 15000000.0),
+                        orientation: {
+                            heading: Cesium.Math.toRadians(0),
+                            pitch: Cesium.Math.toRadians(-90.0),
+                            roll: 0.0
+                        },
+                        duration: 2.0
+                    });
+                    _globalViewClicks = 0;
+                }
             });
+
+            // Reset click counter when any drone is selected
+            onToolChange(() => { _globalViewClicks = 0; });
         }
 
         // Zoom-lock toggle button
