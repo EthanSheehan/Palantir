@@ -174,8 +174,9 @@ class TestSwarmCoordinator:
         )
 
         assert len(orders) == 2
-        assigned_types = {o.reason for o in orders}
         # Both sensor gaps covered
+        assigned_types = {o.reason for o in orders}
+        assert len(assigned_types) == 2
         target_ids = {o.target_id for o in orders}
         assert target_ids == {target.id}
 
@@ -201,7 +202,6 @@ class TestSwarmCoordinator:
 class TestImmutability:
     def test_swarm_task_is_frozen(self):
         """SwarmTask must be a frozen dataclass (immutable)."""
-        import time
         task = SwarmTask(
             target_id=1,
             assigned_uav_ids=(1, 2),
