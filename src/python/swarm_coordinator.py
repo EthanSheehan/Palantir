@@ -78,8 +78,12 @@ class SwarmCoordinator:
     # Public API
     # ------------------------------------------------------------------
 
-    def evaluate_and_assign(self, targets: list, uavs: list) -> List[TaskingOrder]:
-        """Score targets, fill sensor gaps, return new TaskingOrders."""
+    def evaluate_and_assign(self, targets: list, uavs: list, *, force: bool = False) -> List[TaskingOrder]:
+        """Score targets, fill sensor gaps, return new TaskingOrders.
+
+        When force=True (operator request), skip state filtering and auto-release
+        so that any target state can receive swarm support.
+        """
         now = time.time()
 
         # 1. Expiry check — remove stale tasks and release SUPPORT UAVs
@@ -91,25 +95,29 @@ class SwarmCoordinator:
             self._release_support_uavs(tid, uavs)
             del self._active_tasks[tid]
 
-        # 2. Auto-release on resolved target state
-        target_map = {t.id: t for t in targets}
-        resolved_ids = [
-            tid for tid in list(self._active_tasks)
-            if tid in target_map and target_map[tid].state in _RESOLVED_STATES
-        ]
-        for tid in resolved_ids:
-            self._release_support_uavs(tid, uavs)
-            del self._active_tasks[tid]
+        if not force:
+            # 2. Auto-release on resolved target state (skip when force — operator wants support)
+            target_map = {t.id: t for t in targets}
+            resolved_ids = [
+                tid for tid in list(self._active_tasks)
+                if tid in target_map and target_map[tid].state in _RESOLVED_STATES
+            ]
+            for tid in resolved_ids:
+                self._release_support_uavs(tid, uavs)
+                del self._active_tasks[tid]
+        else:
+            target_map = {t.id: t for t in targets}
 
         # 3. Remove tasks for targets no longer present (destroyed, etc.)
         gone_ids = [tid for tid in list(self._active_tasks) if tid not in target_map]
         for tid in gone_ids:
             del self._active_tasks[tid]
 
-        # 4. Score DETECTED/CLASSIFIED targets that have sensor gaps
+        # 4. Score targets that have sensor gaps
+        #    force=True: all targets eligible; otherwise only DETECTED/CLASSIFIED
         scored: List[tuple[float, object]] = []
         for target in targets:
-            if target.state not in ("DETECTED", "CLASSIFIED"):
+            if not force and target.state not in ("DETECTED", "CLASSIFIED"):
                 continue
             gap = self._sensor_gap(target)
             if not gap:

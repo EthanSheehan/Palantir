@@ -721,7 +721,7 @@ class SimulationModel:
         target = self._find_target(target_id)
         if not target:
             return
-        orders = self.swarm_coordinator.evaluate_and_assign([target], self.uavs)
+        orders = self.swarm_coordinator.evaluate_and_assign([target], self.uavs, force=True)
         for order in orders:
             uav = self._find_uav(order.uav_id)
             if uav and not (uav.mode == "SUPPORT" and order.target_id in uav.tracked_target_ids):
