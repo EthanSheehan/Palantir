@@ -458,7 +458,7 @@ Plans:
 
 **Depends on**: Phases 1+2+3+4 (fusion + verification + modes + enemy UAVs)
 
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 **Requirements:** [FR-4]
 
 Plans:
@@ -670,8 +670,7 @@ Plans:
 | COVERAGE | 2 | sensor footprint ellipses per UAV |
 | THREAT | 3 | SAM/MANPADS threat rings, cluster polygons |
 | FUSION | 4 | confidence heatmap at target positions |
-| SWARM | 5 | formation lines, assignment arrows, sensor diversity |
-| TERRAIN | 6 | 3D terrain, LOS analysis, terrain masking |
+| SWARM | 5 | 1/3 | In Progress|  | 6 | 3D terrain, LOS analysis, terrain masking |
 
 ### 9.2 React Components
 - `MapModeBar.tsx` — Blueprint ButtonGroup for mode selection

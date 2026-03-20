@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 05
-current_plan: Not started
+current_plan: 1
 status: unknown
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-03-20T10:00:25.512Z"
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-03-20T10:19:14.754Z"
 progress:
   total_phases: 11
   completed_phases: 5
-  total_plans: 31
-  completed_plans: 19
+  total_plans: 36
+  completed_plans: 20
 ---
 
 # Project State
@@ -21,9 +21,9 @@ progress:
 ## Position
 
 - **Current Phase:** 05
-- **Current Plan:** Not started
-- **Last Session:** 2026-03-20T09:28:35.013Z
-- **Stopped At:** Completed 04-01-PLAN.md
+- **Current Plan:** 1
+- **Last Session:** 2026-03-20T10:19:14.750Z
+- **Stopped At:** Completed 05-01-PLAN.md
 
 ## Phase Status
 
@@ -97,6 +97,11 @@ progress:
 - 2026-03-20: Evasion triggers at fused_confidence > 0.5 with 15s cooldown — prevents mode thrashing
 - 2026-03-20: Dwell kill holds UAV position (vx=vy=0) in close range zone for 3s to avoid orbit drift
 - 2026-03-20: enemy_intercept_dispatched set in demo_autopilot prevents repeated dispatches per enemy UAV
+- 2026-03-20: SwarmCoordinator min_idle_count=2 default — fleet exhaustion guard, checked before each assignment
+- 2026-03-20: SwarmTask.created_at uses field(default_factory=time.time) for 120s expiry; frozen dataclass prevents mutation
+- 2026-03-20: already_assigned set initialized before target loop prevents duplicate UAV dispatch in one evaluate_and_assign pass
+- 2026-03-20: Auto-release triggered on target state VERIFIED/NOMINATED/LOCKED/ENGAGED/DESTROYED
+- 2026-03-20: THREAT_WEIGHTS: SAM=1.0, TEL/RADAR=0.9, MANPADS/ARTILLERY=0.8, CP=0.7, APC/C2_NODE=0.6, TRUCK=0.5, LOGISTICS=0.3
 
 ## Performance Metrics
 
@@ -118,3 +123,4 @@ progress:
 | Phase 04 P02 | 2 | 2 tasks | 7 files |
 | Phase 04 P01 | 318 | 2 tasks | 3 files |
 | Phase 04 P03 | 298 | 1 tasks | 5 files |
+| Phase 05 P01 | 150 | 2 tasks | 2 files |
