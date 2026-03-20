@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 07
-current_plan: 1
-status: unknown
-stopped_at: Completed 07-01-PLAN.md
-last_updated: "2026-03-20T11:14:44.141Z"
+current_plan: 2
+status: in_progress
+stopped_at: Completed 07-02-PLAN.md
+last_updated: "2026-03-20T11:19:54.846Z"
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 37
-  completed_plans: 26
+  completed_plans: 27
 ---
 
 # Project State
@@ -22,8 +22,8 @@ progress:
 
 - **Current Phase:** 07
 - **Current Plan:** 1
-- **Last Session:** 2026-03-20T11:14:44.137Z
-- **Stopped At:** Completed 07-01-PLAN.md
+- **Last Session:** 2026-03-20T11:19:54.843Z
+- **Stopped At:** Completed 07-02-PLAN.md
 
 ## Phase Status
 
@@ -119,6 +119,8 @@ progress:
 - 2026-03-20: Cluster ID = CLU-<sorted member IDs> for stability across ticks
 - 2026-03-20: position_history NOT serialized in get_state() — assessor reads Target objects directly to prevent 10Hz WS payload bloat
 - 2026-03-20: Movement corridor requires >= 10 position history entries AND total displacement > 0.005 degrees
+- 2026-03-20: get_state() called twice per tick when assessment fires — snapshot for history enrichment, then fresh for broadcast
+- 2026-03-20: assessment key omitted from WS payload when _cached_assessment is None (first 5s of run)
 
 ## Performance Metrics
 
@@ -148,3 +150,4 @@ progress:
 | Phase 06 P01 | 260 | 2 tasks | 4 files |
 | Phase 06 P03 | 240 | 2 tasks | 3 files |
 | Phase 07 P01 | 198 | 2 tasks | 3 files |
+| Phase 07 P02 | 300 | 2 tasks | 4 files |
