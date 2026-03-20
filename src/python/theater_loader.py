@@ -69,6 +69,18 @@ class Environment:
 
 
 @dataclass(frozen=True)
+class EnemyUAVUnitConfig:
+    behavior: str
+    count: int
+    speed_kmh: float = 400.0
+
+
+@dataclass(frozen=True)
+class EnemyUAVConfig:
+    units: Tuple[EnemyUAVUnitConfig, ...]
+
+
+@dataclass(frozen=True)
 class TheaterConfig:
     name: str
     description: str
@@ -77,6 +89,7 @@ class TheaterConfig:
     blue_force: BlueForce
     red_force: RedForce
     environment: Environment
+    enemy_uavs: Optional[EnemyUAVConfig] = None
 
 
 # ---------------------------------------------------------------------------
@@ -163,6 +176,20 @@ def _parse_red_force(raw: dict) -> RedForce:
     return RedForce(units=units)
 
 
+def _parse_enemy_uav_unit(raw: dict, index: int) -> EnemyUAVUnitConfig:
+    ctx = f"enemy_uavs[{index}]"
+    return EnemyUAVUnitConfig(
+        behavior=str(_require_key(raw, "behavior", ctx)),
+        count=int(_require_key(raw, "count", ctx)),
+        speed_kmh=float(raw.get("speed_kmh", 400.0)),
+    )
+
+
+def _parse_enemy_uavs(raw: list) -> EnemyUAVConfig:
+    units = tuple(_parse_enemy_uav_unit(u, i) for i, u in enumerate(raw))
+    return EnemyUAVConfig(units=units)
+
+
 def _parse_environment(raw: dict) -> Environment:
     return Environment(
         weather=str(_require_key(raw, "weather", "environment")),
@@ -215,6 +242,10 @@ def load_theater(theater_name: str) -> TheaterConfig:
 
     environment = _parse_environment(dict(_require_key(data, "environment", "root")))
 
+    enemy_uavs_cfg: Optional[EnemyUAVConfig] = None
+    if "enemy_uavs" in data and isinstance(data["enemy_uavs"], list):
+        enemy_uavs_cfg = _parse_enemy_uavs(data["enemy_uavs"])
+
     config = TheaterConfig(
         name=str(_require_key(data, "name", "root")),
         description=str(_require_key(data, "description", "root")),
@@ -223,6 +254,7 @@ def load_theater(theater_name: str) -> TheaterConfig:
         blue_force=blue_force,
         red_force=red_force,
         environment=environment,
+        enemy_uavs=enemy_uavs_cfg,
     )
 
     logger.info(

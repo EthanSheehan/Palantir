@@ -53,3 +53,10 @@ environment:
   weather: clear
   time_of_day: day
   terrain: mixed
+enemy_uavs:
+  - behavior: recon
+    count: 2
+    speed_kmh: 400
+  - behavior: jamming
+    count: 1
+    speed_kmh: 0

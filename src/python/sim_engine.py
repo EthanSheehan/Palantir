@@ -404,6 +404,7 @@ class EnemyUAV:
         self.speed: float = ENEMY_SPEED
         self.evasion_cooldown: float = 0.0
         self.attack_waypoint: Optional[Tuple[float, float]] = None
+        self._original_mode: str = mode
 
     def _turn_toward(self, target_vx: float, target_vy: float, speed: float, dt_sec: float):
         """Gradually turn toward desired direction (fixed-wing turn rate limit, no 3x multiplier)."""
@@ -459,15 +460,28 @@ class EnemyUAV:
             self.is_jamming = True
 
         elif self.mode == "EVADING":
-            # Stub: same as RECON for now (Plan 03 will implement evasion)
-            if math.hypot(self.vx, self.vy) < self.speed * 0.3:
-                angle = math.radians(self.heading_deg) if self.heading_deg else random.uniform(0, 2 * math.pi)
-                self.vx = math.sin(angle) * self.speed
-                self.vy = math.cos(angle) * self.speed
-            heading_rad = math.atan2(self.vx, self.vy)
-            heading_rad += MAX_TURN_RATE * dt_sec
-            self.vx = math.sin(heading_rad) * self.speed
-            self.vy = math.cos(heading_rad) * self.speed
+            evasion_speed = self.speed * 1.5
+            # Evasive random heading change
+            if math.hypot(self.vx, self.vy) < evasion_speed * 0.3:
+                angle = random.uniform(0, 2 * math.pi)
+                self.vx = math.sin(angle) * evasion_speed
+                self.vy = math.cos(angle) * evasion_speed
+            # Turn toward random direction with urgency
+            target_angle = math.atan2(self.vx, self.vy) + random.uniform(-math.pi / 2, math.pi / 2)
+            target_vx = math.sin(target_angle) * evasion_speed
+            target_vy = math.cos(target_angle) * evasion_speed
+            self._turn_toward(target_vx, target_vy, evasion_speed, dt_sec)
+            # Decrement cooldown
+            self.evasion_cooldown = max(0.0, self.evasion_cooldown - dt_sec)
+            # Exit EVADING when cooldown expired and confidence is low
+            if self.evasion_cooldown <= 0.0 and self.fused_confidence < 0.3:
+                self.mode = self._original_mode
+
+        # Check evasion trigger (not already EVADING or DESTROYED)
+        if self.mode not in ("EVADING", "DESTROYED") and self.fused_confidence > 0.5:
+            self._original_mode = self.mode
+            self.mode = "EVADING"
+            self.evasion_cooldown = 15.0
 
         # Move
         self.x += self.vx * dt_sec
@@ -595,14 +609,34 @@ class SimulationModel:
         self._spawn_enemy_uavs()
 
     def _spawn_enemy_uavs(self):
-        """Spawn enemy UAVs at random positions within bounds. IDs start at 1000."""
+        """Spawn enemy UAVs from theater config (or defaults). IDs start at 1001."""
         self.enemy_uavs = []
-        for i in range(3):
-            eid = 1000 + i
-            ex = random.uniform(self.bounds['min_lon'], self.bounds['max_lon'])
-            ey = random.uniform(self.bounds['min_lat'], self.bounds['max_lat'])
-            e = EnemyUAV(id=eid, x=ex, y=ey, mode="RECON", behavior="recon")
-            self.enemy_uavs.append(e)
+        eid = 1001
+
+        if self.theater and self.theater.enemy_uavs:
+            for unit_cfg in self.theater.enemy_uavs.units:
+                mode = unit_cfg.behavior.upper()
+                if mode not in ENEMY_UAV_MODES:
+                    mode = "RECON"
+                speed_deg_sec = unit_cfg.speed_kmh * DEG_PER_KM / 3600.0
+                for _ in range(unit_cfg.count):
+                    ex = random.uniform(self.bounds['min_lon'], self.bounds['max_lon'])
+                    ey = random.uniform(self.bounds['min_lat'], self.bounds['max_lat'])
+                    e = EnemyUAV(id=eid, x=ex, y=ey, mode=mode, behavior=unit_cfg.behavior.lower())
+                    if speed_deg_sec > 0:
+                        e.speed = speed_deg_sec
+                    if mode == "JAMMING":
+                        e.is_jamming = True
+                    self.enemy_uavs.append(e)
+                    eid += 1
+        else:
+            # Fallback: 3 RECON drones
+            for _ in range(3):
+                ex = random.uniform(self.bounds['min_lon'], self.bounds['max_lon'])
+                ey = random.uniform(self.bounds['min_lat'], self.bounds['max_lat'])
+                e = EnemyUAV(id=eid, x=ex, y=ey, mode="RECON", behavior="recon")
+                self.enemy_uavs.append(e)
+                eid += 1
 
     def _find_enemy_uav(self, enemy_uav_id: int) -> Optional[EnemyUAV]:
         for e in self.enemy_uavs:
@@ -645,6 +679,18 @@ class SimulationModel:
 
     def command_intercept(self, uav_id: int, target_id: int):
         self._assign_target(uav_id, target_id, "INTERCEPT", "LOCKED")
+
+    def command_intercept_enemy(self, uav_id: int, enemy_uav_id: int):
+        uav = self._find_uav(uav_id)
+        enemy = self._find_enemy_uav(enemy_uav_id)
+        if not uav or not enemy:
+            logger.warning("command_intercept_enemy_failed", uav_id=uav_id, enemy_uav_id=enemy_uav_id)
+            return
+        uav.mode = "INTERCEPT"
+        uav.primary_target_id = enemy_uav_id
+        uav.commanded_target = None
+        uav._intercept_dwell = 0.0
+        logger.info("command_intercept_enemy", uav_id=uav_id, enemy_uav_id=enemy_uav_id)
 
     def cancel_track(self, uav_id: int):
         uav = self._find_uav(uav_id)
@@ -897,6 +943,49 @@ class SimulationModel:
                 e.fused_confidence = max(0.0, e.fused_confidence * 0.95)
                 e.detected = e.fused_confidence > 0.1
 
+    def _update_enemy_intercept(self, u: UAV, dt_sec: float):
+        """Handle UAV intercept of an enemy UAV (primary_target_id >= 1000)."""
+        speed = self.SPEED_DEG_PER_SEC
+        enemy = self._find_enemy_uav(u.primary_target_id)
+        if not enemy or enemy.mode == "DESTROYED":
+            u.mode = "SEARCH"
+            u.primary_target_id = None
+            u.vx = 0
+            u.vy = 0
+            return
+
+        if not hasattr(u, '_intercept_dwell'):
+            u._intercept_dwell = 0.0
+
+        dx = enemy.x - u.x
+        dy = enemy.y - u.y
+        dist = math.hypot(dx, dy)
+
+        if dist > INTERCEPT_CLOSE_DEG:
+            # Approach: fly directly at enemy at 1.5x speed
+            intercept_speed = speed * 1.5
+            u._turn_toward((dx / dist) * intercept_speed, (dy / dist) * intercept_speed, intercept_speed, dt_sec)
+            u.x += u.vx * dt_sec
+            u.y += u.vy * dt_sec
+        else:
+            # Within kill range — accumulate dwell time, hold position
+            u._intercept_dwell += dt_sec
+            # Keep velocity zero while in dwell zone (hold over target)
+            u.vx = 0.0
+            u.vy = 0.0
+            if u._intercept_dwell >= 3.0:
+                # Kill!
+                enemy.mode = "DESTROYED"
+                enemy.vx = 0.0
+                enemy.vy = 0.0
+                u.mode = "SEARCH"
+                u.primary_target_id = None
+                u._intercept_dwell = 0.0
+                logger.info("enemy_uav_destroyed", uav_id=u.id, enemy_id=enemy.id)
+                return
+
+        u.heading_deg = _heading_from_velocity(u.vx, u.vy)
+
     def _update_tracking_modes(self, dt_sec: float):
         speed = self.SPEED_DEG_PER_SEC
         for u in self.uavs:
@@ -929,6 +1018,11 @@ class SimulationModel:
                 u.x += u.vx * dt_sec
                 u.y += u.vy * dt_sec
                 u.heading_deg = _heading_from_velocity(u.vx, u.vy)
+                continue
+
+            # Check if this is an enemy UAV intercept (IDs >= 1000)
+            if u.primary_target_id is not None and u.primary_target_id >= 1000:
+                self._update_enemy_intercept(u, dt_sec)
                 continue
 
             target = self._find_target(u.tracked_target_id) if u.tracked_target_id is not None else None

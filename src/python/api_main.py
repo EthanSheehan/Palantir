@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import collections
 import json
+import math
 import time
 
 import structlog
@@ -110,6 +111,7 @@ _ACTION_SCHEMAS: dict[str, dict[str, str]] = {
     "set_drone_autonomy": {"drone_id": "int"},
     "approve_transition": {"drone_id": "int"},
     "reject_transition": {"drone_id": "int"},
+    "intercept_enemy": {"uav_id": "int", "enemy_uav_id": "int"},
 }
 
 # ---------------------------------------------------------------------------
@@ -287,9 +289,32 @@ async def demo_autopilot():
     }), target_type="DASHBOARD")
 
     in_flight: set[str] = set()
+    # Track which enemy UAVs have been dispatched to avoid re-dispatching
+    enemy_intercept_dispatched: set[int] = set()
 
     while True:
         await asyncio.sleep(2.0)
+
+        # --- Enemy UAV auto-intercept: dispatch nearest IDLE/SEARCH UAV when confidence > 0.7 ---
+        for e in sim.enemy_uavs:
+            if e.mode == "DESTROYED":
+                continue
+            if e.id in enemy_intercept_dispatched:
+                continue
+            if e.fused_confidence > 0.7:
+                idle_uavs = [u for u in sim.uavs if u.mode in ("IDLE", "SEARCH") and u.primary_target_id is None]
+                if idle_uavs:
+                    nearest = min(idle_uavs, key=lambda u: math.hypot(u.x - e.x, u.y - e.y))
+                    sim.command_intercept_enemy(nearest.id, e.id)
+                    enemy_intercept_dispatched.add(e.id)
+                    await broadcast(json.dumps({
+                        "type": "ASSISTANT_MESSAGE",
+                        "text": f"AUTO-INTERCEPT: UAV-{nearest.id} dispatched against ENM-{e.id - 1000} (confidence={e.fused_confidence:.0%})",
+                        "severity": "CRITICAL",
+                        "timestamp": time.strftime("%H:%M:%S"),
+                    }), target_type="DASHBOARD")
+            elif e.mode == "DESTROYED" and e.id in enemy_intercept_dispatched:
+                enemy_intercept_dispatched.discard(e.id)
 
         board = hitl.get_strike_board()
         for entry in board:
@@ -752,6 +777,10 @@ async def handle_payload(payload: dict, websocket: WebSocket, raw_data: str):
     elif action == "intercept_target":
         sim.command_intercept(payload["drone_id"], payload["target_id"])
         log_event("command", {"action": "intercept_target", "drone_id": payload["drone_id"], "target_id": payload["target_id"]})
+
+    elif action == "intercept_enemy":
+        sim.command_intercept_enemy(payload["uav_id"], payload["enemy_uav_id"])
+        log_event("command", {"action": "intercept_enemy", "uav_id": payload["uav_id"], "enemy_uav_id": payload["enemy_uav_id"]})
 
     elif action in ("cancel_track", "scan_area"):
         sim.cancel_track(payload["drone_id"])
