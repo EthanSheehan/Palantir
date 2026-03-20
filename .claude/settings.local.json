@@ -158,7 +158,15 @@
       "Bash(venv/bin/python3 -m pytest src/python/tests/test_swarm_coordinator.py -q --tb=short 2>&1)",
       "Bash(venv/bin/python3 -m pytest src/python/tests/ -q --tb=short)",
       "Bash(./venv/bin/python3 -m pytest src/python/tests/test_feeds.py -v --timeout=30)",
-      "Bash(./venv/bin/python3 -m pytest src/python/tests/test_feeds.py -v)"
+      "Bash(./venv/bin/python3 -m pytest src/python/tests/test_feeds.py -v)",
+      "Bash(./venv/bin/python3 -m pytest src/python/tests/test_battlespace.py -q --tb=short 2>&1)",
+      "Bash(./venv/bin/python3 -m pytest src/python/tests/test_sensor_fusion.py src/python/tests/test_verification.py src/python/tests/test_drone_modes.py src/python/tests/test_enemy_uavs.py src/python/tests/test_swarm_coordinator.py src/python/tests/test_feeds.py -q --tb=short 2>&1)",
+      "Bash(./venv/bin/python3 -m pytest src/python/tests/test_battlespace.py -x -q)",
+      "Bash(./venv/bin/python3 -m pytest src/python/tests/test_sim_integration.py -x -q -k assessment)",
+      "Bash(./venv/bin/python3 -m pytest src/python/tests/ -x -q --timeout=30)",
+      "Bash(PYTHONPATH=src/python ./venv/bin/python3 -c \":*)",
+      "Bash(./venv/bin/python3 -m pytest src/python/tests/test_sim_integration.py -q --tb=short -k \"assessment\" 2>&1)",
+      "Skill(gsd:discuss-phase)"
     ]
   }
 }
