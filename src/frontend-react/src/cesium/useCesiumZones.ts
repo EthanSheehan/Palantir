@@ -125,12 +125,13 @@ export function useCesiumZones(viewerRef: React.RefObject<Cesium.Viewer | null>)
         });
       }
 
-      // Grid visibility
+      // Grid visibility (combined with layerVisibility gate)
+      const zonesVisible = state.layerVisibility?.['zones'] ?? true;
       if (primitiveRef.current) {
-        primitiveRef.current.show = gridVisState === 2;
+        primitiveRef.current.show = gridVisState === 2 && zonesVisible;
       }
       if (borderPrimitiveRef.current) {
-        borderPrimitiveRef.current.show = gridVisState === 1 || gridVisState === 2;
+        borderPrimitiveRef.current.show = (gridVisState === 1 || gridVisState === 2) && zonesVisible;
       }
     });
 

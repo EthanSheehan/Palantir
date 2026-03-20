@@ -212,6 +212,8 @@ export function useCesiumDrones(viewerRef: React.RefObject<Cesium.Viewer | null>
       const viewer = viewerRef.current;
       if (!viewer || viewer.isDestroyed()) return;
       updateDrones(state.uavs, viewer, entitiesRef.current, state.selectedDroneId);
+      const dronesVisible = state.layerVisibility?.['drones'] ?? true;
+      Object.values(entitiesRef.current).forEach((e) => { e.show = dronesVisible; });
     });
 
     return unsub;

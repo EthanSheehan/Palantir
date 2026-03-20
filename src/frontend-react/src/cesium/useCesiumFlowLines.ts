@@ -23,8 +23,13 @@ export function useCesiumFlowLines(viewerRef: React.RefObject<Cesium.Viewer | nu
       if (!viewer || viewer.isDestroyed()) return;
 
       const flows = state.flows;
+      const flowsVisible = state.layerVisibility?.['flows'] ?? true;
       const fp = flowsFingerprint(flows);
-      if (fp === prevFingerprintRef.current) return; // no change — skip
+      if (fp === prevFingerprintRef.current) {
+        // Still apply visibility even if flow topology hasn't changed
+        entityMapRef.current.forEach((e) => { e.show = flowsVisible; });
+        return;
+      }
       prevFingerprintRef.current = fp;
 
       const nextKeys = new Set(flows.map(flowKey));
@@ -55,8 +60,12 @@ export function useCesiumFlowLines(viewerRef: React.RefObject<Cesium.Viewer | nu
             arcType: Cesium.ArcType.GEODESIC,
           },
         });
+        entity.show = flowsVisible;
         entityMapRef.current.set(key, entity);
       }
+
+      // Apply visibility to all entities
+      entityMapRef.current.forEach((e) => { e.show = flowsVisible; });
 
       viewer.scene.requestRender();
     });

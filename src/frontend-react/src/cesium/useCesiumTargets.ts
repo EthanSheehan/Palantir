@@ -222,6 +222,10 @@ export function useCesiumTargets(viewerRef: React.RefObject<Cesium.Viewer | null
           }
         }
       });
+
+      // Layer visibility gate
+      const targetsVisible = state.layerVisibility?.['targets'] ?? true;
+      Object.values(entitiesRef.current).forEach((e) => { e.show = targetsVisible; });
     });
 
     return unsub;

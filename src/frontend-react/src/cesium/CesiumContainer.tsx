@@ -14,8 +14,16 @@ import { useCesiumWaypoints } from './useCesiumWaypoints';
 import { useCesiumLockIndicators } from './useCesiumLockIndicators';
 import { useCesiumEnemyUAVs } from './useCesiumEnemyUAVs';
 import { useCesiumAssessment } from './useCesiumAssessment';
+import { useCoverageLayer } from './layers/useCoverageLayer';
+import { useThreatLayer } from './layers/useThreatLayer';
+import { useFusionLayer } from './layers/useFusionLayer';
+import { useSwarmLayer } from './layers/useSwarmLayer';
+import { useTerrainLayer } from './layers/useTerrainLayer';
 import { CameraControls } from './CameraControls';
 import { DroneCamPIP } from '../overlays/DroneCamPIP';
+import { MapModeBar } from '../overlays/MapModeBar';
+import { LayerPanel } from '../overlays/LayerPanel';
+import { CameraPresets } from '../overlays/CameraPresets';
 
 export const ViewerContext = createContext<RefObject<Cesium.Viewer | null>>({ current: null });
 
@@ -36,6 +44,13 @@ export function CesiumContainer({ children }: { children?: React.ReactNode }) {
   useCesiumEnemyUAVs(viewerRef);
   useCesiumAssessment(viewerRef);
 
+  // Map mode layer hooks
+  useCoverageLayer(viewerRef);
+  useThreatLayer(viewerRef);
+  useFusionLayer(viewerRef);
+  useSwarmLayer(viewerRef);
+  useTerrainLayer(viewerRef);
+
   // Interaction and overlay hooks
   useCesiumCompass(viewerRef, droneEntitiesRef);
   useCesiumMacroTrack(viewerRef);
@@ -52,6 +67,9 @@ export function CesiumContainer({ children }: { children?: React.ReactNode }) {
       />
       <CameraControls />
       <DroneCamPIP />
+      <MapModeBar />
+      <LayerPanel />
+      <CameraPresets />
       {children}
     </ViewerContext.Provider>
   );
