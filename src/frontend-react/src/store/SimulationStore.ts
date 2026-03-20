@@ -29,6 +29,7 @@ interface SimState {
   // UI state
   selectedDroneId: number | null;
   selectedTargetId: number | null;
+  selectedEnemyUavId: number | null;
   trackedDroneId: number | null;
   activeTab: string;
   gridVisState: 0 | 1 | 2;
@@ -55,6 +56,7 @@ interface SimState {
   setCachedCoas: (entryId: string, coas: COA[]) => void;
   selectDrone: (id: number | null) => void;
   selectTarget: (id: number | null) => void;
+  selectEnemyUav: (id: number | null) => void;
   setActiveTab: (tab: string) => void;
   setTrackedDrone: (id: number | null) => void;
   cycleGridVis: () => void;
@@ -77,6 +79,7 @@ export const useSimStore = create<SimState>((set, get) => ({
   cachedCoas: {},
   selectedDroneId: null,
   selectedTargetId: null,
+  selectedEnemyUavId: null,
   trackedDroneId: null,
   activeTab: 'mission',
   gridVisState: 2,
@@ -159,6 +162,8 @@ export const useSimStore = create<SimState>((set, get) => ({
   setActiveTab: (tab) => set({ activeTab: tab }),
 
   selectTarget: (id) => set({ selectedTargetId: id }),
+
+  selectEnemyUav: (id) => set({ selectedEnemyUavId: id }),
 
   setTrackedDrone: (id) => set({ trackedDroneId: id }),
 

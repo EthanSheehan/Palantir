@@ -22,6 +22,7 @@ export function useCesiumEnemyUAVs(viewerRef: React.RefObject<Cesium.Viewer | nu
 
         if (!entitiesRef.current[e.id]) {
           entitiesRef.current[e.id] = viewer.entities.add({
+            id: `enemy_uav_${e.id}`,
             position: new Cesium.ConstantPositionProperty(pos),
             point: {
               pixelSize: 10,

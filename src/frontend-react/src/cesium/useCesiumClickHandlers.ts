@@ -123,6 +123,12 @@ export function useCesiumClickHandlers(
             useSimStore.getState().selectTarget(tId);
             return;
           }
+
+          if (id.startsWith('enemy_uav_')) {
+            const eId = parseInt(id.replace('enemy_uav_', ''));
+            useSimStore.getState().selectEnemyUav(eId);
+            return;
+          }
         }
       },
       Cesium.ScreenSpaceEventType.LEFT_CLICK

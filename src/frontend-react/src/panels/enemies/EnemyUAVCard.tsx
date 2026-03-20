@@ -1,5 +1,6 @@
 import { Tag } from '@blueprintjs/core';
 import { EnemyUAV } from '../../store/types';
+import { useSimStore } from '../../store/SimulationStore';
 import { ENEMY_MODE_STYLES } from '../../shared/constants';
 
 interface Props {
@@ -9,14 +10,19 @@ interface Props {
 export function EnemyUAVCard({ enemyUav }: Props) {
   const modeStyle = ENEMY_MODE_STYLES[enemyUav.mode] || ENEMY_MODE_STYLES['RECON'];
   const confidencePct = Math.round(enemyUav.fused_confidence * 100);
+  const selectedEnemyUavId = useSimStore(s => s.selectedEnemyUavId);
+  const selectEnemyUav = useSimStore(s => s.selectEnemyUav);
+  const isSelected = enemyUav.id === selectedEnemyUavId;
 
   return (
     <div
+      onClick={() => selectEnemyUav(isSelected ? null : enemyUav.id)}
       style={{
-        background: 'rgba(255,255,255,0.04)',
-        border: `1px solid ${modeStyle.color}40`,
+        background: isSelected ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)',
+        border: `1px solid ${isSelected ? modeStyle.color : `${modeStyle.color}40`}`,
         borderRadius: 4,
         padding: '8px 10px',
+        cursor: 'pointer',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
