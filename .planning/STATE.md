@@ -5,8 +5,8 @@ milestone_name: milestone
 current_phase: 10
 current_plan: 1
 status: unknown
-stopped_at: Completed 10-02-PLAN.md
-last_updated: "2026-03-20T14:49:36.735Z"
+stopped_at: Completed 09-02-PLAN.md
+last_updated: "2026-03-20T14:49:49.453Z"
 progress:
   total_phases: 11
   completed_phases: 9
@@ -22,8 +22,8 @@ progress:
 
 - **Current Phase:** 10
 - **Current Plan:** 1
-- **Last Session:** 2026-03-20T14:49:11.067Z
-- **Stopped At:** Completed 10-02-PLAN.md
+- **Last Session:** 2026-03-20T14:49:49.450Z
+- **Stopped At:** Completed 09-02-PLAN.md
 
 ## Phase Status
 
@@ -136,6 +136,9 @@ progress:
 - 2026-03-20: setMapMode does atomic replace of layerVisibility from MAP_MODE_DEFAULTS — clean state on mode switch
 - 2026-03-20: layerVisibility is flat Record<string, boolean> — layer hooks in Plan 02 read individual keys directly
 - 2026-03-20: MapModeBar keyboard shortcuts guard against HTMLInputElement/HTMLTextAreaElement focus to prevent mode switching while typing
+- 2026-03-20: GroundPrimitive for ellipse layers (coverage/threat/fusion) — rebuild on count-change only, not every 10Hz tick
+- 2026-03-20: useTerrainLayer resets terrainExaggeration to 1.0 in both hide branch and cleanup — prevents mode bleed
+- 2026-03-20: confidenceColor maps 4 bands: red(0-0.3), orange(0.3-0.6), yellow(0.6-0.9), green(0.9-1.0) for fusion layer
 
 ## Performance Metrics
 
@@ -171,3 +174,4 @@ progress:
 | Phase 08 P02 | 307s | 2 tasks | 4 files |
 | Phase 09 P01 | 165 | 3 tasks | 4 files |
 | Phase 10 P02 | 142 | 2 tasks | 4 files |
+| Phase 09 P02 | 260 | 2 tasks | 5 files |

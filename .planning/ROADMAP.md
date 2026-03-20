@@ -655,7 +655,7 @@ Plans:
 
 **Depends on**: Phase 1 (FUSION mode), Phase 5 (SWARM mode), Phase 7 (THREAT mode)
 
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 **Requirements:** [FR-8]
 
 Plans:
