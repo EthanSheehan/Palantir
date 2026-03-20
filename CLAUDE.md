@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Project Is
 
-Palantir is a decision-centric AI-assisted Command & Control (C2) system that automates the F2T2EA kill chain (Find, Fix, Track, Target, Engage, Assess) using multi-agent AI orchestration, a physics-based tactical simulator, and a Cesium 3D geospatial frontend.
+Palantir is a decision-centric AI-assisted Command & Control (C2) system that automates the F2T2EA kill chain (Find, Fix, Track, Target, Engage, Assess) using multi-agent AI orchestration, coordinated drone swarm operations with multi-sensor fusion, a physics-based tactical simulator, and a professional React+Blueprint+Cesium 3D geospatial frontend.
 
 ## Running the System
 
@@ -26,7 +26,7 @@ DEMO_MODE=true ./venv/bin/python3 src/python/api_main.py  # Backend in demo mode
 ## Tests
 
 ```bash
-# Run all tests
+# Run all tests (475 tests across 23 test files)
 ./venv/bin/python3 -m pytest src/python/tests/
 
 # Run a single test file
@@ -44,20 +44,27 @@ Environment variables go in a `.env` file (loaded via python-dotenv). Required f
 
 ## Architecture
 
-### Three Main Subsystems
+### Four Main Subsystems
 
 **1. FastAPI Backend (`src/python/api_main.py`)**
 - WebSocket server running a 10Hz simulation loop
 - Dual-client model: `DASHBOARD` clients (frontend) and `SIMULATOR` clients (drone sim)
 - `TacticalAssistant` embedded in the loop generates AI recommendations on new target detections
 - `demo_autopilot()` async loop (when `DEMO_MODE=true`): auto-approves HITL nominations, generates COAs, auto-authorizes, simulates engagement with probabilistic outcomes
-- Broadcasts full simulation state as JSON each tick
+- Broadcasts full simulation state as JSON each tick (drones, targets, zones, assessment, ISR queue, enemy UAVs, swarm tasks)
+- Three autonomy levels: MANUAL, SUPERVISED (AI proposes, operator approves), AUTONOMOUS
+- Intel feed system with subscription-filtered event routing (INTEL, COMMAND, SENSOR feeds)
 
-**2. Simulation Engine (`src/python/sim_engine.py`) + Verification (`verification_engine.py`) + Fusion (`sensor_fusion.py`)**
-- `SimulationModel` manages UAV positions/modes and target movement (SAM, TEL, TRUCK, CP, MANPADS, RADAR, C2_NODE, LOGISTICS, ARTILLERY, APC)
+**2. Simulation Engine + Verification + Fusion + Swarm + Assessment**
+- `sim_engine.py` — `SimulationModel` manages UAV positions/modes and target movement (SAM, TEL, TRUCK, CP, MANPADS, RADAR, C2_NODE, LOGISTICS, ARTILLERY, APC), plus enemy UAV simulation (RECON/ATTACK/JAMMING/EVADING)
 - `verification_engine.py` — pure-function state machine advancing targets through DETECTED → CLASSIFIED → VERIFIED → NOMINATED with per-target-type thresholds and regression timeouts; DEMO_FAST preset halves times for demo mode
 - `sensor_fusion.py` — complementary fusion across sensor types using `1 - ∏(1-ci)` with max-within-type deduplication; frozen `SensorContribution` and `FusionResult` dataclasses
-- UAV modes: IDLE (hold), SEARCH (circular loiter over zone), FOLLOW (loose ~2km orbit tracking target), PAINT (tight ~1km orbit with laser lock, target→LOCKED), INTERCEPT (direct approach at 1.5x speed, ~300m danger-close orbit, target→LOCKED), REPOSITIONING (zone rebalance at 3x turn rate), RTB (low fuel return to base)
+- `sensor_model.py` — probabilistic detection model (Pd based on range, RCS, weather, sensor type)
+- `swarm_coordinator.py` — greedy UAV-to-target assignment with sensor-gap detection, priority scoring, 120s task expiry, idle-count guard, auto-release on target state transitions
+- `battlespace_assessment.py` — pure-function threat clustering, coverage gap identification, zone threat scoring, and movement corridor detection
+- `isr_priority.py` — ISR priority queue builder ranking targets by urgency (threat weight × verification gap × sensor coverage)
+- `intel_feed.py` — subscription-filtered event broadcast router (INTEL_FEED, COMMAND_FEED, SENSOR_FEED)
+- UAV modes: IDLE, SEARCH, FOLLOW, PAINT, INTERCEPT, SUPPORT, VERIFY, OVERWATCH, BDA, REPOSITIONING, RTB
 - Fixed-wing physics: `_turn_toward()` for smooth heading changes, `MAX_TURN_RATE` circular loiter in SEARCH, all tracking modes use gradual arcs
 - Mode commands from frontend: SEARCH (releases target), FOLLOW/PAINT/INTERCEPT (requires target selection)
 - Theater-configurable via YAML files in `theaters/` (Romania, South China Sea, Baltic)
@@ -66,14 +73,21 @@ Environment variables go in a `.env` file (loaded via python-dotenv). Required f
 **3. React Frontend (`src/frontend-react/`)**
 - React + Vite + TypeScript with Blueprint dark theme and Zustand state
 - Served by Vite dev server on `:3000` (`npm run dev -- --port 3000`)
-- Tabs: MISSION / ASSETS / ENEMIES; Tactical AIP Assistant widget, Drone Camera PIP, Demo Banner
-- Drone cards in ASSETS tab with mode command buttons (SEARCH/FOLLOW/PAINT/INTERCEPT); clicking a card activates drone cam PIP
-- Enemy cards in ENEMIES tab with VerificationStepper (4-step progress dots), FusionBar (per-sensor confidence chart), SensorBadge (multi-sensor count), and manual VERIFY button
-- Cesium globe with all entity hooks: drones (mode-colored labels), targets (type+ID labels), zones, flow lines, compass, range rings, lock indicators
+- 4 sidebar tabs: MISSION / ASSETS / ENEMIES / ASSESS
+- MISSION tab: Theater selector, Tactical AIP Assistant, Intel Feed, Command Log, ISR Queue, Strike Board, Grid Controls, Autonomy Toggle, Coverage Mode Toggle
+- ASSETS tab: Drone cards with mode buttons, autonomy overrides, transition approval toasts
+- ENEMIES tab: Target cards with VerificationStepper, FusionBar, SensorBadge, SwarmPanel; EnemyUAV cards
+- ASSESS tab: ThreatClusterCard, CoverageGapAlert, ZoneThreatHeatmap
+- 6 map modes (OPERATIONAL, COVERAGE, THREAT, FUSION, SWARM, TERRAIN) with keyboard shortcuts 1-6
+- 5 Cesium layer overlays: coverage, threat, fusion, swarm, terrain (`cesium/layers/`)
+- Multi-layout drone camera PIP (SINGLE/PIP/SPLIT/QUAD) with 4 sensor modes (EO/IR, SAR, SIGINT, FUSION)
+- SensorHUD, SigintDisplay (RF spectrum waterfall), CameraPresets (OVERVIEW/TOP DOWN/OBLIQUE/FREE)
+- Cesium globe with all entity hooks: drones, targets, zones, flow lines, compass, range rings, lock indicators, assessment overlays, enemy UAVs, swarm lines
 - Custom event bridge (`palantir:send`, `palantir:placeWaypoint`, `palantir:openDetailMap`) for Cesium→React WebSocket communication
+- LayerPanel for per-layer visibility toggles, MapModeBar for mode switching
 - Legacy vanilla JS frontend remains in `src/frontend/` for reference
 
-### AI Agent Layer (`src/python/agents/`)
+**4. AI Agent Layer (`src/python/agents/`)**
 
 Nine LangGraph/LangChain agents — four in the kill chain pipeline plus five support agents:
 - `isr_observer.py` — sensor fusion (UAV, satellite, SIGINT)
@@ -93,10 +107,32 @@ Agents communicate through Pydantic models defined in `src/python/core/ontology.
 - LangGraph state with annotated reducers lives in `src/python/core/state.py`
 - The `add` reducer pattern is used for accumulating strike board entries, tasking requests, and rejected actions
 - `src/python/schemas/ontology.json` provides JSON serialization of the ontology
+- Frontend state: Zustand store (`SimulationStore.ts`) with typed payloads for all simulation data
 
 ### WebSocket Protocol
 
-The backend sends JSON payloads each tick containing drone positions, target positions, grid zone states, theater bounds, and tactical assistant messages. The frontend subscribes and updates Cesium entities in real time. Simulator clients send back video frames (base64 MJPEG) and telemetry. WebSocket actions: `scan_area`, `follow_target`, `paint_target`, `intercept_target`, `cancel_track`, `move_drone`, `spike`, `approve_nomination`, `reject_nomination`, `authorize_coa`, `verify_target`.
+The backend sends JSON payloads each tick containing drone positions, target positions, grid zone states, theater bounds, assessment data, ISR queue, enemy UAVs, swarm tasks, and tactical assistant messages. The frontend subscribes and updates Cesium entities in real time. Simulator clients send back video frames (base64 MJPEG) and telemetry.
+
+Key WebSocket actions: `scan_area`, `follow_target`, `paint_target`, `intercept_target`, `intercept_enemy`, `cancel_track`, `move_drone`, `spike`, `approve_nomination`, `reject_nomination`, `retask_nomination`, `authorize_coa`, `reject_coa`, `verify_target`, `retask_sensors`, `set_autonomy_level`, `set_drone_autonomy`, `approve_transition`, `reject_transition`, `request_swarm`, `release_swarm`, `set_coverage_mode`, `subscribe`, `subscribe_sensor_feed`, `reset`, `SET_SCENARIO`.
+
+### Key Python Modules (non-agent)
+
+| Module | Purpose |
+|--------|---------|
+| `sim_engine.py` | Physics simulation, UAV/target/enemy UAV management |
+| `verification_engine.py` | Target verification state machine |
+| `sensor_fusion.py` | Multi-sensor complementary fusion |
+| `sensor_model.py` | Probabilistic detection model (Pd, RCS, weather) |
+| `swarm_coordinator.py` | Multi-UAV task assignment with sensor-gap detection |
+| `battlespace_assessment.py` | Threat clustering, coverage gaps, zone scoring |
+| `isr_priority.py` | ISR priority queue builder |
+| `intel_feed.py` | Subscription-filtered event broadcast |
+| `pipeline.py` | F2T2EA kill chain orchestrator |
+| `hitl_manager.py` | Two-gate HITL approval system |
+| `theater_loader.py` | YAML theater configuration loader |
+| `llm_adapter.py` | Multi-provider LLM fallback (Gemini → Anthropic → heuristic) |
+| `event_logger.py` | Async JSONL event logging with daily rotation |
+| `config.py` | Pydantic-settings env var management |
 
 ## Integrated Agent Workflow (MANDATORY)
 

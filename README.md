@@ -6,16 +6,24 @@
 
 ## Overview
 
-**Palantir C2** is a high-fidelity Command and Control system that automates the **F2T2EA kill chain** (Find, Fix, Track, Target, Engage, Assess) using multi-agent AI orchestration, a physics-based tactical simulator, and a Cesium 3D geospatial frontend.
+**Palantir C2** is a high-fidelity Command and Control system that automates the **F2T2EA kill chain** (Find, Fix, Track, Target, Engage, Assess) using multi-agent AI orchestration, coordinated drone swarm operations, a physics-based tactical simulator, and a Cesium 3D geospatial frontend.
 
 - **9 AI Agents** orchestrating the full kill chain with heuristic + LLM fallback
 - **Human-in-the-Loop (HITL)** two-gate approval system for strike authorization
 - **Target Verification Pipeline** — 4-state machine (DETECTED → CLASSIFIED → VERIFIED → NOMINATED) with per-type thresholds, multi-sensor fusion, and operator manual override
 - **Multi-Sensor Fusion** — complementary fusion across EO/IR, SAR, and SIGINT with max-within-type dedup
-- **Physics-based simulation** with 10 enemy unit types, 7 UAV flight modes, and fuel/endurance modeling
+- **Swarm Coordination** — greedy UAV-to-target assignment with sensor-gap detection, priority scoring, and auto-release
+- **Battlespace Assessment** — threat clustering, coverage gap identification, zone threat scoring, movement corridor detection
+- **ISR Priority Queue** — automated sensor retasking based on threat weight, verification gaps, and sensor coverage
+- **6 Map Modes** — OPERATIONAL, COVERAGE, THREAT, FUSION, SWARM, TERRAIN with keyboard shortcuts (1-6)
+- **Enemy UAV Tracking** — adversary drone detection with RECON/ATTACK/JAMMING/EVADING modes
+- **Intel Feed System** — subscription-filtered event streams (INTEL, COMMAND, SENSOR feeds)
+- **Multi-layout Drone Camera** — SINGLE, PIP, SPLIT, QUAD layouts with EO/IR, SAR, SIGINT, and FUSION sensor modes
+- **Physics-based simulation** with 10 enemy unit types, 11 UAV flight modes, and fuel/endurance modeling
 - **3 Theater configurations** (Romania, South China Sea, Baltic) with YAML scenario definition
-- **Real-time Cesium 3D globe** with WebSocket-driven 10 Hz updates, entity labels, range rings, and lock indicators
-- **React + Vite frontend** with Blueprint dark theme, resizable sidebar, and synthetic drone camera PIP
+- **Real-time Cesium 3D globe** with WebSocket-driven 10 Hz updates, entity labels, range rings, lock indicators, and 5 map layer overlays
+- **React + Vite frontend** with Blueprint dark theme, resizable sidebar, and 4 sidebar tabs
+- **475 pytest tests** across 23 test files
 
 ---
 
@@ -118,7 +126,7 @@ cd src/frontend-react && npm run build
 # Single test file
 ./venv/bin/python3 -m pytest src/python/tests/test_sim_integration.py
 
-# With output (289 tests across 18 test files)
+# With output (475 tests across 23 test files)
 ./venv/bin/python3 -m pytest src/python/tests/ -v
 ```
 
@@ -203,9 +211,117 @@ When `DEMO_MODE=true`, all thresholds are halved (times) and lowered (confidence
 
 ---
 
+## Swarm Coordination
+
+The swarm coordinator (`swarm_coordinator.py`) manages multi-UAV tasking:
+
+- **Greedy assignment** — assigns available UAVs to highest-priority targets first
+- **Sensor-gap detection** — identifies targets missing EO/IR, SAR, or SIGINT coverage
+- **Priority scoring** — threat weight × verification gap × sensor coverage need
+- **Task expiry** — 120-second TTL on swarm assignments, auto-release on target state transitions
+- **Idle guard** — ensures minimum UAV availability for new detections
+- **Formation types** — sensor assignments based on target type and available UAV sensors
+
+### Swarm UI
+
+- **SwarmPanel** — per-target sensor coverage visualization with assigned UAV list
+- **Swarm Lines** — Cesium polylines connecting swarm-assigned UAVs to their targets
+- **SWARM map mode** (key: 5) — highlights swarm formations and task assignments
+
+---
+
+## Battlespace Assessment
+
+The assessment engine (`battlespace_assessment.py`) provides real-time tactical intelligence:
+
+- **Threat Clustering** — groups nearby targets into clusters (SAM_BATTERY, CONVOY, CP_COMPLEX, AD_NETWORK, MIXED) using distance-based affinity
+- **Coverage Gap Detection** — identifies grid zones with no UAV coverage
+- **Zone Threat Scoring** — per-zone threat level based on target types and count
+- **Movement Corridor Detection** — tracks target movement patterns over time
+
+### Assessment UI (ASSESS Tab)
+
+- **ThreatClusterCard** — cluster type, member count, threat score
+- **CoverageGapAlert** — list of uncovered zones requiring attention
+- **ZoneThreatHeatmap** — color-coded zone threat levels
+
+---
+
+## ISR Priority Queue
+
+The ISR priority engine (`isr_priority.py`) ranks targets for sensor retasking:
+
+- **Urgency scoring** — threat weight × (1 − verification progress) × sensor gap multiplier
+- **Verification gap** — distance from current confidence to next threshold
+- **Missing sensor detection** — identifies which sensor types a target still needs
+- **UAV recommendation** — suggests specific UAVs based on proximity and sensor loadout
+
+### ISR Queue UI (MISSION Tab)
+
+- **ISRQueue** — table of prioritized targets with urgency, gap, and recommended sensors
+
+---
+
+## Map Modes
+
+Six map modes provide different tactical views. Switch with keyboard shortcuts or the MapModeBar overlay.
+
+| Mode | Key | Description | Visible Layers |
+|------|-----|-------------|----------------|
+| **OPERATIONAL** | 1 | Default view — all assets and targets | Drones, targets, zones, flow lines |
+| **COVERAGE** | 2 | Sensor coverage analysis | Drones, zones, coverage overlay |
+| **THREAT** | 3 | Threat-focused view | Targets, threat overlay |
+| **FUSION** | 4 | Sensor fusion confidence | Drones, targets, fusion overlay |
+| **SWARM** | 5 | Swarm formations and tasking | Drones, targets, flow lines, swarm overlay |
+| **TERRAIN** | 6 | Terrain analysis | Drones, targets, terrain overlay |
+
+### Layer Controls
+
+The **LayerPanel** (top-right of globe) allows toggling individual layers independently of the active map mode: drones, targets, zones, flow lines, coverage, threat, fusion, swarm, terrain.
+
+---
+
+## Enemy UAVs
+
+The system detects and tracks adversary drones with four operational modes:
+
+| Mode | Description |
+|------|-------------|
+| **RECON** | Reconnaissance — observing friendly positions |
+| **ATTACK** | Offensive approach toward friendly assets |
+| **JAMMING** | Electronic warfare — disrupting sensor feeds |
+| **EVADING** | Attempting to escape tracking |
+
+### Enemy UAV UI
+
+- **EnemyUAVCard** — in ENEMIES tab, shows mode, confidence, sensor count
+- **Cesium rendering** — enemy UAV entities on the globe via `useCesiumEnemyUAVs`
+- **Intercept action** — `intercept_enemy` WebSocket command to task a friendly UAV
+
+---
+
+## Intel Feed System
+
+The `IntelFeedRouter` (`intel_feed.py`) provides typed event streams:
+
+| Feed | Content |
+|------|---------|
+| **INTEL_FEED** | Target state transitions, detections, verifications |
+| **COMMAND_FEED** | Operator actions, mode changes, approvals |
+| **SENSOR_FEED** | Sensor retasking, coverage updates |
+
+Clients subscribe to specific feeds via the `subscribe` WebSocket action. Legacy clients receive all broadcasts.
+
+### Feed UI (MISSION Tab)
+
+- **IntelFeed** — scrolling feed of target state transitions with severity tags
+- **CommandLog** — table of operator and AI actions with timestamps
+
+---
+
 ## UAV Flight Modes
 
-UAVs are commanded from the **ASSETS** tab drone cards or by clicking entities on the globe. FOLLOW, PAINT, and INTERCEPT require a target to be selected first (click a target card in the ENEMIES tab or click the target on the globe).
+UAVs are commanded from the **ASSETS** tab drone cards or by clicking entities on the globe. FOLLOW, PAINT, and INTERCEPT require a target to be selected first.
 
 ### Mode Reference
 
@@ -215,9 +331,23 @@ UAVs are commanded from the **ASSETS** tab drone cards or by clicking entities o
 | **FOLLOW** | Purple | Yes | Loose tracking — maintains visual contact at safe distance |
 | **PAINT** | Red | Yes | Laser designation — tight orbit with active laser lock |
 | **INTERCEPT** | Orange | Yes | Direct approach — flies straight at target at maximum speed |
+| **SUPPORT** | — | Yes | Swarm support — sensor assist for a primary tracker |
+| **VERIFY** | — | Yes | Verification pass — contributes sensor data for target verification |
+| **OVERWATCH** | — | No | Elevated overwatch position above area of interest |
+| **BDA** | — | Yes | Battle damage assessment — post-strike observation |
 | **IDLE** | — | — | Stationary hold, no assignment |
 | **REPOSITIONING** | — | — | Automatic rebalancing to an under-covered zone |
 | **RTB** | — | — | Return to base — triggered automatically on low fuel |
+
+### Autonomy Levels
+
+| Level | Description |
+|-------|-------------|
+| **MANUAL** | All UAV commands require operator input |
+| **SUPERVISED** | AI proposes mode transitions, operator approves/rejects |
+| **AUTONOMOUS** | AI controls UAV tasking autonomously |
+
+Per-UAV autonomy override is available. Pending transitions appear as toasts (`TransitionToast`) requiring operator approval in SUPERVISED mode.
 
 ### When to Use Each Mode
 
@@ -251,12 +381,12 @@ Effect:  UAV orbits ~1 km from target
 ```
 
 #### INTERCEPT
-INTERCEPT sends the UAV on a direct heading toward the target at **1.5× normal speed**. It is the fastest way to close distance to a target — useful when a high-priority target is detected at range and needs to be engaged immediately, or when you want to force a mobile target to stop maneuvering. The UAV transitions to a ~300 m danger-close orbit and also sets target state to `LOCKED`.
+INTERCEPT sends the UAV on a direct heading toward the target at **1.5x normal speed**. It is the fastest way to close distance to a target — useful when a high-priority target is detected at range and needs to be engaged immediately, or when you want to force a mobile target to stop maneuvering. The UAV transitions to a ~300 m danger-close orbit and also sets target state to `LOCKED`.
 
 ```
 Use for: high-priority time-sensitive targets, forcing engagement on mobile units,
          rapid response when a target is about to leave sensor range
-Effect:  UAV flies direct at 1.5× speed, then orbits ~300 m from target
+Effect:  UAV flies direct at 1.5x speed, then orbits ~300 m from target
          Target state → LOCKED (same as PAINT but with aggressive approach)
          High risk — danger-close orbit means UAV is within SAM/MANPADS range
 ```
@@ -267,8 +397,8 @@ Effect:  UAV flies direct at 1.5× speed, then orbits ~300 m from target
 |--------|-------|-----------|
 | Approach | Already in orbit | Direct dash from current position |
 | Orbit radius | ~1 km | ~300 m |
-| Speed | Normal | 1.5× normal |
-| Risk to UAV | Low–medium | High (within SAM envelope) |
+| Speed | Normal | 1.5x normal |
+| Risk to UAV | Low-medium | High (within SAM envelope) |
 | Time to lock | Immediate (if nearby) | Faster (if far away) |
 | Best for | Deliberate strikes on known targets | Time-sensitive / fleeing targets |
 
@@ -280,14 +410,18 @@ Effect:  UAV flies direct at 1.5× speed, then orbits ~300 m from target
 
 ### Sidebar Tabs
 
-**MISSION** — Theater selector, Tactical AIP Assistant message feed, Strike Board, grid controls.
+**MISSION** — Theater selector, Tactical AIP Assistant message feed, Intel Feed, Command Log, ISR Queue, Strike Board, Grid Controls, Autonomy Toggle, Coverage Mode Toggle.
 
 **ASSETS** — Drone cards for each active UAV. Click a card to expand it and activate the drone camera PIP. Expanded card shows:
 - Altitude, sensor type, tracking assignment, coordinates
 - Mode command buttons (SEARCH / FOLLOW / PAINT / INTERCEPT)
 - Set Waypoint toggle (then click on the globe to place a waypoint)
+- Autonomy override and mode source indicators
+- Pending transition approval (in SUPERVISED mode)
 
-**ENEMIES** — Enemy target cards for all detected contacts. Shows type badge, target ID, state badge, tracking UAV tags with mode colors, coordinates, and detection confidence. Click a card to select the target (required before commanding FOLLOW / PAINT / INTERCEPT).
+**ENEMIES** — Enemy target cards for all detected contacts. Shows type badge, target ID, state badge, tracking UAV tags with mode colors, coordinates, and detection confidence. Click a card to select the target (required before commanding FOLLOW / PAINT / INTERCEPT). Also shows enemy UAV cards with mode and confidence indicators.
+
+**ASSESS** — Battlespace assessment dashboard with threat cluster cards, coverage gap alerts, and zone threat heatmap.
 
 ### Strike Board (MISSION tab)
 
@@ -300,14 +434,35 @@ After authorization, the Effectors Agent executes the strike and reports BDA (Ba
 
 ### Drone Camera PIP
 
-Click any drone card in the ASSETS tab to activate the synthetic drone camera feed (bottom-right of the globe). The canvas renders:
+The drone camera system supports **4 layouts** selectable via the `CamLayoutSelector`:
+
+| Layout | Description |
+|--------|-------------|
+| **SINGLE** | One full-size camera feed |
+| **PIP** | Main feed with small picture-in-picture overlay |
+| **SPLIT** | Two side-by-side camera feeds |
+| **QUAD** | Four simultaneous camera feeds |
+
+Each camera slot supports **4 sensor modes**:
+
+| Mode | Description |
+|------|-------------|
+| **EO/IR** | Electro-optical / infrared — standard visual camera |
+| **SAR** | Synthetic aperture radar — all-weather ground mapping |
+| **SIGINT** | Signals intelligence — RF emission detection and spectrum display |
+| **FUSION** | Combined multi-sensor overlay |
+
+The canvas renders:
 - Target symbols with type-specific shapes (diamond=TEL, triangle=SAM, square=TRUCK, etc.)
 - Detection confidence percentage per target
 - HUD: drone ID, altitude, heading, mode, coordinates
 - Tracking reticle and range/bearing readouts when in FOLLOW/PAINT/INTERCEPT
 - Pulsing red lock box when in PAINT mode with active laser designation
+- **SensorHUD** overlay with sensor-specific telemetry
+- **SigintDisplay** for RF spectrum waterfall visualization
+- **CameraPresets** overlay (OVERVIEW, TOP DOWN, OBLIQUE, FREE)
 
-Click the card again to deselect and close the PIP.
+Click any drone card in the ASSETS tab to activate a camera slot. Click again to deselect.
 
 ### Globe Interactions
 
@@ -317,6 +472,8 @@ Click the card again to deselect and close the PIP.
 - **Double-click empty space** → spike (triggers threat response simulation)
 - **Set Waypoint active + click globe** → sends waypoint to selected drone
 - **Camera controls** (top-left when drone tracked): Globe icon returns to theater view; X decouples camera
+- **MapModeBar** (top of globe): switch between 6 map modes or press 1-6
+- **LayerPanel** (top-right): toggle individual map layers
 
 ---
 
@@ -328,8 +485,12 @@ src/
     api_main.py              # FastAPI server, WebSocket hub, agent pipeline, demo autopilot
     sim_engine.py            # Physics simulation (UAVs, targets, zones, red force AI)
     verification_engine.py   # Target verification state machine (DETECTED→CLASSIFIED→VERIFIED→NOMINATED)
-    sensor_fusion.py         # Multi-sensor complementary fusion (1 - ∏(1-ci)) with dedup
+    sensor_fusion.py         # Multi-sensor complementary fusion (1 - product(1-ci)) with dedup
     sensor_model.py          # Probabilistic detection model (Pd, RCS, weather)
+    swarm_coordinator.py     # Greedy UAV-to-target assignment with sensor-gap detection
+    battlespace_assessment.py # Threat clustering, coverage gaps, zone scoring, corridors
+    isr_priority.py          # ISR priority queue builder — urgency scoring + UAV recommendation
+    intel_feed.py            # Subscription-filtered event broadcast (INTEL, COMMAND, SENSOR feeds)
     pipeline.py              # F2T2EA kill chain orchestrator
     config.py                # Pydantic-settings env var management
     hitl_manager.py          # Two-gate HITL approval system
@@ -338,6 +499,9 @@ src/
     event_logger.py          # Structured event logging (async JSONL with daily rotation)
     websocket_manager.py     # WebSocket connection lifecycle management
     logging_config.py        # Structured logging configuration (structlog)
+    core/
+      ontology.py            # Pydantic data models — shared data contract for all agents
+      state.py               # LangGraph state with annotated reducers
     agents/
       isr_observer.py        # Find / Fix / Track — sensor fusion
       strategy_analyst.py    # Target — ROE evaluation + priority scoring
@@ -348,20 +512,34 @@ src/
       battlespace_manager.py # Map layers + threat ring management
       synthesis_query_agent.py # SITREP generation
       performance_auditor.py # System performance monitoring
-    tests/                   # 289 pytest tests (18 test files)
+    data/
+      historical_activity.py # Historical pattern data
+    mission_data/
+      asset_registry.py      # UAV and effector asset definitions
+      historical_activity.py # Mission-specific activity history
+    utils/
+      geo_utils.py           # Geospatial calculation utilities
+    vision/
+      video_simulator.py     # Drone camera video simulator (OpenCV)
+      vision_processor.py    # Video frame analysis
+      coordinate_transformer.py # Geo ↔ pixel coordinate transform
+      dashboard_connector.py # Vision pipeline → dashboard bridge
+    tests/                   # 475 pytest tests (23 test files)
   frontend-react/            # React + Vite dashboard (primary)
     src/
       App.tsx                # Root layout — sidebar + globe + overlays
       main.tsx               # Entry point — Blueprint theme, Zustand store, ECharts theme
       store/
         SimulationStore.ts   # Zustand store — simulation state + UI state
-        types.ts             # TypeScript types (UAV, Target, Zone, StrikeEntry, COA…)
+        types.ts             # TypeScript types (UAV, Target, Zone, StrikeEntry, COA, Assessment…)
       hooks/
         useWebSocket.ts      # WebSocket connection, reconnect, message routing
         useDroneCam.ts       # Canvas render loop — synthetic drone camera feed
+        useSensorCanvas.ts   # Sensor-specific canvas renderer (EO/IR, SAR, SIGINT, FUSION)
+        useCesiumViewer.ts   # Cesium viewer lifecycle hook
         useResizable.ts      # Resizable sidebar hook
       cesium/
-        CesiumContainer.tsx  # Cesium Viewer lifecycle, wires all Cesium hooks
+        CesiumContainer.tsx  # Cesium Viewer lifecycle, wires all Cesium hooks + layer overlays
         useCesiumDrones.ts   # UAV 3D entity rendering with mode-colored labels
         useCesiumTargets.ts  # Target entity rendering with type/ID labels + threat rings
         useCesiumZones.ts    # Grid zone visualization
@@ -372,35 +550,64 @@ src/
         useCesiumRangeRings.ts # Sensor range ring overlays
         useCesiumWaypoints.ts  # Waypoint cylinders + trajectory polylines
         useCesiumLockIndicators.ts # Red pulsing lock ring on PAINT targets
+        useCesiumAssessment.ts # Assessment visualization (clusters, gaps, corridors)
+        useCesiumEnemyUAVs.ts # Enemy UAV entity rendering
+        useCesiumSwarmLines.ts # Swarm coordination polylines
         CameraControls.tsx   # Globe-return + camera decouple buttons
         DetailMapDialog.tsx  # Precision waypoint placement modal
+        layers/
+          useCoverageLayer.ts  # Sensor coverage heatmap overlay
+          useFusionLayer.ts    # Fusion confidence visualization
+          useSwarmLayer.ts     # Swarm formation overlay
+          useThreatLayer.ts    # Threat density overlay
+          useTerrainLayer.ts   # Terrain analysis overlay
       panels/
         Sidebar.tsx          # Resizable sidebar container
-        SidebarTabs.tsx      # MISSION / ASSETS / ENEMIES tab navigation
+        SidebarTabs.tsx      # MISSION / ASSETS / ENEMIES / ASSESS tab navigation
         mission/             # MISSION tab components
-          MissionTab.tsx     # Theater selector + assistant widget + strike board
+          MissionTab.tsx     # Theater selector + assistant + feeds + strike board
           TheaterSelector.tsx
           AssistantWidget.tsx
           StrikeBoard.tsx
           StrikeBoardEntry.tsx
           StrikeBoardCoa.tsx
           GridControls.tsx
+          AutonomyToggle.tsx   # MANUAL / SUPERVISED / AUTONOMOUS selector
+          CoverageModeToggle.tsx # balanced / threat_adaptive toggle
+          ISRQueue.tsx         # Prioritized ISR requirements table
+          IntelFeed.tsx        # Target state transition feed
+          CommandLog.tsx       # Operator action history
         assets/              # ASSETS tab — drone management
           AssetsTab.tsx
           DroneCard.tsx      # Drone card with mode tag + drone cam activation
           DroneCardDetails.tsx
           DroneModeButtons.tsx  # SEARCH / FOLLOW / PAINT / INTERCEPT buttons
           DroneActionButtons.tsx
+          TransitionToast.tsx   # Autonomy transition approval toast
         enemies/             # ENEMIES tab — threat tracking + verification
           EnemiesTab.tsx
           ThreatSummary.tsx
           EnemyCard.tsx
+          EnemyUAVCard.tsx     # Adversary drone card
+          SwarmPanel.tsx       # Per-target swarm sensor coverage
           VerificationStepper.tsx  # 4-step verification progress dots + confidence bar
           FusionBar.tsx            # Stacked sensor contribution bar chart (ECharts)
           SensorBadge.tsx          # Multi-sensor count badge with intent color
+        assessment/          # ASSESS tab — battlespace intelligence
+          AssessmentTab.tsx
+          ThreatClusterCard.tsx
+          CoverageGapAlert.tsx
+          ZoneThreatHeatmap.tsx
       overlays/
-        DroneCamPIP.tsx      # Synthetic drone camera picture-in-picture
+        DroneCamPIP.tsx      # Multi-layout drone camera orchestrator (SINGLE/PIP/SPLIT/QUAD)
         DemoBanner.tsx       # Demo mode indicator strip
+        MapModeBar.tsx       # 6-mode tactical view selector (keyboard 1-6)
+        LayerPanel.tsx       # Per-layer visibility toggles
+        CameraPresets.tsx    # Camera angle presets (OVERVIEW/TOP DOWN/OBLIQUE/FREE)
+      components/
+        CamLayoutSelector.tsx  # Camera layout picker (SINGLE/PIP/SPLIT/QUAD)
+        SensorHUD.tsx          # Per-sensor telemetry overlay
+        SigintDisplay.tsx      # SIGINT RF spectrum waterfall display
       shared/
         constants.ts         # Mode styles, target map, sensor constants
         geo.ts               # Haversine distance, bearing helpers
@@ -439,10 +646,13 @@ Each agent runs in **heuristic mode** by default (no API keys needed). When LLM 
 ### Simulation Engine
 
 The sim engine models:
-- **UAVs**: 7 operational modes with fixed-wing physics, fuel consumption, and zone-based coverage optimization
+- **UAVs**: 11 operational modes with fixed-wing physics, fuel consumption, multi-sensor loadouts, and zone-based coverage optimization
 - **Targets**: 10 unit types (`SAM`, `TEL`, `TRUCK`, `CP`, `MANPADS`, `RADAR`, `C2_NODE`, `LOGISTICS`, `ARTILLERY`, `APC`) with type-specific behaviors (patrol, ambush, shoot-and-scoot, concealment, flee)
+- **Enemy UAVs**: Adversary drones with RECON, ATTACK, JAMMING, EVADING modes
 - **Environment**: Time of day, cloud cover, precipitation affecting sensor performance
 - **Detection**: Probabilistic Pd model incorporating range, RCS, and weather penalties
+- **Swarm Coordination**: Greedy assignment with sensor-gap detection and priority-weighted tasking
+- **Battlespace Assessment**: Real-time threat clustering, coverage analysis, and movement corridor detection
 
 ---
 
@@ -453,10 +663,13 @@ Backend broadcasts full simulation state as JSON at 10 Hz. All messages include 
 **Server → Client:**
 | Type | Description |
 |------|-------------|
-| `state` | Full sim state — drones, targets, zones, flows, strike board, demo_mode flag |
+| `state` | Full sim state — drones, targets, zones, flows, strike board, assessment, ISR queue, enemy UAVs, swarm tasks |
 | `ASSISTANT_MESSAGE` | AI agent notification with severity (INFO / WARNING / CRITICAL) |
 | `HITL_UPDATE` | Strike board nomination or COA status change |
 | `SITREP_RESPONSE` | Situation report query result |
+| `INTEL_FEED` | Target state transition event |
+| `COMMAND_FEED` | Operator/AI action event |
+| `SENSOR_FEED` | Sensor retasking event |
 | `ERROR` | Validation or rate-limit error |
 
 **Client → Server actions:**
@@ -466,15 +679,29 @@ Backend broadcasts full simulation state as JSON at 10 Hz. All messages include 
 | `follow_target` | `drone_id`, `target_id` | Command FOLLOW mode |
 | `paint_target` | `drone_id`, `target_id` | Command PAINT (laser lock) |
 | `intercept_target` | `drone_id`, `target_id` | Command INTERCEPT |
+| `intercept_enemy` | `drone_id`, `enemy_uav_id` | Intercept an enemy UAV |
 | `cancel_track` | `drone_id` | Release from target |
 | `move_drone` | `drone_id`, `target_lon`, `target_lat` | Set waypoint |
 | `spike` | `lon`, `lat` | Trigger threat response at location |
 | `approve_nomination` | `entry_id` | HITL Gate 1 — approve |
 | `reject_nomination` | `entry_id` | HITL Gate 1 — reject |
+| `retask_nomination` | `entry_id` | Retask nomination for re-evaluation |
 | `authorize_coa` | `entry_id`, `coa_id` | HITL Gate 2 — authorize |
+| `reject_coa` | `entry_id`, `coa_id` | HITL Gate 2 — reject COA |
 | `sitrep_query` | `query` | Request situation report |
 | `verify_target` | `target_id` | Manual fast-track CLASSIFIED → VERIFIED |
 | `retask_sensors` | `zone_id` | Retask sensors to zone |
+| `set_autonomy_level` | `level` | Set global autonomy (MANUAL/SUPERVISED/AUTONOMOUS) |
+| `set_drone_autonomy` | `drone_id`, `level` | Set per-drone autonomy override |
+| `approve_transition` | `drone_id` | Approve pending autonomy transition |
+| `reject_transition` | `drone_id` | Reject pending autonomy transition |
+| `request_swarm` | `target_id` | Request swarm assignment for target |
+| `release_swarm` | `target_id` | Release swarm from target |
+| `set_coverage_mode` | `mode` | Set coverage mode (balanced/threat_adaptive) |
+| `subscribe` | `feeds` | Subscribe to specific feed types |
+| `subscribe_sensor_feed` | `drone_id` | Subscribe to real-time sensor data |
+| `reset` | — | Reset simulation state |
+| `SET_SCENARIO` | `theater` | Switch active theater |
 
 ---
 
