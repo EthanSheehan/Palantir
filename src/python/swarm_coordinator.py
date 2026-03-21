@@ -62,6 +62,16 @@ class TaskingOrder:
     priority: int
 
 
+@dataclass(frozen=True)
+class SwarmRecommendation:
+    uav_id: int
+    target_id: int
+    mode: str
+    reason: str
+    priority: int
+    autonomy_level: str
+
+
 # ---------------------------------------------------------------------------
 # SwarmCoordinator
 # ---------------------------------------------------------------------------
@@ -79,12 +89,30 @@ class SwarmCoordinator:
     # Public API
     # ------------------------------------------------------------------
 
-    def evaluate_and_assign(self, targets: list, uavs: list, *, force: bool = False) -> List[TaskingOrder]:
-        """Score targets, fill sensor gaps, return new TaskingOrders.
+    _VALID_AUTONOMY_LEVELS = frozenset({"AUTONOMOUS", "SUPERVISED", "MANUAL"})
+
+    def evaluate_and_assign(
+        self,
+        targets: list,
+        uavs: list,
+        *,
+        autonomy_level: str = "AUTONOMOUS",
+        force: bool = False,
+    ) -> list:
+        """Score targets, fill sensor gaps, return new TaskingOrders or SwarmRecommendations.
+
+        autonomy_level controls behavior:
+        - AUTONOMOUS (default): execute assignments, update _active_tasks
+        - SUPERVISED / MANUAL: return SwarmRecommendation objects only (no execution)
+        - force=True overrides autonomy gating — always executes
 
         When force=True (operator request), skip state filtering and auto-release
         so that any target state can receive swarm support.
         """
+        if autonomy_level not in self._VALID_AUTONOMY_LEVELS:
+            raise ValueError(
+                f"autonomy_level must be one of {sorted(self._VALID_AUTONOMY_LEVELS)}, got {autonomy_level!r}"
+            )
         now = time.time()
 
         # 1. Expiry check — remove stale tasks and release SUPPORT UAVs
@@ -155,7 +183,21 @@ class SwarmCoordinator:
                 idle_count -= 1
                 already_assigned.add(uav.id)
 
-        # 7. Update _active_tasks for targets that received orders
+        # 7. If non-autonomous and not forced, return recommendations only
+        if autonomy_level != "AUTONOMOUS" and not force:
+            return [
+                SwarmRecommendation(
+                    uav_id=o.uav_id,
+                    target_id=o.target_id,
+                    mode=o.mode,
+                    reason=o.reason,
+                    priority=o.priority,
+                    autonomy_level=autonomy_level,
+                )
+                for o in orders
+            ]
+
+        # 8. Update _active_tasks for targets that received orders
         assigned_by_target: Dict[int, List[TaskingOrder]] = {}
         for order in orders:
             assigned_by_target.setdefault(order.target_id, []).append(order)

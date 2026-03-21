@@ -1,9 +1,18 @@
+"""Palantir C2 — FastAPI entry point (slim orchestrator).
+
+All heavy logic lives in extracted modules:
+  - websocket_handlers.py — command dispatch table, action handlers
+  - simulation_loop.py   — 10Hz simulation tick, sensor feed broadcast
+  - autopilot.py          — demo auto-pilot loop
+  - tactical_assistant.py — TacticalAssistant + ISR pipeline
+"""
+
 from __future__ import annotations
 
 import asyncio
 import collections
 import json
-import math
+import logging
 import time
 from contextlib import asynccontextmanager
 
@@ -24,17 +33,18 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from hitl_manager import HITLManager
 from intel_feed import IntelFeedRouter, _client_subscribed
-from isr_priority import build_isr_queue
 from llm_adapter import LLMAdapter
 from logging_config import configure_logging
-from schemas.ontology import (
-    Detection,
-    EngagementDecision,
-    SensorSource,
-    TargetClassification,
-)
 from sim_engine import SimulationModel
-from verification_engine import _DEFAULT_THRESHOLD, VERIFICATION_THRESHOLDS
+from simulation_loop import SimulationLoopState, sensor_feed_loop, simulation_loop
+from tactical_assistant import TacticalAssistant
+from websocket_handlers import (
+    HandlerContext,
+    _send_error,
+)
+from websocket_handlers import (
+    handle_payload as _ws_handle_payload,
+)
 
 configure_logging()
 logger = structlog.get_logger()
@@ -48,89 +58,11 @@ assessor = BattlespaceAssessor()
 MAX_WS_CONNECTIONS = 20
 RATE_LIMIT_MAX_MESSAGES = 30  # per second
 RATE_LIMIT_WINDOW = 1.0  # seconds
-MAX_WS_MESSAGE_SIZE = 65536  # 64KB — reject oversized messages before parsing
-
-# Input validation allowlists
-VALID_COVERAGE_MODES = frozenset({"balanced", "threat_adaptive"})
-VALID_FEED_TYPES = frozenset({"INTEL_FEED", "COMMAND_FEED", "SENSOR_FEED"})
-MAX_SITREP_QUERY_LENGTH = 500
-
-# Field type validators
-_TYPE_VALIDATORS = {
-    "int": lambda v: isinstance(v, int) or (isinstance(v, float) and v == int(v)),
-    "float": lambda v: isinstance(v, (int, float)),
-    "str": lambda v: isinstance(v, str),
-}
-
-
-def _validate_payload(payload: dict, schema: dict[str, str]) -> str | None:
-    """Validate that payload contains required fields with correct types.
-
-    schema maps field_name -> type_name ("int", "float", "str").
-    Returns an error message string on failure, None on success.
-    """
-    for field, type_name in schema.items():
-        if field not in payload or payload[field] is None:
-            return f"Missing required field: '{field}'"
-        validator = _TYPE_VALIDATORS.get(type_name)
-        if validator and not validator(payload[field]):
-            return f"Field '{field}' must be {type_name}, got {type(payload[field]).__name__}"
-    return None
-
-
-async def _send_error(websocket: WebSocket, message: str, action: str | None = None) -> None:
-    """Send a consistent error response to the client."""
-    error_payload = {"type": "ERROR", "message": message}
-    if action:
-        error_payload["action"] = action
-    try:
-        await websocket.send_text(json.dumps(error_payload))
-    except (WebSocketDisconnect, ConnectionError, OSError):
-        pass
-
-
-def _check_rate_limit(client_info: dict) -> bool:
-    """Return True if the client is within rate limits, False if exceeded."""
-    now = time.monotonic()
-    timestamps = client_info.setdefault("msg_timestamps", collections.deque())
-    # Purge old timestamps outside the window
-    while timestamps and timestamps[0] < now - RATE_LIMIT_WINDOW:
-        timestamps.popleft()
-    if len(timestamps) >= RATE_LIMIT_MAX_MESSAGES:
-        return False
-    timestamps.append(now)
-    return True
-
-
-# Action -> required fields schema
-_ACTION_SCHEMAS: dict[str, dict[str, str]] = {
-    "spike": {"lon": "float", "lat": "float"},
-    "move_drone": {"drone_id": "int", "target_lon": "float", "target_lat": "float"},
-    "intercept_target": {"drone_id": "int", "target_id": "int"},
-    "follow_target": {"drone_id": "int", "target_id": "int"},
-    "paint_target": {"drone_id": "int", "target_id": "int"},
-    "cancel_track": {"drone_id": "int"},
-    "approve_nomination": {"entry_id": "str"},
-    "reject_nomination": {"entry_id": "str"},
-    "retask_nomination": {"entry_id": "str"},
-    "authorize_coa": {"entry_id": "str", "coa_id": "str"},
-    "reject_coa": {"entry_id": "str"},
-    "verify_target": {"target_id": "int"},
-    "scan_area": {"drone_id": "int"},
-    "set_autonomy_level": {"level": "str"},
-    "set_drone_autonomy": {"drone_id": "int"},
-    "approve_transition": {"drone_id": "int"},
-    "reject_transition": {"drone_id": "int"},
-    "intercept_enemy": {"uav_id": "int", "enemy_uav_id": "int"},
-    "request_swarm": {"target_id": "int"},
-    "release_swarm": {"target_id": "int"},
-    "set_coverage_mode": {"mode": "str"},
-}
+MAX_WS_MESSAGE_SIZE = 65536  # 64KB
 
 # ---------------------------------------------------------------------------
-# Agent instantiation (heuristic mode — LLMAdapter handles fallback automatically)
+# Agent instantiation (heuristic mode)
 # ---------------------------------------------------------------------------
-
 llm_adapter = LLMAdapter()
 isr_observer = ISRObserverAgent()
 strategy_analyst = StrategyAnalystAgent()
@@ -139,525 +71,30 @@ ai_tasking_manager = AITaskingManagerAgent(llm_client=None)
 battlespace_manager = BattlespaceManagerAgent(llm_client=None)
 synthesis_query = SynthesisQueryAgent(llm_client=None)
 
-
-class TacticalAssistant:
-    """Tracks new detections, triggers ISR→Strategy→HITL pipeline per event."""
-
-    def __init__(self):
-        self.message_history = []
-        self.last_detected = {}  # target_id -> bool
-        self._last_verified: dict = {}  # target_id -> bool
-        # track_id -> True for targets already nominated to avoid duplicates
-        self._nominated: set = set()
-
-    def update(self, sim_state):
-        new_messages = []
-        targets_list = sim_state.get("targets", [])
-        # Prune stale entries for targets no longer in the simulation
-        active_track_keys = {f"TRK-{t['id']}" for t in targets_list}
-        self._nominated = self._nominated & active_track_keys
-        active_ids = {t["id"] for t in targets_list}
-        self._last_verified = {k: v for k, v in self._last_verified.items() if k in active_ids}
-        self.last_detected = {k: v for k, v in self.last_detected.items() if k in active_ids}
-        for target in targets_list:
-            tid = target["id"]
-            current_state = target.get("state", "UNDETECTED")
-            is_any_detected = current_state != "UNDETECTED"
-            is_verified = current_state == "VERIFIED"
-            t_type = target["type"]
-
-            # UI visibility: fire "NEW CONTACT" on first detection (any non-UNDETECTED state)
-            if is_any_detected and not self.last_detected.get(tid, False):
-                msg = {
-                    "type": "ASSISTANT_MESSAGE",
-                    "text": f"NEW CONTACT: {t_type} localized at {target['lon']:.4f}, {target['lat']:.4f}",
-                    "severity": "INFO",
-                    "timestamp": time.strftime("%H:%M:%S"),
-                }
-                new_messages.append(msg)
-
-            # ISR pipeline gate: only fire on VERIFIED (was not verified last tick)
-            was_verified = self._last_verified.get(tid, False)
-            if is_verified and not was_verified:
-                hitl_msg = _process_new_detection(target, self._nominated)
-                if hitl_msg:
-                    new_messages.append(hitl_msg)
-
-            self.last_detected[tid] = is_any_detected
-            self._last_verified[tid] = is_verified
-
-        return new_messages
-
-
-def _process_new_detection(target: dict, nominated: set) -> dict | None:
-    """
-    Run ISR Observer → Strategy Analyst → HITL nomination for a newly
-    detected target. Returns an ASSISTANT_MESSAGE dict if the target was
-    nominated, otherwise None.
-
-    This is intentionally synchronous (heuristic path only) so it can be
-    called from the sync TacticalAssistant.update() without awaiting.
-    """
-    track_key = f"TRK-{target['id']}"
-    if track_key in nominated:
-        return None
-
-    raw_json = json.dumps(
-        {
-            "id": target["id"],
-            "type": target["type"],
-            "source": "UAV",
-            "lat": target.get("lat", 0.0),
-            "lon": target.get("lon", 0.0),
-            "confidence": target.get("confidence", 0.75),
-            "classification": target["type"],
-            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        }
-    )
-
-    try:
-        isr_output = isr_observer.process_sensor_data(raw_json)
-        analyst_output = strategy_analyst.evaluate_tracks(isr_output)
-    except Exception as exc:
-        logger.error("isr_strategy_pipeline_failed", error=str(exc))
-        return None
-
-    for nomination in analyst_output.nominations:
-        if nomination.decision != EngagementDecision.NOMINATE:
-            continue
-
-        # Find the matching track for location data
-        track = next(
-            (t for t in isr_output.tracks if t.track_id == nomination.track_id),
-            None,
-        )
-        lat = track.lat if track else target.get("lat", 0.0)
-        lon = track.lon if track else target.get("lon", 0.0)
-
-        hitl.nominate_target(
-            target_data={
-                "target_id": target["id"],
-                "target_type": target["type"],
-                "target_location": (lat, lon),
-                "detection_confidence": target.get("confidence", 0.75),
-            },
-            evaluation={
-                "priority_score": 8.0,
-                "roe_evaluation": nomination.collateral_risk,
-                "reasoning_trace": nomination.reasoning,
-            },
-        )
-        nominated.add(track_key)
-        logger.info(
-            "target_nominated_to_strike_board",
-            target_id=target["id"],
-            target_type=target["type"],
-            track_id=nomination.track_id,
-        )
-        return {
-            "type": "ASSISTANT_MESSAGE",
-            "text": (f"NOMINATED: {target['type']} (id={target['id']}) forwarded to strike board for HITL review."),
-            "severity": "WARNING",
-            "timestamp": time.strftime("%H:%M:%S"),
-        }
-
-    return None
-
-
+# ---------------------------------------------------------------------------
+# Shared mutable state
+# ---------------------------------------------------------------------------
+sim = SimulationModel(theater_name=settings.default_theater)
+sim.demo_fast = settings.demo_mode
+hitl = HITLManager()
+clients: dict = {}  # websocket -> info dict
 assistant = TacticalAssistant()
+
+# Simulation loop state — exposed at module level for backward compat with tests
+_loop_state = SimulationLoopState()
+_prev_target_states: dict[int, str] = _loop_state.prev_target_states
+_last_assessment_time: float = 0.0
+_cached_assessment: dict | None = None
+_cached_isr_queue: list | None = None
+
 _get_demo_effectors = None
 if settings.demo_mode:
     from mission_data.asset_registry import get_available_effectors as _get_demo_effectors
 
 
-def _get_entry_if_status(entry_id: str, expected_status: str) -> dict | None:
-    """Re-fetch a strike board entry and return it only if it still has the expected status."""
-    for e in hitl.get_strike_board():
-        if e["id"] == entry_id and e["status"] == expected_status:
-            return e
-    return None
-
-
-def _find_nearest_available_uav(target_id: int) -> int | None:
-    """Find the nearest idle/scanning UAV to a target and return its id."""
-    target = sim._find_target(target_id)
-    if not target:
-        return None
-    available = [u for u in sim.uavs.values() if u.mode in ("IDLE", "SEARCH")]
-    if not available:
-        return None
-    best = min(available, key=lambda u: (u.x - target.x) ** 2 + (u.y - target.y) ** 2)
-    return best.id
-
-
-async def demo_autopilot():
-    """Auto-pilot loop: auto-approve nominations, dispatch UAVs to follow & paint targets."""
-    APPROVAL_DELAY = 5.0
-    FOLLOW_DELAY = 4.0
-    PAINT_DELAY = 5.0
-
-    # Circuit breaker constants
-    MAX_AUTO_APPROVALS_PER_MINUTE = 10
-    NO_DASHBOARD_TIMEOUT_S = 30.0
-    MAX_SESSION_ENGAGEMENTS = 50
-
-    logger.warning("demo_autopilot_started", note="HITL bypass active")
-
-    await asyncio.sleep(2.0)
-    await broadcast(
-        json.dumps(
-            {
-                "type": "ASSISTANT_MESSAGE",
-                "text": "DEMO MODE ACTIVE — UAV intercept auto-pilot running.",
-                "severity": "CRITICAL",
-                "timestamp": time.strftime("%H:%M:%S"),
-            }
-        ),
-        target_type="DASHBOARD",
-    )
-
-    in_flight: set[str] = set()
-    # Track which enemy UAVs have been dispatched to avoid re-dispatching
-    enemy_intercept_dispatched: set[int] = set()
-
-    # Circuit breaker state
-    approval_timestamps: collections.deque = collections.deque()
-    session_engagement_count: int = 0
-    last_dashboard_seen: float = time.monotonic()
-
-    while True:
-        await asyncio.sleep(2.0)
-
-        # --- Circuit breaker: update last-seen dashboard timestamp ---
-        dashboard_count = sum(1 for info in clients.values() if info.get("type") == "DASHBOARD")
-        if dashboard_count > 0:
-            last_dashboard_seen = time.monotonic()
-        elif time.monotonic() - last_dashboard_seen > NO_DASHBOARD_TIMEOUT_S:
-            logger.warning("demo_autopilot_no_dashboard", timeout=NO_DASHBOARD_TIMEOUT_S)
-            await intel_router.emit(
-                "INTEL_FEED",
-                {
-                    "event": "SAFETY",
-                    "summary": "Demo autopilot paused: no dashboard connected for 30s",
-                },
-            )
-            await asyncio.sleep(5.0)
-            continue
-
-        # --- Circuit breaker: session engagement cap ---
-        if session_engagement_count >= MAX_SESSION_ENGAGEMENTS:
-            logger.warning("demo_autopilot_session_cap_reached", cap=MAX_SESSION_ENGAGEMENTS)
-            await intel_router.emit(
-                "INTEL_FEED",
-                {
-                    "event": "SAFETY",
-                    "summary": f"Demo autopilot paused: session engagement cap ({MAX_SESSION_ENGAGEMENTS}) reached",
-                },
-            )
-            await asyncio.sleep(10.0)
-            continue
-
-        # --- Enemy UAV auto-intercept: dispatch nearest IDLE/SEARCH UAV when confidence > 0.7 ---
-        for e in sim.enemy_uavs.values():
-            if e.mode == "DESTROYED":
-                # Cleanup: remove destroyed enemies from dispatch tracking
-                enemy_intercept_dispatched.discard(e.id)
-                continue
-            if e.id in enemy_intercept_dispatched:
-                continue
-            if e.fused_confidence > 0.7:
-                idle_uavs = [
-                    u for u in sim.uavs.values() if u.mode in ("IDLE", "SEARCH") and u.primary_target_id is None
-                ]
-                if idle_uavs:
-                    nearest = min(idle_uavs, key=lambda u: math.hypot(u.x - e.x, u.y - e.y))
-                    sim.command_intercept_enemy(nearest.id, e.id)
-                    enemy_intercept_dispatched.add(e.id)
-                    await broadcast(
-                        json.dumps(
-                            {
-                                "type": "ASSISTANT_MESSAGE",
-                                "text": f"AUTO-INTERCEPT: UAV-{nearest.id} dispatched against ENM-{e.id - 1000} (confidence={e.fused_confidence:.0%})",
-                                "severity": "CRITICAL",
-                                "timestamp": time.strftime("%H:%M:%S"),
-                            }
-                        ),
-                        target_type="DASHBOARD",
-                    )
-
-        board = hitl.get_strike_board()
-        for entry in board:
-            if entry["status"] != "PENDING" or entry["id"] in in_flight:
-                continue
-
-            entry_id = entry["id"]
-            target_id = entry["target_id"]
-            in_flight.add(entry_id)
-
-            # --- Gate 1: Auto-approve after delay ---
-            await asyncio.sleep(APPROVAL_DELAY)
-            entry = _get_entry_if_status(entry_id, "PENDING")
-            if not entry:
-                in_flight.discard(entry_id)
-                continue
-
-            # Circuit breaker: rate limit approvals per minute
-            _now_cb = time.monotonic()
-            while approval_timestamps and approval_timestamps[0] < _now_cb - 60.0:
-                approval_timestamps.popleft()
-            if len(approval_timestamps) >= MAX_AUTO_APPROVALS_PER_MINUTE:
-                logger.warning("demo_autopilot_rate_limit_hit", per_minute=MAX_AUTO_APPROVALS_PER_MINUTE)
-                await intel_router.emit(
-                    "INTEL_FEED",
-                    {
-                        "event": "SAFETY",
-                        "summary": f"Demo autopilot: approval rate limit ({MAX_AUTO_APPROVALS_PER_MINUTE}/min) reached",
-                    },
-                )
-                in_flight.discard(entry_id)
-                continue
-            approval_timestamps.append(_now_cb)
-
-            try:
-                hitl.approve_nomination(entry_id, "Demo auto-approved")
-            except ValueError:
-                logger.exception("demo_autopilot_approve_nomination_failed", entry_id=entry_id, target_id=target_id)
-                in_flight.discard(entry_id)
-                continue
-
-            session_engagement_count += 1
-
-            await broadcast(
-                json.dumps(
-                    {
-                        "type": "ASSISTANT_MESSAGE",
-                        "text": f"AUTO-APPROVED: {entry['target_type']} (id={target_id}) — dispatching nearest UAV...",
-                        "severity": "WARNING",
-                        "timestamp": time.strftime("%H:%M:%S"),
-                    }
-                ),
-                target_type="DASHBOARD",
-            )
-            await broadcast(
-                json.dumps(
-                    {
-                        "type": "HITL_UPDATE",
-                        "action": "approved",
-                        "entry": hitl.get_strike_board(),
-                    }
-                ),
-                target_type="DASHBOARD",
-            )
-
-            # --- Dispatch UAV: follow target ---
-            uav_id = _find_nearest_available_uav(target_id)
-            if uav_id is None:
-                await broadcast(
-                    json.dumps(
-                        {
-                            "type": "ASSISTANT_MESSAGE",
-                            "text": f"NO AVAILABLE UAV for {entry['target_type']} (id={target_id}) — all assets committed.",
-                            "severity": "WARNING",
-                            "timestamp": time.strftime("%H:%M:%S"),
-                        }
-                    ),
-                    target_type="DASHBOARD",
-                )
-                in_flight.discard(entry_id)
-                continue
-
-            sim.command_follow(uav_id, target_id)
-            await broadcast(
-                json.dumps(
-                    {
-                        "type": "ASSISTANT_MESSAGE",
-                        "text": f"UAV-{uav_id} FOLLOWING: {entry['target_type']} (id={target_id}) — tracking in progress.",
-                        "severity": "INFO",
-                        "timestamp": time.strftime("%H:%M:%S"),
-                    }
-                ),
-                target_type="DASHBOARD",
-            )
-
-            # --- After follow delay, escalate to paint (laser lock) ---
-            await asyncio.sleep(FOLLOW_DELAY)
-            target = sim._find_target(target_id)
-            if target and target.tracked_by_uav_id == uav_id:
-                sim.command_paint(uav_id, target_id)
-                await broadcast(
-                    json.dumps(
-                        {
-                            "type": "ASSISTANT_MESSAGE",
-                            "text": f"UAV-{uav_id} PAINTING: {entry['target_type']} (id={target_id}) — laser lock established.",
-                            "severity": "CRITICAL",
-                            "timestamp": time.strftime("%H:%M:%S"),
-                        }
-                    ),
-                    target_type="DASHBOARD",
-                )
-
-                # Generate COAs while painting
-                target_loc = entry.get("target_location", [0.0, 0.0])
-                coas = tactical_planner._generate_coas_heuristic(
-                    target_data={
-                        "lat": target_loc[0] if len(target_loc) > 0 else 0.0,
-                        "lon": target_loc[1] if len(target_loc) > 1 else 0.0,
-                        "type": entry["target_type"],
-                    },
-                    assets=_get_demo_effectors(),
-                )
-                if coas:
-                    hitl.propose_coas(entry_id, coas)
-                    await broadcast(
-                        json.dumps(
-                            {
-                                "type": "HITL_UPDATE",
-                                "action": "coas_proposed",
-                                "entry_id": entry_id,
-                                "coas": hitl.get_coas_for_entry(entry_id),
-                            }
-                        ),
-                        target_type="DASHBOARD",
-                    )
-
-                    coa_names = [f"{c.effector_name} (Pk={c.pk_estimate:.0%})" for c in coas]
-                    await broadcast(
-                        json.dumps(
-                            {
-                                "type": "ASSISTANT_MESSAGE",
-                                "text": f"COAs GENERATED: {' | '.join(coa_names)} — awaiting authorization.",
-                                "severity": "INFO",
-                                "timestamp": time.strftime("%H:%M:%S"),
-                            }
-                        ),
-                        target_type="DASHBOARD",
-                    )
-
-                    # Auto-authorize best COA
-                    await asyncio.sleep(PAINT_DELAY)
-                    entry = _get_entry_if_status(entry_id, "APPROVED")
-                    if entry:
-                        best_coa = coas[0]
-                        try:
-                            hitl.authorize_coa(entry_id, best_coa.id, "Demo auto-authorized")
-                        except ValueError:
-                            logger.exception(
-                                "demo_autopilot_authorize_coa_failed", entry_id=entry_id, target_id=target_id
-                            )
-                            in_flight.discard(entry_id)
-                            continue
-                        else:
-                            await broadcast(
-                                json.dumps(
-                                    {
-                                        "type": "ASSISTANT_MESSAGE",
-                                        "text": f"COA AUTHORIZED: {best_coa.effector_name} — Pk={best_coa.pk_estimate:.0%}. UAV-{uav_id} maintaining lock.",
-                                        "severity": "WARNING",
-                                        "timestamp": time.strftime("%H:%M:%S"),
-                                    }
-                                ),
-                                target_type="DASHBOARD",
-                            )
-                            await broadcast(
-                                json.dumps(
-                                    {
-                                        "type": "HITL_UPDATE",
-                                        "action": "coa_authorized",
-                                        "entry_id": entry_id,
-                                        "coas": hitl.get_coas_for_entry(entry_id),
-                                    }
-                                ),
-                                target_type="DASHBOARD",
-                            )
-
-            in_flight.discard(entry_id)
-
-
-async def sensor_feed_loop():
-    """Emit per-UAV detection snapshots at 2Hz to SENSOR_FEED subscribers."""
-    ACTIVE_MODES = {"SEARCH", "FOLLOW", "PAINT", "INTERCEPT"}
-    while True:
-        await asyncio.sleep(0.5)
-        if not clients:
-            continue
-        state = sim.get_state()
-        for uav_data in state.get("uavs", []):
-            if uav_data.get("mode") not in ACTIVE_MODES:
-                continue
-            uav_id = uav_data["id"]
-            detections = []
-            for t in state.get("targets", []):
-                for sc in t.get("sensor_contributions", []):
-                    if sc.get("uav_id") == uav_id:
-                        detections.append(
-                            {
-                                "target_id": t["id"],
-                                "target_type": t["type"],
-                                "confidence": sc["confidence"],
-                                "sensor_type": sc["sensor_type"],
-                            }
-                        )
-            if not detections:
-                continue
-            await intel_router.emit(
-                "SENSOR_FEED",
-                {
-                    "uav_id": uav_id,
-                    "mode": uav_data["mode"],
-                    "sensors": uav_data.get("sensors", []),
-                    "lat": uav_data["lat"],
-                    "lon": uav_data["lon"],
-                    "detections": detections,
-                },
-            )
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup: Start event logger, rotate old logs, and start simulation loop
-    await start_event_logger()
-    rotate_logs(max_days=7)
-    task = asyncio.create_task(simulation_loop())
-    sensor_task = asyncio.create_task(sensor_feed_loop())
-    demo_task = None
-    if settings.demo_mode:
-        demo_task = asyncio.create_task(demo_autopilot())
-    yield
-    # Shutdown: Cancel tasks
-    task.cancel()
-    sensor_task.cancel()
-    if demo_task:
-        demo_task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        pass
-    try:
-        await sensor_task
-    except asyncio.CancelledError:
-        pass
-    if demo_task:
-        try:
-            await demo_task
-        except asyncio.CancelledError:
-            pass
-    await stop_event_logger()
-
-
-app = FastAPI(lifespan=lifespan)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-sim = SimulationModel(theater_name=settings.default_theater)
-sim.demo_fast = settings.demo_mode
-hitl = HITLManager()
-clients = {}  # websocket -> info dict
+# ---------------------------------------------------------------------------
+# Broadcast
+# ---------------------------------------------------------------------------
 
 
 async def broadcast(message: str, target_type: str = None, sender: WebSocket = None, feed: str = None):
@@ -686,10 +123,8 @@ async def broadcast(message: str, target_type: str = None, sender: WebSocket = N
             logger.warning("broadcast_send_failed", error=str(exc))
             return ws
 
-    # Run all sends in parallel
     results = await asyncio.gather(*[_send(t) for t in targets])
 
-    # Cleanup failed clients
     for failed_ws in results:
         if failed_ws and failed_ws in clients:
             clients.pop(failed_ws, None)
@@ -697,148 +132,31 @@ async def broadcast(message: str, target_type: str = None, sender: WebSocket = N
 
 intel_router = IntelFeedRouter(broadcast_fn=broadcast, max_history=200)
 
-_prev_target_states: dict[int, str] = {}
 
-_last_assessment_time: float = 0.0
-_cached_assessment: dict | None = None
-_cached_isr_queue: list | None = None
-
-
-def _serialize_assessment(result) -> dict:
-    """Convert frozen AssessmentResult to JSON-serializable dict."""
-    return {
-        "clusters": [
-            {
-                "cluster_id": c.cluster_id,
-                "cluster_type": c.cluster_type,
-                "member_target_ids": list(c.member_target_ids),
-                "centroid_lon": round(c.centroid_lon, 4),
-                "centroid_lat": round(c.centroid_lat, 4),
-                "threat_score": round(c.threat_score, 3),
-                "hull_points": [list(p) for p in c.hull_points],
-            }
-            for c in result.clusters
-        ],
-        "coverage_gaps": [
-            {
-                "zone_x": g.zone_x,
-                "zone_y": g.zone_y,
-                "lon": round(g.lon, 4),
-                "lat": round(g.lat, 4),
-                "threat_score": round(g.threat_score, 3) if hasattr(g, "threat_score") else 0.0,
-            }
-            for g in result.coverage_gaps
-        ],
-        "zone_threat_scores": [[k[0], k[1], round(v, 3)] for k, v in result.zone_threat_scores.items()],
-        "movement_corridors": [
-            {"target_id": mc.target_id, "waypoints": [list(w) for w in mc.waypoints]}
-            for mc in result.movement_corridors
-        ],
-    }
+# ---------------------------------------------------------------------------
+# Rate limiting
+# ---------------------------------------------------------------------------
 
 
-async def simulation_loop():
-    tick_interval = 1.0 / settings.simulation_hz
-    logger.info("simulation_loop_started", hz=settings.simulation_hz)
-    while True:
-        sim.tick()
+def _check_rate_limit(client_info: dict) -> bool:
+    """Return True if within rate limits, False if exceeded."""
+    now = time.monotonic()
+    timestamps = client_info.setdefault("msg_timestamps", collections.deque())
+    while timestamps and timestamps[0] < now - RATE_LIMIT_WINDOW:
+        timestamps.popleft()
+    if len(timestamps) >= RATE_LIMIT_MAX_MESSAGES:
+        return False
+    timestamps.append(now)
+    return True
 
-        # Cache get_state() once per tick — reused for assessment, ISR queue, and broadcast
-        state = sim.get_state()
 
-        global _last_assessment_time, _cached_assessment
-        now = time.monotonic()
-        if now - _last_assessment_time >= 5.0:
-            _last_assessment_time = now
-            try:
-                targets_with_history = []
-                for td, t_obj in zip(state["targets"], sim.targets.values()):
-                    td_copy = dict(td)
-                    td_copy["position_history"] = list(t_obj.position_history)
-                    targets_with_history.append(td_copy)
-
-                state_snapshot = state  # reuse cached state for assessment thread
-
-                def _run_assessment_and_isr():
-                    assessment = _serialize_assessment(
-                        assessor.assess(
-                            targets=targets_with_history,
-                            uavs=state_snapshot["uavs"],
-                            zones=state_snapshot["zones"],
-                        )
-                    )
-                    isr_reqs = build_isr_queue(
-                        targets=state_snapshot["targets"],
-                        uavs=state_snapshot["uavs"],
-                        assessment_result=assessment,
-                        max_requirements=10,
-                    )
-                    isr_list = [
-                        {
-                            "target_id": r.target_id,
-                            "target_type": r.target_type,
-                            "urgency_score": r.urgency_score,
-                            "verification_gap": r.verification_gap,
-                            "missing_sensor_types": list(r.missing_sensor_types),
-                            "recommended_uav_ids": list(r.recommended_uav_ids),
-                        }
-                        for r in isr_reqs
-                    ]
-                    return assessment, isr_list
-
-                global _cached_isr_queue
-                _cached_assessment, _cached_isr_queue = await asyncio.to_thread(_run_assessment_and_isr)
-                # Pass assessment to sim for threat-adaptive dispatch
-                sim._last_assessment = _cached_assessment
-            except Exception:
-                logger.exception("battlespace_assessment_error")
-
-        # Detect and emit INTEL_FEED events for target state transitions
-        current_target_ids = set()
-        for t in state.get("targets", []):
-            tid = t["id"]
-            current_target_ids.add(tid)
-            new_state = t["state"]
-            prev = _prev_target_states.get(tid)
-            if prev and prev != new_state and new_state != "UNDETECTED":
-                await intel_router.emit(
-                    "INTEL_FEED",
-                    {
-                        "event": new_state,
-                        "target_id": tid,
-                        "target_type": t["type"],
-                        "from": prev,
-                        "to": new_state,
-                        "summary": f"Target {tid} ({t['type']}): {prev} -> {new_state}",
-                    },
-                )
-            _prev_target_states[tid] = new_state
-        # Prune stale entries for targets no longer in the simulation
-        for stale_tid in set(_prev_target_states) - current_target_ids:
-            del _prev_target_states[stale_tid]
-
-        if clients:
-            state["strike_board"] = hitl.get_strike_board()
-            state["demo_mode"] = settings.demo_mode
-            if _cached_assessment is not None:
-                state["assessment"] = _cached_assessment
-            if _cached_isr_queue is not None:
-                state["isr_queue"] = _cached_isr_queue
-            state["coverage_mode"] = sim.coverage_mode
-            state_json = json.dumps({"type": "state", "data": state})
-            # Only send simulation state to dashboard clients
-            await broadcast(state_json, target_type="DASHBOARD")
-
-            # Update assistant
-            assistant_msgs = assistant.update(state)
-            for msg in assistant_msgs:
-                await broadcast(json.dumps(msg), target_type="DASHBOARD")
-
-        await asyncio.sleep(tick_interval)
+# ---------------------------------------------------------------------------
+# SITREP helpers (shared by REST and WS)
+# ---------------------------------------------------------------------------
 
 
 def _build_sitrep_payload(query_text: str = "") -> dict:
-    """Build a SITREP payload dict from current sim state. Shared by REST and WebSocket handlers."""
+    """Build a SITREP payload dict from current sim state."""
     state = sim.get_state()
     targets = state.get("targets", [])
     strike_board = hitl.get_strike_board()
@@ -875,9 +193,80 @@ def _build_sitrep_payload(query_text: str = "") -> dict:
     return payload
 
 
+# ---------------------------------------------------------------------------
+# Lifespan
+# ---------------------------------------------------------------------------
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await start_event_logger()
+    rotate_logs(max_days=7)
+
+    sim_task = asyncio.create_task(
+        simulation_loop(
+            sim=sim,
+            hitl=hitl,
+            assistant=assistant,
+            assessor=assessor,
+            intel_router=intel_router,
+            broadcast_fn=broadcast,
+            clients=clients,
+            settings=settings,
+            loop_state=_loop_state,
+        )
+    )
+    sensor_task = asyncio.create_task(sensor_feed_loop(sim=sim, intel_router=intel_router, clients=clients))
+    demo_task = None
+    if settings.demo_mode:
+        from autopilot import demo_autopilot
+
+        demo_task = asyncio.create_task(
+            demo_autopilot(
+                sim=sim,
+                hitl=hitl,
+                broadcast_fn=broadcast,
+                clients=clients,
+                intel_router=intel_router,
+                tactical_planner=tactical_planner,
+                get_effectors=_get_demo_effectors,
+            )
+        )
+    yield
+    sim_task.cancel()
+    sensor_task.cancel()
+    if demo_task:
+        demo_task.cancel()
+    for t in [sim_task, sensor_task] + ([demo_task] if demo_task else []):
+        try:
+            await t
+        except asyncio.CancelledError:
+            pass
+    await stop_event_logger()
+
+
+# ---------------------------------------------------------------------------
+# FastAPI app
+# ---------------------------------------------------------------------------
+
+app = FastAPI(lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ---------------------------------------------------------------------------
+# REST endpoints
+# ---------------------------------------------------------------------------
+
+
 @app.post("/api/sitrep")
 async def post_sitrep(body: dict):
-    """REST endpoint for SITREP queries (mirrors the WebSocket SITREP_QUERY handler)."""
     query_text = body.get("query", "Provide current situation report.")
     return _build_sitrep_payload(query_text)
 
@@ -919,13 +308,29 @@ async def switch_theater(body: dict):
         from fastapi import HTTPException
 
         raise HTTPException(status_code=422, detail="Missing 'theater' field")
+
+    # Preserve autonomy level across theater switch
+    prev_autonomy = sim.autonomy_level
     sim = SimulationModel(theater_name=theater_name)
+
+    if prev_autonomy != "MANUAL":
+        logging.getLogger("api_main").warning(
+            "Restoring autonomy level %s after theater switch to %s",
+            prev_autonomy,
+            theater_name,
+        )
+    sim.autonomy_level = prev_autonomy
+
     return {"status": "ok", "theater": theater_name}
+
+
+# ---------------------------------------------------------------------------
+# WebSocket endpoint
+# ---------------------------------------------------------------------------
 
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    # Connection limit check
     if len(clients) >= MAX_WS_CONNECTIONS:
         await websocket.accept()
         await websocket.close(code=1013, reason="Maximum connections reached")
@@ -934,7 +339,6 @@ async def websocket_endpoint(websocket: WebSocket):
 
     await websocket.accept()
 
-    # Wait for the first message to identify the client
     try:
         ident_msg = await asyncio.wait_for(websocket.receive_text(), timeout=2.0)
         if len(ident_msg) > MAX_WS_MESSAGE_SIZE:
@@ -948,9 +352,9 @@ async def websocket_endpoint(websocket: WebSocket):
             clients[websocket] = {"type": client_type}
             logger.info("client_identified", client_type=client_type)
         else:
-            # Fallback for older clients or immediate data
             clients[websocket] = {"type": "DASHBOARD"}
-            await handle_payload(ident_payload, websocket, ident_msg)
+            ctx = _build_handler_context(websocket, ident_msg)
+            await _ws_handle_payload(ident_payload, websocket, ident_msg, ctx)
     except (asyncio.TimeoutError, json.JSONDecodeError, WebSocketDisconnect) as exc:
         clients[websocket] = {"type": "DASHBOARD"}
         logger.warning("client_identification_failed", error=str(exc), fallback="DASHBOARD")
@@ -959,13 +363,11 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             data = await websocket.receive_text()
 
-            # Message size guard — reject before parsing
             if len(data) > MAX_WS_MESSAGE_SIZE:
                 logger.warning("ws_message_too_large", size=len(data), limit=MAX_WS_MESSAGE_SIZE)
                 await _send_error(websocket, f"Message exceeds {MAX_WS_MESSAGE_SIZE // 1024}KB limit")
                 continue
 
-            # Rate limiting
             client_info = clients.get(websocket)
             if client_info and not _check_rate_limit(client_info):
                 logger.warning("ws_rate_limit_exceeded", client_type=client_info.get("type"))
@@ -979,7 +381,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 await _send_error(websocket, "Invalid JSON payload")
                 continue
 
-            await handle_payload(payload, websocket, data)
+            ctx = _build_handler_context(websocket, data)
+            await _ws_handle_payload(payload, websocket, data, ctx)
     except WebSocketDisconnect:
         logger.info("client_disconnected")
     except (ConnectionError, OSError) as exc:
@@ -989,386 +392,24 @@ async def websocket_endpoint(websocket: WebSocket):
             del clients[websocket]
 
 
-async def _handle_sitrep_query(query_text: str, websocket: WebSocket) -> None:
-    """Reply with a SITREP to the requesting WebSocket client."""
-    response_payload = {"type": "SITREP_RESPONSE", **_build_sitrep_payload(query_text)}
-    try:
-        await websocket.send_text(json.dumps(response_payload))
-    except (WebSocketDisconnect, ConnectionError, OSError) as exc:
-        logger.warning("sitrep_reply_failed", error=str(exc))
+def _build_handler_context(websocket: WebSocket, raw_data: str) -> HandlerContext:
+    """Create a HandlerContext with current module-level dependencies."""
+    return HandlerContext(
+        sim=sim,
+        hitl=hitl,
+        intel_router=intel_router,
+        broadcast=broadcast,
+        clients=clients,
+        ai_tasking_manager=ai_tasking_manager,
+        raw_data=raw_data,
+    )
 
 
-async def _handle_retask_sensors(payload: dict, websocket: WebSocket) -> None:
-    """
-    Handle a retask_sensors request. Expects payload keys:
-      - target_id: int
-      - target_type: str  (e.g. "SAM", "TEL")
-      - lat / lon: floats
-      - confidence: float (0.0–1.0)
-
-    Calls ai_tasking_manager.evaluate_and_retask() with an empty asset list
-    (no live sensor registry in sim mode); returns the tasking output to
-    the requesting client.
-    """
-    try:
-        detection = Detection(
-            source=SensorSource.UAV,
-            lat=float(payload.get("lat", 0.0)),
-            lon=float(payload.get("lon", 0.0)),
-            confidence=float(payload.get("confidence", 0.5)),
-            classification=TargetClassification(
-                payload.get("target_type", "Unknown")
-                if payload.get("target_type") in TargetClassification.__members__
-                else "Unknown"
-            ),
-            timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        )
-        result = ai_tasking_manager.evaluate_and_retask(detection, available_assets=[])
-        response = {
-            "type": "RETASK_RESPONSE",
-            "tasking_orders": [o.model_dump(mode="json") for o in result.tasking_orders],
-            "confidence_gap": result.confidence_gap,
-            "reasoning": result.reasoning,
-        }
-    except Exception as exc:
-        logger.error("retask_sensors_failed", error=str(exc))
-        response = {"type": "RETASK_RESPONSE", "error": "Sensor retasking failed"}
-
-    try:
-        await websocket.send_text(json.dumps(response))
-    except (WebSocketDisconnect, ConnectionError, OSError) as exc:
-        logger.warning("retask_reply_failed", error=str(exc))
-
-
-async def handle_payload(payload: dict, websocket: WebSocket, raw_data: str):
-    """Handle incoming payloads based on type/action."""
-    action = payload.get("action")
-    p_type = payload.get("type")
-
-    # Validate payload against schema if action has one
-    if action in _ACTION_SCHEMAS:
-        error = _validate_payload(payload, _ACTION_SCHEMAS[action])
-        if error:
-            logger.warning("ws_payload_validation_failed", action=action, error=error)
-            await _send_error(websocket, error, action)
-            return
-
-    if action == "spike":
-        sim.trigger_demand_spike(payload["lon"], payload["lat"])
-
-    elif action == "move_drone":
-        tlon, tlat = payload["target_lon"], payload["target_lat"]
-        if not math.isfinite(tlon) or not math.isfinite(tlat):
-            await _send_error(websocket, "target_lon/target_lat must be finite numbers (not NaN or Inf)", action)
-            return
-        if not (-180.0 <= tlon <= 180.0) or not (-90.0 <= tlat <= 90.0):
-            await _send_error(websocket, "target_lon must be in [-180,180] and target_lat in [-90,90]", action)
-            return
-        sim.command_move(payload["drone_id"], tlon, tlat)
-
-    elif action == "SET_SCENARIO":
-        from theater_loader import list_theaters as _list_theaters
-
-        scenario = payload.get("scenario") or payload.get("theater")
-        if scenario and scenario not in _list_theaters():
-            await _send_error(websocket, f"Unknown theater '{scenario}'. Valid: {_list_theaters()}", action)
-            return
-        # Forward command to SIMULATORS
-        await broadcast(raw_data, target_type="SIMULATOR", sender=websocket)
-
-    elif p_type in ["DRONE_FEED", "TRACK_UPDATE", "TRACK_UPDATE_BATCH"]:
-        # Forward vision/track data to DASHBOARDs
-        await broadcast(raw_data, target_type="DASHBOARD", sender=websocket)
-
-    elif action == "follow_target":
-        sim.command_follow(payload["drone_id"], payload["target_id"])
-        await intel_router.emit(
-            "COMMAND_FEED",
-            {
-                "action": "follow_target",
-                "drone_id": payload["drone_id"],
-                "target_id": payload["target_id"],
-                "source": "operator",
-            },
-        )
-
-    elif action == "paint_target":
-        sim.command_paint(payload["drone_id"], payload["target_id"])
-        await intel_router.emit(
-            "COMMAND_FEED",
-            {
-                "action": "paint_target",
-                "drone_id": payload["drone_id"],
-                "target_id": payload["target_id"],
-                "source": "operator",
-            },
-        )
-
-    elif action == "intercept_target":
-        sim.command_intercept(payload["drone_id"], payload["target_id"])
-        await intel_router.emit(
-            "COMMAND_FEED",
-            {
-                "action": "intercept_target",
-                "drone_id": payload["drone_id"],
-                "target_id": payload["target_id"],
-                "source": "operator",
-            },
-        )
-
-    elif action == "intercept_enemy":
-        sim.command_intercept_enemy(payload["uav_id"], payload["enemy_uav_id"])
-        await intel_router.emit(
-            "COMMAND_FEED",
-            {
-                "action": "intercept_enemy",
-                "uav_id": payload["uav_id"],
-                "enemy_uav_id": payload["enemy_uav_id"],
-                "source": "operator",
-            },
-        )
-
-    elif action in ("cancel_track", "scan_area"):
-        sim.cancel_track(payload["drone_id"])
-        await intel_router.emit(
-            "COMMAND_FEED", {"action": action, "drone_id": payload["drone_id"], "source": "operator"}
-        )
-
-    elif action == "approve_nomination":
-        rationale = payload.get("rationale", "")
-        try:
-            hitl.approve_nomination(payload["entry_id"], rationale)
-            await intel_router.emit(
-                "COMMAND_FEED", {"action": "approved", "entry_id": payload["entry_id"], "source": "operator"}
-            )
-            response = json.dumps({"type": "HITL_UPDATE", "action": "approved", "entry": hitl.get_strike_board()})
-            await broadcast(response, target_type="DASHBOARD")
-        except ValueError as exc:
-            logger.warning("approve_nomination_failed", error=str(exc))
-
-    elif action == "reject_nomination":
-        rationale = payload.get("rationale", "")
-        try:
-            hitl.reject_nomination(payload["entry_id"], rationale)
-            response = json.dumps({"type": "HITL_UPDATE", "action": "rejected", "entry": hitl.get_strike_board()})
-            await broadcast(response, target_type="DASHBOARD")
-        except ValueError as exc:
-            logger.warning("reject_nomination_failed", error=str(exc))
-
-    elif action == "retask_nomination":
-        rationale = payload.get("rationale", "")
-        try:
-            hitl.retask_nomination(payload["entry_id"], rationale)
-            response = json.dumps({"type": "HITL_UPDATE", "action": "retasked", "entry": hitl.get_strike_board()})
-            await broadcast(response, target_type="DASHBOARD")
-        except ValueError as exc:
-            logger.warning("retask_nomination_failed", error=str(exc))
-
-    elif action == "authorize_coa":
-        rationale = payload.get("rationale", "")
-        try:
-            hitl.authorize_coa(payload["entry_id"], payload["coa_id"], rationale)
-            await intel_router.emit(
-                "COMMAND_FEED",
-                {
-                    "action": "coa_authorized",
-                    "entry_id": payload["entry_id"],
-                    "coa_id": payload["coa_id"],
-                    "source": "operator",
-                },
-            )
-            response = json.dumps(
-                {
-                    "type": "HITL_UPDATE",
-                    "action": "coa_authorized",
-                    "entry_id": payload["entry_id"],
-                    "coas": hitl.get_coas_for_entry(payload["entry_id"]),
-                }
-            )
-            await broadcast(response, target_type="DASHBOARD")
-        except ValueError as exc:
-            logger.warning("authorize_coa_failed", error=str(exc))
-
-    elif action == "reject_coa":
-        rationale = payload.get("rationale", "")
-        try:
-            hitl.reject_coa(payload["entry_id"], rationale)
-            response = json.dumps(
-                {
-                    "type": "HITL_UPDATE",
-                    "action": "coas_rejected",
-                    "entry_id": payload["entry_id"],
-                    "coas": hitl.get_coas_for_entry(payload["entry_id"]),
-                }
-            )
-            await broadcast(response, target_type="DASHBOARD")
-        except ValueError as exc:
-            logger.warning("reject_coa_failed", error=str(exc))
-
-    elif action == "verify_target":
-        target_id = payload["target_id"]
-        target = sim._find_target(target_id)
-        if target and target.state == "CLASSIFIED":
-            thresholds = VERIFICATION_THRESHOLDS.get(target.type, _DEFAULT_THRESHOLD)
-            min_confidence = thresholds.verify_confidence
-            if target.fused_confidence < min_confidence:
-                await _send_error(
-                    websocket,
-                    f"Cannot verify: confidence {target.fused_confidence:.2f} below threshold {min_confidence:.2f}",
-                    action,
-                )
-            else:
-                old_state = target.state
-                target.state = "VERIFIED"
-                target.time_in_state_sec = 0.0
-                await intel_router.emit(
-                    "INTEL_FEED",
-                    {
-                        "event": "state_transition",
-                        "target_id": target_id,
-                        "target_type": target.type,
-                        "from": old_state,
-                        "to": "VERIFIED",
-                        "source": "manual_operator",
-                        "summary": f"Target {target_id} ({target.type}) manually verified",
-                    },
-                )
-                logger.info("manual_verify", target_id=target_id)
-
-    elif action in ("sitrep_query", "generate_sitrep") or p_type == "SITREP_QUERY":
-        query_text = payload.get("query", "Provide current situation report.")
-        if not isinstance(query_text, str):
-            await _send_error(websocket, "Field 'query' must be str", action or "sitrep_query")
-            return
-        if len(query_text) > MAX_SITREP_QUERY_LENGTH:
-            await _send_error(
-                websocket, f"Query exceeds {MAX_SITREP_QUERY_LENGTH} character limit", action or "sitrep_query"
-            )
-            return
-        await _handle_sitrep_query(query_text, websocket)
-
-    elif action == "retask_sensors":
-        await _handle_retask_sensors(payload, websocket)
-
-    elif action == "reset":
-        sim.reset_queues()
-        logger.info("grid_state_reset")
-
-    elif action == "set_autonomy_level":
-        level = payload.get("level")
-        if level not in ("MANUAL", "SUPERVISED", "AUTONOMOUS"):
-            await _send_error(websocket, "Invalid autonomy level. Must be MANUAL, SUPERVISED, or AUTONOMOUS.", action)
-            return
-        sim.autonomy_level = level
-        await intel_router.emit("COMMAND_FEED", {"action": "set_autonomy_level", "level": level, "source": "operator"})
-        logger.info("autonomy_level_set", level=level)
-
-    elif action == "set_drone_autonomy":
-        uav = sim._find_uav(payload["drone_id"])
-        if not uav:
-            await _send_error(websocket, f"UAV {payload['drone_id']} not found", action)
-            return
-        override_level = payload.get("level")  # None clears override
-        if override_level is not None and override_level not in ("MANUAL", "SUPERVISED", "AUTONOMOUS"):
-            await _send_error(websocket, "Invalid autonomy level for drone override.", action)
-            return
-        uav.autonomy_override = override_level
-        await intel_router.emit(
-            "COMMAND_FEED",
-            {
-                "action": "set_drone_autonomy",
-                "drone_id": payload["drone_id"],
-                "level": override_level,
-                "source": "operator",
-            },
-        )
-        logger.info("drone_autonomy_set", drone_id=payload["drone_id"], level=override_level)
-
-    elif action == "approve_transition":
-        sim.approve_transition(payload["drone_id"])
-        await intel_router.emit(
-            "COMMAND_FEED", {"action": "approve_transition", "drone_id": payload["drone_id"], "source": "operator"}
-        )
-        logger.info("transition_approved", drone_id=payload["drone_id"])
-
-    elif action == "reject_transition":
-        sim.reject_transition(payload["drone_id"])
-        await intel_router.emit(
-            "COMMAND_FEED", {"action": "reject_transition", "drone_id": payload["drone_id"], "source": "operator"}
-        )
-        logger.info("transition_rejected", drone_id=payload["drone_id"])
-
-    elif action == "request_swarm":
-        sim.request_swarm(payload["target_id"])
-        await intel_router.emit(
-            "COMMAND_FEED", {"action": "request_swarm", "target_id": payload["target_id"], "source": "operator"}
-        )
-
-    elif action == "release_swarm":
-        sim.release_swarm(payload["target_id"])
-        await intel_router.emit(
-            "COMMAND_FEED", {"action": "release_swarm", "target_id": payload["target_id"], "source": "operator"}
-        )
-
-    elif action == "set_coverage_mode":
-        mode = payload["mode"]
-        if mode not in VALID_COVERAGE_MODES:
-            await _send_error(
-                websocket,
-                f"Invalid coverage mode '{mode}'. Must be one of: {', '.join(sorted(VALID_COVERAGE_MODES))}",
-                action,
-            )
-            return
-        sim.set_coverage_mode(mode)
-        await intel_router.emit("COMMAND_FEED", {"action": "set_coverage_mode", "mode": mode, "source": "operator"})
-
-    elif action == "subscribe":
-        feeds = payload.get("feeds", [])
-        if not isinstance(feeds, list):
-            await _send_error(websocket, "Field 'feeds' must be a list", action)
-            return
-        invalid_feeds = [f for f in feeds if f not in VALID_FEED_TYPES]
-        if invalid_feeds:
-            await _send_error(
-                websocket, f"Unknown feed type(s): {invalid_feeds}. Valid: {sorted(VALID_FEED_TYPES)}", action
-            )
-            return
-        if isinstance(feeds, list):
-            client_info = clients.get(websocket, {})
-            client_info["subscriptions"] = set(feeds)
-            # Send history catch-up for subscribed feeds
-            if "INTEL_FEED" in feeds:
-                history = intel_router.get_history("INTEL_FEED")
-                if history:
-                    await websocket.send_text(
-                        json.dumps(
-                            {
-                                "type": "FEED_HISTORY",
-                                "feed": "INTEL_FEED",
-                                "events": history,
-                            }
-                        )
-                    )
-            if "COMMAND_FEED" in feeds:
-                history = intel_router.get_history("COMMAND_FEED")
-                if history:
-                    await websocket.send_text(
-                        json.dumps(
-                            {
-                                "type": "FEED_HISTORY",
-                                "feed": "COMMAND_FEED",
-                                "events": history,
-                            }
-                        )
-                    )
-
-    elif action == "subscribe_sensor_feed":
-        uav_ids = payload.get("uav_ids", [])
-        if isinstance(uav_ids, list) and len(uav_ids) <= 100:
-            valid_ids = {uid for uid in uav_ids if isinstance(uid, int)}
-            client_info = clients.get(websocket, {})
-            client_info.setdefault("subscriptions", set()).add("SENSOR_FEED")
-            client_info["sensor_feed_uav_ids"] = valid_ids
+async def handle_payload(payload: dict, websocket: WebSocket, raw_data: str, ctx: HandlerContext = None):
+    """Backward-compatible wrapper — auto-builds ctx from module globals when not provided."""
+    if ctx is None:
+        ctx = _build_handler_context(websocket, raw_data)
+    await _ws_handle_payload(payload, websocket, raw_data, ctx)
 
 
 if __name__ == "__main__":

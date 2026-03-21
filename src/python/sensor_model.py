@@ -160,15 +160,20 @@ def compute_pd(
     sensor_cfg: SensorConfig,
     env: EnvironmentConditions,
     emitting: bool = True,
+    altitude_m: float = 0.0,
 ) -> float:
     """Return probability of detection in [0, 1].
 
     Formula (from spec):
         snr_norm = (1 - (range/max_range)^2)
                    + rcs_gain * 0.3
-                   - altitude_penalty          (unused; kept for future)
+                   - altitude_penalty
                    - weather_penalty
         Pd = sigmoid(snr_norm * 10 - 5)
+
+    altitude_penalty: higher sensor altitude degrades resolution.
+        penalty = max(0, (altitude_m - 1000) / 10000)
+        At 3000m default: penalty = 0.2 (small degradation).
 
     Hard gates:
       - SIGINT with emitting=False → 0.0
@@ -190,7 +195,10 @@ def compute_pd(
     # Weather penalty: cloud cover degrades weather-sensitive sensors
     weather_penalty = sensor_cfg.weather_sensitivity * (env.cloud_cover + env.precipitation * 0.5) * 0.6
 
-    snr_norm = range_term + rcs_gain * 0.3 - weather_penalty
+    # Altitude penalty: higher altitude degrades sensor resolution
+    altitude_penalty = max(0.0, (altitude_m - 1000.0) / 10000.0)
+
+    snr_norm = range_term + rcs_gain * 0.3 - altitude_penalty - weather_penalty
     pd = _sigmoid(snr_norm * 10.0 - 5.0)
     return float(max(0.0, min(1.0, pd)))
 
@@ -210,6 +218,7 @@ def evaluate_detection(
     env: EnvironmentConditions,
     aspect_deg: float = 90.0,
     emitting: bool = True,
+    altitude_m: float = 0.0,
 ) -> DetectionResult:
     """Evaluate whether a UAV sensor detects a ground target in a single pass.
 
@@ -239,6 +248,7 @@ def evaluate_detection(
         sensor_cfg=sensor_cfg,
         env=env,
         emitting=emitting,
+        altitude_m=altitude_m,
     )
 
     detected = random.random() < pd

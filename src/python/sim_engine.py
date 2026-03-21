@@ -1,66 +1,41 @@
+"""
+sim_engine.py
+=============
+Simulation orchestrator for the Palantir C2 system.
+
+This module owns only the tick() loop and coordination logic.
+Entity classes and physics live in dedicated sub-modules:
+  - target_behavior.py  — Target class, ground unit behaviors
+  - uav_physics.py      — UAV class, fixed-wing flight model
+  - enemy_uav_engine.py — EnemyUAV class, adversary behaviors
+"""
+
 import math
 import random
 import time
-from collections import deque
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional
 
 import structlog
+from enemy_uav_engine import ENEMY_UAV_MODES, EnemyUAV
 from romania_grid import RomaniaMacroGrid
 from sensor_fusion import SensorContribution, fuse_detections
 from sensor_model import EnvironmentConditions, evaluate_detection
-from swarm_coordinator import SwarmCoordinator
+from swarm_coordinator import SwarmCoordinator, TaskingOrder
+from target_behavior import (
+    EMITTING_TYPES,
+    TARGET_STATES,
+    UNIT_BEHAVIOR,
+    Target,
+)
 from theater_loader import TheaterConfig, load_theater
+from uav_physics import (
+    DEG_PER_KM,
+    UAV,
+    _heading_from_velocity,
+)
 from verification_engine import _DEFAULT_THRESHOLD, VERIFICATION_THRESHOLDS, evaluate_target_state
 
 logger = structlog.get_logger()
-
-# Target states in the kill chain
-TARGET_STATES = (
-    "UNDETECTED",
-    "DETECTED",
-    "CLASSIFIED",
-    "VERIFIED",
-    "TRACKED",
-    "IDENTIFIED",
-    "NOMINATED",
-    "LOCKED",
-    "ENGAGED",
-    "DESTROYED",
-    "ESCAPED",
-)
-
-# UAV modes
-UAV_MODES = (
-    "IDLE",
-    "SEARCH",
-    "FOLLOW",
-    "PAINT",
-    "INTERCEPT",
-    "REPOSITIONING",
-    "RTB",
-    "SUPPORT",
-    "VERIFY",
-    "OVERWATCH",
-    "BDA",
-)
-
-# Types that emit radar signals
-EMITTING_TYPES = frozenset({"SAM", "RADAR"})
-
-# Probability per tick that an emitting type toggles is_emitting
-EMIT_TOGGLE_PROB = 0.005
-
-# Behavior mapping per unit type
-UNIT_BEHAVIOR = {
-    "SAM": "stationary",
-    "TEL": "shoot_and_scoot",
-    "TRUCK": "patrol",
-    "CP": "stationary",
-    "MANPADS": "ambush",
-    "RADAR": "stationary",
-    "C2_NODE": "stationary",
-    "LOGISTICS": "patrol",
-}
 
 # Autonomous transition table: (current_mode, trigger) -> new_mode
 AUTONOMOUS_TRANSITIONS = {
@@ -76,18 +51,6 @@ AUTONOMOUS_TRANSITIONS = {
 
 # Minimum idle UAV count to maintain before threat-adaptive dispatch
 MIN_IDLE_COUNT = 3
-
-# Distance threshold for MANPADS flee trigger (~5km in degrees)
-MANPADS_FLEE_DIST_DEG = 0.045
-
-# Distance threshold for concealment trigger (~3km)
-CONCEALMENT_DIST_DEG = 0.03
-
-# Logistics patrol speed multiplier (slower than TRUCK)
-LOGISTICS_SPEED_MULT = 0.5
-
-# Maximum number of position history entries per target
-POSITION_HISTORY_MAXLEN = 60
 
 # Follow orbit radius (degrees, ~2km — loose orbit)
 FOLLOW_ORBIT_RADIUS_DEG = 0.018
@@ -111,433 +74,6 @@ OVERWATCH_RACETRACK_LENGTH_DEG = 0.045  # ~5km racetrack legs for area coverage
 BDA_ORBIT_RADIUS_DEG = 0.009  # ~1km tight orbit for damage assessment
 BDA_DURATION_SEC = 30.0  # Auto-transition to SEARCH after 30s
 SUPERVISED_TIMEOUT_SEC = 10.0  # Supervised pending transition auto-approve timeout
-
-# RTB arrival threshold: switch to IDLE when within this distance of home (km)
-ARRIVAL_THRESHOLD_KM = 0.5
-
-# Max turn rate for fixed-wing (radians/sec, ~3 deg/sec standard rate turn)
-MAX_TURN_RATE = math.radians(3.0)
-
-# Degrees per km (approximate)
-DEG_PER_KM = 1.0 / 111.0
-
-# Enemy UAV modes
-ENEMY_UAV_MODES = ("RECON", "ATTACK", "JAMMING", "EVADING", "DESTROYED")
-
-# Enemy UAV speed (deg/sec, ~440 km/h)
-ENEMY_SPEED = 0.004
-
-# Sensor distribution weights: (sensors, weight)
-_SENSOR_DISTRIBUTION = [
-    (["EO_IR"], 50),
-    (["SAR"], 20),
-    (["SIGINT"], 10),
-    (["EO_IR", "SAR"], 10),
-    (["EO_IR", "SIGINT"], 10),
-]
-
-
-def _pick_sensors() -> List[str]:
-    population = [s for s, w in _SENSOR_DISTRIBUTION for _ in range(w)]
-    return list(random.choice(population))
-
-
-def _heading_from_velocity(vx: float, vy: float) -> float:
-    if abs(vx) < 1e-9 and abs(vy) < 1e-9:
-        return 0.0
-    return math.degrees(math.atan2(vx, vy)) % 360.0
-
-
-class Target:
-    def __init__(self, id: int, x: float, y: float):
-        self.id = id
-        self.x = x
-        self.y = y
-        angle = random.uniform(0, 2 * math.pi)
-        self.speed = random.uniform(0.0005, 0.0015)
-        self.vx = math.cos(angle) * self.speed
-        self.vy = math.sin(angle) * self.speed
-        self.type = random.choice(["SAM", "TEL", "TRUCK", "CP"])
-        self.detected_time = 0
-
-        # New fields (replacing boolean detected)
-        self.state = "UNDETECTED"
-        self.detection_confidence = 0.0
-        self.detected_by_sensor: Optional[str] = None
-        self.heading_deg = _heading_from_velocity(self.vx, self.vy)
-        self.is_emitting = self.type in EMITTING_TYPES
-        self.tracked_by_uav_ids: list = []
-        self.sensor_contributions: list = []
-        self.fused_confidence: float = 0.0
-        self.sensor_count: int = 0
-
-        # Behavior fields
-        self.behavior = UNIT_BEHAVIOR.get(self.type, "stationary")
-        self.relocate_timer = random.uniform(30.0, 60.0)
-        self.concealed = False
-        self.flee_cooldown = 0.0
-        # Waypoints for patrol behavior: list of (x, y) tuples
-        self._patrol_waypoints: List[Tuple[float, float]] = []
-        self._patrol_index = 0
-
-        # Theater-wired fields (set externally)
-        self.threat_range_km: Optional[float] = None
-        self.detection_range_km: Optional[float] = None
-
-        # Verification timer fields
-        self.time_in_state_sec: float = 0.0
-        self.last_sensor_contact_time: float = time.time()
-
-        # Position history for movement corridor detection (not serialized in get_state)
-        self.position_history: deque = deque(maxlen=POSITION_HISTORY_MAXLEN)
-
-    @property
-    def detected(self) -> bool:
-        return self.state != "UNDETECTED"
-
-    @property
-    def tracked_by_uav_id(self) -> Optional[int]:
-        return self.tracked_by_uav_ids[0] if self.tracked_by_uav_ids else None
-
-    def update(self, dt_sec: float, bounds: dict, uav_positions: Optional[List[Tuple[float, float]]] = None):
-        uav_positions = uav_positions or []
-
-        if self.flee_cooldown > 0:
-            self.flee_cooldown = max(0.0, self.flee_cooldown - dt_sec)
-
-        if self.type in ("TEL", "MANPADS"):
-            self.concealed = any(
-                math.hypot(ux - self.x, uy - self.y) < CONCEALMENT_DIST_DEG for ux, uy in uav_positions
-            )
-        else:
-            self.concealed = False
-
-        if self.behavior == "stationary":
-            self.vx = 0.0
-            self.vy = 0.0
-
-        elif self.behavior == "shoot_and_scoot":
-            if self.concealed:
-                self.vx = 0.0
-                self.vy = 0.0
-            else:
-                self.relocate_timer -= dt_sec
-                if self.relocate_timer <= 0:
-                    self.x = random.uniform(bounds["min_lon"], bounds["max_lon"])
-                    self.y = random.uniform(bounds["min_lat"], bounds["max_lat"])
-                    self.vx = 0.0
-                    self.vy = 0.0
-                    self.relocate_timer = random.uniform(30.0, 60.0)
-
-        elif self.behavior == "patrol":
-            speed_mult = LOGISTICS_SPEED_MULT if self.type == "LOGISTICS" else 1.0
-            effective_speed = self.speed * speed_mult
-
-            if not self._patrol_waypoints:
-                num_wp = random.randint(3, 5)
-                self._patrol_waypoints = [
-                    (
-                        random.uniform(bounds["min_lon"], bounds["max_lon"]),
-                        random.uniform(bounds["min_lat"], bounds["max_lat"]),
-                    )
-                    for _ in range(num_wp)
-                ]
-                self._patrol_index = 0
-
-            wp_x, wp_y = self._patrol_waypoints[self._patrol_index]
-            dx = wp_x - self.x
-            dy = wp_y - self.y
-            dist = math.hypot(dx, dy)
-            if dist < 0.005:
-                self._patrol_index = (self._patrol_index + 1) % len(self._patrol_waypoints)
-            else:
-                self.vx = (dx / dist) * effective_speed
-                self.vy = (dy / dist) * effective_speed
-
-            self.x += self.vx * dt_sec
-            self.y += self.vy * dt_sec
-
-            if self.x < bounds["min_lon"] or self.x > bounds["max_lon"]:
-                self.vx *= -1
-                self.x = max(bounds["min_lon"], min(bounds["max_lon"], self.x))
-            if self.y < bounds["min_lat"] or self.y > bounds["max_lat"]:
-                self.vy *= -1
-                self.y = max(bounds["min_lat"], min(bounds["max_lat"], self.y))
-
-        elif self.behavior == "ambush":
-            if self.flee_cooldown <= 0:
-                for ux, uy in uav_positions:
-                    if math.hypot(ux - self.x, uy - self.y) < MANPADS_FLEE_DIST_DEG:
-                        flee_dx = random.uniform(-0.1, 0.1)
-                        flee_dy = random.uniform(-0.1, 0.1)
-                        self.x = max(bounds["min_lon"], min(bounds["max_lon"], self.x + flee_dx))
-                        self.y = max(bounds["min_lat"], min(bounds["max_lat"], self.y + flee_dy))
-                        self.vx = 0.0
-                        self.vy = 0.0
-                        self.flee_cooldown = 15.0
-                        break
-            else:
-                self.vx = 0.0
-                self.vy = 0.0
-
-        self.heading_deg = _heading_from_velocity(self.vx, self.vy)
-
-        if self.type in EMITTING_TYPES and random.random() < EMIT_TOGGLE_PROB:
-            self.is_emitting = not self.is_emitting
-
-        self.position_history.append((self.x, self.y))
-
-
-class UAV:
-    def __init__(self, id: int, x: float, y: float, zone_id: Tuple[int, int]):
-        self.id = id
-        self.x = x
-        self.y = y
-        self.vx = 0.0
-        self.vy = 0.0
-        self.mode = "IDLE"
-        self.zone_id = zone_id
-        self.target = None
-        self.commanded_target = None
-        self.service_timer = 0.0
-        self.home_position: Tuple[float, float] = (x, y)
-
-        # New fields
-        self.altitude_m = 3000.0
-        self.sensor_type = "EO_IR"
-        self.sensors: List[str] = _pick_sensors()
-        self.heading_deg = 0.0
-        self.tracked_target_ids: list = []
-        self.primary_target_id: Optional[int] = None
-        self.fuel_hours: float = 24.0
-        self.fuel_rate: float = 1.0
-
-        # Phase 3: autonomy and new mode fields
-        self.autonomy_override: Optional[str] = None
-        self.mode_source: str = "HUMAN"
-        self.tasking_source: str = "ZONE_BALANCE"
-        self.bda_timer: float = 0.0
-        self.overwatch_waypoints: list = []
-        self.overwatch_wp_idx: int = 0
-
-    @property
-    def tracked_target_id(self) -> Optional[int]:
-        return self.primary_target_id
-
-    @tracked_target_id.setter
-    def tracked_target_id(self, value: Optional[int]):
-        self.primary_target_id = value
-        if value is not None and value not in self.tracked_target_ids:
-            self.tracked_target_ids.append(value)
-        elif value is None:
-            self.tracked_target_ids.clear()
-            self.primary_target_id = None
-
-    def _turn_toward(self, target_vx: float, target_vy: float, speed: float, dt_sec: float):
-        """Gradually turn toward desired direction (fixed-wing turn rate limit)."""
-        curr_heading = math.atan2(self.vx, self.vy) if math.hypot(self.vx, self.vy) > 1e-9 else 0.0
-        desired_heading = math.atan2(target_vx, target_vy)
-        diff = desired_heading - curr_heading
-        while diff > math.pi:
-            diff -= 2 * math.pi
-        while diff < -math.pi:
-            diff += 2 * math.pi
-        max_delta = MAX_TURN_RATE * dt_sec * 3  # 3x for repositioning urgency
-        if abs(diff) > max_delta:
-            diff = math.copysign(max_delta, diff)
-        new_heading = curr_heading + diff
-        self.vx = math.sin(new_heading) * speed
-        self.vy = math.cos(new_heading) * speed
-
-    def update(self, dt_sec: float, speed: float):
-        if self.commanded_target:
-            tx, ty = self.commanded_target
-            dx = tx - self.x
-            dy = ty - self.y
-            dist = math.hypot(dx, dy)
-            if dist < 0.005:
-                self.commanded_target = None
-                self.mode = "IDLE"
-            else:
-                self.mode = "REPOSITIONING"
-                self._turn_toward((dx / dist) * speed, (dy / dist) * speed, speed, dt_sec)
-            self.x += self.vx * dt_sec
-            self.y += self.vy * dt_sec
-            self.heading_deg = _heading_from_velocity(self.vx, self.vy)
-            return
-
-        if self.mode == "REPOSITIONING" and self.target:
-            tx, ty = self.target
-            dx = tx - self.x
-            dy = ty - self.y
-            dist = math.hypot(dx, dy)
-            if dist < 0.005:
-                self.mode = "IDLE"
-                self.vx = 0
-                self.vy = 0
-                self.target = None
-            else:
-                self._turn_toward((dx / dist) * speed, (dy / dist) * speed, speed, dt_sec)
-            self.x += self.vx * dt_sec
-            self.y += self.vy * dt_sec
-
-        elif self.mode in ("IDLE", "SEARCH"):
-            # Fixed-wing loiter: fly in a circle around a loiter point
-            loiter_speed = speed * 0.5
-            curr_speed = math.hypot(self.vx, self.vy)
-
-            if curr_speed < loiter_speed * 0.3:
-                # Kick-start with initial heading
-                angle = math.radians(self.heading_deg) if self.heading_deg else random.uniform(0, 2 * math.pi)
-                self.vx = math.sin(angle) * loiter_speed
-                self.vy = math.cos(angle) * loiter_speed
-
-            # Apply gentle constant turn (fixed-wing circle)
-            heading_rad = math.atan2(self.vx, self.vy)
-            turn = MAX_TURN_RATE * dt_sec
-            heading_rad += turn
-            self.vx = math.sin(heading_rad) * loiter_speed
-            self.vy = math.cos(heading_rad) * loiter_speed
-
-            self.x += self.vx * dt_sec
-            self.y += self.vy * dt_sec
-
-        elif self.mode == "RTB":
-            home_x, home_y = self.home_position
-            dx = home_x - self.x
-            dy = home_y - self.y
-            dist_deg = math.hypot(dx, dy)
-            if dist_deg < ARRIVAL_THRESHOLD_KM * DEG_PER_KM:
-                self.mode = "IDLE"
-                self.vx = 0.0
-                self.vy = 0.0
-            else:
-                self._turn_toward((dx / dist_deg) * speed, (dy / dist_deg) * speed, speed, dt_sec)
-                self.x += self.vx * dt_sec
-                self.y += self.vy * dt_sec
-                # Re-check arrival after moving (handles overshoot at speed)
-                if math.hypot(home_x - self.x, home_y - self.y) < ARRIVAL_THRESHOLD_KM * DEG_PER_KM:
-                    self.mode = "IDLE"
-                    self.vx = 0.0
-                    self.vy = 0.0
-
-        # VIEWING, FOLLOWING, PAINTING are handled in SimulationModel.tick()
-
-        self.fuel_hours -= (dt_sec / 3600.0) * self.fuel_rate
-        self.fuel_hours = max(0.0, self.fuel_hours)
-        if self.fuel_hours < 1.0 and self.mode != "RTB":
-            self.mode = "RTB"
-
-        self.heading_deg = _heading_from_velocity(self.vx, self.vy)
-
-
-class EnemyUAV:
-    def __init__(self, id: int, x: float, y: float, mode: str = "RECON", behavior: str = "recon"):
-        self.id = id
-        self.x = x
-        self.y = y
-        self.vx: float = 0.0
-        self.vy: float = 0.0
-        self.heading_deg: float = 0.0
-        self.mode: str = mode
-        self.behavior: str = behavior
-        self.detected: bool = False
-        self.fused_confidence: float = 0.0
-        self.sensor_count: int = 0
-        self.sensor_contributions: list = []
-        self.is_jamming: bool = mode == "JAMMING"
-        self.speed: float = ENEMY_SPEED
-        self.evasion_cooldown: float = 0.0
-        self.attack_waypoint: Optional[Tuple[float, float]] = None
-        self._original_mode: str = mode
-
-    def _turn_toward(self, target_vx: float, target_vy: float, speed: float, dt_sec: float):
-        """Gradually turn toward desired direction (fixed-wing turn rate limit, no 3x multiplier)."""
-        curr_heading = math.atan2(self.vx, self.vy) if math.hypot(self.vx, self.vy) > 1e-9 else 0.0
-        desired_heading = math.atan2(target_vx, target_vy)
-        diff = desired_heading - curr_heading
-        while diff > math.pi:
-            diff -= 2 * math.pi
-        while diff < -math.pi:
-            diff += 2 * math.pi
-        max_delta = MAX_TURN_RATE * dt_sec
-        if abs(diff) > max_delta:
-            diff = math.copysign(max_delta, diff)
-        new_heading = curr_heading + diff
-        self.vx = math.sin(new_heading) * speed
-        self.vy = math.cos(new_heading) * speed
-
-    def update(self, dt_sec: float, bounds: dict):
-        if self.mode == "DESTROYED":
-            return
-
-        if self.mode == "RECON":
-            # Circular loiter: constant heading turn
-            if math.hypot(self.vx, self.vy) < self.speed * 0.3:
-                # Kick-start with initial velocity
-                angle = math.radians(self.heading_deg) if self.heading_deg else random.uniform(0, 2 * math.pi)
-                self.vx = math.sin(angle) * self.speed
-                self.vy = math.cos(angle) * self.speed
-            heading_rad = math.atan2(self.vx, self.vy)
-            heading_rad += MAX_TURN_RATE * dt_sec
-            self.vx = math.sin(heading_rad) * self.speed
-            self.vy = math.cos(heading_rad) * self.speed
-
-        elif self.mode == "ATTACK":
-            if self.attack_waypoint is not None:
-                wp_x, wp_y = self.attack_waypoint
-                dx = wp_x - self.x
-                dy = wp_y - self.y
-                dist = math.hypot(dx, dy)
-                if dist > 0.001:
-                    target_vx = (dx / dist) * self.speed
-                    target_vy = (dy / dist) * self.speed
-                    self._turn_toward(target_vx, target_vy, self.speed, dt_sec)
-                # If no velocity yet, initialize toward waypoint
-                if math.hypot(self.vx, self.vy) < self.speed * 0.3 and dist > 0.001:
-                    self.vx = (dx / dist) * self.speed
-                    self.vy = (dy / dist) * self.speed
-
-        elif self.mode == "JAMMING":
-            # Station keeping — no movement
-            self.vx = 0.0
-            self.vy = 0.0
-            self.is_jamming = True
-
-        elif self.mode == "EVADING":
-            evasion_speed = self.speed * 1.5
-            # Evasive random heading change
-            if math.hypot(self.vx, self.vy) < evasion_speed * 0.3:
-                angle = random.uniform(0, 2 * math.pi)
-                self.vx = math.sin(angle) * evasion_speed
-                self.vy = math.cos(angle) * evasion_speed
-            # Turn toward random direction with urgency
-            target_angle = math.atan2(self.vx, self.vy) + random.uniform(-math.pi / 2, math.pi / 2)
-            target_vx = math.sin(target_angle) * evasion_speed
-            target_vy = math.cos(target_angle) * evasion_speed
-            self._turn_toward(target_vx, target_vy, evasion_speed, dt_sec)
-            # Decrement cooldown
-            self.evasion_cooldown = max(0.0, self.evasion_cooldown - dt_sec)
-            # Exit EVADING when cooldown expired and confidence is low
-            if self.evasion_cooldown <= 0.0 and self.fused_confidence < 0.3:
-                self.mode = self._original_mode
-
-        # Check evasion trigger (not already EVADING or DESTROYED)
-        if self.mode not in ("EVADING", "DESTROYED") and self.fused_confidence > 0.5:
-            self._original_mode = self.mode
-            self.mode = "EVADING"
-            self.evasion_cooldown = 15.0
-
-        # Move
-        self.x += self.vx * dt_sec
-        self.y += self.vy * dt_sec
-
-        # Clamp to bounds
-        self.x = max(bounds["min_lon"], min(bounds["max_lon"], self.x))
-        self.y = max(bounds["min_lat"], min(bounds["max_lat"], self.y))
-
-        # Update heading
-        self.heading_deg = _heading_from_velocity(self.vx, self.vy)
 
 
 class SimulationModel:
@@ -588,7 +124,6 @@ class SimulationModel:
         if self.theater:
             for unit in self.theater.red_force.units:
                 if unit.speed_kmh is not None:
-                    # Convert km/h to deg/sec: speed_kmh * 1000m/km / 3600s/hr * DEG_PER_KM
                     self._unit_speed_map[unit.type] = unit.speed_kmh * DEG_PER_KM / 3600.0
                 if unit.threat_range_km is not None:
                     self._unit_threat_range_map[unit.type] = float(unit.threat_range_km)
@@ -607,13 +142,12 @@ class SimulationModel:
         self.demo_fast: bool = False
 
         # Phase 5: swarm coordination
-        self.swarm_coordinator = SwarmCoordinator(min_idle_count=2)  # 2 per locked decision
+        self.swarm_coordinator = SwarmCoordinator(min_idle_count=2)
         self._swarm_tick_counter = 0
 
         self.initialize()
 
     def _build_target_pool(self) -> list:
-        """Build weighted target type list from theater config."""
         if not self.theater:
             return [("SAM", 3), ("TEL", 4), ("TRUCK", 8), ("CP", 2)]
         return [(u.type, u.count) for u in self.theater.red_force.units]
@@ -621,7 +155,6 @@ class SimulationModel:
     def initialize(self):
         zone_keys = list(self.grid.zones.keys())
 
-        # Spawn UAVs
         for i in range(self.NUM_UAVS):
             if not zone_keys:
                 break
@@ -640,7 +173,6 @@ class SimulationModel:
                 )
             self.uavs[uav.id] = uav
 
-        # Spawn targets from theater config
         target_pool = self._build_target_pool()
         target_id = 0
         for unit_type, count in target_pool:
@@ -655,7 +187,6 @@ class SimulationModel:
                 t.type = unit_type
                 t.is_emitting = unit_type in EMITTING_TYPES
                 t.behavior = UNIT_BEHAVIOR.get(unit_type, "stationary")
-                # Wire theater fields
                 if unit_type in self._unit_speed_map:
                     t.speed = self._unit_speed_map[unit_type]
                 t.threat_range_km = self._unit_threat_range_map.get(unit_type)
@@ -666,7 +197,6 @@ class SimulationModel:
         self._spawn_enemy_uavs()
 
     def _spawn_enemy_uavs(self):
-        """Spawn enemy UAVs from theater config (or defaults). IDs start at 1001."""
         self.enemy_uavs = {}
         eid = 1001
 
@@ -687,7 +217,6 @@ class SimulationModel:
                     self.enemy_uavs[e.id] = e
                     eid += 1
         else:
-            # Fallback: 3 RECON drones
             for _ in range(3):
                 ex = random.uniform(self.bounds["min_lon"], self.bounds["max_lon"])
                 ey = random.uniform(self.bounds["min_lat"], self.bounds["max_lat"])
@@ -758,9 +287,6 @@ class SimulationModel:
         logger.info("cancel_track", uav_id=uav_id, old_target_id=old_target_id)
 
     def request_swarm(self, target_id: int):
-        """Force-assign UAVs to fill sensor gaps for target (operator request).
-        Runs unconditionally regardless of autonomy tier — operator request always executes.
-        """
         target = self._find_target(target_id)
         if not target:
             return
@@ -771,22 +297,15 @@ class SimulationModel:
                 self._assign_target(order.uav_id, order.target_id, "SUPPORT", "DETECTED")
 
     def release_swarm(self, target_id: int):
-        """Release all SUPPORT UAVs from target, set them to SEARCH."""
         for u in self.uavs.values():
             if u.mode == "SUPPORT" and target_id in u.tracked_target_ids:
                 self.cancel_track(u.id)
 
     def set_coverage_mode(self, mode: str):
-        """Switch between 'balanced' (zone-grid dispatch) and 'threat_adaptive' (ISR-driven dispatch)."""
         if mode in ("balanced", "threat_adaptive"):
             self.coverage_mode = mode
 
     def _threat_adaptive_dispatches(self) -> list:
-        """Generate dispatch orders toward coverage gaps ranked by threat score.
-
-        Respects MIN_IDLE_COUNT — never dispatches if idle UAVs <= MIN_IDLE_COUNT.
-        Returns a list of dispatch dicts compatible with the standard dispatch loop.
-        """
         if self._last_assessment is None:
             return []
         idle_uavs = [u for u in self.uavs.values() if u.mode == "IDLE"]
@@ -846,7 +365,7 @@ class SimulationModel:
                 prob -= 1.0
             z.queue += arrivals
 
-        # 3. Assign Missions — idle UAVs in zones with demand become SCANNING
+        # 3. Assign Missions
         for z_id, z in self.grid.zones.items():
             if z.queue > 0:
                 idle_in_zone = [u for u in self.uavs.values() if u.zone_id == z_id and u.mode == "IDLE"]
@@ -856,7 +375,7 @@ class SimulationModel:
                     idle_in_zone[i].service_timer = self.SERVICE_TIME_SEC
                     z.queue -= 1
 
-        # 4. Calculate imbalances and dispatches via the grid logic
+        # 4. Calculate imbalances and dispatches
         if self.coverage_mode == "threat_adaptive" and self._last_assessment is not None:
             dispatches = self._threat_adaptive_dispatches()
         else:
@@ -880,18 +399,18 @@ class SimulationModel:
                     u.tasking_source = "ZONE_BALANCE"
                 self.active_flows.append({"source": d["source_coord"], "target": target_coord})
 
-        # 6. Handle target-tracking modes (VIEWING, FOLLOWING, PAINTING, and new modes)
+        # 6. Handle target-tracking modes (FOLLOW, PAINT, INTERCEPT, and new modes)
         self._update_tracking_modes(dt_sec)
 
         # 6b. Evaluate autonomy transitions
         self._evaluate_autonomy(dt_sec)
 
-        # 7. Update Kinematics (handles IDLE, SCANNING, REPOSITIONING, RTB)
+        # 7. Update Kinematics (handles IDLE, SEARCH, REPOSITIONING, RTB)
         for u in self.uavs.values():
             if u.mode not in ("FOLLOW", "PAINT", "INTERCEPT", "SUPPORT", "VERIFY", "OVERWATCH", "BDA"):
                 u.update(dt_sec, self.SPEED_DEG_PER_SEC)
 
-        # 8. Decrement service timers for SCANNING UAVs
+        # 8. Decrement service timers
         for u in self.uavs.values():
             if u.mode == "SEARCH":
                 u.service_timer -= dt_sec
@@ -912,21 +431,18 @@ class SimulationModel:
                 if u.mode in ("RTB", "REPOSITIONING"):
                     continue
 
-                # Use target's detection_range_km to gate detection if available
                 if t.detection_range_km is not None:
                     dist_deg = math.hypot(u.x - t.x, u.y - t.y)
                     dist_km = dist_deg / DEG_PER_KM
                     if dist_km > t.detection_range_km:
                         continue
 
-                # Compute aspect angle: bearing from UAV to target vs target heading
                 dlat = t.y - u.y
                 dlon = (t.x - u.x) * math.cos(math.radians((u.y + t.y) / 2.0))
                 bearing_rad = math.atan2(dlon, dlat)
                 bearing_deg = (math.degrees(bearing_rad) + 360.0) % 360.0
                 aspect_deg = (bearing_deg - t.heading_deg + 360.0) % 360.0
 
-                # Evaluate each sensor on this UAV
                 for sensor_type in u.sensors:
                     result = evaluate_detection(
                         uav_lat=u.y,
@@ -938,6 +454,7 @@ class SimulationModel:
                         env=self.environment,
                         aspect_deg=aspect_deg,
                         emitting=t.is_emitting,
+                        altitude_m=u.altitude_m,
                     )
                     if result.detected:
                         contributions.append(
@@ -952,19 +469,16 @@ class SimulationModel:
                         )
 
             if contributions:
-                # Fuse all contributions and update state
                 fused = fuse_detections(contributions)
                 t.sensor_contributions = list(fused.contributions)
                 t.fused_confidence = fused.fused_confidence
                 t.sensor_count = fused.sensor_count
-                # tracked_by_uav_ids is managed by the command system (_assign_target / cancel_track)
                 if t.state == "UNDETECTED":
                     t.state = "DETECTED"
                 t.detection_confidence = fused.fused_confidence
                 best = max(contributions, key=lambda c: c.confidence)
                 t.detected_by_sensor = best.sensor_type
             else:
-                # Fade logic for targets that lost sensor contact
                 if t.state in ("DETECTED", "CLASSIFIED", "VERIFIED") and not t.tracked_by_uav_ids:
                     t.detection_confidence *= 0.95
                     t.fused_confidence *= 0.95
@@ -1040,6 +554,7 @@ class SimulationModel:
                         env=self.environment,
                         aspect_deg=aspect_deg,
                         emitting=e.is_jamming,
+                        altitude_m=u.altitude_m,
                     )
                     if result.detected:
                         contributions.append(
@@ -1062,23 +577,22 @@ class SimulationModel:
                 e.fused_confidence = max(0.0, e.fused_confidence * 0.95)
                 e.detected = e.fused_confidence > 0.1
 
-        # 11. Swarm coordination — auto-dispatch complementary sensors (throttled: every 50 ticks = 5s)
-        # Note: autonomy tier integration deferred — full AUTONOMOUS/SUPERVISED/MANUAL gating
-        # will be added when the autonomy tier selector phase is implemented. Operator
-        # request_swarm/release_swarm WS actions always available regardless of tier.
+        # 11. Swarm coordination
         self._swarm_tick_counter += 1
         if self._swarm_tick_counter % 50 == 0:
             swarm_orders = self.swarm_coordinator.evaluate_and_assign(
-                list(self.targets.values()), list(self.uavs.values())
+                list(self.targets.values()),
+                list(self.uavs.values()),
+                autonomy_level=self.autonomy_level,
             )
             for order in swarm_orders:
+                if not isinstance(order, TaskingOrder):
+                    continue
                 uav = self._find_uav(order.uav_id)
-                # Guard: skip if UAV already in SUPPORT for this target
                 if uav and not (uav.mode == "SUPPORT" and order.target_id in uav.tracked_target_ids):
                     self._assign_target(order.uav_id, order.target_id, "SUPPORT", "DETECTED")
 
     def _update_enemy_intercept(self, u: UAV, dt_sec: float):
-        """Handle UAV intercept of an enemy UAV (primary_target_id >= 1000)."""
         speed = self.SPEED_DEG_PER_SEC
         enemy = self._find_enemy_uav(u.primary_target_id)
         if not enemy or enemy.mode == "DESTROYED":
@@ -1096,19 +610,15 @@ class SimulationModel:
         dist = math.hypot(dx, dy)
 
         if dist > INTERCEPT_CLOSE_DEG:
-            # Approach: fly directly at enemy at 1.5x speed
             intercept_speed = speed * 1.5
             u._turn_toward((dx / dist) * intercept_speed, (dy / dist) * intercept_speed, intercept_speed, dt_sec)
             u.x += u.vx * dt_sec
             u.y += u.vy * dt_sec
         else:
-            # Within kill range — accumulate dwell time, hold position
             u._intercept_dwell += dt_sec
-            # Keep velocity zero while in dwell zone (hold over target)
             u.vx = 0.0
             u.vy = 0.0
             if u._intercept_dwell >= 3.0:
-                # Kill!
                 enemy.mode = "DESTROYED"
                 enemy.vx = 0.0
                 enemy.vy = 0.0
@@ -1126,7 +636,6 @@ class SimulationModel:
             if u.mode not in ("FOLLOW", "PAINT", "INTERCEPT", "SUPPORT", "VERIFY", "OVERWATCH", "BDA"):
                 continue
 
-            # OVERWATCH does not require a target — handle it first before target lookup
             if u.mode == "OVERWATCH":
                 if not u.overwatch_waypoints:
                     cx, cy = u.x, u.y
@@ -1154,7 +663,6 @@ class SimulationModel:
                 u.heading_deg = _heading_from_velocity(u.vx, u.vy)
                 continue
 
-            # Check if this is an enemy UAV intercept (IDs >= 1000)
             if u.primary_target_id is not None and u.primary_target_id >= 1000:
                 self._update_enemy_intercept(u, dt_sec)
                 continue
@@ -1172,7 +680,6 @@ class SimulationModel:
             dist = math.hypot(dx, dy)
 
             if u.mode == "FOLLOW":
-                # Loose orbit at ~2km
                 orbit_r = FOLLOW_ORBIT_RADIUS_DEG
                 if dist < 0.001:
                     u.x -= orbit_r
@@ -1193,7 +700,6 @@ class SimulationModel:
                 u.y += u.vy * dt_sec
 
             elif u.mode == "PAINT":
-                # Tight orbit at ~1km (laser lock)
                 orbit_r = PAINT_ORBIT_RADIUS_DEG
                 if dist < 0.001:
                     u.x -= orbit_r
@@ -1214,14 +720,12 @@ class SimulationModel:
                 u.y += u.vy * dt_sec
 
             elif u.mode == "INTERCEPT":
-                # Fly directly at target, danger close (~300m)
                 if dist > INTERCEPT_CLOSE_DEG:
                     intercept_speed = speed * 1.5
                     u._turn_toward(
                         (dx / dist) * intercept_speed, (dy / dist) * intercept_speed, intercept_speed, dt_sec
                     )
                 else:
-                    # Arrived — tight orbit
                     nx, ny = dx / max(dist, 0.0001), dy / max(dist, 0.0001)
                     tx, ty = -ny, nx
                     u._turn_toward(tx * speed, ty * speed, speed, dt_sec)
@@ -1229,7 +733,6 @@ class SimulationModel:
                 u.y += u.vy * dt_sec
 
             elif u.mode == "SUPPORT":
-                # Wide orbit at ~3km — secondary sensor coverage
                 orbit_r = SUPPORT_ORBIT_RADIUS_DEG
                 if dist < 0.001:
                     u.x -= orbit_r
@@ -1250,12 +753,10 @@ class SimulationModel:
                 u.y += u.vy * dt_sec
 
             elif u.mode == "VERIFY":
-                # Sensor-specific pass pattern over target
                 primary_sensor = u.sensors[0] if u.sensors else "EO_IR"
                 orbit_r = VERIFY_CROSS_DISTANCE_DEG
 
                 if primary_sensor == "EO_IR":
-                    # Perpendicular cross pattern: alternate tangent directions
                     if dist < 0.001:
                         u.x -= orbit_r
                         dist = orbit_r
@@ -1273,19 +774,17 @@ class SimulationModel:
                     u._turn_toward(dvx, dvy, speed, dt_sec)
 
                 elif primary_sensor == "SAR":
-                    # Parallel track: fly along heading axis of target
                     track_heading = math.radians(target.heading_deg) if hasattr(target, "heading_deg") else 0.0
                     track_vx = math.sin(track_heading) * speed
                     track_vy = math.cos(track_heading) * speed
                     if dist > orbit_r * 2.0:
-                        # Approach target
                         approach_vx = (dx / dist) * speed
                         approach_vy = (dy / dist) * speed
                         u._turn_toward(approach_vx, approach_vy, speed, dt_sec)
                     else:
                         u._turn_toward(track_vx, track_vy, speed, dt_sec)
 
-                else:  # SIGINT — loiter circle over target
+                else:
                     if dist < 0.001:
                         u.x -= orbit_r
                         dist = orbit_r
@@ -1306,7 +805,6 @@ class SimulationModel:
                 u.y += u.vy * dt_sec
 
             elif u.mode == "BDA":
-                # Tight orbit for damage assessment — same radius as PAINT
                 orbit_r = BDA_ORBIT_RADIUS_DEG
                 u.bda_timer -= dt_sec
                 if u.bda_timer <= 0:
@@ -1336,19 +834,15 @@ class SimulationModel:
 
             u.heading_deg = _heading_from_velocity(u.vx, u.vy)
 
-            # Keep detection confidence high while actively tracking
             target.detection_confidence = min(1.0, target.detection_confidence + 0.1 * dt_sec)
             target.fused_confidence = min(1.0, target.fused_confidence + 0.1 * dt_sec)
             target.detected_by_sensor = u.sensor_type
 
     def _effective_autonomy(self, uav: UAV) -> str:
-        """Return the effective autonomy level for a UAV (override takes precedence)."""
         return uav.autonomy_override or self.autonomy_level
 
     def _detect_trigger(self, uav: UAV) -> Optional[str]:
-        """Detect autonomy trigger conditions for a UAV. Returns trigger name or None."""
         if uav.mode == "IDLE":
-            # Check if any target in same zone is DETECTED
             for t in self.targets.values():
                 if t.state in ("DETECTED", "CLASSIFIED", "VERIFIED", "NOMINATED"):
                     z = self.grid.get_zone_at(t.x, t.y)
@@ -1356,7 +850,6 @@ class SimulationModel:
                         return "target_detected_in_zone"
 
         elif uav.mode == "SEARCH" and uav.tracked_target_id is not None:
-            # Check if tracked target has high confidence
             target = self._find_target(uav.tracked_target_id)
             if target and target.detection_confidence >= 0.7:
                 return "high_confidence_detection"
@@ -1364,12 +857,10 @@ class SimulationModel:
         return None
 
     def _evaluate_autonomy(self, dt_sec: float):
-        """Evaluate autonomous transitions for all UAVs."""
         import time as _time
 
         now = _time.monotonic()
 
-        # Expire timed-out pending transitions (auto-approve in SUPERVISED)
         for uav_id, pending in list(self.pending_transitions.items()):
             if now >= pending["expires_at"]:
                 uav = self._find_uav(uav_id)
@@ -1383,7 +874,7 @@ class SimulationModel:
             if effective == "MANUAL":
                 continue
             if u.id in self.pending_transitions:
-                continue  # already has a pending transition
+                continue
 
             trigger = self._detect_trigger(u)
             if trigger is None:
@@ -1404,7 +895,6 @@ class SimulationModel:
                 }
 
     def approve_transition(self, uav_id: int):
-        """Apply a pending transition immediately."""
         pending = self.pending_transitions.pop(uav_id, None)
         if pending:
             uav = self._find_uav(uav_id)
@@ -1413,7 +903,6 @@ class SimulationModel:
                 uav.mode_source = "AUTO"
 
     def reject_transition(self, uav_id: int):
-        """Remove a pending transition without changing mode."""
         self.pending_transitions.pop(uav_id, None)
 
     def set_environment(self, time_of_day: float = 12.0, cloud_cover: float = 0.0, precipitation: float = 0.0):
@@ -1440,7 +929,6 @@ class SimulationModel:
             uav.commanded_target = (lon, lat)
             uav.mode = "REPOSITIONING"
             uav.tasking_source = "OPERATOR"
-            # Clear any tracking
             if uav.tracked_target_id is not None:
                 old_target = self._find_target(uav.tracked_target_id)
                 if old_target:
@@ -1448,7 +936,6 @@ class SimulationModel:
                 uav.tracked_target_id = None
 
     def _set_target_state(self, target_id: int, new_state: str):
-        """Set a target's state directly (used by demo auto-pilot)."""
         target = self._find_target(target_id)
         if target and new_state in TARGET_STATES:
             target.state = new_state
@@ -1471,7 +958,6 @@ class SimulationModel:
         return None
 
     def _compute_fov_targets(self, uav) -> list:
-        """Return list of target IDs that are detected and within detection range of this UAV."""
         result = []
         for t in self.targets.values():
             if t.state == "UNDETECTED":
