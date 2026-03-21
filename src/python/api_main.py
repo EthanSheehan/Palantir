@@ -34,6 +34,7 @@ from schemas.ontology import (
     TargetClassification,
 )
 from sim_engine import SimulationModel
+from verification_engine import _DEFAULT_THRESHOLD, VERIFICATION_THRESHOLDS
 
 configure_logging()
 logger = structlog.get_logger()
@@ -50,7 +51,7 @@ RATE_LIMIT_WINDOW = 1.0  # seconds
 MAX_WS_MESSAGE_SIZE = 65536  # 64KB — reject oversized messages before parsing
 
 # Input validation allowlists
-VALID_COVERAGE_MODES = frozenset({"OPERATIONAL", "COVERAGE", "THREAT", "FUSION", "SWARM", "TERRAIN"})
+VALID_COVERAGE_MODES = frozenset({"balanced", "threat_adaptive"})
 VALID_FEED_TYPES = frozenset({"INTEL_FEED", "COMMAND_FEED", "SENSOR_FEED"})
 MAX_SITREP_QUERY_LENGTH = 500
 
@@ -719,7 +720,13 @@ def _serialize_assessment(result) -> dict:
             for c in result.clusters
         ],
         "coverage_gaps": [
-            {"zone_x": g.zone_x, "zone_y": g.zone_y, "lon": round(g.lon, 4), "lat": round(g.lat, 4)}
+            {
+                "zone_x": g.zone_x,
+                "zone_y": g.zone_y,
+                "lon": round(g.lon, 4),
+                "lat": round(g.lat, 4),
+                "threat_score": round(g.threat_score, 3) if hasattr(g, "threat_score") else 0.0,
+            }
             for g in result.coverage_gaps
         ],
         "zone_threat_scores": [[k[0], k[1], round(v, 3)] for k, v in result.zone_threat_scores.items()],
@@ -830,10 +837,8 @@ async def simulation_loop():
         await asyncio.sleep(tick_interval)
 
 
-@app.post("/api/sitrep")
-async def post_sitrep(body: dict):
-    """REST endpoint for SITREP queries (mirrors the WebSocket SITREP_QUERY handler)."""
-    query_text = body.get("query", "Provide current situation report.")
+def _build_sitrep_payload(query_text: str = "") -> dict:
+    """Build a SITREP payload dict from current sim state. Shared by REST and WebSocket handlers."""
     state = sim.get_state()
     targets = state.get("targets", [])
     strike_board = hitl.get_strike_board()
@@ -858,13 +863,23 @@ async def post_sitrep(body: dict):
     if not detected:
         recommended_actions.append("Continue ISR coverage.")
 
-    return {
+    payload = {
         "sitrep_narrative": narrative,
         "key_threats": key_threats,
         "recommended_actions": recommended_actions,
         "data_sources_consulted": ["sim_engine", "hitl_strike_board"],
         "confidence": 0.7 if detected else 0.9,
     }
+    if query_text:
+        payload["query"] = query_text
+    return payload
+
+
+@app.post("/api/sitrep")
+async def post_sitrep(body: dict):
+    """REST endpoint for SITREP queries (mirrors the WebSocket SITREP_QUERY handler)."""
+    query_text = body.get("query", "Provide current situation report.")
+    return _build_sitrep_payload(query_text)
 
 
 @app.post("/api/environment")
@@ -922,9 +937,14 @@ async def websocket_endpoint(websocket: WebSocket):
     # Wait for the first message to identify the client
     try:
         ident_msg = await asyncio.wait_for(websocket.receive_text(), timeout=2.0)
+        if len(ident_msg) > MAX_WS_MESSAGE_SIZE:
+            logger.warning("ident_message_too_large", size=len(ident_msg))
+            await websocket.close(code=1009)
+            return
         ident_payload = json.loads(ident_msg)
         if ident_payload.get("type") == "IDENTIFY":
-            client_type = ident_payload.get("client_type", "DASHBOARD")
+            raw_type = ident_payload.get("client_type", "DASHBOARD")
+            client_type = raw_type if raw_type in ("DASHBOARD", "SIMULATOR") else "DASHBOARD"
             clients[websocket] = {"type": client_type}
             logger.info("client_identified", client_type=client_type)
         else:
@@ -970,46 +990,8 @@ async def websocket_endpoint(websocket: WebSocket):
 
 
 async def _handle_sitrep_query(query_text: str, websocket: WebSocket) -> None:
-    """
-    Generate a SITREP using the SynthesisQueryAgent (heuristic fallback when
-    no LLM is available) and reply directly to the requesting client.
-    """
-    state = sim.get_state()
-    targets = state.get("targets", [])
-    strike_board = hitl.get_strike_board()
-
-    # Build a heuristic narrative without calling the LLM
-    detected = [t for t in targets if t.get("state", "UNDETECTED") != "UNDETECTED"]
-    pending_hitl = [e for e in strike_board if e.get("status") == "PENDING"]
-
-    if detected:
-        threat_lines = [f"{t['type']} at ({t.get('lat', 0):.4f}, {t.get('lon', 0):.4f})" for t in detected[:5]]
-        narrative = (
-            f"SITREP: {len(detected)} active contact(s) detected. "
-            f"Threats: {'; '.join(threat_lines)}. "
-            f"{len(pending_hitl)} target(s) awaiting HITL review."
-        )
-        key_threats = [f"{t['type']} (id={t['id']})" for t in detected[:5]]
-    else:
-        narrative = "SITREP: No active contacts. Battlespace clear."
-        key_threats = []
-
-    recommended_actions: list[str] = []
-    if pending_hitl:
-        recommended_actions.append(f"Review {len(pending_hitl)} pending strike board nomination(s).")
-    if not detected:
-        recommended_actions.append("Continue ISR coverage.")
-
-    response_payload = {
-        "type": "SITREP_RESPONSE",
-        "sitrep_narrative": narrative,
-        "key_threats": key_threats,
-        "recommended_actions": recommended_actions,
-        "data_sources_consulted": ["sim_engine", "hitl_strike_board"],
-        "confidence": 0.7 if detected else 0.9,
-        "query": query_text,
-    }
-
+    """Reply with a SITREP to the requesting WebSocket client."""
+    response_payload = {"type": "SITREP_RESPONSE", **_build_sitrep_payload(query_text)}
     try:
         await websocket.send_text(json.dumps(response_payload))
     except (WebSocketDisconnect, ConnectionError, OSError) as exc:
@@ -1036,7 +1018,7 @@ async def _handle_retask_sensors(payload: dict, websocket: WebSocket) -> None:
             confidence=float(payload.get("confidence", 0.5)),
             classification=TargetClassification(
                 payload.get("target_type", "Unknown")
-                if payload.get("target_type") in TargetClassification._value2member_map_
+                if payload.get("target_type") in TargetClassification.__members__
                 else "Unknown"
             ),
             timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -1050,7 +1032,7 @@ async def _handle_retask_sensors(payload: dict, websocket: WebSocket) -> None:
         }
     except Exception as exc:
         logger.error("retask_sensors_failed", error=str(exc))
-        response = {"type": "RETASK_RESPONSE", "error": str(exc)}
+        response = {"type": "RETASK_RESPONSE", "error": "Sensor retasking failed"}
 
     try:
         await websocket.send_text(json.dumps(response))
@@ -1227,22 +1209,31 @@ async def handle_payload(payload: dict, websocket: WebSocket, raw_data: str):
         target_id = payload["target_id"]
         target = sim._find_target(target_id)
         if target and target.state == "CLASSIFIED":
-            old_state = target.state
-            target.state = "VERIFIED"
-            target.time_in_state_sec = 0.0
-            await intel_router.emit(
-                "INTEL_FEED",
-                {
-                    "event": "state_transition",
-                    "target_id": target_id,
-                    "target_type": target.type,
-                    "from": old_state,
-                    "to": "VERIFIED",
-                    "source": "manual_operator",
-                    "summary": f"Target {target_id} ({target.type}) manually verified",
-                },
-            )
-            logger.info("manual_verify", target_id=target_id)
+            thresholds = VERIFICATION_THRESHOLDS.get(target.type, _DEFAULT_THRESHOLD)
+            min_confidence = thresholds.verify_confidence
+            if target.fused_confidence < min_confidence:
+                await _send_error(
+                    websocket,
+                    f"Cannot verify: confidence {target.fused_confidence:.2f} below threshold {min_confidence:.2f}",
+                    action,
+                )
+            else:
+                old_state = target.state
+                target.state = "VERIFIED"
+                target.time_in_state_sec = 0.0
+                await intel_router.emit(
+                    "INTEL_FEED",
+                    {
+                        "event": "state_transition",
+                        "target_id": target_id,
+                        "target_type": target.type,
+                        "from": old_state,
+                        "to": "VERIFIED",
+                        "source": "manual_operator",
+                        "summary": f"Target {target_id} ({target.type}) manually verified",
+                    },
+                )
+                logger.info("manual_verify", target_id=target_id)
 
     elif action in ("sitrep_query", "generate_sitrep") or p_type == "SITREP_QUERY":
         query_text = payload.get("query", "Provide current situation report.")
@@ -1373,10 +1364,11 @@ async def handle_payload(payload: dict, websocket: WebSocket, raw_data: str):
 
     elif action == "subscribe_sensor_feed":
         uav_ids = payload.get("uav_ids", [])
-        if isinstance(uav_ids, list):
+        if isinstance(uav_ids, list) and len(uav_ids) <= 100:
+            valid_ids = {uid for uid in uav_ids if isinstance(uid, int)}
             client_info = clients.get(websocket, {})
             client_info.setdefault("subscriptions", set()).add("SENSOR_FEED")
-            client_info["sensor_feed_uav_ids"] = set(uav_ids)
+            client_info["sensor_feed_uav_ids"] = valid_ids
 
 
 if __name__ == "__main__":
