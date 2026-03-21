@@ -51,6 +51,28 @@ class PalantirSettings(BaseSettings):
         description="Enable demo auto-pilot: auto-approve, auto-COA, auto-engage",
     )
 
+    # -- Auth (W3-006) --
+    auth_enabled: bool = Field(
+        default=False,
+        description="Enable WebSocket token authentication (default disabled for backward compat)",
+    )
+    demo_token: str = Field(
+        default="dev",
+        description="Dev bypass token (always authenticates as DASHBOARD)",
+    )
+    dashboard_tokens: str = Field(
+        default="",
+        description="Comma-separated DASHBOARD-tier API keys",
+    )
+    simulator_tokens: str = Field(
+        default="",
+        description="Comma-separated SIMULATOR-tier API keys",
+    )
+    admin_tokens: str = Field(
+        default="",
+        description="Comma-separated ADMIN-tier API keys",
+    )
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",

@@ -1,0 +1,23 @@
+rules:
+  - name: "No engagement in civilian zones"
+    zone_id: "civilian_*"
+    decision: DENIED
+
+  - name: "SAM sites always permitted"
+    target_type: SAM
+    decision: PERMITTED
+
+  - name: "RADAR sites always permitted"
+    target_type: RADAR
+    decision: PERMITTED
+
+  - name: "C2 nodes always permitted"
+    target_type: C2_NODE
+    decision: PERMITTED
+
+  - name: "Default requires SUPERVISED+"
+    min_autonomy_level: SUPERVISED
+    decision: PERMITTED
+
+  - name: "Catch-all escalate"
+    decision: ESCALATE

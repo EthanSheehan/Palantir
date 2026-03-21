@@ -3,9 +3,11 @@ swarm_coordinator.py
 ====================
 Pure-logic swarm coordination module for Palantir C2.
 
-Implements greedy UAV-to-target assignment with idle-count guard, sensor-gap
-detection, priority scoring, 120-second task expiry, and auto-release on
-target state transitions. No I/O, no side effects.
+Implements optimal UAV-to-target assignment via Hungarian algorithm
+(scipy.optimize.linear_sum_assignment), with idle-count guard, sensor-gap
+detection, priority scoring, 120-second task expiry, auto-release on
+target state transitions, drone loss promotion, and Byzantine position
+anomaly detection. No I/O, no side effects.
 """
 
 from __future__ import annotations
@@ -13,7 +15,10 @@ from __future__ import annotations
 import math
 import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
+from scipy.optimize import linear_sum_assignment
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -37,6 +42,8 @@ THREAT_WEIGHTS: Dict[str, float] = {
 _TASK_EXPIRY_SECONDS = 120.0
 _ASSIGNABLE_MODES = frozenset({"IDLE", "SEARCH"})
 _RESOLVED_STATES = frozenset({"VERIFIED", "NOMINATED", "LOCKED", "ENGAGED", "DESTROYED"})
+_BYZANTINE_THRESHOLD_KM = 50.0
+_DRONE_LOSS_PRIORITY_BOOST = 1.5
 
 
 # ---------------------------------------------------------------------------
@@ -84,6 +91,9 @@ class SwarmCoordinator:
     def __init__(self, min_idle_count: int = 2) -> None:
         self.min_idle_count = min_idle_count
         self._active_tasks: Dict[int, SwarmTask] = {}
+        self._last_positions: Dict[int, Tuple[float, float]] = {}
+        self._byzantine_flagged: set[int] = set()
+        self._promoted_targets: set[int] = set()
 
     # ------------------------------------------------------------------
     # Public API
@@ -140,7 +150,13 @@ class SwarmCoordinator:
         for tid in gone_ids:
             del self._active_tasks[tid]
 
-        # 4. Score targets that have sensor gaps
+        # 4. Byzantine position anomaly detection
+        self._detect_byzantine(uavs)
+
+        # 5. Drone loss detection — promote orphaned tasks
+        self._detect_drone_loss(uavs)
+
+        # 6. Score targets that have sensor gaps
         #    force=True: all targets eligible; otherwise only DETECTED/CLASSIFIED
         scored: List[tuple[float, object]] = []
         for target in targets:
@@ -150,38 +166,25 @@ class SwarmCoordinator:
             if not gap:
                 continue
             score = self._priority_score(target)
+            if target.id in self._promoted_targets:
+                score *= _DRONE_LOSS_PRIORITY_BOOST
             scored.append((score, target))
 
         scored.sort(key=lambda x: x[0], reverse=True)
 
-        # 5. Count available (IDLE/SEARCH) UAVs
-        idle_count = sum(1 for u in uavs if u.mode in _ASSIGNABLE_MODES)
+        # 7. Count available (IDLE/SEARCH) UAVs, excluding Byzantine-flagged
+        available = [u for u in uavs if u.mode in _ASSIGNABLE_MODES and u.id not in self._byzantine_flagged]
+        idle_count = len(available)
 
-        # 6. Greedy assignment pass
-        orders: List[TaskingOrder] = []
-        already_assigned: set[int] = set()
-        priority_counter = 0
-
+        # 8. Build task list: (target, sensor_type) pairs ordered by priority
+        task_list: List[tuple[object, str]] = []
         for _score, target in scored:
             gap = self._sensor_gap(target)
             for sensor_type in gap:
-                if idle_count <= self.min_idle_count:
-                    break
-                uav = self._find_nearest(uavs, target, sensor_type, already_assigned)
-                if uav is None:
-                    continue
-                priority_counter += 1
-                orders.append(
-                    TaskingOrder(
-                        uav_id=uav.id,
-                        target_id=target.id,
-                        mode="SUPPORT",
-                        reason=sensor_type,
-                        priority=priority_counter,
-                    )
-                )
-                idle_count -= 1
-                already_assigned.add(uav.id)
+                task_list.append((target, sensor_type))
+
+        # 9. Hungarian optimal assignment
+        orders = self._hungarian_assign(available, task_list, idle_count)
 
         # 7. If non-autonomous and not forced, return recommendations only
         if autonomy_level != "AUTONOMOUS" and not force:
@@ -232,6 +235,89 @@ class SwarmCoordinator:
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------
+
+    def _detect_byzantine(self, uavs: list) -> None:
+        """Flag UAVs whose position jumped >50km since last tick."""
+        self._byzantine_flagged.clear()
+        for uav in uavs:
+            if uav.id in self._last_positions:
+                prev_x, prev_y = self._last_positions[uav.id]
+                dx = (uav.x - prev_x) * 111.0  # rough deg→km at equator
+                dy = (uav.y - prev_y) * 111.0
+                dist_km = math.hypot(dx, dy)
+                if dist_km > _BYZANTINE_THRESHOLD_KM:
+                    self._byzantine_flagged.add(uav.id)
+            self._last_positions[uav.id] = (uav.x, uav.y)
+
+    def _detect_drone_loss(self, uavs: list) -> None:
+        """Detect lost UAVs and mark their tasks for priority promotion."""
+        current_uav_ids = {u.id for u in uavs}
+        for tid, task in list(self._active_tasks.items()):
+            lost = [uid for uid in task.assigned_uav_ids if uid not in current_uav_ids]
+            if lost:
+                self._promoted_targets.add(tid)
+                remaining = tuple(uid for uid in task.assigned_uav_ids if uid in current_uav_ids)
+                self._active_tasks[tid] = SwarmTask(
+                    target_id=task.target_id,
+                    assigned_uav_ids=remaining,
+                    sensor_coverage=task.sensor_coverage,
+                    created_at=task.created_at,
+                )
+
+    def _hungarian_assign(
+        self,
+        available: list,
+        task_list: list,
+        idle_count: int,
+    ) -> List[TaskingOrder]:
+        """Use Hungarian algorithm for optimal UAV-to-task assignment."""
+        max_assignments = idle_count - self.min_idle_count
+        if max_assignments <= 0 or not available or not task_list:
+            return []
+
+        task_list = task_list[:max_assignments]
+        cost_matrix = self._build_cost_matrix(available, task_list)
+        row_ind, col_ind = linear_sum_assignment(cost_matrix)
+
+        orders: List[TaskingOrder] = []
+        priority_counter = 0
+        for r, c in zip(row_ind, col_ind):
+            if cost_matrix[r, c] >= 1e18:
+                continue
+            target, sensor_type = task_list[c]
+            uav = available[r]
+            priority_counter += 1
+            orders.append(
+                TaskingOrder(
+                    uav_id=uav.id,
+                    target_id=target.id,
+                    mode="SUPPORT",
+                    reason=sensor_type,
+                    priority=priority_counter,
+                )
+            )
+        return orders
+
+    def _build_cost_matrix(
+        self,
+        uavs: list,
+        task_list: list,
+    ) -> np.ndarray:
+        """Build cost matrix: rows=UAVs, cols=tasks. Lower = better."""
+        n_uavs = len(uavs)
+        n_tasks = len(task_list)
+        cost = np.full((n_uavs, n_tasks), 1e18)
+
+        for i, uav in enumerate(uavs):
+            for j, (target, sensor_type) in enumerate(task_list):
+                if sensor_type not in uav.sensors:
+                    continue
+                dist = math.hypot(uav.x - target.x, uav.y - target.y)
+                score = self._priority_score(target)
+                if target.id in self._promoted_targets:
+                    score *= _DRONE_LOSS_PRIORITY_BOOST
+                cost[i, j] = dist / max(score, 1e-9)
+        return cost
 
     def _release_support_uavs(self, target_id: int, uavs: list) -> None:
         """Return SUPPORT UAVs tracking target_id back to SEARCH mode."""

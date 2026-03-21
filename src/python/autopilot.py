@@ -10,6 +10,7 @@ import time
 from typing import TYPE_CHECKING, Callable
 
 import structlog
+from roe_engine import ROEDecision, ROEEngine
 
 if TYPE_CHECKING:
     from agents.tactical_planner import TacticalPlannerAgent
@@ -59,6 +60,7 @@ async def demo_autopilot(
     intel_router: IntelFeedRouter,
     tactical_planner: TacticalPlannerAgent,
     get_effectors: Callable | None = None,
+    roe_engine: ROEEngine | None = None,
     approval_delay: float = DEFAULT_APPROVAL_DELAY,
     follow_delay: float = DEFAULT_FOLLOW_DELAY,
     paint_delay: float = DEFAULT_PAINT_DELAY,
@@ -179,12 +181,52 @@ async def demo_autopilot(
                 continue
             approval_timestamps.append(_now_cb)
 
+            # --- ROE veto check ---
+            if roe_engine is not None:
+                roe_decision = roe_engine.evaluate(
+                    target_type=entry.get("target_type", ""),
+                    zone_id=entry.get("zone_id"),
+                    autonomy_level=getattr(sim, "autonomy_level", "SUPERVISED"),
+                )
+                if roe_decision == ROEDecision.DENIED:
+                    logger.warning(
+                        "demo_autopilot_roe_denied",
+                        entry_id=entry_id,
+                        target_type=entry.get("target_type"),
+                    )
+                    await intel_router.emit(
+                        "INTEL_FEED",
+                        {
+                            "event": "ROE_DENIED",
+                            "summary": f"ROE DENIED engagement of {entry.get('target_type')} (id={target_id})",
+                        },
+                    )
+                    in_flight.discard(entry_id)
+                    continue
+                if roe_decision == ROEDecision.ESCALATE and getattr(sim, "autonomy_level", "MANUAL") != "AUTONOMOUS":
+                    logger.info(
+                        "demo_autopilot_roe_escalate",
+                        entry_id=entry_id,
+                        target_type=entry.get("target_type"),
+                    )
+                    in_flight.discard(entry_id)
+                    continue
+
             try:
                 hitl.approve_nomination(entry_id, "Demo auto-approved")
             except ValueError:
                 logger.exception("demo_autopilot_approve_nomination_failed", entry_id=entry_id, target_id=target_id)
                 in_flight.discard(entry_id)
                 continue
+
+            from audit_log import audit_log
+
+            audit_log.append(
+                "NOMINATION_APPROVED",
+                autonomy_level=getattr(sim, "autonomy_level", "SUPERVISED"),
+                target_id=target_id,
+                details={"entry_id": entry_id, "source": "autopilot"},
+            )
 
             session_engagement_count += 1
 
@@ -309,6 +351,13 @@ async def demo_autopilot(
                             in_flight.discard(entry_id)
                             continue
                         else:
+                            audit_log.append(
+                                "COA_AUTHORIZED",
+                                autonomy_level=getattr(sim, "autonomy_level", "SUPERVISED"),
+                                target_id=target_id,
+                                drone_id=uav_id,
+                                details={"entry_id": entry_id, "coa_id": best_coa.id, "source": "autopilot"},
+                            )
                             await broadcast_fn(
                                 json.dumps(
                                     {

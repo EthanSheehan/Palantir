@@ -8,8 +8,10 @@ import time
 from typing import TYPE_CHECKING, Callable
 
 import structlog
+import yaml
 from event_logger import log_event
 from fastapi import WebSocket, WebSocketDisconnect
+from roe_engine import ROEEngine
 from schemas.ontology import (
     Detection,
     SensorSource,
@@ -65,6 +67,8 @@ _ACTION_SCHEMAS: dict[str, dict[str, str]] = {
     "request_swarm": {"target_id": "int"},
     "release_swarm": {"target_id": "int"},
     "set_coverage_mode": {"mode": "str"},
+    "save_checkpoint": {"mission_id": "int"},
+    "load_mission": {"mission_id": "int"},
 }
 
 # Field type validators
@@ -134,9 +138,20 @@ def _build_sitrep_payload(sim: SimulationModel, hitl: HITLManager, query_text: s
 class HandlerContext:
     """Holds shared dependencies injected from api_main."""
 
-    __slots__ = ("sim", "hitl", "intel_router", "broadcast", "clients", "ai_tasking_manager", "raw_data")
+    __slots__ = ("sim", "hitl", "intel_router", "broadcast", "clients", "ai_tasking_manager", "raw_data", "roe_engine")
 
-    def __init__(self, *, sim, hitl, intel_router, broadcast, clients, ai_tasking_manager, raw_data: str):
+    def __init__(
+        self,
+        *,
+        sim,
+        hitl,
+        intel_router,
+        broadcast,
+        clients,
+        ai_tasking_manager,
+        raw_data: str,
+        roe_engine: ROEEngine | None = None,
+    ):
         self.sim = sim
         self.hitl = hitl
         self.intel_router = intel_router
@@ -144,6 +159,7 @@ class HandlerContext:
         self.clients = clients
         self.ai_tasking_manager = ai_tasking_manager
         self.raw_data = raw_data
+        self.roe_engine = roe_engine
 
 
 async def _handle_spike(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:
@@ -252,6 +268,13 @@ async def _handle_reject_nomination(payload: dict, websocket: WebSocket, ctx: Ha
     rationale = payload.get("rationale", "")
     try:
         ctx.hitl.reject_nomination(payload["entry_id"], rationale)
+        from audit_log import audit_log
+
+        audit_log.append(
+            "OPERATOR_OVERRIDE",
+            autonomy_level=getattr(ctx.sim, "autonomy_level", "MANUAL"),
+            details={"entry_id": payload["entry_id"], "action": "reject_nomination", "rationale": rationale},
+        )
         response = json.dumps({"type": "HITL_UPDATE", "action": "rejected", "entry": ctx.hitl.get_strike_board()})
         await ctx.broadcast(response, target_type="DASHBOARD")
     except ValueError as exc:
@@ -298,6 +321,13 @@ async def _handle_reject_coa(payload: dict, websocket: WebSocket, ctx: HandlerCo
     rationale = payload.get("rationale", "")
     try:
         ctx.hitl.reject_coa(payload["entry_id"], rationale)
+        from audit_log import audit_log
+
+        audit_log.append(
+            "OPERATOR_OVERRIDE",
+            autonomy_level=getattr(ctx.sim, "autonomy_level", "MANUAL"),
+            details={"entry_id": payload["entry_id"], "action": "reject_coa", "rationale": rationale},
+        )
         response = json.dumps(
             {
                 "type": "HITL_UPDATE",
@@ -532,6 +562,84 @@ async def _handle_subscribe_sensor_feed(payload: dict, websocket: WebSocket, ctx
         client_info["sensor_feed_uav_ids"] = valid_ids
 
 
+async def _handle_save_checkpoint(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:
+    import api_main
+
+    mission_id = payload.get("mission_id")
+    if not isinstance(mission_id, int):
+        await _send_error(websocket, "Field 'mission_id' must be int", "save_checkpoint")
+        return
+    state_json = json.dumps(ctx.sim.get_state())
+    api_main.mission_store.save_checkpoint(mission_id, state_json)
+    try:
+        await websocket.send_text(json.dumps({"type": "CHECKPOINT_SAVED", "mission_id": mission_id}))
+    except (WebSocketDisconnect, ConnectionError, OSError):
+        pass
+
+
+async def _handle_load_mission(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:
+    import api_main
+
+    mission_id = payload.get("mission_id")
+    if not isinstance(mission_id, int):
+        await _send_error(websocket, "Field 'mission_id' must be int", "load_mission")
+        return
+    checkpoint = api_main.mission_store.load_checkpoint(mission_id)
+    if checkpoint is None:
+        await _send_error(websocket, f"No checkpoint for mission {mission_id}", "load_mission")
+        return
+    try:
+        await websocket.send_text(
+            json.dumps({"type": "MISSION_LOADED", "mission_id": mission_id, "state": json.loads(checkpoint)})
+        )
+    except (WebSocketDisconnect, ConnectionError, OSError):
+        pass
+
+
+async def _handle_get_roe(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:
+    if ctx.roe_engine is None:
+        await _send_error(websocket, "No ROE engine loaded", "get_roe")
+        return
+    rules_data = [
+        {
+            "name": r.name,
+            "target_type": r.target_type,
+            "zone_id": r.zone_id,
+            "min_autonomy_level": r.min_autonomy_level,
+            "max_collateral_radius_m": r.max_collateral_radius_m,
+            "decision": r.decision.value,
+        }
+        for r in ctx.roe_engine.rules
+    ]
+    try:
+        await websocket.send_text(json.dumps({"type": "ROE_RULES", "rules": rules_data}))
+    except (WebSocketDisconnect, ConnectionError, OSError):
+        pass
+
+
+async def _handle_set_roe(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:
+    path = payload.get("path")
+    if not path or not isinstance(path, str):
+        await _send_error(websocket, "Field 'path' is required and must be a string", "set_roe")
+        return
+    try:
+        new_engine = ROEEngine.load_from_yaml(path)
+    except (FileNotFoundError, ValueError, yaml.YAMLError) as exc:
+        await _send_error(websocket, f"Failed to load ROE: {exc}", "set_roe")
+        return
+    ctx.roe_engine = new_engine
+    await ctx.intel_router.emit(
+        "COMMAND_FEED", {"action": "set_roe", "path": path, "rule_count": len(new_engine.rules), "source": "operator"}
+    )
+    logger.info("roe_rules_loaded_via_ws", path=path, rule_count=len(new_engine.rules))
+    try:
+        await websocket.send_text(
+            json.dumps({"type": "ROE_UPDATED", "rule_count": len(new_engine.rules), "path": path})
+        )
+    except (WebSocketDisconnect, ConnectionError, OSError):
+        pass
+
+
 # ---------------------------------------------------------------------------
 # Command dispatch table — dict mapping action strings to handler functions
 # ---------------------------------------------------------------------------
@@ -564,6 +672,10 @@ _DISPATCH_TABLE: dict[str, Callable] = {
     "set_coverage_mode": _handle_set_coverage_mode,
     "subscribe": _handle_subscribe,
     "subscribe_sensor_feed": _handle_subscribe_sensor_feed,
+    "get_roe": _handle_get_roe,
+    "set_roe": _handle_set_roe,
+    "save_checkpoint": _handle_save_checkpoint,
+    "load_mission": _handle_load_mission,
 }
 
 # Type-based dispatch for forwarding messages

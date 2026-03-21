@@ -214,6 +214,22 @@ class HITLManager:
             decision=_make_decision(new_status, rationale),
         )
         self._strike_board = [updated if i == idx else e for i, e in enumerate(self._strike_board)]
+        try:
+            from audit_log import audit_log
+
+            audit_log.append(
+                "HITL_TRANSITION",
+                target_id=old.target_id,
+                hitl_status=new_status,
+                details={
+                    "entry_id": entry_id,
+                    "from_status": old.status,
+                    "to_status": new_status,
+                    "rationale": rationale,
+                },
+            )
+        except Exception:
+            pass
         logger.info(
             "strike_board_transition",
             entry_id=entry_id,

@@ -15,6 +15,7 @@ import json
 import logging
 import time
 from contextlib import asynccontextmanager
+from typing import Optional
 
 import structlog
 import uvicorn
@@ -24,17 +25,21 @@ from agents.isr_observer import ISRObserverAgent
 from agents.strategy_analyst import StrategyAnalystAgent
 from agents.synthesis_query_agent import SynthesisQueryAgent
 from agents.tactical_planner import TacticalPlannerAgent
+from audit_log import audit_log
+from auth import AuthConfig, AuthManager, TokenTier, _split_csv
 from battlespace_assessment import BattlespaceAssessor
 from config import load_settings
 from event_logger import rotate_logs
 from event_logger import start_logger as start_event_logger
 from event_logger import stop_logger as stop_event_logger
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from hitl_manager import HITLManager
 from intel_feed import IntelFeedRouter, _client_subscribed
 from llm_adapter import LLMAdapter
 from logging_config import configure_logging
+from mission_store import MissionStore
+from roe_engine import ROEEngine
 from sim_engine import SimulationModel
 from simulation_loop import SimulationLoopState, sensor_feed_loop, simulation_loop
 from tactical_assistant import TacticalAssistant
@@ -51,6 +56,24 @@ logger = structlog.get_logger()
 
 settings = load_settings()
 assessor = BattlespaceAssessor()
+
+# ---------------------------------------------------------------------------
+# Auth (W3-006)
+# ---------------------------------------------------------------------------
+_auth_tokens: dict[str, TokenTier] = {}
+for _tok in _split_csv(settings.dashboard_tokens):
+    _auth_tokens[_tok] = TokenTier.DASHBOARD
+for _tok in _split_csv(settings.simulator_tokens):
+    _auth_tokens[_tok] = TokenTier.SIMULATOR
+for _tok in _split_csv(getattr(settings, "admin_tokens", "")):
+    _auth_tokens[_tok] = TokenTier.ADMIN
+auth_manager = AuthManager(
+    AuthConfig(
+        enabled=settings.auth_enabled,
+        tokens=_auth_tokens,
+        demo_token=settings.demo_token,
+    )
+)
 
 # ---------------------------------------------------------------------------
 # WebSocket hardening constants
@@ -79,6 +102,15 @@ sim.demo_fast = settings.demo_mode
 hitl = HITLManager()
 clients: dict = {}  # websocket -> info dict
 assistant = TacticalAssistant()
+mission_store = MissionStore()
+
+# ROE engine — load theater-specific rules if available
+import pathlib as _pathlib
+
+_roe_path = (
+    _pathlib.Path(__file__).resolve().parent.parent.parent / "theaters" / "roe" / f"{settings.default_theater}.yaml"
+)
+roe_engine: ROEEngine | None = ROEEngine.load_from_yaml(str(_roe_path)) if _roe_path.exists() else None
 
 # Simulation loop state — exposed at module level for backward compat with tests
 _loop_state = SimulationLoopState()
@@ -230,6 +262,7 @@ async def lifespan(app: FastAPI):
                 intel_router=intel_router,
                 tactical_planner=tactical_planner,
                 get_effectors=_get_demo_effectors,
+                roe_engine=roe_engine,
             )
         )
     yield
@@ -293,6 +326,28 @@ async def ready():
     return {"status": "ready", "sim_initialized": sim is not None}
 
 
+@app.get("/api/audit")
+async def get_audit(
+    action_type: Optional[str] = None,
+    start_time: Optional[str] = None,
+    end_time: Optional[str] = None,
+    autonomy_level: Optional[str] = None,
+    target_id: Optional[int] = None,
+):
+    return audit_log.query(
+        action_type=action_type,
+        start_time=start_time,
+        end_time=end_time,
+        autonomy_level=autonomy_level,
+        target_id=target_id,
+    )
+
+
+@app.get("/api/audit/verify")
+async def get_audit_verify():
+    return {"valid": audit_log.verify_chain(), "record_count": len(audit_log.to_json())}
+
+
 @app.get("/api/theaters")
 async def get_theaters():
     from theater_loader import list_theaters
@@ -325,6 +380,41 @@ async def switch_theater(body: dict):
 
 
 # ---------------------------------------------------------------------------
+# Mission persistence endpoints (W3-005)
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/missions")
+async def list_missions():
+    return {"missions": mission_store.list_missions()}
+
+
+@app.post("/api/missions")
+async def create_mission(body: dict):
+    name = body.get("name")
+    theater = body.get("theater")
+    if not name or not theater:
+        raise HTTPException(status_code=422, detail="Missing 'name' or 'theater' field")
+    mid = mission_store.create_mission(name, theater)
+    return {"mission_id": mid}
+
+
+@app.get("/api/missions/{mission_id}")
+async def get_mission(mission_id: int):
+    mission = mission_store.get_mission(mission_id)
+    if not mission:
+        raise HTTPException(status_code=404, detail="Mission not found")
+    summary = mission_store.get_mission_summary(mission_id)
+    return {"mission": mission, "summary": summary}
+
+
+@app.get("/api/missions/{mission_id}/targets/{target_id}")
+async def get_target_history(mission_id: int, target_id: int):
+    events = mission_store.get_target_history(mission_id, target_id)
+    return {"events": events}
+
+
+# ---------------------------------------------------------------------------
 # WebSocket endpoint
 # ---------------------------------------------------------------------------
 
@@ -349,14 +439,24 @@ async def websocket_endpoint(websocket: WebSocket):
         if ident_payload.get("type") == "IDENTIFY":
             raw_type = ident_payload.get("client_type", "DASHBOARD")
             client_type = raw_type if raw_type in ("DASHBOARD", "SIMULATOR") else "DASHBOARD"
-            clients[websocket] = {"type": client_type}
-            logger.info("client_identified", client_type=client_type)
+
+            # Auth check
+            token = ident_payload.get("token")
+            tier = auth_manager.authenticate(token)
+            if auth_manager.config.enabled and tier is None:
+                await _send_error(websocket, "Authentication failed: invalid or missing token")
+                await websocket.close(code=4001, reason="Authentication failed")
+                logger.warning("ws_auth_failed", client_type=client_type)
+                return
+
+            clients[websocket] = {"type": client_type, "tier": tier or TokenTier.DASHBOARD}
+            logger.info("client_identified", client_type=client_type, tier=(tier or TokenTier.DASHBOARD).value)
         else:
-            clients[websocket] = {"type": "DASHBOARD"}
+            clients[websocket] = {"type": "DASHBOARD", "tier": TokenTier.DASHBOARD}
             ctx = _build_handler_context(websocket, ident_msg)
             await _ws_handle_payload(ident_payload, websocket, ident_msg, ctx)
     except (asyncio.TimeoutError, json.JSONDecodeError, WebSocketDisconnect) as exc:
-        clients[websocket] = {"type": "DASHBOARD"}
+        clients[websocket] = {"type": "DASHBOARD", "tier": TokenTier.DASHBOARD}
         logger.warning("client_identification_failed", error=str(exc), fallback="DASHBOARD")
 
     try:
@@ -381,6 +481,22 @@ async def websocket_endpoint(websocket: WebSocket):
                 await _send_error(websocket, "Invalid JSON payload")
                 continue
 
+            # Auth check
+            action = payload.get("action") or payload.get("type", "")
+            client_tier = clients.get(websocket, {}).get("tier", TokenTier.DASHBOARD)
+            if auth_manager.config.enabled and not auth_manager.is_authorized(client_tier, action):
+                await _send_error(
+                    websocket,
+                    json.dumps(
+                        {
+                            "error": "unauthorized",
+                            "action": action,
+                            "required_tier": "DASHBOARD",
+                        }
+                    ),
+                )
+                continue
+
             ctx = _build_handler_context(websocket, data)
             await _ws_handle_payload(payload, websocket, data, ctx)
     except WebSocketDisconnect:
@@ -402,6 +518,7 @@ def _build_handler_context(websocket: WebSocket, raw_data: str) -> HandlerContex
         clients=clients,
         ai_tasking_manager=ai_tasking_manager,
         raw_data=raw_data,
+        roe_engine=roe_engine,
     )
 
 
