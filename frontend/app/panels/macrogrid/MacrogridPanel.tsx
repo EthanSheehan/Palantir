@@ -48,6 +48,11 @@ export function MacrogridPanel() {
   );
 }
 
+function formatZone(zone?: { id: number[]; lon: number; lat: number }): string {
+  if (!zone) return '?';
+  return `[${zone.id.join(',')}]`;
+}
+
 function RecCard({ rec }: { rec: Recommendation }) {
   const handleConvert = async () => {
     try {
@@ -62,14 +67,14 @@ function RecCard({ rec }: { rec: Recommendation }) {
     <Card className="rec-card-bp">
       <div className="rec-header">
         <span className="rec-zones">
-          {rec.source_zone ?? '?'} &rarr; {rec.target_zone ?? '?'}
+          {formatZone(rec.source_zone)} &rarr; {formatZone(rec.target_zone)}
         </span>
         <Tag intent={Intent.PRIMARY} minimal>
           {((rec.confidence ?? 0) * 100).toFixed(0)}%
         </Tag>
       </div>
       <div className="rec-meta">
-        <span>Move {rec.suggested_count ?? 0} asset(s)</span>
+        <span>Move {rec.suggested_asset_count ?? 0} asset(s)</span>
         <span>Pressure: {(rec.pressure_delta ?? 0).toFixed(1)}</span>
       </div>
       <Button small intent={Intent.SUCCESS} onClick={handleConvert}>

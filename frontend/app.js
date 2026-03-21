@@ -85,6 +85,7 @@ MapToolController.init(viewer, null); // ws set later after connectWebSocket
 (function initDroneContextMenu() {
     const menu = document.getElementById('drone-context-menu');
     const btnSatellite = document.getElementById('ctx-satellite');
+    const btnBuildings = document.getElementById('ctx-buildings');
     const btnWaypoint = document.getElementById('ctx-set-waypoint');
     const btnRange = document.getElementById('ctx-range');
     const btnPaintTarget = document.getElementById('ctx-paint-target');
@@ -116,11 +117,12 @@ MapToolController.init(viewer, null); // ws set later after connectWebSocket
             btnPaintTarget.textContent = isPainting ? 'Stop Painting' : 'Paint Target';
         }
 
-        // Update satellite circle label to reflect current state
+        // Update circle labels to reflect current state
         btnSatellite.textContent = _lensActive ? 'Satellite Circle: ON' : 'Satellite Circle: OFF';
+        btnBuildings.textContent = _buildingLensActive ? 'Building Circle: ON' : 'Building Circle: OFF';
 
         // Position menu — keep it inside the window
-        const itemCount = 1 + (trackedDroneEntity ? 1 : 0) + (_ctxDroneId != null ? 1 : 0) + (_onTargetsTab ? 1 : 0);
+        const itemCount = 2 + (trackedDroneEntity ? 1 : 0) + (_ctxDroneId != null ? 1 : 0) + (_onTargetsTab ? 1 : 0);
         const menuW = 170, menuH = itemCount * 38;
         const x = Math.min(screenPos.x, window.innerWidth  - menuW - 8);
         const y = Math.min(screenPos.y, window.innerHeight - menuH - 8);
@@ -137,6 +139,11 @@ MapToolController.init(viewer, null); // ws set later after connectWebSocket
 
     btnSatellite.addEventListener('click', () => {
         _toggleSatelliteLens();
+        hideMenu();
+    });
+
+    btnBuildings.addEventListener('click', () => {
+        _toggleBuildingLens();
         hideMenu();
     });
 
@@ -884,6 +891,9 @@ let _haloMode = 'ground';
 let _secondaryGroundRings = []; // Cesium entities used in 'ground' mode
 let _lensActive = false;
 let _lensViewer = null;
+let _buildingLensActive = false;
+// _buildingLensViewer removed — buildings now render in main viewer with clipping planes
+let _buildingTileset = null;
 // Expose for React module access (let doesn't go on window)
 Object.defineProperty(window, '_lensViewer', { get() { return _lensViewer; } });
 let currentMousePosition = null;
@@ -1432,15 +1442,23 @@ function _renderTargetList() {
     lensEl.id = 'satellite-lens';
     lensEl.style.display = 'none';
     document.getElementById('cesiumContainer').appendChild(lensEl);
+
+    // Building lens div no longer needed — buildings render in main viewer
 })();
 
 function _toggleSatelliteLens() {
     _lensActive = !_lensActive;
     const lensEl = document.getElementById('satellite-lens');
     if (_lensActive) {
+        // Turn off building lens if active
+        if (_buildingLensActive) {
+            _buildingLensActive = false;
+            if (_buildingTileset) _buildingTileset.show = false;
+        }
         if (!_lensViewer) {
             const creditSink = document.createElement('div');
             _lensViewer = new Cesium.Viewer(lensEl, {
+                terrain: Cesium.Terrain.fromWorldTerrain(),
                 animation: false, baseLayerPicker: false, fullscreenButton: false,
                 geocoder: false, homeButton: false, infoBox: false,
                 sceneModePicker: false, selectionIndicator: false, timeline: false,
@@ -1452,6 +1470,12 @@ function _toggleSatelliteLens() {
                 _lensViewer.imageryLayers.addImageryProvider(provider);
                 _lensViewer.scene.requestRender();
             });
+            _lensViewer.scene.globe.baseColor = Cesium.Color.BLACK;
+            _lensViewer.scene.backgroundColor = Cesium.Color.BLACK;
+            _lensViewer.scene.globe.depthTestAgainstTerrain = true;
+            _lensViewer.clock.currentTime = viewer.clock.currentTime.clone();
+            _lensViewer.clock.shouldAnimate = true;
+            _lensViewer.clock.multiplier = 1.0;
             _lensViewer.scene.requestRenderMode = true;
             _lensViewer.scene.maximumRenderTimeChange = Infinity;
             _lensViewer.scene.screenSpaceCameraController.enableInputs = false;
@@ -1524,6 +1548,62 @@ function _toggleSatelliteLens() {
     }
 }
 
+// Convex hull (Graham scan) for 2D screen points — used by building lens clip region
+function _convexHull(points) {
+    if (points.length < 3) return points.slice();
+    const pts = points.slice().sort((a, b) => a.x - b.x || a.y - b.y);
+    const cross = (O, A, B) => (A.x - O.x) * (B.y - O.y) - (A.y - O.y) * (B.x - O.x);
+    const lower = [];
+    for (const p of pts) {
+        while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop();
+        lower.push(p);
+    }
+    const upper = [];
+    for (let i = pts.length - 1; i >= 0; i--) {
+        const p = pts[i];
+        while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop();
+        upper.push(p);
+    }
+    upper.pop();
+    lower.pop();
+    return lower.concat(upper);
+}
+
+function _toggleBuildingLens() {
+    _buildingLensActive = !_buildingLensActive;
+    if (_buildingLensActive) {
+        // Turn off satellite lens if active
+        if (_lensActive) {
+            _lensActive = false;
+            document.getElementById('satellite-lens').style.display = 'none';
+        }
+        if (!_buildingTileset) {
+            // Add OSM Buildings directly to the MAIN viewer with clipping planes
+            Cesium.Cesium3DTileset.fromIonAssetId(96188).then(tileset => {
+                const numPlanes = 32;
+                const planes = [];
+                for (let i = 0; i < numPlanes; i++) {
+                    planes.push(new Cesium.ClippingPlane(Cesium.Cartesian3.UNIT_X, 0.0));
+                }
+                tileset.clippingPlanes = new Cesium.ClippingPlaneCollection({
+                    planes: planes,
+                    unionClippingRegions: true,
+                    edgeWidth: 0.0,
+                });
+                _buildingTileset = tileset;
+                viewer.scene.primitives.add(tileset);
+                viewer.scene.requestRender();
+            });
+        } else {
+            _buildingTileset.show = true;
+        }
+        viewer.scene.requestRender();
+    } else {
+        if (_buildingTileset) _buildingTileset.show = false;
+        viewer.scene.requestRender();
+    }
+}
+
 // Shift+scroll to resize the compass cursor
 viewer.canvas.addEventListener('wheel', (e) => {
     if (!e.shiftKey) return;
@@ -1555,27 +1635,53 @@ viewer.scene.postRender.addEventListener(() => {
     }
     _renderHalos();
 
-    if (!_lensActive || !_lensViewer) return;
-    const center = getCompassCenter();
-    if (!center) return;
-    const transform = Cesium.Transforms.eastNorthUpToFixedFrame(center);
-    const segments = 48;
-    const polygonPts = [];
-    for (let i = 0; i < segments; i++) {
-        const angle = (i / segments) * Math.PI * 2;
-        const worldPt = Cesium.Matrix4.multiplyByPoint(transform,
-            new Cesium.Cartesian3(Math.cos(angle) * 1500.0 * _compassScale, Math.sin(angle) * 1500.0 * _compassScale, 0.0),
-            new Cesium.Cartesian3());
-        const screenPt = Cesium.SceneTransforms.wgs84ToWindowCoordinates(viewer.scene, worldPt);
-        if (!screenPt) return;
-        polygonPts.push(`${screenPt.x}px ${screenPt.y}px`);
+    // --- Satellite lens (secondary viewer with CSS clip-path) ---
+    if (_lensActive && _lensViewer) {
+        const center = getCompassCenter();
+        if (center) {
+            const transform = Cesium.Transforms.eastNorthUpToFixedFrame(center);
+            const segments = 48;
+            const polygonPts = [];
+            let valid = true;
+            for (let i = 0; i < segments; i++) {
+                const angle = (i / segments) * Math.PI * 2;
+                const worldPt = Cesium.Matrix4.multiplyByPoint(transform,
+                    new Cesium.Cartesian3(Math.cos(angle) * 1500.0 * _compassScale, Math.sin(angle) * 1500.0 * _compassScale, 0.0),
+                    new Cesium.Cartesian3());
+                const screenPt = Cesium.SceneTransforms.wgs84ToWindowCoordinates(viewer.scene, worldPt);
+                if (!screenPt) { valid = false; break; }
+                polygonPts.push(`${screenPt.x}px ${screenPt.y}px`);
+            }
+            if (valid) {
+                document.getElementById('satellite-lens').style.clipPath = `polygon(${polygonPts.join(', ')})`;
+                _lensViewer.camera.position  = viewer.camera.position.clone();
+                _lensViewer.camera.direction = viewer.camera.direction.clone();
+                _lensViewer.camera.up        = viewer.camera.up.clone();
+                _lensViewer.camera.right     = viewer.camera.right.clone();
+                _lensViewer.clock.currentTime = viewer.clock.currentTime.clone();
+                _lensViewer.scene.requestRender();
+            }
+        }
     }
-    document.getElementById('satellite-lens').style.clipPath = `polygon(${polygonPts.join(', ')})`;
-    _lensViewer.camera.position  = viewer.camera.position.clone();
-    _lensViewer.camera.direction = viewer.camera.direction.clone();
-    _lensViewer.camera.up        = viewer.camera.up.clone();
-    _lensViewer.camera.right     = viewer.camera.right.clone();
-    _lensViewer.scene.requestRender();
+
+    // --- Building circle (tileset in main viewer with 3D clipping planes in ENU) ---
+    if (_buildingLensActive && _buildingTileset && _buildingTileset.clippingPlanes) {
+        const center = getCompassCenter();
+        if (center) {
+            const clipPlanes = _buildingTileset.clippingPlanes;
+            const radius = 1500.0 * _compassScale;
+            // modelMatrix positions the clipping planes at the compass center in ENU space
+            clipPlanes.modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(center);
+            const numPlanes = clipPlanes.length;
+            for (let i = 0; i < numPlanes; i++) {
+                const angle = (i / numPlanes) * Math.PI * 2;
+                // Inward-pointing horizontal normal in local ENU (vertical plane, no Z)
+                const plane = clipPlanes.get(i);
+                plane.normal = new Cesium.Cartesian3(-Math.cos(angle), -Math.sin(angle), 0);
+                plane.distance = radius;
+            }
+        }
+    }
 });
 
 // 5. WebSocket Logic
