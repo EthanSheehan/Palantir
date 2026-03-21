@@ -6,7 +6,8 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from sim_engine import _SENSOR_DISTRIBUTION, DEG_PER_KM, SimulationModel, _pick_sensors
+from sim_engine import SimulationModel
+from uav_physics import _SENSOR_DISTRIBUTION, DEG_PER_KM, _pick_sensors
 
 
 class TestPickSensors:

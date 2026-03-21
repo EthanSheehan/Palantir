@@ -12,7 +12,7 @@ import pytest
 _SRC = str(Path(__file__).resolve().parent.parent)
 sys.path.insert(0, _SRC)
 
-from sim_engine import MAX_TURN_RATE, UAV
+from uav_physics import MAX_TURN_RATE, UAV
 
 # ---------------------------------------------------------------------------
 # Helpers

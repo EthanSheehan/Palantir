@@ -13,7 +13,8 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from sim_engine import ENEMY_UAV_MODES, MAX_TURN_RATE, EnemyUAV, SimulationModel
+from sim_engine import ENEMY_UAV_MODES, EnemyUAV, SimulationModel
+from uav_physics import MAX_TURN_RATE
 
 
 @pytest.fixture

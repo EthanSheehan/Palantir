@@ -311,10 +311,10 @@ class TestManualVerify:
         import sys
 
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-        import api_main
+        import websocket_handlers
 
-        assert "verify_target" in api_main._ACTION_SCHEMAS
-        assert api_main._ACTION_SCHEMAS["verify_target"] == {"target_id": "int"}
+        assert "verify_target" in websocket_handlers._ACTION_SCHEMAS
+        assert websocket_handlers._ACTION_SCHEMAS["verify_target"] == {"target_id": "int"}
 
 
 class TestBroadcast:

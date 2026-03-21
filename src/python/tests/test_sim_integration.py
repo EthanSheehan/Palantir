@@ -308,7 +308,9 @@ class TestAssessmentInterval:
                         uavs=state_snapshot["uavs"],
                         zones=state_snapshot["zones"],
                     )
-                    m._cached_assessment = m._serialize_assessment(raw)
+                    import simulation_loop as sl
+
+                    m._cached_assessment = sl._serialize_assessment(raw)
                     m._last_assessment_time = now
             mock_assessor.assess.assert_called_once()
         finally:
@@ -317,10 +319,10 @@ class TestAssessmentInterval:
 
     def test_assessment_result_serialized(self):
         """_serialize_assessment must return dict with required keys."""
-        import api_main as m
+        import simulation_loop as sl
 
         result = self._make_result()
-        serialized = m._serialize_assessment(result)
+        serialized = sl._serialize_assessment(result)
         assert "clusters" in serialized
         assert "coverage_gaps" in serialized
         assert "zone_threat_scores" in serialized

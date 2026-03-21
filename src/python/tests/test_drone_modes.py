@@ -43,7 +43,7 @@ class TestSupportMode:
         assert SUPPORT_ORBIT_RADIUS_DEG == 0.027
 
     def test_support_mode_in_uav_modes(self):
-        from sim_engine import UAV_MODES
+        from uav_physics import UAV_MODES
 
         assert "SUPPORT" in UAV_MODES
 
@@ -95,7 +95,7 @@ class TestVerifyMode:
     """VERIFY mode — sensor-specific flight pattern over target."""
 
     def test_verify_mode_in_uav_modes(self):
-        from sim_engine import UAV_MODES
+        from uav_physics import UAV_MODES
 
         assert "VERIFY" in UAV_MODES
 
@@ -167,7 +167,7 @@ class TestOverwatchMode:
     """OVERWATCH mode — racetrack pattern within theater bounds."""
 
     def test_overwatch_mode_in_uav_modes(self):
-        from sim_engine import UAV_MODES
+        from uav_physics import UAV_MODES
 
         assert "OVERWATCH" in UAV_MODES
 
@@ -234,7 +234,7 @@ class TestBdaMode:
     """BDA mode — tight orbit with 30s timer then auto-transition to SEARCH."""
 
     def test_bda_mode_in_uav_modes(self):
-        from sim_engine import UAV_MODES
+        from uav_physics import UAV_MODES
 
         assert "BDA" in UAV_MODES
 
@@ -440,7 +440,7 @@ class TestAutonomyAutonomous:
         target.detection_confidence = 0.9
 
         # Place target in same zone as UAV for zone-based trigger
-        from sim_engine import UAV_MODES
+        from uav_physics import UAV_MODES
 
         sim._evaluate_autonomy(0.1)
 
