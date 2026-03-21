@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install dev tools
+        run: pip install ruff pytest pytest-cov
+
+      - name: Lint with ruff
+        run: ruff check src/python/
+
+      - name: Run tests with coverage
+        run: pytest src/python/tests/ --cov=src/python --cov-report=xml --cov-fail-under=80
+
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install and lint
+        run: cd src/frontend-react && npm ci && npx eslint src/

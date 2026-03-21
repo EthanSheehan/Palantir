@@ -8,19 +8,17 @@ detecting model drift, and producing weekly health reports.
 
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, List
 
 from schemas.ontology import (
     BDAReport,
     DiscrepancyFlag,
     DriftAlert,
-    EffectOutcome,
     FlywheelHealthReport,
     StrategyNomination,
     TargetClassification,
     Track,
 )
-
 
 PERFORMANCE_AUDITOR_PROMPT = """You are the Performance Auditor Agent. You are the watchdog of the 'Process Improvement Flywheel'.
 
@@ -154,8 +152,7 @@ class PerformanceAuditorAgent:
         """
         if prior_avg_decision_speed_seconds > 0:
             delta = (
-                (avg_decision_speed_seconds - prior_avg_decision_speed_seconds)
-                / prior_avg_decision_speed_seconds
+                (avg_decision_speed_seconds - prior_avg_decision_speed_seconds) / prior_avg_decision_speed_seconds
             ) * 100.0
         else:
             delta = 0.0

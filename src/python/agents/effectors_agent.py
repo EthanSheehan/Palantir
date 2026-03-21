@@ -12,13 +12,11 @@ After a COA is authorized by the operator (HITL Gate 2), this agent:
 from __future__ import annotations
 
 import random
-import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
 import structlog
-
 from llm_adapter import LLMAdapter
 from schemas.ontology import CourseOfAction
 
@@ -98,6 +96,7 @@ concise BDA assessment. Respond with ONLY a JSON object containing:
 # ---------------------------------------------------------------------------
 # Agent
 # ---------------------------------------------------------------------------
+
 
 class EffectorsAgent:
     def __init__(
@@ -236,9 +235,7 @@ class EffectorsAgent:
             "required": ["assessment_notes", "bda_confidence"],
         }
 
-        result = await self._llm.complete_structured(
-            messages, response_schema=schema, model_hint="fast"
-        )
+        result = await self._llm.complete_structured(messages, response_schema=schema, model_hint="fast")
 
         if not result:
             logger.warning("bda_llm_fallback", reason="empty LLM response")

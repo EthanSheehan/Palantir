@@ -7,15 +7,16 @@ Invariants tested:
 3. Empty contributions returns confidence 0.0.
 4. Single contribution returns that contribution's confidence.
 """
+
 from __future__ import annotations
 
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from hypothesis import given, settings, assume
+from hypothesis import given, settings
 from hypothesis import strategies as st
-
 from sensor_fusion import SensorContribution, fuse_detections
 
 SENSOR_TYPES = ["EO_IR", "SAR", "SIGINT", "OPTICAL", "RADAR"]
@@ -36,9 +37,7 @@ sensor_contribution_strategy = st.builds(
 def test_fusion_confidence_always_in_0_1(contributions):
     """Fused confidence is always within [0, 1] for any valid inputs."""
     result = fuse_detections(contributions)
-    assert 0.0 <= result.fused_confidence <= 1.0, (
-        f"Fused confidence {result.fused_confidence} out of [0, 1]"
-    )
+    assert 0.0 <= result.fused_confidence <= 1.0, f"Fused confidence {result.fused_confidence} out of [0, 1]"
 
 
 @given(
@@ -53,8 +52,7 @@ def test_fusion_monotonic_with_more_sensors(base_contributions, extra):
     # Confidence can only stay the same or increase when adding sensors
     # (because complementary fusion: 1 - prod(1-ci) is monotonically non-decreasing)
     assert extended_result.fused_confidence >= base_result.fused_confidence - 1e-9, (
-        f"Monotonicity violated: base={base_result.fused_confidence}, "
-        f"extended={extended_result.fused_confidence}"
+        f"Monotonicity violated: base={base_result.fused_confidence}, extended={extended_result.fused_confidence}"
     )
 
 

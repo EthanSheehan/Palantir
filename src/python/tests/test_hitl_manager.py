@@ -3,13 +3,12 @@
 import dataclasses
 
 import pytest
-
 from hitl_manager import CourseOfAction, HITLManager, StrikeBoardEntry
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def manager():
@@ -78,6 +77,7 @@ def sample_coas():
 # Gate 1: Target nomination
 # ---------------------------------------------------------------------------
 
+
 class TestNomination:
     def test_nominate_target_appears_on_strike_board(self, manager, sample_target_data, sample_evaluation):
         entry = manager.nominate_target(sample_target_data, sample_evaluation)
@@ -134,6 +134,7 @@ class TestNomination:
 # Gate 2: COA authorization
 # ---------------------------------------------------------------------------
 
+
 class TestCOAAuthorization:
     def test_propose_coas_retrievable(self, manager, sample_target_data, sample_evaluation, sample_coas):
         entry = manager.nominate_target(sample_target_data, sample_evaluation)
@@ -179,6 +180,7 @@ class TestCOAAuthorization:
 # Strike board queries
 # ---------------------------------------------------------------------------
 
+
 class TestStrikeBoard:
     def test_get_strike_board_returns_all_entries(self, manager, sample_target_data, sample_evaluation):
         manager.nominate_target(sample_target_data, sample_evaluation)
@@ -200,6 +202,7 @@ class TestStrikeBoard:
 # ---------------------------------------------------------------------------
 # Immutability
 # ---------------------------------------------------------------------------
+
 
 class TestImmutability:
     def test_strike_board_entry_is_frozen(self):
@@ -245,6 +248,7 @@ class TestImmutability:
 # ---------------------------------------------------------------------------
 # Replay attack prevention (W1-012)
 # ---------------------------------------------------------------------------
+
 
 class TestReplayAttackPrevention:
     def test_replay_rejected_nomination_fails(self, manager, sample_target_data, sample_evaluation):

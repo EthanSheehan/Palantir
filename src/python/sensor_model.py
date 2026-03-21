@@ -18,12 +18,11 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass
-from typing import Optional
-
 
 # ---------------------------------------------------------------------------
 # Sensor configuration
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class SensorConfig:
@@ -36,8 +35,8 @@ class SensorConfig:
 
 @dataclass(frozen=True)
 class EnvironmentConditions:
-    time_of_day: float = 12.0   # 0-24 h
-    cloud_cover: float = 0.0    # 0-1
+    time_of_day: float = 12.0  # 0-24 h
+    cloud_cover: float = 0.0  # 0-1
     precipitation: float = 0.0  # 0-1
 
 
@@ -71,21 +70,21 @@ _FALLBACK_RCS_M2 = 3.0
 
 SENSOR_CONFIGS: dict[str, SensorConfig] = {
     "EO_IR": SensorConfig(
-        max_range_m=50_000.0,       # ~50km effective range (simulation scale)
+        max_range_m=50_000.0,  # ~50km effective range (simulation scale)
         reference_rcs_m2=5.0,
         resolution_factor=1.0,
         weather_sensitivity=0.8,
         requires_emitter=False,
     ),
     "SAR": SensorConfig(
-        max_range_m=100_000.0,      # ~100km SAR range (simulation scale)
+        max_range_m=100_000.0,  # ~100km SAR range (simulation scale)
         reference_rcs_m2=5.0,
         resolution_factor=0.7,
         weather_sensitivity=0.2,
         requires_emitter=False,
     ),
     "SIGINT": SensorConfig(
-        max_range_m=200_000.0,      # ~200km SIGINT range (simulation scale)
+        max_range_m=200_000.0,  # ~200km SIGINT range (simulation scale)
         reference_rcs_m2=1.0,
         resolution_factor=0.3,
         weather_sensitivity=0.0,
@@ -97,6 +96,7 @@ SENSOR_CONFIGS: dict[str, SensorConfig] = {
 # ---------------------------------------------------------------------------
 # Core geometry
 # ---------------------------------------------------------------------------
+
 
 def deg_to_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Return the approximate great-circle distance in metres between two WGS-84
@@ -116,6 +116,7 @@ def deg_to_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 # ---------------------------------------------------------------------------
 # RCS aspect modulation
 # ---------------------------------------------------------------------------
+
 
 def compute_aspect_rcs(base_rcs_m2: float, aspect_deg: float) -> float:
     """Return RCS modulated by the aspect angle of the sensor relative to the
@@ -142,6 +143,7 @@ def compute_aspect_rcs(base_rcs_m2: float, aspect_deg: float) -> float:
 # ---------------------------------------------------------------------------
 # Probability of detection
 # ---------------------------------------------------------------------------
+
 
 def _sigmoid(x: float) -> float:
     """Numerically stable sigmoid."""
@@ -186,11 +188,7 @@ def compute_pd(
         rcs_gain = 0.0
 
     # Weather penalty: cloud cover degrades weather-sensitive sensors
-    weather_penalty = (
-        sensor_cfg.weather_sensitivity
-        * (env.cloud_cover + env.precipitation * 0.5)
-        * 0.6
-    )
+    weather_penalty = sensor_cfg.weather_sensitivity * (env.cloud_cover + env.precipitation * 0.5) * 0.6
 
     snr_norm = range_term + rcs_gain * 0.3 - weather_penalty
     pd = _sigmoid(snr_norm * 10.0 - 5.0)
@@ -200,6 +198,7 @@ def compute_pd(
 # ---------------------------------------------------------------------------
 # Top-level detection evaluation
 # ---------------------------------------------------------------------------
+
 
 def evaluate_detection(
     uav_lat: float,

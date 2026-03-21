@@ -27,6 +27,7 @@ logger = structlog.get_logger()
 # Immutable domain objects
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class StrikeBoardEntry:
     id: str
@@ -59,6 +60,7 @@ class CourseOfAction:
 # Helper
 # ---------------------------------------------------------------------------
 
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -70,6 +72,7 @@ def _make_decision(action: str, rationale: str) -> dict:
 # ---------------------------------------------------------------------------
 # HITL Manager
 # ---------------------------------------------------------------------------
+
 
 class HITLManager:
     """Manages the strike board and human approval gates."""
@@ -134,9 +137,7 @@ class HITLManager:
             raise ValueError(f"COA {coa_id} not found for entry {entry_id}")
 
         authorized = replace(target_coa, status="AUTHORIZED")
-        updated_coas = [
-            authorized if c.id == coa_id else c for c in coas
-        ]
+        updated_coas = [authorized if c.id == coa_id else c for c in coas]
         self._coa_proposals = {**self._coa_proposals, entry_id: updated_coas}
         logger.info("coa_authorized", entry_id=entry_id, coa_id=coa_id)
         return authorized
@@ -212,10 +213,7 @@ class HITLManager:
             status=new_status,
             decision=_make_decision(new_status, rationale),
         )
-        self._strike_board = [
-            updated if i == idx else e
-            for i, e in enumerate(self._strike_board)
-        ]
+        self._strike_board = [updated if i == idx else e for i, e in enumerate(self._strike_board)]
         logger.info(
             "strike_board_transition",
             entry_id=entry_id,

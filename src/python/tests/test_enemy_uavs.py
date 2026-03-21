@@ -4,16 +4,16 @@ Phase 04 Plan 01 — Enemy UAV backend.
 """
 
 import math
+import os
 import random
 import sys
-import os
 import time
 
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from sim_engine import SimulationModel, EnemyUAV, ENEMY_UAV_MODES, MAX_TURN_RATE
+from sim_engine import ENEMY_UAV_MODES, MAX_TURN_RATE, EnemyUAV, SimulationModel
 
 
 @pytest.fixture
@@ -31,6 +31,7 @@ def _tick_n(sim: SimulationModel, n: int):
 # TestEnemyUAVSpawn
 # ---------------------------------------------------------------------------
 
+
 class TestEnemyUAVSpawn:
     def test_creation_with_defaults(self):
         e = EnemyUAV(id=1000, x=25.0, y=45.0, mode="RECON", behavior="recon")
@@ -41,7 +42,7 @@ class TestEnemyUAVSpawn:
         assert e.behavior == "recon"
 
     def test_id_starts_at_1000(self, sim):
-        for e in sim.enemy_uavs:
+        for e in sim.enemy_uavs.values():
             assert e.id >= 1000, f"EnemyUAV id={e.id} must be >= 1000"
 
     def test_modes(self):
@@ -55,6 +56,7 @@ class TestEnemyUAVSpawn:
 # ---------------------------------------------------------------------------
 # TestEnemyUAVMovement
 # ---------------------------------------------------------------------------
+
 
 class TestEnemyUAVMovement:
     def test_recon_loiter(self):
@@ -115,33 +117,33 @@ class TestEnemyUAVMovement:
 # TestSeparation
 # ---------------------------------------------------------------------------
 
+
 class TestSeparation:
     def test_enemy_uavs_not_in_targets(self, sim):
-        """enemy_uavs is a separate list — no EnemyUAV in sim.targets."""
-        for t in sim.targets:
+        """enemy_uavs is a separate collection — no EnemyUAV in sim.targets."""
+        for t in sim.targets.values():
             assert not isinstance(t, EnemyUAV), "EnemyUAV must not appear in sim.targets"
 
     def test_find_enemy_uav(self, sim):
-        """sim._find_enemy_uav(1000) returns EnemyUAV, sim._find_target(1000) returns None."""
-        # find the first enemy UAV
+        """sim._find_enemy_uav(id) returns EnemyUAV, sim._find_target(id) returns None."""
         if sim.enemy_uavs:
-            eid = sim.enemy_uavs[0].id
+            eid = next(iter(sim.enemy_uavs.values())).id
             result = sim._find_enemy_uav(eid)
             assert result is not None, f"_find_enemy_uav({eid}) returned None"
             assert isinstance(result, EnemyUAV)
-            # Should NOT be found in targets
             result_target = sim._find_target(eid)
             assert result_target is None, f"_find_target({eid}) should return None for enemy UAV id"
 
-    def test_enemy_uavs_list_exists(self, sim):
-        """SimulationModel has enemy_uavs attribute."""
+    def test_enemy_uavs_dict_exists(self, sim):
+        """SimulationModel has enemy_uavs attribute as a dict."""
         assert hasattr(sim, "enemy_uavs")
-        assert isinstance(sim.enemy_uavs, list)
+        assert isinstance(sim.enemy_uavs, dict)
 
 
 # ---------------------------------------------------------------------------
 # TestGetState
 # ---------------------------------------------------------------------------
+
 
 class TestGetState:
     def test_enemy_uavs_key_exists(self, sim):
@@ -151,8 +153,18 @@ class TestGetState:
     def test_enemy_uav_payload_shape(self, sim):
         state = sim.get_state()
         for e in state["enemy_uavs"]:
-            for key in ("id", "lon", "lat", "mode", "behavior", "heading_deg",
-                        "detected", "fused_confidence", "sensor_count", "is_jamming"):
+            for key in (
+                "id",
+                "lon",
+                "lat",
+                "mode",
+                "behavior",
+                "heading_deg",
+                "detected",
+                "fused_confidence",
+                "sensor_count",
+                "is_jamming",
+            ):
                 assert key in e, f"Missing key '{key}' in enemy_uav payload"
 
 
@@ -164,16 +176,17 @@ class TestGetState:
 # TestEnemyUAVDetection
 # ---------------------------------------------------------------------------
 
+
 class TestEnemyUAVDetection:
     def test_friendly_uav_detects_nearby_enemy(self, sim):
         """Place friendly UAV very close to enemy, tick 50 times — enemy.detected == True."""
         # Place first enemy UAV at a known position
-        e = sim.enemy_uavs[0]
+        e = next(iter(sim.enemy_uavs.values()))
         e.mode = "RECON"
         e.x = 25.0
         e.y = 45.0
         # Place first friendly UAV right next to it (within 0.01 deg ~ 1km)
-        u = sim.uavs[0]
+        u = next(iter(sim.uavs.values()))
         u.x = 25.01
         u.y = 45.0
         u.mode = "SEARCH"
@@ -186,25 +199,25 @@ class TestEnemyUAVDetection:
     def test_distant_enemy_not_detected(self, sim):
         """Enemy 5 degrees away from all UAVs — should not be detected after 50 ticks."""
         # Push enemy far away
-        e = sim.enemy_uavs[0]
-        e.x = sim.bounds['min_lon']
-        e.y = sim.bounds['min_lat']
+        e = next(iter(sim.enemy_uavs.values()))
+        e.x = sim.bounds["min_lon"]
+        e.y = sim.bounds["min_lat"]
         e.detected = False
         e.fused_confidence = 0.0
         # Move all friendly UAVs to the opposite corner
-        for u in sim.uavs:
-            u.x = sim.bounds['max_lon']
-            u.y = sim.bounds['max_lat']
+        for u in sim.uavs.values():
+            u.x = sim.bounds["max_lon"]
+            u.y = sim.bounds["max_lat"]
         _tick_n(sim, 50)
         assert e.detected is False, "Enemy 5+ degrees away should not be detected"
 
     def test_fused_confidence_positive(self, sim):
         """After detection, enemy.fused_confidence > 0."""
-        e = sim.enemy_uavs[0]
+        e = next(iter(sim.enemy_uavs.values()))
         e.mode = "RECON"
         e.x = 25.0
         e.y = 45.0
-        u = sim.uavs[0]
+        u = next(iter(sim.uavs.values()))
         u.x = 25.01
         u.y = 45.0
         u.mode = "SEARCH"
@@ -216,11 +229,11 @@ class TestEnemyUAVDetection:
 
     def test_sensor_count_positive(self, sim):
         """After detection, enemy.sensor_count > 0."""
-        e = sim.enemy_uavs[0]
+        e = next(iter(sim.enemy_uavs.values()))
         e.mode = "RECON"
         e.x = 25.0
         e.y = 45.0
-        u = sim.uavs[0]
+        u = next(iter(sim.uavs.values()))
         u.x = 25.01
         u.y = 45.0
         u.mode = "SEARCH"
@@ -232,11 +245,11 @@ class TestEnemyUAVDetection:
 
     def test_confidence_fades_without_sensors(self, sim):
         """After detection, move all UAVs far away — fused_confidence should decrease."""
-        e = sim.enemy_uavs[0]
+        e = next(iter(sim.enemy_uavs.values()))
         e.mode = "RECON"
         e.x = 25.0
         e.y = 45.0
-        u = sim.uavs[0]
+        u = next(iter(sim.uavs.values()))
         u.x = 25.01
         u.y = 45.0
         u.mode = "SEARCH"
@@ -248,9 +261,9 @@ class TestEnemyUAVDetection:
         if initial_confidence == 0.0:
             pytest.skip("Enemy not detected — cannot test fade")
         # Now move all UAVs far away
-        for fu in sim.uavs:
-            fu.x = sim.bounds['max_lon']
-            fu.y = sim.bounds['max_lat']
+        for fu in sim.uavs.values():
+            fu.x = sim.bounds["max_lon"]
+            fu.y = sim.bounds["max_lat"]
         _tick_n(sim, 100)
         assert e.fused_confidence < initial_confidence, (
             f"Confidence should fade after UAVs leave: initial={initial_confidence}, after={e.fused_confidence}"
@@ -261,10 +274,11 @@ class TestEnemyUAVDetection:
 # TestJammingDetection
 # ---------------------------------------------------------------------------
 
+
 class TestJammingDetection:
     def test_jamming_enemy_detected_by_sigint(self, sim):
         """Enemy with is_jamming=True: UAV with SIGINT can detect at range."""
-        e = sim.enemy_uavs[0]
+        e = next(iter(sim.enemy_uavs.values()))
         e.mode = "JAMMING"
         e.is_jamming = True
         e.x = 25.0
@@ -272,7 +286,7 @@ class TestJammingDetection:
         e.detected = False
         e.fused_confidence = 0.0
         # Place UAV with SIGINT at medium range (~0.5 deg = ~55km, within SIGINT 200km max)
-        u = sim.uavs[0]
+        u = next(iter(sim.uavs.values()))
         u.sensors = ["SIGINT"]
         u.x = 25.5
         u.y = 45.0
@@ -283,7 +297,7 @@ class TestJammingDetection:
 
     def test_non_jamming_invisible_to_sigint_only(self, sim):
         """Enemy NOT jamming: SIGINT-only UAV should NOT detect (requires_emitter=True)."""
-        e = sim.enemy_uavs[0]
+        e = next(iter(sim.enemy_uavs.values()))
         e.mode = "RECON"
         e.is_jamming = False
         e.x = 25.0
@@ -291,15 +305,15 @@ class TestJammingDetection:
         e.detected = False
         e.fused_confidence = 0.0
         # Place UAV with SIGINT only at close range
-        u = sim.uavs[0]
+        u = next(iter(sim.uavs.values()))
         u.sensors = ["SIGINT"]
         u.x = 25.01
         u.y = 45.0
         u.mode = "SEARCH"
         # Remove all other UAVs by pushing them far away
-        for other_u in sim.uavs[1:]:
-            other_u.x = sim.bounds['max_lon']
-            other_u.y = sim.bounds['max_lat']
+        for other_u in list(sim.uavs.values())[1:]:
+            other_u.x = sim.bounds["max_lon"]
+            other_u.y = sim.bounds["max_lat"]
         _tick_n(sim, 50)
         assert e.detected is False, "SIGINT should NOT detect non-jamming enemy (requires_emitter=True)"
 
@@ -307,6 +321,7 @@ class TestJammingDetection:
 # ---------------------------------------------------------------------------
 # TestEvasion
 # ---------------------------------------------------------------------------
+
 
 class TestEvasion:
     def test_evasion_triggers_at_high_confidence(self):
@@ -369,13 +384,14 @@ class TestEvasion:
 # TestInterceptKill
 # ---------------------------------------------------------------------------
 
+
 class TestInterceptKill:
     def test_intercept_command(self):
         """command_intercept_enemy(uav_id=0, enemy_uav_id=1000) sets UAV mode to INTERCEPT."""
         random.seed(42)
         sim = SimulationModel()
-        uav = sim.uavs[0]
-        enemy = sim.enemy_uavs[0]
+        uav = next(iter(sim.uavs.values()))
+        enemy = next(iter(sim.enemy_uavs.values()))
         sim.command_intercept_enemy(uav.id, enemy.id)
         assert uav.mode == "INTERCEPT", f"UAV mode should be INTERCEPT, got {uav.mode}"
         assert uav.primary_target_id == enemy.id, (
@@ -386,8 +402,8 @@ class TestInterceptKill:
         """UAV within INTERCEPT_CLOSE_DEG of enemy, after 3s dwell (30 ticks), enemy mode becomes DESTROYED."""
         random.seed(42)
         sim = SimulationModel()
-        uav = sim.uavs[0]
-        enemy = sim.enemy_uavs[0]
+        uav = next(iter(sim.uavs.values()))
+        enemy = next(iter(sim.enemy_uavs.values()))
         # Place UAV directly on top of enemy
         uav.x = enemy.x
         uav.y = enemy.y
@@ -403,8 +419,8 @@ class TestInterceptKill:
         """After enemy destroyed, friendly UAV mode becomes SEARCH."""
         random.seed(42)
         sim = SimulationModel()
-        uav = sim.uavs[0]
-        enemy = sim.enemy_uavs[0]
+        uav = next(iter(sim.uavs.values()))
+        enemy = next(iter(sim.enemy_uavs.values()))
         uav.x = enemy.x
         uav.y = enemy.y
         uav.mode = "INTERCEPT"
@@ -429,6 +445,7 @@ class TestInterceptKill:
 # TestTheaterConfig
 # ---------------------------------------------------------------------------
 
+
 class TestTheaterConfig:
     def test_enemy_uavs_from_yaml(self):
         """SimulationModel with romania theater spawns enemy UAVs per YAML config."""
@@ -442,9 +459,7 @@ class TestTheaterConfig:
         sim = SimulationModel(theater_name="romania")
         # romania.yaml has 2 recon + 1 jamming = 3 total
         expected = 3
-        assert len(sim.enemy_uavs) == expected, (
-            f"Expected {expected} enemy UAVs from YAML, got {len(sim.enemy_uavs)}"
-        )
+        assert len(sim.enemy_uavs) == expected, f"Expected {expected} enemy UAVs from YAML, got {len(sim.enemy_uavs)}"
 
 
 class TestPerformance:
@@ -454,12 +469,13 @@ class TestPerformance:
         sim = SimulationModel()
         # Add enemies up to 8
         bounds = sim.bounds
+        next_eid = max(sim.enemy_uavs.keys(), default=1000) + 1
         while len(sim.enemy_uavs) < 8:
-            eid = 1000 + len(sim.enemy_uavs)
-            cx = (bounds['min_lon'] + bounds['max_lon']) / 2
-            cy = (bounds['min_lat'] + bounds['max_lat']) / 2
-            e = EnemyUAV(id=eid, x=cx, y=cy, mode="RECON", behavior="recon")
-            sim.enemy_uavs.append(e)
+            cx = (bounds["min_lon"] + bounds["max_lon"]) / 2
+            cy = (bounds["min_lat"] + bounds["max_lat"]) / 2
+            e = EnemyUAV(id=next_eid, x=cx, y=cy, mode="RECON", behavior="recon")
+            sim.enemy_uavs[e.id] = e
+            next_eid += 1
 
         start = time.time()
         for _ in range(100):

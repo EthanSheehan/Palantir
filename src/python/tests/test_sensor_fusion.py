@@ -4,15 +4,15 @@ Tests for sensor_fusion.py — written FIRST (TDD RED phase).
 All tests must fail before sensor_fusion.py exists, then pass after implementation.
 """
 
-import pytest
 from dataclasses import FrozenInstanceError
 
-from sensor_fusion import SensorContribution, FusedDetection, fuse_detections
-
+import pytest
+from sensor_fusion import SensorContribution, fuse_detections
 
 # ---------------------------------------------------------------------------
 # TestFuseDetections
 # ---------------------------------------------------------------------------
+
 
 class TestFuseDetections:
     def test_empty_contributions(self):
@@ -38,10 +38,12 @@ class TestFuseDetections:
 
     def test_two_types_fuse_higher(self):
         contribs = [
-            SensorContribution(uav_id=1, sensor_type="EO_IR", confidence=0.6,
-                               range_m=5000, bearing_deg=0.0, timestamp=1.0),
-            SensorContribution(uav_id=2, sensor_type="SAR", confidence=0.5,
-                               range_m=6000, bearing_deg=10.0, timestamp=1.0),
+            SensorContribution(
+                uav_id=1, sensor_type="EO_IR", confidence=0.6, range_m=5000, bearing_deg=0.0, timestamp=1.0
+            ),
+            SensorContribution(
+                uav_id=2, sensor_type="SAR", confidence=0.5, range_m=6000, bearing_deg=10.0, timestamp=1.0
+            ),
         ]
         result = fuse_detections(contribs)
         # 1 - (1-0.6)*(1-0.5) = 1 - 0.4*0.5 = 0.8
@@ -49,12 +51,15 @@ class TestFuseDetections:
 
     def test_three_types(self):
         contribs = [
-            SensorContribution(uav_id=1, sensor_type="EO_IR", confidence=0.6,
-                               range_m=5000, bearing_deg=0.0, timestamp=1.0),
-            SensorContribution(uav_id=2, sensor_type="SAR", confidence=0.5,
-                               range_m=6000, bearing_deg=10.0, timestamp=1.0),
-            SensorContribution(uav_id=3, sensor_type="SIGINT", confidence=0.4,
-                               range_m=7000, bearing_deg=20.0, timestamp=1.0),
+            SensorContribution(
+                uav_id=1, sensor_type="EO_IR", confidence=0.6, range_m=5000, bearing_deg=0.0, timestamp=1.0
+            ),
+            SensorContribution(
+                uav_id=2, sensor_type="SAR", confidence=0.5, range_m=6000, bearing_deg=10.0, timestamp=1.0
+            ),
+            SensorContribution(
+                uav_id=3, sensor_type="SIGINT", confidence=0.4, range_m=7000, bearing_deg=20.0, timestamp=1.0
+            ),
         ]
         result = fuse_detections(contribs)
         # 1 - (1-0.6)*(1-0.5)*(1-0.4) = 1 - 0.4*0.5*0.6 = 1 - 0.12 = 0.88
@@ -62,10 +67,12 @@ class TestFuseDetections:
 
     def test_same_type_uses_max(self):
         contribs = [
-            SensorContribution(uav_id=1, sensor_type="EO_IR", confidence=0.6,
-                               range_m=5000, bearing_deg=0.0, timestamp=1.0),
-            SensorContribution(uav_id=2, sensor_type="EO_IR", confidence=0.4,
-                               range_m=6000, bearing_deg=10.0, timestamp=1.0),
+            SensorContribution(
+                uav_id=1, sensor_type="EO_IR", confidence=0.6, range_m=5000, bearing_deg=0.0, timestamp=1.0
+            ),
+            SensorContribution(
+                uav_id=2, sensor_type="EO_IR", confidence=0.4, range_m=6000, bearing_deg=10.0, timestamp=1.0
+            ),
         ]
         result = fuse_detections(contribs)
         # max(EO_IR) = 0.6, only one type so fused = 0.6
@@ -73,12 +80,15 @@ class TestFuseDetections:
 
     def test_same_type_plus_different(self):
         contribs = [
-            SensorContribution(uav_id=1, sensor_type="EO_IR", confidence=0.6,
-                               range_m=5000, bearing_deg=0.0, timestamp=1.0),
-            SensorContribution(uav_id=2, sensor_type="EO_IR", confidence=0.4,
-                               range_m=5500, bearing_deg=5.0, timestamp=1.0),
-            SensorContribution(uav_id=3, sensor_type="SAR", confidence=0.5,
-                               range_m=6000, bearing_deg=10.0, timestamp=1.0),
+            SensorContribution(
+                uav_id=1, sensor_type="EO_IR", confidence=0.6, range_m=5000, bearing_deg=0.0, timestamp=1.0
+            ),
+            SensorContribution(
+                uav_id=2, sensor_type="EO_IR", confidence=0.4, range_m=5500, bearing_deg=5.0, timestamp=1.0
+            ),
+            SensorContribution(
+                uav_id=3, sensor_type="SAR", confidence=0.5, range_m=6000, bearing_deg=10.0, timestamp=1.0
+            ),
         ]
         result = fuse_detections(contribs)
         # max(EO_IR)=0.6, SAR=0.5, fused=1-(0.4*0.5)=0.8
@@ -86,56 +96,69 @@ class TestFuseDetections:
 
     def test_confidence_bounded(self):
         contribs = [
-            SensorContribution(uav_id=1, sensor_type="EO_IR", confidence=0.99,
-                               range_m=100, bearing_deg=0.0, timestamp=1.0),
-            SensorContribution(uav_id=2, sensor_type="SAR", confidence=0.99,
-                               range_m=200, bearing_deg=10.0, timestamp=1.0),
-            SensorContribution(uav_id=3, sensor_type="SIGINT", confidence=0.99,
-                               range_m=300, bearing_deg=20.0, timestamp=1.0),
+            SensorContribution(
+                uav_id=1, sensor_type="EO_IR", confidence=0.99, range_m=100, bearing_deg=0.0, timestamp=1.0
+            ),
+            SensorContribution(
+                uav_id=2, sensor_type="SAR", confidence=0.99, range_m=200, bearing_deg=10.0, timestamp=1.0
+            ),
+            SensorContribution(
+                uav_id=3, sensor_type="SIGINT", confidence=0.99, range_m=300, bearing_deg=20.0, timestamp=1.0
+            ),
         ]
         result = fuse_detections(contribs)
         assert 0.0 <= result.fused_confidence <= 1.0
 
     def test_confidence_zero(self):
         contribs = [
-            SensorContribution(uav_id=1, sensor_type="EO_IR", confidence=0.0,
-                               range_m=5000, bearing_deg=0.0, timestamp=1.0),
-            SensorContribution(uav_id=2, sensor_type="SAR", confidence=0.0,
-                               range_m=6000, bearing_deg=10.0, timestamp=1.0),
+            SensorContribution(
+                uav_id=1, sensor_type="EO_IR", confidence=0.0, range_m=5000, bearing_deg=0.0, timestamp=1.0
+            ),
+            SensorContribution(
+                uav_id=2, sensor_type="SAR", confidence=0.0, range_m=6000, bearing_deg=10.0, timestamp=1.0
+            ),
         ]
         result = fuse_detections(contribs)
         assert result.fused_confidence == pytest.approx(0.0)
 
     def test_contributing_uav_ids_sorted(self):
         contribs = [
-            SensorContribution(uav_id=5, sensor_type="EO_IR", confidence=0.5,
-                               range_m=5000, bearing_deg=0.0, timestamp=1.0),
-            SensorContribution(uav_id=2, sensor_type="SAR", confidence=0.5,
-                               range_m=6000, bearing_deg=10.0, timestamp=1.0),
-            SensorContribution(uav_id=8, sensor_type="SIGINT", confidence=0.5,
-                               range_m=7000, bearing_deg=20.0, timestamp=1.0),
+            SensorContribution(
+                uav_id=5, sensor_type="EO_IR", confidence=0.5, range_m=5000, bearing_deg=0.0, timestamp=1.0
+            ),
+            SensorContribution(
+                uav_id=2, sensor_type="SAR", confidence=0.5, range_m=6000, bearing_deg=10.0, timestamp=1.0
+            ),
+            SensorContribution(
+                uav_id=8, sensor_type="SIGINT", confidence=0.5, range_m=7000, bearing_deg=20.0, timestamp=1.0
+            ),
         ]
         result = fuse_detections(contribs)
         assert result.contributing_uav_ids == (2, 5, 8)
 
     def test_sensor_types_sorted(self):
         contribs = [
-            SensorContribution(uav_id=1, sensor_type="SIGINT", confidence=0.5,
-                               range_m=5000, bearing_deg=0.0, timestamp=1.0),
-            SensorContribution(uav_id=2, sensor_type="EO_IR", confidence=0.5,
-                               range_m=6000, bearing_deg=10.0, timestamp=1.0),
-            SensorContribution(uav_id=3, sensor_type="SAR", confidence=0.5,
-                               range_m=7000, bearing_deg=20.0, timestamp=1.0),
+            SensorContribution(
+                uav_id=1, sensor_type="SIGINT", confidence=0.5, range_m=5000, bearing_deg=0.0, timestamp=1.0
+            ),
+            SensorContribution(
+                uav_id=2, sensor_type="EO_IR", confidence=0.5, range_m=6000, bearing_deg=10.0, timestamp=1.0
+            ),
+            SensorContribution(
+                uav_id=3, sensor_type="SAR", confidence=0.5, range_m=7000, bearing_deg=20.0, timestamp=1.0
+            ),
         ]
         result = fuse_detections(contribs)
         assert result.sensor_types == ("EO_IR", "SAR", "SIGINT")
 
     def test_dual_sensor_uav(self):
         contribs = [
-            SensorContribution(uav_id=1, sensor_type="EO_IR", confidence=0.6,
-                               range_m=5000, bearing_deg=0.0, timestamp=1.0),
-            SensorContribution(uav_id=1, sensor_type="SAR", confidence=0.5,
-                               range_m=5000, bearing_deg=0.0, timestamp=1.0),
+            SensorContribution(
+                uav_id=1, sensor_type="EO_IR", confidence=0.6, range_m=5000, bearing_deg=0.0, timestamp=1.0
+            ),
+            SensorContribution(
+                uav_id=1, sensor_type="SAR", confidence=0.5, range_m=5000, bearing_deg=0.0, timestamp=1.0
+            ),
         ]
         result = fuse_detections(contribs)
         assert result.contributing_uav_ids == (1,)
@@ -146,6 +169,7 @@ class TestFuseDetections:
 # ---------------------------------------------------------------------------
 # TestImmutability
 # ---------------------------------------------------------------------------
+
 
 class TestImmutability:
     def test_frozen_sensor_contribution(self):

@@ -11,21 +11,21 @@ from __future__ import annotations
 
 import math
 import time
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Sequence, Tuple
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 from scipy.spatial import KDTree
-
+from shapely.geometry import MultiPoint
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
-CLUSTER_RADIUS_DEG = 0.135          # 15km / 111km per degree
+CLUSTER_RADIUS_DEG = 0.135  # 15km / 111km per degree
 MIN_CLUSTER_SIZE = 2
-POSITION_HISTORY_MIN = 10           # minimum entries for corridor
-CORRIDOR_MIN_MOVEMENT_DEG = 0.005   # min total displacement for a corridor
+POSITION_HISTORY_MIN = 10  # minimum entries for corridor
+CORRIDOR_MIN_MOVEMENT_DEG = 0.005  # min total displacement for a corridor
 
 CLUSTER_AFFINITY: Dict[str, str] = {
     "SAM": "AD_NETWORK",
@@ -44,6 +44,7 @@ CLUSTER_AFFINITY: Dict[str, str] = {
 # ---------------------------------------------------------------------------
 # Frozen dataclasses
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class ThreatCluster:
@@ -82,6 +83,7 @@ class AssessmentResult:
 # ---------------------------------------------------------------------------
 # BattlespaceAssessor
 # ---------------------------------------------------------------------------
+
 
 def _get_xy(t: dict) -> Tuple[float, float]:
     """Extract lon/lat from a target dict, supporting both 'x'/'y' and 'lon'/'lat' keys."""
@@ -161,15 +163,17 @@ class BattlespaceAssessor:
             points = [_get_xy(t) for t in neighbors]
             hull_points = _compute_convex_hull(points)
 
-            clusters.append(ThreatCluster(
-                cluster_id=cluster_id,
-                cluster_type=cluster_type,
-                member_target_ids=member_ids,
-                centroid_lon=centroid_lon,
-                centroid_lat=centroid_lat,
-                threat_score=threat_score,
-                hull_points=hull_points,
-            ))
+            clusters.append(
+                ThreatCluster(
+                    cluster_id=cluster_id,
+                    cluster_type=cluster_type,
+                    member_target_ids=member_ids,
+                    centroid_lon=centroid_lon,
+                    centroid_lat=centroid_lat,
+                    threat_score=threat_score,
+                    hull_points=hull_points,
+                )
+            )
 
         return clusters
 
@@ -178,7 +182,9 @@ class BattlespaceAssessor:
     # ------------------------------------------------------------------
 
     def _identify_coverage_gaps(
-        self, zones: List[dict], uavs: List[dict],
+        self,
+        zones: List[dict],
+        uavs: List[dict],
         targets: Optional[List[dict]] = None,
     ) -> List[CoverageGap]:
         if not zones:
@@ -206,12 +212,14 @@ class BattlespaceAssessor:
             x_idx = zone["x_idx"]
             y_idx = zone["y_idx"]
             if zone.get("uav_count", 0) == 0 and (x_idx, y_idx) in zones_with_targets:
-                gaps.append(CoverageGap(
-                    zone_x=x_idx,
-                    zone_y=y_idx,
-                    lon=zone["lon"],
-                    lat=zone["lat"],
-                ))
+                gaps.append(
+                    CoverageGap(
+                        zone_x=x_idx,
+                        zone_y=y_idx,
+                        lon=zone["lon"],
+                        lat=zone["lat"],
+                    )
+                )
 
         return gaps
 
@@ -219,9 +227,7 @@ class BattlespaceAssessor:
     # Zone threat scoring
     # ------------------------------------------------------------------
 
-    def _score_zone_threats(
-        self, zones: List[dict], targets: List[dict]
-    ) -> Dict[Tuple[int, int], float]:
+    def _score_zone_threats(self, zones: List[dict], targets: List[dict]) -> Dict[Tuple[int, int], float]:
         if not zones:
             return {}
 
@@ -273,29 +279,30 @@ class BattlespaceAssessor:
             # Sample every 5th entry for waypoints
             waypoints = tuple(history_list[::5])
 
-            corridors.append(MovementCorridor(
-                target_id=target["id"],
-                waypoints=waypoints,
-            ))
+            corridors.append(
+                MovementCorridor(
+                    target_id=target["id"],
+                    waypoints=waypoints,
+                )
+            )
 
         return corridors
 
 
 # ---------------------------------------------------------------------------
-# Convex hull (Jarvis march / gift-wrapping)
+# Convex hull (Shapely)
 # ---------------------------------------------------------------------------
 
-def _compute_convex_hull(
-    points: List[Tuple[float, float]]
-) -> Tuple[Tuple[float, float], ...]:
+
+def _compute_convex_hull(points: List[Tuple[float, float]]) -> Tuple[Tuple[float, float], ...]:
     """
-    Compute the convex hull of a set of 2D points using Jarvis march.
+    Compute the convex hull of a set of 2D points using Shapely.
 
     Edge cases:
     - 0 points -> empty tuple
     - 1 point  -> single-point tuple
     - 2 points -> two-point tuple (degenerate hull)
-    - 3+ points -> true convex hull
+    - 3+ points -> true convex hull (exterior ring, closing vertex excluded)
     """
     n = len(points)
     if n == 0:
@@ -305,29 +312,14 @@ def _compute_convex_hull(
     if n == 2:
         return (points[0], points[1])
 
-    # Find leftmost point
-    start = min(range(n), key=lambda i: (points[i][0], points[i][1]))
+    hull = MultiPoint(points).convex_hull
+    geom_type = hull.geom_type
+    if geom_type == "Polygon":
+        # exterior coords include closing vertex (same as first) — exclude it
+        coords = list(hull.exterior.coords)[:-1]
+    elif geom_type == "LineString":
+        coords = list(hull.coords)
+    else:
+        coords = list(hull.coords)
 
-    hull = []
-    current = start
-    while True:
-        hull.append(points[current])
-        next_idx = (current + 1) % n
-        for i in range(n):
-            # cross product: if points[i] is more counter-clockwise than next_idx
-            ox = points[current][0]
-            oy = points[current][1]
-            ax = points[next_idx][0]
-            ay = points[next_idx][1]
-            bx = points[i][0]
-            by = points[i][1]
-            cross = (ax - ox) * (by - oy) - (ay - oy) * (bx - ox)
-            if cross < 0:
-                next_idx = i
-        current = next_idx
-        if current == start:
-            break
-        if len(hull) > n:  # Safety guard against infinite loops
-            break
-
-    return tuple(hull)
+    return tuple((float(x), float(y)) for x, y in coords)

@@ -4,9 +4,9 @@ test_battlespace_manager.py — Unit tests for the Battlespace Management Agent.
 Covers schema validation, geospatial utilities, and agent instantiation.
 """
 
-import math
-import sys
 import os
+import sys
+
 import pytest
 
 # Ensure src/python is on the path so schemas/utils resolve
@@ -15,10 +15,10 @@ sys.path.insert(
     os.path.join(os.path.dirname(__file__), os.pardir, "src", "python"),
 )
 
+from agents.battlespace_manager import BattlespaceManagerAgent
 from schemas.ontology import (
     BattlespaceManagerOutput,
     Coordinate,
-    MapLayer,
     MapLayerType,
     MissionPath,
     TerrainType,
@@ -31,10 +31,9 @@ from utils.geo_utils import (
     haversine_distance,
     is_inside_threat_ring,
 )
-from agents.battlespace_manager import BattlespaceManagerAgent
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def london() -> Coordinate:
@@ -64,23 +63,24 @@ def waypoints_mixed(sam_site: ThreatRing):
     return [
         Waypoint(
             sequence=0,
-            position=Coordinate(lat=35.0, lon=45.0),   # dead centre — unsafe
+            position=Coordinate(lat=35.0, lon=45.0),  # dead centre — unsafe
             terrain=TerrainType.FLAT,
         ),
         Waypoint(
             sequence=1,
-            position=Coordinate(lat=36.0, lon=46.0),   # ~140 km away — safe
+            position=Coordinate(lat=36.0, lon=46.0),  # ~140 km away — safe
             terrain=TerrainType.HILLY,
         ),
         Waypoint(
             sequence=2,
-            position=Coordinate(lat=37.0, lon=47.0),   # ~280 km away — safe
+            position=Coordinate(lat=37.0, lon=47.0),  # ~280 km away — safe
             terrain=TerrainType.MOUNTAINOUS,
         ),
     ]
 
 
 # ── Schema Validation ────────────────────────────────────────────────────
+
 
 class TestSchemaValidation:
     def test_coordinate_valid(self):
@@ -93,7 +93,7 @@ class TestSchemaValidation:
             ThreatRing(
                 threat_id="bad",
                 center=Coordinate(lat=0, lon=0),
-                range_km=0,          # gt=0 constraint
+                range_km=0,  # gt=0 constraint
                 threat_type=ThreatType.SAM_SHORT,
                 confidence=0.5,
             )
@@ -126,6 +126,7 @@ class TestSchemaValidation:
 
 # ── Geospatial Utilities ─────────────────────────────────────────────────
 
+
 class TestHaversineDistance:
     def test_london_to_paris(self, london, paris):
         """London → Paris ≈ 343 km (accepted range 340–350 km)."""
@@ -136,9 +137,7 @@ class TestHaversineDistance:
         assert haversine_distance(london, london) == pytest.approx(0.0)
 
     def test_symmetry(self, london, paris):
-        assert haversine_distance(london, paris) == pytest.approx(
-            haversine_distance(paris, london)
-        )
+        assert haversine_distance(london, paris) == pytest.approx(haversine_distance(paris, london))
 
 
 class TestThreatRingContainment:
@@ -178,6 +177,7 @@ class TestFilterSafeWaypoints:
 
 # ── Agent Instantiation ──────────────────────────────────────────────────
 
+
 class TestBattlespaceManagerAgent:
     def test_init(self):
         agent = BattlespaceManagerAgent(llm_client=None)
@@ -186,7 +186,7 @@ class TestBattlespaceManagerAgent:
 
     def test_default_layers_types(self):
         agent = BattlespaceManagerAgent(llm_client=None)
-        layer_types = {l.layer_type for l in agent.get_active_layers()}
+        layer_types = {layer.layer_type for layer in agent.get_active_layers()}
         assert MapLayerType.TERRAIN in layer_types
         assert MapLayerType.THREATS in layer_types
 

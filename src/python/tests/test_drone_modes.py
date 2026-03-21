@@ -1,23 +1,20 @@
 """Tests for new UAV modes (SUPPORT, VERIFY, OVERWATCH, BDA) and 3-tier autonomy system."""
 
 import math
+import os
 import random
 import sys
-import os
 import time
-
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from sim_engine import (
-    SimulationModel,
-    UAV,
-    SUPPORT_ORBIT_RADIUS_DEG,
-    BDA_ORBIT_RADIUS_DEG,
     BDA_DURATION_SEC,
-    SUPERVISED_TIMEOUT_SEC,
+    BDA_ORBIT_RADIUS_DEG,
     OVERWATCH_RACETRACK_LENGTH_DEG,
+    SUPERVISED_TIMEOUT_SEC,
+    SUPPORT_ORBIT_RADIUS_DEG,
+    SimulationModel,
 )
 
 
@@ -47,6 +44,7 @@ class TestSupportMode:
 
     def test_support_mode_in_uav_modes(self):
         from sim_engine import UAV_MODES
+
         assert "SUPPORT" in UAV_MODES
 
     def test_support_mode_moves_uav(self):
@@ -98,6 +96,7 @@ class TestVerifyMode:
 
     def test_verify_mode_in_uav_modes(self):
         from sim_engine import UAV_MODES
+
         assert "VERIFY" in UAV_MODES
 
     def test_verify_eo_ir_stays_near_target(self):
@@ -169,6 +168,7 @@ class TestOverwatchMode:
 
     def test_overwatch_mode_in_uav_modes(self):
         from sim_engine import UAV_MODES
+
         assert "OVERWATCH" in UAV_MODES
 
     def test_overwatch_racetrack_length_constant(self):
@@ -191,10 +191,8 @@ class TestOverwatchMode:
         uav.overwatch_waypoints = []
         sim._update_tracking_modes(0.1)
         for wp_x, wp_y in uav.overwatch_waypoints:
-            assert sim.bounds['min_lon'] <= wp_x <= sim.bounds['max_lon'], \
-                f"Waypoint x={wp_x} out of bounds"
-            assert sim.bounds['min_lat'] <= wp_y <= sim.bounds['max_lat'], \
-                f"Waypoint y={wp_y} out of bounds"
+            assert sim.bounds["min_lon"] <= wp_x <= sim.bounds["max_lon"], f"Waypoint x={wp_x} out of bounds"
+            assert sim.bounds["min_lat"] <= wp_y <= sim.bounds["max_lat"], f"Waypoint y={wp_y} out of bounds"
 
     def test_overwatch_alternates_waypoints(self):
         """After reaching first waypoint, UAV should move toward second."""
@@ -237,6 +235,7 @@ class TestBdaMode:
 
     def test_bda_mode_in_uav_modes(self):
         from sim_engine import UAV_MODES
+
         assert "BDA" in UAV_MODES
 
     def test_bda_orbit_radius_constant(self):
@@ -358,7 +357,9 @@ class TestModeExclusion:
     def test_new_modes_in_tick_exclusion_tuple(self):
         """Verify new modes appear in the exclusion check in tick()."""
         import inspect
+
         import sim_engine
+
         source = inspect.getsource(sim_engine.SimulationModel.tick)
         assert "SUPPORT" in source
         assert "VERIFY" in source
@@ -440,6 +441,7 @@ class TestAutonomyAutonomous:
 
         # Place target in same zone as UAV for zone-based trigger
         from sim_engine import UAV_MODES
+
         sim._evaluate_autonomy(0.1)
 
         # If trigger fires, UAV should be in SEARCH
@@ -458,6 +460,7 @@ class TestAutonomyAutonomous:
     def test_autonomous_transitions_table_exists(self):
         """AUTONOMOUS_TRANSITIONS dict should be importable from sim_engine."""
         from sim_engine import AUTONOMOUS_TRANSITIONS
+
         assert isinstance(AUTONOMOUS_TRANSITIONS, dict)
         assert len(AUTONOMOUS_TRANSITIONS) > 0
 

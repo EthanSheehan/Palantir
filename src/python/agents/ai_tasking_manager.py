@@ -3,11 +3,11 @@ import uuid
 from typing import Any, List
 
 from schemas.ontology import (
+    CollectionType,
     Detection,
     SensorAsset,
     SensorStatusEnum,
     SensorTaskingOrder,
-    CollectionType,
     TaskingManagerOutput,
 )
 
@@ -60,35 +60,36 @@ class AITaskingManagerAgent:
         # return response.choices[0].message.content
         raise NotImplementedError("LLM integration needs to be completed.")
 
-    def _generate_response_heuristic(
-        self, detection: Detection, available_assets: List[SensorAsset]
-    ) -> str:
+    def _generate_response_heuristic(self, detection: Detection, available_assets: List[SensorAsset]) -> str:
         """Score assets by proximity and sensor match. No LLM needed."""
         import math
-        det_lat = getattr(detection, 'lat', 0.0)
-        det_lon = getattr(detection, 'lon', 0.0)
+
+        det_lat = getattr(detection, "lat", 0.0)
+        det_lon = getattr(detection, "lon", 0.0)
         ranked = []
         for asset in available_assets:
             if asset.status != SensorStatusEnum.AVAILABLE:
                 continue
-            a_lat = getattr(asset, 'lat', 0.0)
-            a_lon = getattr(asset, 'lon', 0.0)
+            a_lat = getattr(asset, "lat", 0.0)
+            a_lon = getattr(asset, "lon", 0.0)
             dist = math.hypot(a_lon - det_lon, a_lat - det_lat)
             ranked.append((dist, asset))
         ranked.sort(key=lambda x: x[0])
-        track_id = getattr(detection, 'track_id', 'UNKNOWN')
+        track_id = getattr(detection, "track_id", "UNKNOWN")
         tasking_orders = []
         for dist, asset in ranked[:2]:
             cap = asset.capabilities[0] if asset.capabilities else CollectionType.EO_IR
-            tasking_orders.append(SensorTaskingOrder(
-                order_id=str(uuid.uuid4()),
-                asset_id=asset.asset_id,
-                target_detection_id=str(track_id),
-                collection_type=cap,
-                priority=5 if dist < 0.5 else 3,
-                estimated_collection_time_minutes=round(dist * 10.0, 1),
-                reasoning=f"Nearest available asset at distance {dist:.3f} deg",
-            ))
+            tasking_orders.append(
+                SensorTaskingOrder(
+                    order_id=str(uuid.uuid4()),
+                    asset_id=asset.asset_id,
+                    target_detection_id=str(track_id),
+                    collection_type=cap,
+                    priority=5 if dist < 0.5 else 3,
+                    estimated_collection_time_minutes=round(dist * 10.0, 1),
+                    reasoning=f"Nearest available asset at distance {dist:.3f} deg",
+                )
+            )
         output = TaskingManagerOutput(
             tasking_orders=tasking_orders,
             confidence_gap=round(self.confidence_threshold - detection.confidence, 4),
@@ -138,9 +139,7 @@ class AITaskingManagerAgent:
             )
 
         # Filter to only available assets
-        ready_assets = [
-            a for a in available_assets if a.status == SensorStatusEnum.AVAILABLE
-        ]
+        ready_assets = [a for a in available_assets if a.status == SensorStatusEnum.AVAILABLE]
 
         if not ready_assets:
             return TaskingManagerOutput(

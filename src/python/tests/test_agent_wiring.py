@@ -16,6 +16,8 @@ pytestmark = pytest.mark.asyncio(loop_scope="function")
 
 from agents.isr_observer import (
     ISRObserverAgent,
+)
+from agents.isr_observer import (
     _heuristic_reasoning as isr_heuristic_reasoning,
 )
 from agents.strategy_analyst import (
@@ -27,10 +29,10 @@ from agents.strategy_analyst import (
 from llm_adapter import LLMAdapter
 from schemas.ontology import EngagementDecision, ISRObserverOutput, TargetClassification
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def isr_agent():
@@ -85,6 +87,7 @@ def _make_raw_sensor_json(**kwargs):
 # ---------------------------------------------------------------------------
 # ISR Observer — heuristic processing
 # ---------------------------------------------------------------------------
+
 
 class TestISRObserverHeuristic:
     def test_process_single_detection(self, isr_agent):
@@ -158,6 +161,7 @@ class TestISRObserverLLMFallback:
 # Strategy Analyst — heuristic evaluation
 # ---------------------------------------------------------------------------
 
+
 class TestStrategyAnalystHeuristic:
     def test_evaluate_sam_high_priority(self, strategy_agent):
         target = _make_detection(target_type="SAM")
@@ -169,50 +173,36 @@ class TestStrategyAnalystHeuristic:
         assert evaluation.recommendation == "NOMINATE"
 
     def test_evaluate_tel_high_priority(self, strategy_agent):
-        evaluation = strategy_agent._evaluate_target_heuristic(
-            _make_detection(target_type="TEL")
-        )
+        evaluation = strategy_agent._evaluate_target_heuristic(_make_detection(target_type="TEL"))
         assert evaluation.priority_score == 8
         assert evaluation.recommendation == "NOMINATE"
 
     def test_evaluate_radar_moderate(self, strategy_agent):
-        evaluation = strategy_agent._evaluate_target_heuristic(
-            _make_detection(target_type="RADAR")
-        )
+        evaluation = strategy_agent._evaluate_target_heuristic(_make_detection(target_type="RADAR"))
         assert evaluation.priority_score == 7
         assert evaluation.recommendation == "NOMINATE"
 
     def test_evaluate_cp_moderate(self, strategy_agent):
-        evaluation = strategy_agent._evaluate_target_heuristic(
-            _make_detection(target_type="CP")
-        )
+        evaluation = strategy_agent._evaluate_target_heuristic(_make_detection(target_type="CP"))
         assert evaluation.priority_score == 6
         assert evaluation.recommendation == "MONITOR"
 
     def test_evaluate_manpads(self, strategy_agent):
-        evaluation = strategy_agent._evaluate_target_heuristic(
-            _make_detection(target_type="MANPADS")
-        )
+        evaluation = strategy_agent._evaluate_target_heuristic(_make_detection(target_type="MANPADS"))
         assert evaluation.priority_score == 5
         assert evaluation.recommendation == "MONITOR"
 
     def test_evaluate_truck_low(self, strategy_agent):
-        evaluation = strategy_agent._evaluate_target_heuristic(
-            _make_detection(target_type="TRUCK")
-        )
+        evaluation = strategy_agent._evaluate_target_heuristic(_make_detection(target_type="TRUCK"))
         assert evaluation.priority_score == 3
         assert evaluation.recommendation == "IGNORE"
 
     def test_evaluate_logistics_low(self, strategy_agent):
-        evaluation = strategy_agent._evaluate_target_heuristic(
-            _make_detection(target_type="LOGISTICS")
-        )
+        evaluation = strategy_agent._evaluate_target_heuristic(_make_detection(target_type="LOGISTICS"))
         assert evaluation.priority_score == 3
 
     def test_evaluate_unknown_default(self, strategy_agent):
-        evaluation = strategy_agent._evaluate_target_heuristic(
-            _make_detection(target_type="UNKNOWN_THING")
-        )
+        evaluation = strategy_agent._evaluate_target_heuristic(_make_detection(target_type="UNKNOWN_THING"))
         assert evaluation.priority_score == _heuristic_priority_for_type("UNKNOWN_THING")
         assert evaluation.roe_compliant is True
 
@@ -220,6 +210,7 @@ class TestStrategyAnalystHeuristic:
 # ---------------------------------------------------------------------------
 # Priority scoring logic
 # ---------------------------------------------------------------------------
+
 
 class TestPriorityScoring:
     def test_sam_priority(self):
@@ -263,6 +254,7 @@ class TestPriorityScoring:
 # Reasoning traces
 # ---------------------------------------------------------------------------
 
+
 class TestReasoningTraces:
     def test_isr_heuristic_reasoning_high_priority(self):
         reasoning = isr_heuristic_reasoning(TargetClassification.SAM, 0.9)
@@ -276,16 +268,12 @@ class TestReasoningTraces:
         assert "not high-priority" in reasoning
 
     def test_strategy_evaluation_has_reasoning(self, strategy_agent):
-        evaluation = strategy_agent._evaluate_target_heuristic(
-            _make_detection(target_type="SAM")
-        )
+        evaluation = strategy_agent._evaluate_target_heuristic(_make_detection(target_type="SAM"))
         assert len(evaluation.reasoning_trace) > 0
         assert "SAM" in evaluation.reasoning_trace
 
     def test_strategy_evaluation_reasoning_for_low_target(self, strategy_agent):
-        evaluation = strategy_agent._evaluate_target_heuristic(
-            _make_detection(target_type="TRUCK")
-        )
+        evaluation = strategy_agent._evaluate_target_heuristic(_make_detection(target_type="TRUCK"))
         assert len(evaluation.reasoning_trace) > 0
         assert "TRUCK" in evaluation.reasoning_trace
 
@@ -302,6 +290,7 @@ class TestReasoningTraces:
 # ---------------------------------------------------------------------------
 # Strike board nomination
 # ---------------------------------------------------------------------------
+
 
 class TestStrikeBoardNomination:
     @pytest.mark.asyncio
@@ -349,6 +338,7 @@ class TestStrikeBoardNomination:
 # End-to-end: ISR -> Strategy pipeline (heuristic)
 # ---------------------------------------------------------------------------
 
+
 class TestPipelineHeuristic:
     def test_isr_to_strategy_pipeline(self):
         isr = ISRObserverAgent()
@@ -377,6 +367,7 @@ class TestPipelineHeuristic:
 # ---------------------------------------------------------------------------
 # Evaluation immutability
 # ---------------------------------------------------------------------------
+
 
 class TestEvaluationImmutability:
     def test_target_evaluation_is_frozen(self):

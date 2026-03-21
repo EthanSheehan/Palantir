@@ -49,7 +49,7 @@ def fuse_detections(contributions: Sequence[SensorContribution]) -> FusedDetecti
 
     complement = 1.0
     for ci in per_type.values():
-        complement *= (1.0 - ci)
+        complement *= 1.0 - ci
     fused = max(0.0, min(1.0, 1.0 - complement))
 
     sensor_types = tuple(sorted(per_type.keys()))

@@ -2,25 +2,23 @@
 Tests for the Pattern Analyzer agent, schemas, and historical data store.
 """
 
-import pytest
 from unittest.mock import MagicMock
 
-from schemas.ontology import (
-    AnomalyType,
-    AlertSeverity,
-    PatternAnomaly,
-    PatternAnalyzerOutput,
-)
-from data.historical_activity import (
-    AdversaryActivity,
-    get_sector_activity,
-    get_activity_summary,
-    HISTORICAL_LOG,
-)
+import pytest
 from agents.pattern_analyzer import PatternAnalyzerAgent
-
+from data.historical_activity import (
+    get_activity_summary,
+    get_sector_activity,
+)
+from schemas.ontology import (
+    AlertSeverity,
+    AnomalyType,
+    PatternAnalyzerOutput,
+    PatternAnomaly,
+)
 
 # ── Schema validation tests ──────────────────────────────────────────────────
+
 
 class TestPatternAnomalySchema:
     """Verify PatternAnomaly accepts valid data and rejects invalid data."""
@@ -106,6 +104,7 @@ class TestPatternAnalyzerOutputSchema:
 
 # ── Historical data store tests ──────────────────────────────────────────────
 
+
 class TestHistoricalActivity:
     """Verify the simulated historical activity data store."""
 
@@ -133,6 +132,7 @@ class TestHistoricalActivity:
 
 
 # ── Agent instantiation tests ────────────────────────────────────────────────
+
 
 class TestPatternAnalyzerAgent:
     """Verify agent construction and method existence."""

@@ -1,12 +1,12 @@
-import json
 import asyncio
+import base64
+import json
+from datetime import datetime
+from typing import Any, Dict, List
 
+import cv2
 import structlog
 import websockets
-import cv2
-import base64
-from datetime import datetime
-from typing import List, Dict, Any
 
 logger = structlog.get_logger()
 
@@ -15,6 +15,7 @@ class DashboardConnector:
     """
     WebSocket client to transmit tracking data and MJPEG frames to the Palantir C2 backend.
     """
+
     def __init__(self, backend_url: str = "ws://localhost:8000/ws"):
         self.backend_url = backend_url
         self.websocket = None
@@ -27,7 +28,7 @@ class DashboardConnector:
                 self.backend_url,
                 ping_interval=None,
                 ping_timeout=None,
-                max_size=None, # Allow large frames if needed
+                max_size=None,  # Allow large frames if needed
             )
             # Identify as a simulator to the backend
             await self.websocket.send(json.dumps({"type": "IDENTIFY", "client_type": "SIMULATOR"}))
@@ -65,17 +66,16 @@ class DashboardConnector:
             return
 
         payload = {
-            "type": "TRACK_UPDATE_BATCH", # New batch type
+            "type": "TRACK_UPDATE_BATCH",  # New batch type
             "timestamp": datetime.now().isoformat(),
             "drone_id": drone_id,
-            "data": tracks
+            "data": tracks,
         }
 
         try:
             await asyncio.wait_for(self.websocket.send(json.dumps(payload)), timeout=1.0)
         except (asyncio.TimeoutError, websockets.exceptions.ConnectionClosed, ConnectionError, OSError) as exc:
             logger.error("telemetry_send_failed", drone_id=drone_id, error=str(exc))
-
 
     async def stream_frame(self, frame: Any, drone_id: str = "Drone-01"):
         """
@@ -86,26 +86,24 @@ class DashboardConnector:
 
         try:
             # Drop quality to 50% for stability over bandwidth
-            _, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
-            jpg_as_text = base64.b64encode(buffer).decode('utf-8')
+            _, buffer = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
+            jpg_as_text = base64.b64encode(buffer).decode("utf-8")
 
             payload = {
                 "type": "DRONE_FEED",
                 "timestamp": datetime.now().isoformat(),
                 "drone_id": drone_id,
-                "data": {
-                    "frame": jpg_as_text
-                }
+                "data": {"frame": jpg_as_text},
             }
             # Short timeout to prevent loop blocking
             await asyncio.wait_for(self.websocket.send(json.dumps(payload)), timeout=1.0)
         except (asyncio.TimeoutError, websockets.exceptions.ConnectionClosed, ConnectionError, OSError) as exc:
             logger.error("frame_stream_failed", drone_id=drone_id, error=str(exc))
 
-
     async def close(self):
         if self.websocket:
             await self.websocket.close()
+
 
 if __name__ == "__main__":
     # Quick mock test

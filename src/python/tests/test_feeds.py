@@ -2,23 +2,21 @@
 
 from __future__ import annotations
 
-import asyncio
 import os
 import sys
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from intel_feed import IntelFeedRouter, _client_subscribed
 from event_logger import rotate_logs
-
+from intel_feed import IntelFeedRouter, _client_subscribed
 
 # ---------------------------------------------------------------------------
 # IntelFeedRouter tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_intel_router_emit_calls_broadcast():
@@ -32,6 +30,7 @@ async def test_intel_router_emit_calls_broadcast():
     # First positional arg is the message
     msg_arg = call_kwargs[0][0] if call_kwargs[0] else call_kwargs[1].get("message", "")
     import json
+
     msg = json.loads(msg_arg)
     assert msg["type"] == "FEED_EVENT"
     assert msg["feed"] == "INTEL_FEED"
@@ -84,6 +83,7 @@ async def test_intel_router_get_history_returns_list():
 # _client_subscribed tests
 # ---------------------------------------------------------------------------
 
+
 def test_subscription_filtering_subscribed():
     """_client_subscribed returns True when feed is in client subscriptions."""
     info = {"subscriptions": {"INTEL_FEED"}}
@@ -106,9 +106,11 @@ def test_subscription_filtering_legacy_client():
 # rotate_logs tests
 # ---------------------------------------------------------------------------
 
+
 def test_log_rotation_deletes_old(tmp_path, monkeypatch):
     """rotate_logs(max_days=3) with 5 log files deletes the 2 oldest."""
     import event_logger
+
     monkeypatch.setattr(event_logger, "LOG_DIR", tmp_path)
 
     # Create 5 fake log files with date-sorted names
@@ -131,6 +133,7 @@ def test_log_rotation_deletes_old(tmp_path, monkeypatch):
 def test_log_rotation_keeps_recent(tmp_path, monkeypatch):
     """rotate_logs(max_days=7) with 3 log files deletes nothing."""
     import event_logger
+
     monkeypatch.setattr(event_logger, "LOG_DIR", tmp_path)
 
     dates = ["2026-01-01", "2026-01-02", "2026-01-03"]
@@ -146,6 +149,7 @@ def test_log_rotation_keeps_recent(tmp_path, monkeypatch):
 # ---------------------------------------------------------------------------
 # Integration tests — api_main.py wiring
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_command_feed_coverage():
@@ -221,10 +225,12 @@ async def test_state_transition_emits_intel_feed():
         "grid_zones": [],
     }
 
-    with patch.object(api_main.sim, "tick"), \
-         patch.object(api_main.sim, "get_state", return_value=fake_state), \
-         patch.object(api_main.hitl, "get_strike_board", return_value=[]), \
-         patch.object(api_main.assistant, "update", return_value=[]):
+    with (
+        patch.object(api_main.sim, "tick"),
+        patch.object(api_main.sim, "get_state", return_value=fake_state),
+        patch.object(api_main.hitl, "get_strike_board", return_value=[]),
+        patch.object(api_main.assistant, "update", return_value=[]),
+    ):
         # Run one iteration of the simulation loop logic
         api_main.sim.tick()
         state = api_main.sim.get_state()
@@ -233,14 +239,17 @@ async def test_state_transition_emits_intel_feed():
             new_state = t["state"]
             prev = api_main._prev_target_states.get(tid)
             if prev and prev != new_state and new_state != "UNDETECTED":
-                await api_main.intel_router.emit("INTEL_FEED", {
-                    "event": new_state,
-                    "target_id": tid,
-                    "target_type": t["type"],
-                    "from": prev,
-                    "to": new_state,
-                    "summary": f"Target {tid} ({t['type']}): {prev} -> {new_state}",
-                })
+                await api_main.intel_router.emit(
+                    "INTEL_FEED",
+                    {
+                        "event": new_state,
+                        "target_id": tid,
+                        "target_type": t["type"],
+                        "from": prev,
+                        "to": new_state,
+                        "summary": f"Target {tid} ({t['type']}): {prev} -> {new_state}",
+                    },
+                )
             api_main._prev_target_states[tid] = new_state
 
     mock_emit.assert_called_once()
@@ -258,6 +267,7 @@ async def test_state_transition_emits_intel_feed():
 # ---------------------------------------------------------------------------
 # sensor_feed_loop tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_sensor_feed_only_active_modes():
@@ -304,22 +314,27 @@ async def test_sensor_feed_only_active_modes():
             for t in state.get("targets", []):
                 for sc in t.get("sensor_contributions", []):
                     if sc.get("uav_id") == uav_id:
-                        detections.append({
-                            "target_id": t["id"],
-                            "target_type": t["type"],
-                            "confidence": sc["confidence"],
-                            "sensor_type": sc["sensor_type"],
-                        })
+                        detections.append(
+                            {
+                                "target_id": t["id"],
+                                "target_type": t["type"],
+                                "confidence": sc["confidence"],
+                                "sensor_type": sc["sensor_type"],
+                            }
+                        )
             if not detections:
                 continue
-            await api_main.intel_router.emit("SENSOR_FEED", {
-                "uav_id": uav_id,
-                "mode": uav_data["mode"],
-                "sensors": uav_data.get("sensors", []),
-                "lat": uav_data["lat"],
-                "lon": uav_data["lon"],
-                "detections": detections,
-            })
+            await api_main.intel_router.emit(
+                "SENSOR_FEED",
+                {
+                    "uav_id": uav_id,
+                    "mode": uav_data["mode"],
+                    "sensors": uav_data.get("sensors", []),
+                    "lat": uav_data["lat"],
+                    "lon": uav_data["lon"],
+                    "detections": detections,
+                },
+            )
 
     sensor_feeds = [e for ft, e in emitted_feeds if ft == "SENSOR_FEED"]
     assert len(sensor_feeds) == 1, f"Expected 1 SENSOR_FEED (only FOLLOW), got {len(sensor_feeds)}"
@@ -370,22 +385,27 @@ async def test_sensor_feed_skips_empty_detections():
         for t in state.get("targets", []):
             for sc in t.get("sensor_contributions", []):
                 if sc.get("uav_id") == uav_id:
-                    detections.append({
-                        "target_id": t["id"],
-                        "target_type": t["type"],
-                        "confidence": sc["confidence"],
-                        "sensor_type": sc["sensor_type"],
-                    })
+                    detections.append(
+                        {
+                            "target_id": t["id"],
+                            "target_type": t["type"],
+                            "confidence": sc["confidence"],
+                            "sensor_type": sc["sensor_type"],
+                        }
+                    )
         if not detections:
             continue
-        await api_main.intel_router.emit("SENSOR_FEED", {
-            "uav_id": uav_id,
-            "mode": uav_data["mode"],
-            "sensors": uav_data.get("sensors", []),
-            "lat": uav_data["lat"],
-            "lon": uav_data["lon"],
-            "detections": detections,
-        })
+        await api_main.intel_router.emit(
+            "SENSOR_FEED",
+            {
+                "uav_id": uav_id,
+                "mode": uav_data["mode"],
+                "sensors": uav_data.get("sensors", []),
+                "lat": uav_data["lat"],
+                "lon": uav_data["lon"],
+                "detections": detections,
+            },
+        )
 
     sensor_feeds = [e for ft, e in emitted_feeds if ft == "SENSOR_FEED"]
     assert len(sensor_feeds) == 1, f"Expected 1 SENSOR_FEED (only UAV 5), got {len(sensor_feeds)}"
@@ -432,22 +452,27 @@ async def test_sensor_feed_payload_structure():
         for t in state.get("targets", []):
             for sc in t.get("sensor_contributions", []):
                 if sc.get("uav_id") == uav_id:
-                    detections.append({
-                        "target_id": t["id"],
-                        "target_type": t["type"],
-                        "confidence": sc["confidence"],
-                        "sensor_type": sc["sensor_type"],
-                    })
+                    detections.append(
+                        {
+                            "target_id": t["id"],
+                            "target_type": t["type"],
+                            "confidence": sc["confidence"],
+                            "sensor_type": sc["sensor_type"],
+                        }
+                    )
         if not detections:
             continue
-        await api_main.intel_router.emit("SENSOR_FEED", {
-            "uav_id": uav_id,
-            "mode": uav_data["mode"],
-            "sensors": uav_data.get("sensors", []),
-            "lat": uav_data["lat"],
-            "lon": uav_data["lon"],
-            "detections": detections,
-        })
+        await api_main.intel_router.emit(
+            "SENSOR_FEED",
+            {
+                "uav_id": uav_id,
+                "mode": uav_data["mode"],
+                "sensors": uav_data.get("sensors", []),
+                "lat": uav_data["lat"],
+                "lon": uav_data["lon"],
+                "detections": detections,
+            },
+        )
 
     assert len(emitted_feeds) == 1
     feed_type, payload = emitted_feeds[0]

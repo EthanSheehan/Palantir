@@ -1,5 +1,5 @@
 import math
-from typing import Tuple, Dict
+from typing import Tuple
 
 import structlog
 
@@ -15,8 +15,8 @@ def pixel_to_gps(
     drone_lon: float,
     drone_alt: float,
     gimbal_pitch: float,  # Degrees, negative is look down
-    gimbal_yaw: float,    # Degrees, 0 is North
-    hfov: float = 60.0    # Horizontal Field of View in degrees
+    gimbal_yaw: float,  # Degrees, 0 is North
+    hfov: float = 60.0,  # Horizontal Field of View in degrees
 ) -> Tuple[float, float]:
     """
     Translates pixel coordinates (x, y) to GPS coordinates (Lat, Long).
@@ -35,14 +35,14 @@ def pixel_to_gps(
 
     # Distance to ground at center (assuming look down near nadir)
     # If pitch is -90 (vertical), dist = alt
-    if gimbal_pitch > -1: # Avoid division by zero if looking at horizon
+    if gimbal_pitch > -1:  # Avoid division by zero if looking at horizon
         gimbal_pitch = -1
 
     dist_at_center = drone_alt / math.sin(abs(pitch_rad))
 
     # Normalized coordinates from center (-0.5 to 0.5)
     norm_x = (pixel_x / image_width) - 0.5
-    norm_y = 0.5 - (pixel_y / image_height) # Inverted because y is down in image
+    norm_y = 0.5 - (pixel_y / image_height)  # Inverted because y is down in image
 
     # Angle offsets from center
     angle_x = norm_x * hfov_rad
@@ -66,6 +66,7 @@ def pixel_to_gps(
     delta_lon = (offset_e / (EARTH_RADIUS * math.cos(math.radians(drone_lat)))) * (180 / math.pi)
 
     return drone_lat + delta_lat, drone_lon + delta_lon
+
 
 if __name__ == "__main__":
     # Test case: 100m alt, looking straight down (-90 pitch), center pixel

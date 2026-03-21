@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pathlib
 from dataclasses import dataclass
-from typing import List, Optional, Sequence, Tuple
+from typing import List, Optional, Tuple
 
 import structlog
 import yaml
@@ -15,6 +15,7 @@ THEATERS_DIR = pathlib.Path(__file__).resolve().parent.parent.parent / "theaters
 # ---------------------------------------------------------------------------
 # Immutable config dataclasses
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class Bounds:
@@ -96,6 +97,7 @@ class TheaterConfig:
 # Validation helpers
 # ---------------------------------------------------------------------------
 
+
 class TheaterValidationError(ValueError):
     """Raised when a theater configuration is invalid."""
 
@@ -108,25 +110,20 @@ def _require_key(data: dict, key: str, context: str) -> object:
 
 def _validate_bounds(bounds: Bounds) -> None:
     if bounds.min_lon >= bounds.max_lon:
-        raise TheaterValidationError(
-            f"Bounds min_lon ({bounds.min_lon}) must be less than max_lon ({bounds.max_lon})"
-        )
+        raise TheaterValidationError(f"Bounds min_lon ({bounds.min_lon}) must be less than max_lon ({bounds.max_lon})")
     if bounds.min_lat >= bounds.max_lat:
-        raise TheaterValidationError(
-            f"Bounds min_lat ({bounds.min_lat}) must be less than max_lat ({bounds.max_lat})"
-        )
+        raise TheaterValidationError(f"Bounds min_lat ({bounds.min_lat}) must be less than max_lat ({bounds.max_lat})")
 
 
 def _validate_positive(value: int, field: str, context: str) -> None:
     if value <= 0:
-        raise TheaterValidationError(
-            f"{field} must be positive in {context}, got {value}"
-        )
+        raise TheaterValidationError(f"{field} must be positive in {context}, got {value}")
 
 
 # ---------------------------------------------------------------------------
 # Parsing helpers
 # ---------------------------------------------------------------------------
+
 
 def _parse_bounds(raw: dict) -> Bounds:
     return Bounds(
@@ -202,6 +199,7 @@ def _parse_environment(raw: dict) -> Environment:
 # Public API
 # ---------------------------------------------------------------------------
 
+
 def load_theater(theater_name: str) -> TheaterConfig:
     """Load theater from YAML file in theaters/ directory.
 
@@ -211,10 +209,7 @@ def load_theater(theater_name: str) -> TheaterConfig:
     yaml_path = THEATERS_DIR / f"{theater_name}.yaml"
     if not yaml_path.exists():
         available = list_theaters()
-        raise FileNotFoundError(
-            f"Theater '{theater_name}' not found at {yaml_path}. "
-            f"Available theaters: {available}"
-        )
+        raise FileNotFoundError(f"Theater '{theater_name}' not found at {yaml_path}. Available theaters: {available}")
 
     logger.info("loading_theater", theater=theater_name, path=str(yaml_path))
 
@@ -270,6 +265,4 @@ def list_theaters() -> List[str]:
     """List available theater names from the theaters/ directory."""
     if not THEATERS_DIR.is_dir():
         return []
-    return sorted(
-        p.stem for p in THEATERS_DIR.glob("*.yaml")
-    )
+    return sorted(p.stem for p in THEATERS_DIR.glob("*.yaml"))

@@ -1,28 +1,29 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
 class VerificationThreshold:
-    classify_confidence: float     # fused_confidence needed for DETECTED -> CLASSIFIED
-    verify_confidence: float       # fused_confidence needed for CLASSIFIED -> VERIFIED
-    verify_sensor_types: int       # min distinct sensor types OR...
-    verify_sustained_sec: float    # ...sustained detect time threshold (whichever lower)
+    classify_confidence: float  # fused_confidence needed for DETECTED -> CLASSIFIED
+    verify_confidence: float  # fused_confidence needed for CLASSIFIED -> VERIFIED
+    verify_sensor_types: int  # min distinct sensor types OR...
+    verify_sustained_sec: float  # ...sustained detect time threshold (whichever lower)
     regression_timeout_sec: float  # seconds with no sensors before regressing one state
 
 
 # Per-target-type thresholds (SAMs/TELs verify faster — high threat)
 VERIFICATION_THRESHOLDS: dict[str, VerificationThreshold] = {
-    "SAM":       VerificationThreshold(0.5, 0.7, 2, 10.0, 8.0),
-    "TEL":       VerificationThreshold(0.5, 0.7, 2, 10.0, 10.0),
-    "RADAR":     VerificationThreshold(0.55, 0.75, 2, 12.0, 10.0),
-    "C2_NODE":   VerificationThreshold(0.55, 0.75, 2, 12.0, 10.0),
-    "MANPADS":   VerificationThreshold(0.5, 0.7, 2, 10.0, 8.0),
-    "CP":        VerificationThreshold(0.6, 0.8, 2, 15.0, 15.0),
-    "TRUCK":     VerificationThreshold(0.6, 0.8, 2, 15.0, 15.0),
+    "SAM": VerificationThreshold(0.5, 0.7, 2, 10.0, 8.0),
+    "TEL": VerificationThreshold(0.5, 0.7, 2, 10.0, 10.0),
+    "RADAR": VerificationThreshold(0.55, 0.75, 2, 12.0, 10.0),
+    "C2_NODE": VerificationThreshold(0.55, 0.75, 2, 12.0, 10.0),
+    "MANPADS": VerificationThreshold(0.5, 0.7, 2, 10.0, 8.0),
+    "CP": VerificationThreshold(0.6, 0.8, 2, 15.0, 15.0),
+    "TRUCK": VerificationThreshold(0.6, 0.8, 2, 15.0, 15.0),
     "LOGISTICS": VerificationThreshold(0.6, 0.8, 2, 15.0, 15.0),
     "ARTILLERY": VerificationThreshold(0.55, 0.75, 2, 12.0, 10.0),
-    "APC":       VerificationThreshold(0.6, 0.8, 2, 15.0, 15.0),
+    "APC": VerificationThreshold(0.6, 0.8, 2, 15.0, 15.0),
 }
 
 # Default threshold for unknown target types
@@ -75,9 +76,7 @@ def evaluate_target_state(
     if current_state not in _MANAGED_STATES and current_state != "UNDETECTED":
         return current_state
 
-    thresholds = (
-        DEMO_FAST_THRESHOLDS if demo_fast else VERIFICATION_THRESHOLDS
-    ).get(target_type, _DEFAULT_THRESHOLD)
+    thresholds = (DEMO_FAST_THRESHOLDS if demo_fast else VERIFICATION_THRESHOLDS).get(target_type, _DEFAULT_THRESHOLD)
 
     # Regression: no sensor contact -> step back one state
     if seconds_since_last_sensor >= thresholds.regression_timeout_sec:
@@ -93,8 +92,7 @@ def evaluate_target_state(
     if current_state == "CLASSIFIED":
         meets_sensor_diversity = sensor_type_count >= thresholds.verify_sensor_types
         meets_sustained = time_in_current_state_sec >= thresholds.verify_sustained_sec
-        if (fused_confidence >= thresholds.verify_confidence and
-                (meets_sensor_diversity or meets_sustained)):
+        if fused_confidence >= thresholds.verify_confidence and (meets_sensor_diversity or meets_sustained):
             return "VERIFIED"
 
     elif current_state == "DETECTED":

@@ -3,29 +3,45 @@ import random
 import time
 from collections import deque
 from typing import Dict, List, Optional, Tuple
-from romania_grid import RomaniaMacroGrid
-from sensor_model import evaluate_detection, EnvironmentConditions
-from theater_loader import load_theater, TheaterConfig, list_theaters
-from sensor_fusion import SensorContribution, fuse_detections
-from verification_engine import evaluate_target_state, VERIFICATION_THRESHOLDS, _DEFAULT_THRESHOLD
-from swarm_coordinator import SwarmCoordinator, TaskingOrder
 
 import structlog
+from romania_grid import RomaniaMacroGrid
+from sensor_fusion import SensorContribution, fuse_detections
+from sensor_model import EnvironmentConditions, evaluate_detection
+from swarm_coordinator import SwarmCoordinator
+from theater_loader import TheaterConfig, load_theater
+from verification_engine import _DEFAULT_THRESHOLD, VERIFICATION_THRESHOLDS, evaluate_target_state
 
 logger = structlog.get_logger()
 
 # Target states in the kill chain
 TARGET_STATES = (
-    "UNDETECTED", "DETECTED", "CLASSIFIED", "VERIFIED",
-    "TRACKED", "IDENTIFIED", "NOMINATED", "LOCKED",
-    "ENGAGED", "DESTROYED", "ESCAPED",
+    "UNDETECTED",
+    "DETECTED",
+    "CLASSIFIED",
+    "VERIFIED",
+    "TRACKED",
+    "IDENTIFIED",
+    "NOMINATED",
+    "LOCKED",
+    "ENGAGED",
+    "DESTROYED",
+    "ESCAPED",
 )
 
 # UAV modes
 UAV_MODES = (
-    "IDLE", "SEARCH", "FOLLOW",
-    "PAINT", "INTERCEPT", "REPOSITIONING", "RTB",
-    "SUPPORT", "VERIFY", "OVERWATCH", "BDA",
+    "IDLE",
+    "SEARCH",
+    "FOLLOW",
+    "PAINT",
+    "INTERCEPT",
+    "REPOSITIONING",
+    "RTB",
+    "SUPPORT",
+    "VERIFY",
+    "OVERWATCH",
+    "BDA",
 )
 
 # Types that emit radar signals
@@ -89,12 +105,12 @@ FOLLOW_OFFSET_DEG = 0.01
 LOITER_RADIUS_DEG = 0.027
 
 # New mode orbit/pattern radii (Phase 3)
-SUPPORT_ORBIT_RADIUS_DEG = 0.027       # ~3km wide orbit for secondary coverage
-VERIFY_CROSS_DISTANCE_DEG = 0.009      # ~1km perpendicular offset for sensor passes
-OVERWATCH_RACETRACK_LENGTH_DEG = 0.045 # ~5km racetrack legs for area coverage
-BDA_ORBIT_RADIUS_DEG = 0.009           # ~1km tight orbit for damage assessment
-BDA_DURATION_SEC = 30.0                # Auto-transition to SEARCH after 30s
-SUPERVISED_TIMEOUT_SEC = 10.0          # Supervised pending transition auto-approve timeout
+SUPPORT_ORBIT_RADIUS_DEG = 0.027  # ~3km wide orbit for secondary coverage
+VERIFY_CROSS_DISTANCE_DEG = 0.009  # ~1km perpendicular offset for sensor passes
+OVERWATCH_RACETRACK_LENGTH_DEG = 0.045  # ~5km racetrack legs for area coverage
+BDA_ORBIT_RADIUS_DEG = 0.009  # ~1km tight orbit for damage assessment
+BDA_DURATION_SEC = 30.0  # Auto-transition to SEARCH after 30s
+SUPERVISED_TIMEOUT_SEC = 10.0  # Supervised pending transition auto-approve timeout
 
 # RTB arrival threshold: switch to IDLE when within this distance of home (km)
 ARRIVAL_THRESHOLD_KM = 0.5
@@ -113,10 +129,10 @@ ENEMY_SPEED = 0.004
 
 # Sensor distribution weights: (sensors, weight)
 _SENSOR_DISTRIBUTION = [
-    (["EO_IR"],          50),
-    (["SAR"],            20),
-    (["SIGINT"],         10),
-    (["EO_IR", "SAR"],   10),
+    (["EO_IR"], 50),
+    (["SAR"], 20),
+    (["SIGINT"], 10),
+    (["EO_IR", "SAR"], 10),
     (["EO_IR", "SIGINT"], 10),
 ]
 
@@ -191,8 +207,7 @@ class Target:
 
         if self.type in ("TEL", "MANPADS"):
             self.concealed = any(
-                math.hypot(ux - self.x, uy - self.y) < CONCEALMENT_DIST_DEG
-                for ux, uy in uav_positions
+                math.hypot(ux - self.x, uy - self.y) < CONCEALMENT_DIST_DEG for ux, uy in uav_positions
             )
         else:
             self.concealed = False
@@ -208,8 +223,8 @@ class Target:
             else:
                 self.relocate_timer -= dt_sec
                 if self.relocate_timer <= 0:
-                    self.x = random.uniform(bounds['min_lon'], bounds['max_lon'])
-                    self.y = random.uniform(bounds['min_lat'], bounds['max_lat'])
+                    self.x = random.uniform(bounds["min_lon"], bounds["max_lon"])
+                    self.y = random.uniform(bounds["min_lat"], bounds["max_lat"])
                     self.vx = 0.0
                     self.vy = 0.0
                     self.relocate_timer = random.uniform(30.0, 60.0)
@@ -222,8 +237,8 @@ class Target:
                 num_wp = random.randint(3, 5)
                 self._patrol_waypoints = [
                     (
-                        random.uniform(bounds['min_lon'], bounds['max_lon']),
-                        random.uniform(bounds['min_lat'], bounds['max_lat']),
+                        random.uniform(bounds["min_lon"], bounds["max_lon"]),
+                        random.uniform(bounds["min_lat"], bounds["max_lat"]),
                     )
                     for _ in range(num_wp)
                 ]
@@ -242,12 +257,12 @@ class Target:
             self.x += self.vx * dt_sec
             self.y += self.vy * dt_sec
 
-            if self.x < bounds['min_lon'] or self.x > bounds['max_lon']:
+            if self.x < bounds["min_lon"] or self.x > bounds["max_lon"]:
                 self.vx *= -1
-                self.x = max(bounds['min_lon'], min(bounds['max_lon'], self.x))
-            if self.y < bounds['min_lat'] or self.y > bounds['max_lat']:
+                self.x = max(bounds["min_lon"], min(bounds["max_lon"], self.x))
+            if self.y < bounds["min_lat"] or self.y > bounds["max_lat"]:
                 self.vy *= -1
-                self.y = max(bounds['min_lat'], min(bounds['max_lat'], self.y))
+                self.y = max(bounds["min_lat"], min(bounds["max_lat"], self.y))
 
         elif self.behavior == "ambush":
             if self.flee_cooldown <= 0:
@@ -255,8 +270,8 @@ class Target:
                     if math.hypot(ux - self.x, uy - self.y) < MANPADS_FLEE_DIST_DEG:
                         flee_dx = random.uniform(-0.1, 0.1)
                         flee_dy = random.uniform(-0.1, 0.1)
-                        self.x = max(bounds['min_lon'], min(bounds['max_lon'], self.x + flee_dx))
-                        self.y = max(bounds['min_lat'], min(bounds['max_lat'], self.y + flee_dy))
+                        self.x = max(bounds["min_lon"], min(bounds["max_lon"], self.x + flee_dx))
+                        self.y = max(bounds["min_lat"], min(bounds["max_lat"], self.y + flee_dy))
                         self.vx = 0.0
                         self.vy = 0.0
                         self.flee_cooldown = 15.0
@@ -518,8 +533,8 @@ class EnemyUAV:
         self.y += self.vy * dt_sec
 
         # Clamp to bounds
-        self.x = max(bounds['min_lon'], min(bounds['max_lon'], self.x))
-        self.y = max(bounds['min_lat'], min(bounds['max_lat'], self.y))
+        self.x = max(bounds["min_lon"], min(bounds["max_lon"], self.x))
+        self.y = max(bounds["min_lat"], min(bounds["max_lat"], self.y))
 
         # Update heading
         self.heading_deg = _heading_from_velocity(self.vx, self.vy)
@@ -537,24 +552,24 @@ class SimulationModel:
             logger.warning("theater_load_failed_using_defaults", error=str(exc))
 
         self.grid = RomaniaMacroGrid()
-        self.uavs: List[UAV] = []
+        self.uavs: Dict[int, UAV] = {}
 
         if self.theater:
             self.NUM_UAVS = self.theater.blue_force.uavs.count
             self.bounds = {
-                'min_lon': self.theater.bounds.min_lon,
-                'max_lon': self.theater.bounds.max_lon,
-                'min_lat': self.theater.bounds.min_lat,
-                'max_lat': self.theater.bounds.max_lat,
+                "min_lon": self.theater.bounds.min_lon,
+                "max_lon": self.theater.bounds.max_lon,
+                "min_lat": self.theater.bounds.min_lat,
+                "max_lat": self.theater.bounds.max_lat,
             }
             self.environment = EnvironmentConditions()
         else:
             self.NUM_UAVS = 20
             self.bounds = {
-                'min_lon': self.grid.MIN_LON,
-                'max_lon': self.grid.MAX_LON,
-                'min_lat': self.grid.MIN_LAT,
-                'max_lat': self.grid.MAX_LAT,
+                "min_lon": self.grid.MIN_LON,
+                "max_lon": self.grid.MAX_LON,
+                "min_lat": self.grid.MIN_LAT,
+                "max_lat": self.grid.MAX_LAT,
             }
             self.environment = EnvironmentConditions()
 
@@ -586,8 +601,8 @@ class SimulationModel:
         # Phase 8: adaptive ISR coverage mode
         self.coverage_mode: str = "balanced"
         self._last_assessment: Optional[dict] = None
-        self.targets: List[Target] = []
-        self.enemy_uavs: List[EnemyUAV] = []
+        self.targets: Dict[int, Target] = {}
+        self.enemy_uavs: Dict[int, EnemyUAV] = {}
         self.NUM_TARGETS = sum(c for _, c in self._build_target_pool())
         self.demo_fast: bool = False
 
@@ -623,7 +638,7 @@ class SimulationModel:
                     self.theater.blue_force.uavs.base_lon,
                     self.theater.blue_force.uavs.base_lat,
                 )
-            self.uavs.append(uav)
+            self.uavs[uav.id] = uav
 
         # Spawn targets from theater config
         target_pool = self._build_target_pool()
@@ -646,13 +661,13 @@ class SimulationModel:
                 t.threat_range_km = self._unit_threat_range_map.get(unit_type)
                 t.detection_range_km = self._unit_detection_range_map.get(unit_type)
                 target_id += 1
-                self.targets.append(t)
+                self.targets[t.id] = t
 
         self._spawn_enemy_uavs()
 
     def _spawn_enemy_uavs(self):
         """Spawn enemy UAVs from theater config (or defaults). IDs start at 1001."""
-        self.enemy_uavs = []
+        self.enemy_uavs = {}
         eid = 1001
 
         if self.theater and self.theater.enemy_uavs:
@@ -662,41 +677,32 @@ class SimulationModel:
                     mode = "RECON"
                 speed_deg_sec = unit_cfg.speed_kmh * DEG_PER_KM / 3600.0
                 for _ in range(unit_cfg.count):
-                    ex = random.uniform(self.bounds['min_lon'], self.bounds['max_lon'])
-                    ey = random.uniform(self.bounds['min_lat'], self.bounds['max_lat'])
+                    ex = random.uniform(self.bounds["min_lon"], self.bounds["max_lon"])
+                    ey = random.uniform(self.bounds["min_lat"], self.bounds["max_lat"])
                     e = EnemyUAV(id=eid, x=ex, y=ey, mode=mode, behavior=unit_cfg.behavior.lower())
                     if speed_deg_sec > 0:
                         e.speed = speed_deg_sec
                     if mode == "JAMMING":
                         e.is_jamming = True
-                    self.enemy_uavs.append(e)
+                    self.enemy_uavs[e.id] = e
                     eid += 1
         else:
             # Fallback: 3 RECON drones
             for _ in range(3):
-                ex = random.uniform(self.bounds['min_lon'], self.bounds['max_lon'])
-                ey = random.uniform(self.bounds['min_lat'], self.bounds['max_lat'])
+                ex = random.uniform(self.bounds["min_lon"], self.bounds["max_lon"])
+                ey = random.uniform(self.bounds["min_lat"], self.bounds["max_lat"])
                 e = EnemyUAV(id=eid, x=ex, y=ey, mode="RECON", behavior="recon")
-                self.enemy_uavs.append(e)
+                self.enemy_uavs[e.id] = e
                 eid += 1
 
     def _find_enemy_uav(self, enemy_uav_id: int) -> Optional[EnemyUAV]:
-        for e in self.enemy_uavs:
-            if e.id == enemy_uav_id:
-                return e
-        return None
+        return self.enemy_uavs.get(enemy_uav_id)
 
     def _find_uav(self, uav_id: int) -> Optional[UAV]:
-        for u in self.uavs:
-            if u.id == uav_id:
-                return u
-        return None
+        return self.uavs.get(uav_id)
 
     def _find_target(self, target_id: int) -> Optional[Target]:
-        for t in self.targets:
-            if t.id == target_id:
-                return t
-        return None
+        return self.targets.get(target_id)
 
     def _assign_target(self, uav_id: int, target_id: int, mode: str, target_state: str):
         uav = self._find_uav(uav_id)
@@ -758,7 +764,7 @@ class SimulationModel:
         target = self._find_target(target_id)
         if not target:
             return
-        orders = self.swarm_coordinator.evaluate_and_assign([target], self.uavs, force=True)
+        orders = self.swarm_coordinator.evaluate_and_assign([target], list(self.uavs.values()), force=True)
         for order in orders:
             uav = self._find_uav(order.uav_id)
             if uav and not (uav.mode == "SUPPORT" and order.target_id in uav.tracked_target_ids):
@@ -766,7 +772,7 @@ class SimulationModel:
 
     def release_swarm(self, target_id: int):
         """Release all SUPPORT UAVs from target, set them to SEARCH."""
-        for u in self.uavs:
+        for u in self.uavs.values():
             if u.mode == "SUPPORT" and target_id in u.tracked_target_ids:
                 self.cancel_track(u.id)
 
@@ -783,7 +789,7 @@ class SimulationModel:
         """
         if self._last_assessment is None:
             return []
-        idle_uavs = [u for u in self.uavs if u.mode == "IDLE"]
+        idle_uavs = [u for u in self.uavs.values() if u.mode == "IDLE"]
         if len(idle_uavs) <= MIN_IDLE_COUNT:
             return []
         gaps = sorted(
@@ -796,12 +802,14 @@ class SimulationModel:
             if len(available) <= MIN_IDLE_COUNT:
                 break
             nearest = min(available, key=lambda u: (u.x - gap["lon"]) ** 2 + (u.y - gap["lat"]) ** 2)
-            dispatches.append({
-                "source_id": nearest.zone_id,
-                "count": 1,
-                "source_coord": (nearest.x, nearest.y),
-                "target_coord": (gap["lon"], gap["lat"]),
-            })
+            dispatches.append(
+                {
+                    "source_id": nearest.zone_id,
+                    "count": 1,
+                    "source_coord": (nearest.x, nearest.y),
+                    "target_coord": (gap["lon"], gap["lat"]),
+                }
+            )
             nearest.tasking_source = "ISR_PRIORITY"
             nearest.mode_source = "AUTO"
             available.remove(nearest)
@@ -819,7 +827,7 @@ class SimulationModel:
         for z in self.grid.zones.values():
             z.uav_count = 0
 
-        for u in self.uavs:
+        for u in self.uavs.values():
             z = self.grid.get_zone_at(u.x, u.y)
             if z:
                 u.zone_id = z.id
@@ -841,7 +849,7 @@ class SimulationModel:
         # 3. Assign Missions — idle UAVs in zones with demand become SCANNING
         for z_id, z in self.grid.zones.items():
             if z.queue > 0:
-                idle_in_zone = [u for u in self.uavs if u.zone_id == z_id and u.mode == "IDLE"]
+                idle_in_zone = [u for u in self.uavs.values() if u.zone_id == z_id and u.mode == "IDLE"]
                 assign_count = min(z.queue, len(idle_in_zone))
                 for i in range(assign_count):
                     idle_in_zone[i].mode = "SEARCH"
@@ -861,7 +869,7 @@ class SimulationModel:
             count = d["count"]
             target_coord = d["target_coord"]
 
-            idle_in_r = [u for u in self.uavs if u.zone_id == source_id and u.mode == "IDLE"]
+            idle_in_r = [u for u in self.uavs.values() if u.zone_id == source_id and u.mode == "IDLE"]
             dispatched_count = min(count, len(idle_in_r))
 
             for i in range(dispatched_count):
@@ -870,10 +878,7 @@ class SimulationModel:
                 u.target = target_coord
                 if self.coverage_mode == "balanced":
                     u.tasking_source = "ZONE_BALANCE"
-                self.active_flows.append({
-                    "source": d["source_coord"],
-                    "target": target_coord
-                })
+                self.active_flows.append({"source": d["source_coord"], "target": target_coord})
 
         # 6. Handle target-tracking modes (VIEWING, FOLLOWING, PAINTING, and new modes)
         self._update_tracking_modes(dt_sec)
@@ -882,20 +887,20 @@ class SimulationModel:
         self._evaluate_autonomy(dt_sec)
 
         # 7. Update Kinematics (handles IDLE, SCANNING, REPOSITIONING, RTB)
-        for u in self.uavs:
+        for u in self.uavs.values():
             if u.mode not in ("FOLLOW", "PAINT", "INTERCEPT", "SUPPORT", "VERIFY", "OVERWATCH", "BDA"):
                 u.update(dt_sec, self.SPEED_DEG_PER_SEC)
 
         # 8. Decrement service timers for SCANNING UAVs
-        for u in self.uavs:
+        for u in self.uavs.values():
             if u.mode == "SEARCH":
                 u.service_timer -= dt_sec
                 if u.service_timer <= 0:
                     u.mode = "IDLE"
 
         # 9. Update Targets & Probabilistic Detection
-        uav_positions = [(u.x, u.y) for u in self.uavs]
-        for t in self.targets:
+        uav_positions = [(u.x, u.y) for u in self.uavs.values()]
+        for t in self.targets.values():
             t.update(dt_sec, self.bounds, uav_positions)
 
             if t.state in ("DESTROYED", "ENGAGED"):
@@ -903,7 +908,7 @@ class SimulationModel:
 
             contributions: list = []
 
-            for u in self.uavs:
+            for u in self.uavs.values():
                 if u.mode in ("RTB", "REPOSITIONING"):
                     continue
 
@@ -935,14 +940,16 @@ class SimulationModel:
                         emitting=t.is_emitting,
                     )
                     if result.detected:
-                        contributions.append(SensorContribution(
-                            uav_id=u.id,
-                            sensor_type=sensor_type,
-                            confidence=result.confidence,
-                            range_m=result.range_m,
-                            bearing_deg=result.bearing_deg,
-                            timestamp=time.time(),
-                        ))
+                        contributions.append(
+                            SensorContribution(
+                                uav_id=u.id,
+                                sensor_type=sensor_type,
+                                confidence=result.confidence,
+                                range_m=result.range_m,
+                                bearing_deg=result.bearing_deg,
+                                timestamp=time.time(),
+                            )
+                        )
 
             if contributions:
                 # Fuse all contributions and update state
@@ -971,12 +978,14 @@ class SimulationModel:
 
         # --- Verification step (Phase 2) ---
         _now = time.time()
-        for t in self.targets:
+        for t in self.targets.values():
             if t.state in ("UNDETECTED", "DESTROYED", "ENGAGED", "ESCAPED"):
                 continue
-            sensor_type_count = len(set(
-                c.sensor_type for c in t.sensor_contributions
-            )) if t.sensor_contributions else (1 if t.detection_confidence > 0 else 0)
+            sensor_type_count = (
+                len(set(c.sensor_type for c in t.sensor_contributions))
+                if t.sensor_contributions
+                else (1 if t.detection_confidence > 0 else 0)
+            )
             new_state = evaluate_target_state(
                 current_state=t.state,
                 target_type=t.type,
@@ -990,25 +999,30 @@ class SimulationModel:
                 old_state = t.state
                 t.state = new_state
                 t.time_in_state_sec = 0.0
-                logger.info("target_state_transition", target_id=t.id, target_type=t.type,
-                            from_state=old_state, to_state=new_state,
-                            fused_confidence=t.fused_confidence)
+                logger.info(
+                    "target_state_transition",
+                    target_id=t.id,
+                    target_type=t.type,
+                    from_state=old_state,
+                    to_state=new_state,
+                    fused_confidence=t.fused_confidence,
+                )
             else:
                 t.time_in_state_sec += dt_sec
             if t.detection_confidence > 0.05:
                 t.last_sensor_contact_time = _now
 
         # 9b. Update Enemy UAVs (movement)
-        for e in self.enemy_uavs:
+        for e in self.enemy_uavs.values():
             if e.mode != "DESTROYED":
                 e.update(dt_sec, self.bounds)
 
         # 10. Enemy UAV Detection
-        for e in self.enemy_uavs:
+        for e in self.enemy_uavs.values():
             if e.mode == "DESTROYED":
                 continue
             contributions = []
-            for u in self.uavs:
+            for u in self.uavs.values():
                 if u.mode in ("RTB", "REPOSITIONING"):
                     continue
                 dlat = e.y - u.y
@@ -1028,14 +1042,16 @@ class SimulationModel:
                         emitting=e.is_jamming,
                     )
                     if result.detected:
-                        contributions.append(SensorContribution(
-                            uav_id=u.id,
-                            sensor_type=sensor_type,
-                            confidence=result.confidence,
-                            range_m=result.range_m,
-                            bearing_deg=result.bearing_deg,
-                            timestamp=time.time(),
-                        ))
+                        contributions.append(
+                            SensorContribution(
+                                uav_id=u.id,
+                                sensor_type=sensor_type,
+                                confidence=result.confidence,
+                                range_m=result.range_m,
+                                bearing_deg=result.bearing_deg,
+                                timestamp=time.time(),
+                            )
+                        )
             if contributions:
                 fused = fuse_detections(contributions)
                 e.fused_confidence = fused.fused_confidence
@@ -1052,7 +1068,9 @@ class SimulationModel:
         # request_swarm/release_swarm WS actions always available regardless of tier.
         self._swarm_tick_counter += 1
         if self._swarm_tick_counter % 50 == 0:
-            swarm_orders = self.swarm_coordinator.evaluate_and_assign(self.targets, self.uavs)
+            swarm_orders = self.swarm_coordinator.evaluate_and_assign(
+                list(self.targets.values()), list(self.uavs.values())
+            )
             for order in swarm_orders:
                 uav = self._find_uav(order.uav_id)
                 # Guard: skip if UAV already in SUPPORT for this target
@@ -1070,7 +1088,7 @@ class SimulationModel:
             u.vy = 0
             return
 
-        if not hasattr(u, '_intercept_dwell'):
+        if not hasattr(u, "_intercept_dwell"):
             u._intercept_dwell = 0.0
 
         dx = enemy.x - u.x
@@ -1104,7 +1122,7 @@ class SimulationModel:
 
     def _update_tracking_modes(self, dt_sec: float):
         speed = self.SPEED_DEG_PER_SEC
-        for u in self.uavs:
+        for u in self.uavs.values():
             if u.mode not in ("FOLLOW", "PAINT", "INTERCEPT", "SUPPORT", "VERIFY", "OVERWATCH", "BDA"):
                 continue
 
@@ -1115,12 +1133,12 @@ class SimulationModel:
                     half = OVERWATCH_RACETRACK_LENGTH_DEG / 2
                     u.overwatch_waypoints = [
                         (
-                            max(self.bounds['min_lon'], min(self.bounds['max_lon'], cx - half)),
-                            max(self.bounds['min_lat'], min(self.bounds['max_lat'], cy)),
+                            max(self.bounds["min_lon"], min(self.bounds["max_lon"], cx - half)),
+                            max(self.bounds["min_lat"], min(self.bounds["max_lat"], cy)),
                         ),
                         (
-                            max(self.bounds['min_lon'], min(self.bounds['max_lon'], cx + half)),
-                            max(self.bounds['min_lat'], min(self.bounds['max_lat'], cy)),
+                            max(self.bounds["min_lon"], min(self.bounds["max_lon"], cx + half)),
+                            max(self.bounds["min_lat"], min(self.bounds["max_lat"], cy)),
                         ),
                     ]
                     u.overwatch_wp_idx = 0
@@ -1199,7 +1217,9 @@ class SimulationModel:
                 # Fly directly at target, danger close (~300m)
                 if dist > INTERCEPT_CLOSE_DEG:
                     intercept_speed = speed * 1.5
-                    u._turn_toward((dx / dist) * intercept_speed, (dy / dist) * intercept_speed, intercept_speed, dt_sec)
+                    u._turn_toward(
+                        (dx / dist) * intercept_speed, (dy / dist) * intercept_speed, intercept_speed, dt_sec
+                    )
                 else:
                     # Arrived — tight orbit
                     nx, ny = dx / max(dist, 0.0001), dy / max(dist, 0.0001)
@@ -1254,7 +1274,7 @@ class SimulationModel:
 
                 elif primary_sensor == "SAR":
                     # Parallel track: fly along heading axis of target
-                    track_heading = math.radians(target.heading_deg) if hasattr(target, 'heading_deg') else 0.0
+                    track_heading = math.radians(target.heading_deg) if hasattr(target, "heading_deg") else 0.0
                     track_vx = math.sin(track_heading) * speed
                     track_vy = math.cos(track_heading) * speed
                     if dist > orbit_r * 2.0:
@@ -1329,7 +1349,7 @@ class SimulationModel:
         """Detect autonomy trigger conditions for a UAV. Returns trigger name or None."""
         if uav.mode == "IDLE":
             # Check if any target in same zone is DETECTED
-            for t in self.targets:
+            for t in self.targets.values():
                 if t.state in ("DETECTED", "CLASSIFIED", "VERIFIED", "NOMINATED"):
                     z = self.grid.get_zone_at(t.x, t.y)
                     if z and z.id == uav.zone_id:
@@ -1346,6 +1366,7 @@ class SimulationModel:
     def _evaluate_autonomy(self, dt_sec: float):
         """Evaluate autonomous transitions for all UAVs."""
         import time as _time
+
         now = _time.monotonic()
 
         # Expire timed-out pending transitions (auto-approve in SUPERVISED)
@@ -1357,7 +1378,7 @@ class SimulationModel:
                     uav.mode_source = "AUTO"
                 del self.pending_transitions[uav_id]
 
-        for u in self.uavs:
+        for u in self.uavs.values():
             effective = self._effective_autonomy(u)
             if effective == "MANUAL":
                 continue
@@ -1452,7 +1473,7 @@ class SimulationModel:
     def _compute_fov_targets(self, uav) -> list:
         """Return list of target IDs that are detected and within detection range of this UAV."""
         result = []
-        for t in self.targets:
+        for t in self.targets.values():
             if t.state == "UNDETECTED":
                 continue
             dist_deg = math.hypot(uav.x - t.x, uav.y - t.y)
@@ -1494,7 +1515,8 @@ class SimulationModel:
                     "pending_transition": self.pending_transitions.get(u.id),
                     "fov_targets": self._compute_fov_targets(u),
                     "sensor_quality": self._SENSOR_QUALITY_MAP.get(u.mode, 0.6),
-                } for u in self.uavs
+                }
+                for u in self.uavs.values()
             ],
             "zones": [
                 {
@@ -1506,8 +1528,9 @@ class SimulationModel:
                     "height": z.height_deg,
                     "queue": z.queue,
                     "uav_count": z.uav_count,
-                    "imbalance": z.imbalance
-                } for z in self.grid.zones.values()
+                    "imbalance": z.imbalance,
+                }
+                for z in self.grid.zones.values()
             ],
             "flows": self.active_flows,
             "targets": [
@@ -1535,8 +1558,9 @@ class SimulationModel:
                     "detection_range_km": t.detection_range_km,
                     "time_in_state_sec": round(t.time_in_state_sec, 1),
                     "next_threshold": self._get_next_threshold(t),
-                    "concealed": getattr(t, 'concealed', False),
-                } for t in self.targets
+                    "concealed": getattr(t, "concealed", False),
+                }
+                for t in self.targets.values()
             ],
             "enemy_uavs": [
                 {
@@ -1550,7 +1574,8 @@ class SimulationModel:
                     "fused_confidence": round(e.fused_confidence, 3),
                     "sensor_count": e.sensor_count,
                     "is_jamming": e.is_jamming,
-                } for e in self.enemy_uavs
+                }
+                for e in self.enemy_uavs.values()
             ],
             "environment": {
                 "time_of_day": self.environment.time_of_day,

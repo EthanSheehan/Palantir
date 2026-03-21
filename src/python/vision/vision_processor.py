@@ -1,11 +1,9 @@
-import cv2
 import asyncio
-import numpy as np
-from ultralytics import YOLO
 from datetime import datetime
-import uuid
 
+import cv2
 import structlog
+from ultralytics import YOLO
 
 # Internal modules
 try:
@@ -25,13 +23,7 @@ class VisionProcessor:
         self.connector = DashboardConnector()
 
         # Mock drone state (would ideally come from MAVLink/Telemetry)
-        self.drone_state = {
-            "lat": 51.4545,
-            "lon": -2.5879,
-            "alt": 100.0,
-            "pitch": -90.0,
-            "yaw": 0.0
-        }
+        self.drone_state = {"lat": 51.4545, "lon": -2.5879, "alt": 100.0, "pitch": -90.0, "yaw": 0.0}
 
     async def run(self):
         """Main inference loop."""
@@ -72,42 +64,42 @@ class VisionProcessor:
 
                     # 2. Project to GPS
                     lat, lon = pixel_to_gps(
-                        center_x, center_y, w, h,
-                        self.drone_state["lat"], self.drone_state["lon"], self.drone_state["alt"],
-                        self.drone_state["pitch"], self.drone_state["yaw"]
+                        center_x,
+                        center_y,
+                        w,
+                        h,
+                        self.drone_state["lat"],
+                        self.drone_state["lon"],
+                        self.drone_state["alt"],
+                        self.drone_state["pitch"],
+                        self.drone_state["yaw"],
                     )
 
                     # 3. Format telemetry payload (Antigravity Ontology)
                     track_payload = {
                         "id": f"DRONE-TRK-{track_id}",
-                        "type": "TANK" if int(c) == 7 else "TEL", # Simplified mapping
-                        "metadata": {
-                            "affiliation": "UNKNOWN",
-                            "source": "Drone-01"
-                        },
-                        "kinematics": {
-                            "latitude": lat,
-                            "longitude": lon,
-                            "timestamp": datetime.now().isoformat()
-                        },
+                        "type": "TANK" if int(c) == 7 else "TEL",  # Simplified mapping
+                        "metadata": {"affiliation": "UNKNOWN", "source": "Drone-01"},
+                        "kinematics": {"latitude": lat, "longitude": lon, "timestamp": datetime.now().isoformat()},
                         "kill_chain_state": "TRACK",
-                        "confidence_score": float(score)
+                        "confidence_score": float(score),
                     }
 
                     # 4. Push to Dashboard (5Hz throttling simple implementation)
-                    if frame_count % 6 == 0: # Assuming ~30fps, 5Hz = every 6th frame
+                    if frame_count % 6 == 0:  # Assuming ~30fps, 5Hz = every 6th frame
                         await self.connector.send_telemetry(track_payload)
 
             # Stream frame at reduced frequency
             if frame_count % 3 == 0:
                 await self.connector.stream_frame(frame)
 
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
 
         cap.release()
         await self.connector.close()
 
+
 if __name__ == "__main__":
-    processor = VisionProcessor(source="test_path.mp4") # Or 0 for webcam
+    processor = VisionProcessor(source="test_path.mp4")  # Or 0 for webcam
     asyncio.run(processor.run())

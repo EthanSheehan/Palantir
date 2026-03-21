@@ -5,16 +5,16 @@ All tests must fail before swarm_coordinator.py exists, then pass after implemen
 Uses lightweight stub classes for Target and UAV — does NOT import sim_engine.
 """
 
-import pytest
 from dataclasses import FrozenInstanceError
 
+import pytest
 from sensor_fusion import SensorContribution
-from swarm_coordinator import SwarmCoordinator, SwarmTask, TaskingOrder, SENSOR_TYPES
-
+from swarm_coordinator import SENSOR_TYPES, SwarmCoordinator, SwarmTask, TaskingOrder
 
 # ---------------------------------------------------------------------------
 # Stub classes — pure test helpers, no sim_engine dependency
 # ---------------------------------------------------------------------------
+
 
 class StubUAV:
     def __init__(self, id, x, y, mode="IDLE", sensors=None, tracked_target_ids=None):
@@ -41,6 +41,7 @@ class StubTarget:
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def make_contrib(uav_id: int, sensor_type: str, confidence: float = 0.5) -> SensorContribution:
     return SensorContribution(
         uav_id=uav_id,
@@ -55,6 +56,7 @@ def make_contrib(uav_id: int, sensor_type: str, confidence: float = 0.5) -> Sens
 # ---------------------------------------------------------------------------
 # TestSwarmCoordinator
 # ---------------------------------------------------------------------------
+
 
 class TestSwarmCoordinator:
     def test_assigns_nearest_matching_uav(self):
@@ -95,7 +97,11 @@ class TestSwarmCoordinator:
             make_contrib(uav_id=12, sensor_type="SIGINT"),
         ]
         target = StubTarget(
-            id=1, x=10.0, y=10.0, type="SAM", fused_confidence=0.9,
+            id=1,
+            x=10.0,
+            y=10.0,
+            type="SAM",
+            fused_confidence=0.9,
             sensor_contributions=contribs,
         )
         uav = StubUAV(id=1, x=10.01, y=10.01, sensors=["EO_IR", "SAR", "SIGINT"])
@@ -111,7 +117,11 @@ class TestSwarmCoordinator:
         coordinator = SwarmCoordinator(min_idle_count=1)
         contribs = [make_contrib(uav_id=99, sensor_type="EO_IR")]
         target = StubTarget(
-            id=1, x=10.0, y=10.0, type="SAM", fused_confidence=0.3,
+            id=1,
+            x=10.0,
+            y=10.0,
+            type="SAM",
+            fused_confidence=0.3,
             sensor_contributions=contribs,
         )
         # Only EO_IR UAVs available — cannot cover SAR or SIGINT gaps
@@ -159,7 +169,11 @@ class TestSwarmCoordinator:
         # Target already has EO_IR — missing SAR and SIGINT
         contribs = [make_contrib(uav_id=99, sensor_type="EO_IR")]
         target = StubTarget(
-            id=1, x=10.0, y=10.0, type="SAM", fused_confidence=0.3,
+            id=1,
+            x=10.0,
+            y=10.0,
+            type="SAM",
+            fused_confidence=0.3,
             sensor_contributions=contribs,
         )
         uav_sar = StubUAV(id=1, x=10.01, y=10.01, sensors=["SAR"])
@@ -199,6 +213,7 @@ class TestSwarmCoordinator:
 # TestImmutability
 # ---------------------------------------------------------------------------
 
+
 class TestImmutability:
     def test_swarm_task_is_frozen(self):
         """SwarmTask must be a frozen dataclass (immutable)."""
@@ -227,6 +242,7 @@ class TestImmutability:
 # TestConstants
 # ---------------------------------------------------------------------------
 
+
 class TestConstants:
     def test_sensor_types_constant(self):
         """SENSOR_TYPES must contain EO_IR, SAR, SIGINT."""
@@ -240,36 +256,42 @@ class TestConstants:
 # Integration tests (use real SimulationModel)
 # ---------------------------------------------------------------------------
 
+
 def test_request_release_swarm():
     """Integration: request_swarm force-assigns, release_swarm cancels."""
-    import sys
     import os
+    import sys
+
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
     from sim_engine import SimulationModel
+
     sim = SimulationModel()
     # Tick once to settle initial state
     sim.tick()
-    detected = [t for t in sim.targets if t.state != "UNDETECTED"]
+    detected = [t for t in sim.targets.values() if t.state != "UNDETECTED"]
     if not detected:
         # Force-detect first target for test
-        sim.targets[0].state = "DETECTED"
-        sim.targets[0].fused_confidence = 0.3
-        detected = [sim.targets[0]]
+        first_target = next(iter(sim.targets.values()))
+        first_target.state = "DETECTED"
+        first_target.fused_confidence = 0.3
+        detected = [first_target]
     target = detected[0]
     # Request swarm
     sim.request_swarm(target.id)
     # Release swarm
     sim.release_swarm(target.id)
-    released = [u for u in sim.uavs if u.mode == "SUPPORT" and target.id in u.tracked_target_ids]
+    released = [u for u in sim.uavs.values() if u.mode == "SUPPORT" and target.id in u.tracked_target_ids]
     assert len(released) == 0
 
 
 def test_swarm_state_in_broadcast():
     """Integration: swarm_tasks key exists in get_state() output."""
-    import sys
     import os
+    import sys
+
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
     from sim_engine import SimulationModel
+
     sim = SimulationModel()
     state = sim.get_state()
     assert "swarm_tasks" in state

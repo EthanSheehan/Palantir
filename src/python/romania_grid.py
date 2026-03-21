@@ -1,6 +1,7 @@
 import math
 from typing import Dict, List, Tuple
 
+
 def is_point_in_polygon(x: float, y: float, polygon: List[Tuple[float, float]]) -> bool:
     """Ray casting algorithm for point in polygon."""
     n = len(polygon)
@@ -18,6 +19,7 @@ def is_point_in_polygon(x: float, y: float, polygon: List[Tuple[float, float]]) 
         p1x, p1y = p2x, p2y
     return inside
 
+
 class GridZone:
     def __init__(self, x_idx: int, y_idx: int, lon: float, lat: float, width_deg: float, height_deg: float):
         self.id = (x_idx, y_idx)
@@ -25,16 +27,17 @@ class GridZone:
         self.lat = lat
         self.width_deg = width_deg
         self.height_deg = height_deg
-        
+
         # Macro state variables equivalent to previous implementation
         self.base_lambda = 0.1
         self.demand_rate = self.base_lambda
         self.queue = 0
         self.uav_count = 0
         self.imbalance = 0.0
-        
+
         # Fast graph edge traversal for adjacent zones
-        self.neighbors: List['GridZone'] = []
+        self.neighbors: List["GridZone"] = []
+
 
 class RomaniaMacroGrid:
     def __init__(self):
@@ -43,16 +46,16 @@ class RomaniaMacroGrid:
         self.MAX_LON = 29.8
         self.MIN_LAT = 43.6
         self.MAX_LAT = 48.3
-        
+
         # Approximate center of Romania for projection calculation
         # 1 deg Lat = ~111.32 km.
         # 50x50 grid over Romania
         # Lat range: 48.3 - 43.6 = 4.7 deg. 4.7 / 50 = 0.094
         self.CELL_DEG_LAT = 0.094
-        
+
         # Lon range: 29.8 - 20.2 = 9.6 deg. 9.6 / 50 = 0.192
         self.CELL_DEG_LON = 0.192
-        
+
         # Simplified Polygon of Romania (Longitude, Latitude)
         # Sourced from accurate low-res GeoJSON boundaries
         self.ROMANIA_POLYGON = [
@@ -101,42 +104,39 @@ class RomaniaMacroGrid:
             (22.1, 47.672),
             (22.711, 47.882),
         ]
-        
+
         self.zones: Dict[Tuple[int, int], GridZone] = {}
         self.flow_accum: Dict[Tuple[int, int], Dict[Tuple[int, int], float]] = {}
-        
+
         self.K_GAIN = 0.3
         self.MU_CAPACITY_FACTOR = 10.0
-        
+
         self._build_grid()
-        
+
     def _build_grid(self):
         """Creates the grid zones that fall within the bounds of the country polygon."""
         width_deg = self.MAX_LON - self.MIN_LON
         height_deg = self.MAX_LAT - self.MIN_LAT
-        
+
         num_cols = math.ceil(width_deg / self.CELL_DEG_LON)
         num_rows = math.ceil(height_deg / self.CELL_DEG_LAT)
-        
+
         # 1. Generate Filtered Zones
         for x in range(num_cols):
             for y in range(num_rows):
                 lon = self.MIN_LON + (x + 0.5) * self.CELL_DEG_LON
                 lat = self.MIN_LAT + (y + 0.5) * self.CELL_DEG_LAT
-                
+
                 # Check mapping
                 if is_point_in_polygon(lon, lat, self.ROMANIA_POLYGON):
                     zone = GridZone(x, y, lon, lat, self.CELL_DEG_LON, self.CELL_DEG_LAT)
                     self.zones[(x, y)] = zone
-                    
+
                     self.flow_accum[(x, y)] = {}
-                    
+
         # 2. Build Efficient Adjacency Graph (only existing valid neighbors)
         for (x, y), zone in self.zones.items():
-            potential_neighbors = [
-                (x+1, y), (x-1, y), 
-                (x, y+1), (x, y-1)
-            ]
+            potential_neighbors = [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
             for nx, ny in potential_neighbors:
                 if (nx, ny) in self.zones:
                     neighbor_zone = self.zones[(nx, ny)]
@@ -167,24 +167,26 @@ class RomaniaMacroGrid:
         for (x, y), zone_r in self.zones.items():
             for zone_s in zone_r.neighbors:
                 nx, ny = zone_s.id
-                
+
                 # Proportional flow gradient: from r to s
                 u_rs = self.K_GAIN * (zone_r.imbalance - zone_s.imbalance)
-                
+
                 if u_rs > 0:
                     self.flow_accum[(x, y)][(nx, ny)] += u_rs * dt_sec
-                    
+
                     if self.flow_accum[(x, y)][(nx, ny)] >= 1.0:
                         count = int(self.flow_accum[(x, y)][(nx, ny)])
                         self.flow_accum[(x, y)][(nx, ny)] -= count
-                        
+
                         # In the real simulation, ensure zone_r has enough idle UAVs here
-                        dispatches.append({
-                            "source_id": (x, y),
-                            "target_id": (nx, ny),
-                            "count": count,
-                            "source_coord": (zone_r.lon, zone_r.lat),
-                            "target_coord": (zone_s.lon, zone_s.lat),
-                        })
-                        
+                        dispatches.append(
+                            {
+                                "source_id": (x, y),
+                                "target_id": (nx, ny),
+                                "count": count,
+                                "source_coord": (zone_r.lon, zone_r.lat),
+                                "target_coord": (zone_s.lon, zone_s.lat),
+                            }
+                        )
+
         return dispatches

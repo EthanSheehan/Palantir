@@ -8,20 +8,21 @@ Invariants tested:
 4. Promotion only happens in the correct direction (DETECTED->CLASSIFIED->VERIFIED).
 5. State is deterministic (same inputs = same output).
 """
+
 from __future__ import annotations
 
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from hypothesis import given, settings, assume
+from hypothesis import given, settings
 from hypothesis import strategies as st
-
 from verification_engine import (
-    evaluate_target_state,
-    VERIFICATION_THRESHOLDS,
-    _TERMINAL_STATES,
     _MANAGED_STATES,
+    _TERMINAL_STATES,
+    VERIFICATION_THRESHOLDS,
+    evaluate_target_state,
 )
 
 ALL_VALID_STATES = list(_MANAGED_STATES | _TERMINAL_STATES | {"UNDETECTED", "UNKNOWN"})
@@ -41,17 +42,13 @@ TARGET_TYPES = list(VERIFICATION_THRESHOLDS.keys()) + ["UNKNOWN_TYPE"]
 )
 @settings(max_examples=200)
 def test_terminal_states_never_change(
-    current_state, target_type, fused_confidence, sensor_type_count,
-    time_in_state, seconds_since_sensor, demo_fast
+    current_state, target_type, fused_confidence, sensor_type_count, time_in_state, seconds_since_sensor, demo_fast
 ):
     """Terminal states (NOMINATED, LOCKED, ENGAGED, DESTROYED, ESCAPED) never change."""
     result = evaluate_target_state(
-        current_state, target_type, fused_confidence,
-        sensor_type_count, time_in_state, seconds_since_sensor, demo_fast
+        current_state, target_type, fused_confidence, sensor_type_count, time_in_state, seconds_since_sensor, demo_fast
     )
-    assert result == current_state, (
-        f"Terminal state {current_state} was changed to {result}"
-    )
+    assert result == current_state, f"Terminal state {current_state} was changed to {result}"
 
 
 @given(
@@ -65,17 +62,22 @@ def test_terminal_states_never_change(
 )
 @settings(max_examples=200)
 def test_output_state_is_always_valid(
-    current_state, target_type, fused_confidence, sensor_type_count,
-    time_in_state, seconds_since_sensor, demo_fast
+    current_state, target_type, fused_confidence, sensor_type_count, time_in_state, seconds_since_sensor, demo_fast
 ):
     """Result is always one of the known valid state strings."""
     result = evaluate_target_state(
-        current_state, target_type, fused_confidence,
-        sensor_type_count, time_in_state, seconds_since_sensor, demo_fast
+        current_state, target_type, fused_confidence, sensor_type_count, time_in_state, seconds_since_sensor, demo_fast
     )
     assert result in (
-        "UNDETECTED", "DETECTED", "CLASSIFIED", "VERIFIED",
-        "NOMINATED", "LOCKED", "ENGAGED", "DESTROYED", "ESCAPED"
+        "UNDETECTED",
+        "DETECTED",
+        "CLASSIFIED",
+        "VERIFIED",
+        "NOMINATED",
+        "LOCKED",
+        "ENGAGED",
+        "DESTROYED",
+        "ESCAPED",
     ), f"Unknown state returned: {result!r}"
 
 
@@ -87,16 +89,19 @@ def test_output_state_is_always_valid(
     demo_fast=st.booleans(),
 )
 @settings(max_examples=200)
-def test_no_regression_below_timeout(
-    target_type, fused_confidence, sensor_type_count, time_in_state, demo_fast
-):
+def test_no_regression_below_timeout(target_type, fused_confidence, sensor_type_count, time_in_state, demo_fast):
     """When seconds_since_last_sensor is 0, no regression occurs."""
     seconds_since_sensor = 0.0
 
     for current_state in ["VERIFIED", "CLASSIFIED", "DETECTED"]:
         result = evaluate_target_state(
-            current_state, target_type, fused_confidence,
-            sensor_type_count, time_in_state, seconds_since_sensor, demo_fast
+            current_state,
+            target_type,
+            fused_confidence,
+            sensor_type_count,
+            time_in_state,
+            seconds_since_sensor,
+            demo_fast,
         )
         state_order = {"UNDETECTED": 0, "DETECTED": 1, "CLASSIFIED": 2, "VERIFIED": 3}
         # Result should not be lower order than current state (no regression when sensors present)
@@ -117,22 +122,29 @@ def test_no_regression_below_timeout(
 )
 @settings(max_examples=200)
 def test_state_transitions_are_deterministic(
-    target_type, fused_confidence, sensor_type_count, time_in_state,
-    seconds_since_sensor, demo_fast
+    target_type, fused_confidence, sensor_type_count, time_in_state, seconds_since_sensor, demo_fast
 ):
     """Same inputs always produce the same output (function is pure/deterministic)."""
     for current_state in MANAGED_STATES_LIST:
         result1 = evaluate_target_state(
-            current_state, target_type, fused_confidence,
-            sensor_type_count, time_in_state, seconds_since_sensor, demo_fast
+            current_state,
+            target_type,
+            fused_confidence,
+            sensor_type_count,
+            time_in_state,
+            seconds_since_sensor,
+            demo_fast,
         )
         result2 = evaluate_target_state(
-            current_state, target_type, fused_confidence,
-            sensor_type_count, time_in_state, seconds_since_sensor, demo_fast
+            current_state,
+            target_type,
+            fused_confidence,
+            sensor_type_count,
+            time_in_state,
+            seconds_since_sensor,
+            demo_fast,
         )
-        assert result1 == result2, (
-            f"Non-deterministic: {current_state} -> {result1} vs {result2}"
-        )
+        assert result1 == result2, f"Non-deterministic: {current_state} -> {result1} vs {result2}"
 
 
 @given(
@@ -148,8 +160,13 @@ def test_verified_can_be_reached_from_classified_with_enough_evidence(
 ):
     """CLASSIFIED -> VERIFIED is achievable with high confidence + sensor diversity."""
     result = evaluate_target_state(
-        "CLASSIFIED", target_type, fused_confidence,
-        sensor_type_count, time_in_state, seconds_since_sensor, demo_fast=False
+        "CLASSIFIED",
+        target_type,
+        fused_confidence,
+        sensor_type_count,
+        time_in_state,
+        seconds_since_sensor,
+        demo_fast=False,
     )
     # With confidence 0.8+, 3+ sensors, 30+ seconds — should always promote to VERIFIED
     # (all thresholds have verify_confidence <= 0.8 and verify_sensor_types <= 2)

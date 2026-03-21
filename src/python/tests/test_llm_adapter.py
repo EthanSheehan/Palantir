@@ -17,15 +17,14 @@ pytestmark = pytest.mark.asyncio(loop_scope="function")
 from llm_adapter import (
     LLMAdapter,
     LLMResponse,
-    _HEURISTIC_RESPONSE,
     _parse_json_permissive,
     _resolve_ollama_model,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helper: patch all probes to disable real provider detection
 # ---------------------------------------------------------------------------
+
 
 def _no_providers():
     """Context manager stack that disables all provider auto-detection."""
@@ -39,6 +38,7 @@ def _no_providers():
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def adapter_no_ollama():
@@ -74,6 +74,7 @@ def adapter_with_gemini():
 # Initialization
 # ---------------------------------------------------------------------------
 
+
 class TestInitialization:
     def test_no_crash_when_no_providers(self, adapter_no_ollama: LLMAdapter):
         assert adapter_no_ollama is not None
@@ -102,11 +103,10 @@ class TestInitialization:
 # Fallback responses
 # ---------------------------------------------------------------------------
 
+
 class TestFallback:
     @pytest.mark.asyncio
-    async def test_complete_returns_heuristic_when_no_provider(
-        self, adapter_no_ollama: LLMAdapter
-    ):
+    async def test_complete_returns_heuristic_when_no_provider(self, adapter_no_ollama: LLMAdapter):
         resp = await adapter_no_ollama.complete([{"role": "user", "content": "hello"}])
         assert resp.provider == "fallback"
         assert resp.model == "heuristic"
@@ -114,9 +114,7 @@ class TestFallback:
         assert "[HEURISTIC]" in resp.content
 
     @pytest.mark.asyncio
-    async def test_structured_returns_empty_dict_when_no_provider(
-        self, adapter_no_ollama: LLMAdapter
-    ):
+    async def test_structured_returns_empty_dict_when_no_provider(self, adapter_no_ollama: LLMAdapter):
         result = await adapter_no_ollama.complete_structured(
             [{"role": "user", "content": "hello"}],
             response_schema={"type": "object"},
@@ -127,6 +125,7 @@ class TestFallback:
 # ---------------------------------------------------------------------------
 # Model hint mapping
 # ---------------------------------------------------------------------------
+
 
 class TestModelHints:
     def test_fast_resolves_to_small_model(self):
@@ -153,6 +152,7 @@ class TestModelHints:
 # Provider status
 # ---------------------------------------------------------------------------
 
+
 class TestProviderStatus:
     def test_status_when_no_providers(self, adapter_no_ollama: LLMAdapter):
         status = adapter_no_ollama.get_provider_status()
@@ -170,6 +170,7 @@ class TestProviderStatus:
 # ---------------------------------------------------------------------------
 # Mocked Ollama completion
 # ---------------------------------------------------------------------------
+
 
 class TestOllamaCompletion:
     @pytest.mark.asyncio
@@ -196,9 +197,7 @@ class TestOllamaCompletion:
         assert resp.tokens_used == 15
 
     @pytest.mark.asyncio
-    async def test_complete_returns_fallback_on_exception(
-        self, adapter_with_ollama: LLMAdapter
-    ):
+    async def test_complete_returns_fallback_on_exception(self, adapter_with_ollama: LLMAdapter):
         with patch("ollama.AsyncClient") as MockClient:
             instance = MockClient.return_value
             instance.chat = AsyncMock(side_effect=RuntimeError("connection refused"))
@@ -213,6 +212,7 @@ class TestOllamaCompletion:
 # ---------------------------------------------------------------------------
 # Mocked Gemini completion
 # ---------------------------------------------------------------------------
+
 
 class TestGeminiCompletion:
     @pytest.mark.asyncio
@@ -243,9 +243,7 @@ class TestGeminiCompletion:
     async def test_gemini_falls_back_on_exception(self, adapter_with_gemini: LLMAdapter):
         with patch("google.genai.Client") as MockClient:
             instance = MockClient.return_value
-            instance.aio.models.generate_content = AsyncMock(
-                side_effect=RuntimeError("quota exceeded")
-            )
+            instance.aio.models.generate_content = AsyncMock(side_effect=RuntimeError("quota exceeded"))
 
             resp = await adapter_with_gemini.complete(
                 [{"role": "user", "content": "test"}],
@@ -257,6 +255,7 @@ class TestGeminiCompletion:
 # ---------------------------------------------------------------------------
 # Structured output parsing
 # ---------------------------------------------------------------------------
+
 
 class TestStructuredOutput:
     @pytest.mark.asyncio
@@ -285,24 +284,26 @@ class TestStructuredOutput:
 # JSON parsing helper
 # ---------------------------------------------------------------------------
 
+
 class TestJsonParsing:
     def test_parses_clean_json(self):
         assert _parse_json_permissive('{"a": 1}') == {"a": 1}
 
     def test_strips_markdown_fences(self):
-        text = "```json\n{\"a\": 1}\n```"
+        text = '```json\n{"a": 1}\n```'
         assert _parse_json_permissive(text) == {"a": 1}
 
     def test_returns_empty_on_invalid(self):
         assert _parse_json_permissive("not json at all") == {}
 
     def test_handles_whitespace(self):
-        assert _parse_json_permissive("  \n{\"b\": 2}\n  ") == {"b": 2}
+        assert _parse_json_permissive('  \n{"b": 2}\n  ') == {"b": 2}
 
 
 # ---------------------------------------------------------------------------
 # LLMResponse immutability
 # ---------------------------------------------------------------------------
+
 
 class TestLLMResponse:
     def test_frozen_dataclass(self):

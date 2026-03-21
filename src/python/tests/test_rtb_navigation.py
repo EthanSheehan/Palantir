@@ -2,20 +2,22 @@
 
 TDD: Write tests first, run to confirm RED, then implement.
 """
+
 import math
 import sys
 from pathlib import Path
+
 import pytest
 
 _SRC = str(Path(__file__).resolve().parent.parent)
 sys.path.insert(0, _SRC)
 
-from sim_engine import UAV, MAX_TURN_RATE
-
+from sim_engine import MAX_TURN_RATE, UAV
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_uav(x: float, y: float, home_x: float = 25.0, home_y: float = 45.5) -> UAV:
     """Create a UAV with home_position set, placed at (x, y), pointing toward home."""
@@ -31,14 +33,15 @@ def _make_uav(x: float, y: float, home_x: float = 25.0, home_y: float = 45.5) ->
     return uav
 
 
-ARRIVAL_KM = 0.5      # expected threshold (half a km)
+ARRIVAL_KM = 0.5  # expected threshold (half a km)
 DEG_PER_KM = 1.0 / 111.0
-ARRIVAL_DEG = ARRIVAL_KM * DEG_PER_KM   # ~0.0045 deg
+ARRIVAL_DEG = ARRIVAL_KM * DEG_PER_KM  # ~0.0045 deg
 
 
 # ---------------------------------------------------------------------------
 # Test 1 — drone navigates TOWARD home
 # ---------------------------------------------------------------------------
+
 
 class TestRtbNavigatesTowardHome:
     def test_rtb_moves_drone_closer_to_home_each_tick(self):
@@ -58,8 +61,7 @@ class TestRtbNavigatesTowardHome:
         dist_after = math.hypot(uav.x - home_x, uav.y - home_y)
 
         assert dist_after < dist_before, (
-            f"Drone should have moved closer to home after 30 ticks. "
-            f"Before: {dist_before:.4f}, After: {dist_after:.4f}"
+            f"Drone should have moved closer to home after 30 ticks. Before: {dist_before:.4f}, After: {dist_after:.4f}"
         )
 
     def test_rtb_mode_stays_rtb_while_far_from_home(self):
@@ -78,6 +80,7 @@ class TestRtbNavigatesTowardHome:
 # ---------------------------------------------------------------------------
 # Test 2 — turn_toward used (smooth arcs, no teleporting)
 # ---------------------------------------------------------------------------
+
 
 class TestRtbUsesTurnToward:
     def test_rtb_does_not_teleport_heading(self):
@@ -119,8 +122,7 @@ class TestRtbUsesTurnToward:
 
         actual_speed = math.hypot(uav.vx, uav.vy)
         assert abs(actual_speed - speed) < speed * 0.05, (
-            f"Speed {actual_speed:.4f} deviates too much from cruise {speed}. "
-            "RTB should maintain cruise speed."
+            f"Speed {actual_speed:.4f} deviates too much from cruise {speed}. RTB should maintain cruise speed."
         )
 
 
@@ -128,12 +130,13 @@ class TestRtbUsesTurnToward:
 # Test 3 — transitions to IDLE on arrival
 # ---------------------------------------------------------------------------
 
+
 class TestRtbTransitionsToIdleOnArrival:
     def test_rtb_transitions_to_idle_when_within_threshold(self):
         """Drone within arrival threshold should immediately switch to IDLE."""
         home_x, home_y = 25.0, 45.5
         # Place drone just inside the arrival threshold
-        tiny_offset = ARRIVAL_DEG * 0.3   # well inside threshold
+        tiny_offset = ARRIVAL_DEG * 0.3  # well inside threshold
         uav = _make_uav(x=home_x + tiny_offset, y=home_y, home_x=home_x, home_y=home_y)
         speed = 0.05
         dt = 1.0
@@ -179,6 +182,7 @@ class TestRtbTransitionsToIdleOnArrival:
 # Test 4 — home_position from spawn / theater config
 # ---------------------------------------------------------------------------
 
+
 class TestRtbHomeFromSpawnPosition:
     def test_uav_has_home_position_attribute(self):
         """UAV should have home_position attribute after construction."""
@@ -188,12 +192,8 @@ class TestRtbHomeFromSpawnPosition:
     def test_uav_home_position_is_tuple(self):
         """home_position should be a (lon, lat) tuple."""
         uav = UAV(id=1, x=25.0, y=45.5, zone_id=(0, 0))
-        assert isinstance(uav.home_position, tuple), (
-            f"home_position should be a tuple, got {type(uav.home_position)}"
-        )
-        assert len(uav.home_position) == 2, (
-            f"home_position should have 2 elements, got {len(uav.home_position)}"
-        )
+        assert isinstance(uav.home_position, tuple), f"home_position should be a tuple, got {type(uav.home_position)}"
+        assert len(uav.home_position) == 2, f"home_position should have 2 elements, got {len(uav.home_position)}"
 
     def test_uav_home_position_defaults_to_spawn_location(self):
         """When no theater config is used, home_position defaults to spawn (x, y)."""
@@ -206,8 +206,9 @@ class TestRtbHomeFromSpawnPosition:
     def test_simulation_model_sets_home_from_theater_base(self):
         """SimulationModel should set home_position from theater base_lon/base_lat."""
         from sim_engine import SimulationModel
+
         sim = SimulationModel(theater_name="romania")
-        for uav in sim.uavs:
+        for uav in sim.uavs.values():
             assert hasattr(uav, "home_position"), f"UAV {uav.id} missing home_position"
             home_x, home_y = uav.home_position
             # Romania theater base is (25.0, 45.5)

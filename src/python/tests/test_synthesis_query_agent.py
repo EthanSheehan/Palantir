@@ -5,25 +5,25 @@ All tests are self-contained — no live LLM is required.
 """
 
 import json
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
+import pytest
+from agents.synthesis_query_agent import SynthesisQueryAgent
 from schemas.ontology import (
-    SITREPQuery,
-    SynthesisQueryOutput,
-    Track,
-    Detection,
-    TargetClassification,
-    SensorSource,
-    TargetNomination,
-    EngagementDecision,
     BattleDamageAssessment,
     BDAResult,
+    Detection,
+    EngagementDecision,
+    SensorSource,
+    SITREPQuery,
+    SynthesisQueryOutput,
+    TargetClassification,
+    TargetNomination,
+    Track,
 )
-from agents.synthesis_query_agent import SynthesisQueryAgent
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def sample_track() -> Track:

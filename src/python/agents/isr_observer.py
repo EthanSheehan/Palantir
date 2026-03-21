@@ -13,7 +13,6 @@ import json
 from typing import Any
 
 import structlog
-
 from llm_adapter import LLMAdapter, LLMResponse
 from schemas.ontology import (
     Detection,
@@ -72,11 +71,13 @@ Detections:
 # Distance threshold for grouping detections (degrees, ~1km)
 _CORRELATION_DISTANCE_DEG = 0.01
 
-HIGH_PRIORITY_TYPES = frozenset({
-    TargetClassification.TEL,
-    TargetClassification.SAM,
-    TargetClassification.CP,
-})
+HIGH_PRIORITY_TYPES = frozenset(
+    {
+        TargetClassification.TEL,
+        TargetClassification.SAM,
+        TargetClassification.CP,
+    }
+)
 
 
 class ISRObserverAgent:
@@ -146,11 +147,7 @@ class ISRObserverAgent:
 
             classification = _safe_classification(classification_str)
 
-            group_dets = [
-                _dict_to_detection(detections[i])
-                for i in indices
-                if i < len(detections)
-            ]
+            group_dets = [_dict_to_detection(detections[i]) for i in indices if i < len(detections)]
             if not group_dets:
                 continue
 
@@ -171,8 +168,7 @@ class ISRObserverAgent:
 
             if is_hp:
                 alerts.append(
-                    f"High Priority Target: {classification.value} at "
-                    f"({avg_lat:.4f}, {avg_lon:.4f}) — {reasoning}"
+                    f"High Priority Target: {classification.value} at ({avg_lat:.4f}, {avg_lon:.4f}) — {reasoning}"
                 )
 
             logger.info(
@@ -219,9 +215,7 @@ class ISRObserverAgent:
             tracks.append(track)
 
             if is_hp:
-                alerts.append(
-                    f"High Priority Target Detected: {classification.value} — {reasoning}"
-                )
+                alerts.append(f"High Priority Target Detected: {classification.value} — {reasoning}")
 
             logger.info(
                 "isr_heuristic_track_created",
@@ -241,9 +235,7 @@ class ISRObserverAgent:
                 lat=data.get("lat", 0.0),
                 lon=data.get("lon", 0.0),
                 confidence=data.get("confidence", 0.5),
-                classification=_safe_classification(
-                    data.get("classification", "Unknown")
-                ),
+                classification=_safe_classification(data.get("classification", "Unknown")),
                 timestamp=data.get("timestamp", ""),
             )
 
@@ -263,9 +255,7 @@ class ISRObserverAgent:
 
             alerts = []
             if is_hp:
-                alerts.append(
-                    f"High Priority Target Detected: {classification.value} — {reasoning}"
-                )
+                alerts.append(f"High Priority Target Detected: {classification.value} — {reasoning}")
 
             logger.info(
                 "isr_heuristic_track_created",
@@ -278,14 +268,13 @@ class ISRObserverAgent:
             return ISRObserverOutput(tracks=[track], alerts=alerts)
         except (json.JSONDecodeError, KeyError, ValueError, TypeError) as exc:
             logger.error("heuristic_processing_failed", error=str(exc))
-            return ISRObserverOutput(
-                tracks=[], alerts=[f"Error processing data: {str(exc)}"]
-            )
+            return ISRObserverOutput(tracks=[], alerts=[f"Error processing data: {str(exc)}"])
 
 
 # ---------------------------------------------------------------------------
 # Module-level helpers (pure functions)
 # ---------------------------------------------------------------------------
+
 
 def _safe_classification(value: str) -> TargetClassification:
     try:
@@ -314,7 +303,4 @@ def _heuristic_reasoning(
             f"Classification '{classification.value}' is on the High-Priority Target "
             f"list. Confidence {confidence:.0%} exceeds alerting threshold."
         )
-    return (
-        f"Classification '{classification.value}' is not high-priority. "
-        f"Confidence {confidence:.0%}. Monitoring."
-    )
+    return f"Classification '{classification.value}' is not high-priority. Confidence {confidence:.0%}. Monitoring."

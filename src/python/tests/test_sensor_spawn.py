@@ -1,14 +1,12 @@
 """Tests for multi-sensor UAV spawn, sensor distribution, and theater YAML wiring."""
 
+import os
 import random
 import sys
-import os
-
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from sim_engine import SimulationModel, _pick_sensors, _SENSOR_DISTRIBUTION, DEG_PER_KM
+from sim_engine import _SENSOR_DISTRIBUTION, DEG_PER_KM, SimulationModel, _pick_sensors
 
 
 class TestPickSensors:
@@ -62,7 +60,7 @@ class TestUAVSensorsField:
     def test_all_uavs_have_sensors_list(self):
         random.seed(42)
         sim = SimulationModel()
-        for u in sim.uavs:
+        for u in sim.uavs.values():
             assert hasattr(u, "sensors"), f"UAV {u.id} missing sensors attribute"
             assert isinstance(u.sensors, list)
             assert len(u.sensors) >= 1
@@ -80,7 +78,7 @@ class TestUAVSensorsField:
         random.seed(42)
         sim = SimulationModel()
         known = {"EO_IR", "SAR", "SIGINT"}
-        for u in sim.uavs:
+        for u in sim.uavs.values():
             for s in u.sensors:
                 assert s in known, f"Unknown sensor '{s}' on UAV {u.id}"
 
@@ -92,46 +90,38 @@ class TestTheaterYAMLWiring:
         # TEL has speed_kmh: 40 in romania.yaml
         # 40 km/h * DEG_PER_KM / 3600 should match
         expected_speed = 40 * DEG_PER_KM / 3600.0
-        tel_targets = [t for t in sim.targets if t.type == "TEL"]
+        tel_targets = [t for t in sim.targets.values() if t.type == "TEL"]
         assert len(tel_targets) > 0, "No TEL targets spawned"
         for t in tel_targets:
-            assert abs(t.speed - expected_speed) < 1e-10, (
-                f"TEL target speed {t.speed} != expected {expected_speed}"
-            )
+            assert abs(t.speed - expected_speed) < 1e-10, f"TEL target speed {t.speed} != expected {expected_speed}"
 
     def test_truck_speed_kmh_wired(self):
         random.seed(42)
         sim = SimulationModel("romania")
         # TRUCK has speed_kmh: 60 in romania.yaml
         expected_speed = 60 * DEG_PER_KM / 3600.0
-        truck_targets = [t for t in sim.targets if t.type == "TRUCK"]
+        truck_targets = [t for t in sim.targets.values() if t.type == "TRUCK"]
         assert len(truck_targets) > 0, "No TRUCK targets spawned"
         for t in truck_targets:
-            assert abs(t.speed - expected_speed) < 1e-10, (
-                f"TRUCK target speed {t.speed} != expected {expected_speed}"
-            )
+            assert abs(t.speed - expected_speed) < 1e-10, f"TRUCK target speed {t.speed} != expected {expected_speed}"
 
     def test_threat_range_km_wired(self):
         random.seed(42)
         sim = SimulationModel("romania")
         # SAM has threat_range_km: 30 in romania.yaml
-        sam_targets = [t for t in sim.targets if t.type == "SAM"]
+        sam_targets = [t for t in sim.targets.values() if t.type == "SAM"]
         assert len(sam_targets) > 0, "No SAM targets spawned"
         for t in sam_targets:
-            assert t.threat_range_km == 30.0, (
-                f"SAM threat_range_km {t.threat_range_km} != 30"
-            )
+            assert t.threat_range_km == 30.0, f"SAM threat_range_km {t.threat_range_km} != 30"
 
     def test_detection_range_km_wired(self):
         random.seed(42)
         sim = SimulationModel("romania")
         # RADAR has detection_range_km: 100 in romania.yaml
-        radar_targets = [t for t in sim.targets if t.type == "RADAR"]
+        radar_targets = [t for t in sim.targets.values() if t.type == "RADAR"]
         assert len(radar_targets) > 0, "No RADAR targets spawned"
         for t in radar_targets:
-            assert t.detection_range_km == 100.0, (
-                f"RADAR detection_range_km {t.detection_range_km} != 100"
-            )
+            assert t.detection_range_km == 100.0, f"RADAR detection_range_km {t.detection_range_km} != 100"
 
     def test_threat_range_in_state_broadcast(self):
         random.seed(42)
@@ -157,7 +147,7 @@ class TestTheaterYAMLWiring:
         random.seed(42)
         sim = SimulationModel("romania")
         # CP has no speed_kmh in romania.yaml — speed should remain at Target default
-        cp_targets = [t for t in sim.targets if t.type == "CP"]
+        cp_targets = [t for t in sim.targets.values() if t.type == "CP"]
         assert len(cp_targets) > 0, "No CP targets spawned"
         # CP targets should NOT be in the speed map
         assert "CP" not in sim._unit_speed_map
@@ -166,6 +156,6 @@ class TestTheaterYAMLWiring:
         random.seed(42)
         sim = SimulationModel("romania")
         # TRUCK has no threat_range_km
-        truck_targets = [t for t in sim.targets if t.type == "TRUCK"]
+        truck_targets = [t for t in sim.targets.values() if t.type == "TRUCK"]
         for t in truck_targets:
             assert t.threat_range_km is None

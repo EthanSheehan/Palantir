@@ -1,6 +1,5 @@
 import asyncio
-import json
-from typing import List, Dict, Set
+from typing import Dict, List, Set
 
 import structlog
 from fastapi import WebSocket

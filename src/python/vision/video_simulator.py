@@ -1,17 +1,14 @@
-import cv2
-import numpy as np
 import asyncio
-import json
-import base64
-import random
 import math
-import time
+import random
 from datetime import datetime
 from typing import Optional
 
+import cv2
+import numpy as np
 import structlog
-from dashboard_connector import DashboardConnector
 from coordinate_transformer import pixel_to_gps
+from dashboard_connector import DashboardConnector
 
 logger = structlog.get_logger()
 
@@ -19,13 +16,13 @@ EARTH_RADIUS = 6378137.0
 
 # Color and shape config per target type (BGR tuples for OpenCV)
 TARGET_STYLES = {
-    "SAM":       {"color": (0, 0, 255),    "shape": "diamond"},
-    "TEL":       {"color": (0, 140, 255),   "shape": "triangle"},
-    "TRUCK":     {"color": (255, 255, 255), "shape": "rectangle"},
-    "CP":        {"color": (255, 100, 0),   "shape": "square"},
-    "MANPADS":   {"color": (200, 0, 200),   "shape": "small_circle"},
-    "RADAR":     {"color": (0, 255, 255),   "shape": "hexagon"},
-    "C2_NODE":   {"color": (255, 255, 0),   "shape": "diamond"},
+    "SAM": {"color": (0, 0, 255), "shape": "diamond"},
+    "TEL": {"color": (0, 140, 255), "shape": "triangle"},
+    "TRUCK": {"color": (255, 255, 255), "shape": "rectangle"},
+    "CP": {"color": (255, 100, 0), "shape": "square"},
+    "MANPADS": {"color": (200, 0, 200), "shape": "small_circle"},
+    "RADAR": {"color": (0, 255, 255), "shape": "hexagon"},
+    "C2_NODE": {"color": (255, 255, 0), "shape": "diamond"},
     "LOGISTICS": {"color": (180, 180, 180), "shape": "rectangle"},
 }
 
@@ -121,8 +118,10 @@ class MissionScenario:
     def update_drone(self, drone, dt):
         pass
 
+
 class ScanningScenario(MissionScenario):
     """Drone flies in a lawnmower or circular pattern."""
+
     def __init__(self, pattern="circular"):
         super().__init__(f"Scanning-{pattern}")
         self.pattern = pattern
@@ -138,8 +137,10 @@ class ScanningScenario(MissionScenario):
             drone["lon"] = drone["origin_lon"] + (math.sin(self.angle) * 0.001)
             drone["yaw"] = (math.degrees(-self.angle) + 90) % 360
 
+
 class TrackingScenario(MissionScenario):
     """Drone follows a specific target."""
+
     def __init__(self, target_id):
         super().__init__(f"Tracking-{target_id}")
         self.target_id = target_id
@@ -149,8 +150,11 @@ class TrackingScenario(MissionScenario):
         if target:
             # Simple chase logic
             pass
+
+
 class PaintingScenario(MissionScenario):
     """Drone orbits and 'paints' (locks onto) a specific target."""
+
     def __init__(self, target_id):
         super().__init__(f"Painting-{target_id}")
         self.target_id = target_id
@@ -181,21 +185,37 @@ class DroneSimulator:
             "alt": 120.0,
             "pitch": -45.0,
             "yaw": 0.0,
-            "speed": 15.0 # m/s mock
+            "speed": 15.0,  # m/s mock
         }
 
         self.scenario = ScanningScenario(pattern="circular")
 
         # Simulated "Blocks" (fallback targets when not connected to sim_engine)
         self.blocks = [
-            {"id": "CP-1", "x": random.randint(100, 700), "y": random.randint(100, 500), "vx": 2, "vy": 1, "color": (0, 0, 255), "type": "TEL"},
-            {"id": "CP-2", "x": random.randint(100, 700), "y": random.randint(100, 500), "vx": -1, "vy": 2, "color": (255, 0, 0), "type": "CP"}
+            {
+                "id": "CP-1",
+                "x": random.randint(100, 700),
+                "y": random.randint(100, 500),
+                "vx": 2,
+                "vy": 1,
+                "color": (0, 0, 255),
+                "type": "TEL",
+            },
+            {
+                "id": "CP-2",
+                "x": random.randint(100, 700),
+                "y": random.randint(100, 500),
+                "vx": -1,
+                "vy": 2,
+                "color": (255, 0, 0),
+                "type": "CP",
+            },
         ]
 
         # Real targets from sim_engine (immutable — replaced each update)
         self._sim_targets: tuple[dict, ...] = ()
         # Drone mode from sim_engine
-        self._drone_mode: str = "SCANNING"
+        self._drone_mode: str = "SEARCH"
         self._tracked_target_id: Optional[int] = None
         # Lock pulse animation state
         self._lock_pulse_phase: float = 0.0
@@ -241,15 +261,11 @@ class DroneSimulator:
         s = size
 
         if shape == "diamond":
-            pts = np.array([
-                [px, py - s], [px + s, py], [px, py + s], [px - s, py]
-            ], np.int32)
+            pts = np.array([[px, py - s], [px + s, py], [px, py + s], [px - s, py]], np.int32)
             cv2.polylines(frame, [pts], True, color, 2)
 
         elif shape == "triangle":
-            pts = np.array([
-                [px, py - s], [px + s, py + s], [px - s, py + s]
-            ], np.int32)
+            pts = np.array([[px, py - s], [px + s, py + s], [px - s, py + s]], np.int32)
             cv2.polylines(frame, [pts], True, color, 2)
 
         elif shape == "rectangle":
@@ -262,11 +278,13 @@ class DroneSimulator:
             cv2.circle(frame, (px, py), s // 2, color, 2)
 
         elif shape == "hexagon":
-            pts = np.array([
-                [px + int(s * math.cos(math.radians(a))),
-                 py + int(s * math.sin(math.radians(a)))]
-                for a in range(0, 360, 60)
-            ], np.int32)
+            pts = np.array(
+                [
+                    [px + int(s * math.cos(math.radians(a))), py + int(s * math.sin(math.radians(a)))]
+                    for a in range(0, 360, 60)
+                ],
+                np.int32,
+            )
             cv2.polylines(frame, [pts], True, color, 2)
 
     def _draw_corner_markers(self, frame, bx, by, half_w, half_h, color, cl=10):
@@ -348,12 +366,12 @@ class DroneSimulator:
         length = 40
         cv2.line(frame, (20, 20), (20 + length, 20), color, 1)
         cv2.line(frame, (20, 20), (20, 20 + length), color, 1)
-        cv2.line(frame, (self.width-20, 20), (self.width-20-length, 20), color, 1)
-        cv2.line(frame, (self.width-20, 20), (self.width-20, 20 + length), color, 1)
-        cv2.line(frame, (20, self.height-20), (20 + length, self.height-20), color, 1)
-        cv2.line(frame, (20, self.height-20), (20, self.height-20-length), color, 1)
-        cv2.line(frame, (self.width-20, self.height-20), (self.width-20-length, self.height-20), color, 1)
-        cv2.line(frame, (self.width-20, self.height-20), (self.width-20, self.height-20-length), color, 1)
+        cv2.line(frame, (self.width - 20, 20), (self.width - 20 - length, 20), color, 1)
+        cv2.line(frame, (self.width - 20, 20), (self.width - 20, 20 + length), color, 1)
+        cv2.line(frame, (20, self.height - 20), (20 + length, self.height - 20), color, 1)
+        cv2.line(frame, (20, self.height - 20), (20, self.height - 20 - length), color, 1)
+        cv2.line(frame, (self.width - 20, self.height - 20), (self.width - 20 - length, self.height - 20), color, 1)
+        cv2.line(frame, (self.width - 20, self.height - 20), (self.width - 20, self.height - 20 - length), color, 1)
 
         # Telemetry (top-left)
         cv2.putText(frame, f"ID: {self.drone_id}", (30, 40), font, 0.5, color, 1)
@@ -377,28 +395,44 @@ class DroneSimulator:
         tracked = self._find_tracked_target() if self._has_sim_targets else None
         if tracked and self._is_tracking:
             range_m = _calculate_range_m(
-                self.state["lat"], self.state["lon"],
-                tracked["lat"], tracked["lon"],
+                self.state["lat"],
+                self.state["lon"],
+                tracked["lat"],
+                tracked["lon"],
             )
             bearing = _calculate_bearing_deg(
-                self.state["lat"], self.state["lon"],
-                tracked["lat"], tracked["lon"],
+                self.state["lat"],
+                self.state["lon"],
+                tracked["lat"],
+                tracked["lon"],
             )
             cv2.putText(
                 frame,
                 f"TRK: {tracked.get('type', '?')} #{tracked['id']}",
-                (self.width - 250, 60), font, 0.45, mode_color, 1,
+                (self.width - 250, 60),
+                font,
+                0.45,
+                mode_color,
+                1,
             )
             cv2.putText(
                 frame,
                 f"RNG: {range_m:.0f}m  BRG: {bearing:.1f}",
-                (self.width - 250, 78), font, 0.45, mode_color, 1,
+                (self.width - 250, 78),
+                font,
+                0.45,
+                mode_color,
+                1,
             )
             if self._drone_mode == "PAINTING":
                 cv2.putText(
                     frame,
                     "LOCK: ACTIVE",
-                    (self.width - 250, 96), font, 0.45, (0, 0, 255), 1,
+                    (self.width - 250, 96),
+                    font,
+                    0.45,
+                    (0, 0, 255),
+                    1,
                 )
 
         # Center crosshair — changes based on mode
@@ -428,7 +462,10 @@ class DroneSimulator:
 
             # Range check
             range_m = _calculate_range_m(
-                self.state["lat"], self.state["lon"], t_lat, t_lon,
+                self.state["lat"],
+                self.state["lon"],
+                t_lat,
+                t_lon,
             )
             if range_m > self._sensor_range_m:
                 continue
@@ -437,15 +474,24 @@ class DroneSimulator:
             if tracked and tracked["id"] == t_id and self._is_tracking:
                 # Override yaw to point at tracked target
                 bearing = _calculate_bearing_deg(
-                    self.state["lat"], self.state["lon"], t_lat, t_lon,
+                    self.state["lat"],
+                    self.state["lon"],
+                    t_lat,
+                    t_lon,
                 )
                 self.state["yaw"] = bearing
 
             pixel = gps_to_pixel(
-                t_lon, t_lat,
-                self.state["lat"], self.state["lon"],
-                self.state["alt"], self.state["pitch"], self.state["yaw"],
-                self.width, self.height, self._camera_hfov,
+                t_lon,
+                t_lat,
+                self.state["lat"],
+                self.state["lon"],
+                self.state["alt"],
+                self.state["pitch"],
+                self.state["yaw"],
+                self.width,
+                self.height,
+                self._camera_hfov,
             )
             if pixel is None:
                 continue
@@ -468,36 +514,40 @@ class DroneSimulator:
             # Label
             conf = target.get("detection_confidence", 0.92)
             label = f"{t_type} #{t_id} [{conf:.2f}]"
-            cv2.putText(frame, label, (px - half_w, py - half_h - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
+            cv2.putText(frame, label, (px - half_w, py - half_h - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
 
             # Tracking overlays
             is_this_tracked = tracked and tracked["id"] == t_id
             if is_this_tracked and self._is_tracking:
                 self._draw_targeting_reticle(frame, px, py)
                 bearing = _calculate_bearing_deg(
-                    self.state["lat"], self.state["lon"], t_lat, t_lon,
+                    self.state["lat"],
+                    self.state["lon"],
+                    t_lat,
+                    t_lon,
                 )
                 self._draw_target_info_overlay(frame, target, range_m, bearing)
 
                 if self._drone_mode == "PAINTING":
                     self._draw_lock_indicator(frame, px, py, dt)
 
-            detections.append({
-                "id": t_id,
-                "type": t_type,
-                "metadata": {
-                    "affiliation": "OPFOR",
-                    "source": self.drone_id,
-                },
-                "kinematics": {
-                    "latitude": t_lat,
-                    "longitude": t_lon,
-                    "timestamp": datetime.now().isoformat(),
-                },
-                "kill_chain_state": "LOCK" if self._drone_mode == "PAINTING" and is_this_tracked else "TRACK",
-                "confidence_score": conf,
-            })
+            detections.append(
+                {
+                    "id": t_id,
+                    "type": t_type,
+                    "metadata": {
+                        "affiliation": "OPFOR",
+                        "source": self.drone_id,
+                    },
+                    "kinematics": {
+                        "latitude": t_lat,
+                        "longitude": t_lon,
+                        "timestamp": datetime.now().isoformat(),
+                    },
+                    "kill_chain_state": "LOCK" if self._drone_mode == "PAINTING" and is_this_tracked else "TRACK",
+                    "confidence_score": conf,
+                }
+            )
 
         return detections
 
@@ -510,39 +560,41 @@ class DroneSimulator:
 
             bx, by = int(block["x"]), int(block["y"])
             bw, bh = 40, 40
-            cv2.rectangle(frame, (bx - bw//2, by - bh//2), (bx + bw//2, by + bh//2), block["color"], 1)
+            cv2.rectangle(frame, (bx - bw // 2, by - bh // 2), (bx + bw // 2, by + bh // 2), block["color"], 1)
 
             self._draw_corner_markers(frame, bx, by, bw // 2, bh // 2, block["color"])
 
-            cv2.line(frame, (bx-5, by), (bx+5, by), block["color"], 1)
-            cv2.line(frame, (bx, by-5), (bx, by+5), block["color"], 1)
+            cv2.line(frame, (bx - 5, by), (bx + 5, by), block["color"], 1)
+            cv2.line(frame, (bx, by - 5), (bx, by + 5), block["color"], 1)
 
             conf = 0.92 + (random.random() * 0.05)
             label = f"{block['type']} [{conf:.2f}]"
-            cv2.putText(frame, label, (bx - bw//2, by - bh//2 - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.4, block["color"], 1)
-
-            lat, lon = pixel_to_gps(
-                block["x"], block["y"], self.width, self.height,
-                self.state["lat"], self.state["lon"], self.state["alt"],
-                self.state["pitch"], self.state["yaw"]
+            cv2.putText(
+                frame, label, (bx - bw // 2, by - bh // 2 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.4, block["color"], 1
             )
 
-            detections.append({
-                "id": block["id"],
-                "type": block["type"],
-                "metadata": {
-                    "affiliation": "OPFOR",
-                    "source": self.drone_id
-                },
-                "kinematics": {
-                    "latitude": lat,
-                    "longitude": lon,
-                    "timestamp": datetime.now().isoformat()
-                },
-                "kill_chain_state": "LOCK" if isinstance(self.scenario, PaintingScenario) else "TRACK",
-                "confidence_score": 0.98 if isinstance(self.scenario, PaintingScenario) else conf,
-            })
+            lat, lon = pixel_to_gps(
+                block["x"],
+                block["y"],
+                self.width,
+                self.height,
+                self.state["lat"],
+                self.state["lon"],
+                self.state["alt"],
+                self.state["pitch"],
+                self.state["yaw"],
+            )
+
+            detections.append(
+                {
+                    "id": block["id"],
+                    "type": block["type"],
+                    "metadata": {"affiliation": "OPFOR", "source": self.drone_id},
+                    "kinematics": {"latitude": lat, "longitude": lon, "timestamp": datetime.now().isoformat()},
+                    "kill_chain_state": "LOCK" if isinstance(self.scenario, PaintingScenario) else "TRACK",
+                    "confidence_score": 0.98 if isinstance(self.scenario, PaintingScenario) else conf,
+                }
+            )
 
         return detections
 
@@ -586,16 +638,58 @@ class DroneSimulator:
                         log.info("scenario_command_received", scenario=scenario_name)
                         if scenario_name == "PAINTING":
                             target_id = f"{self.drone_id}-TGT-PAINTED"
-                            self.blocks = [{"id": target_id, "x": 320, "y": 240, "vx": 0, "vy": 0, "color": (0, 0, 255), "type": "TGT"}]
+                            self.blocks = [
+                                {
+                                    "id": target_id,
+                                    "x": 320,
+                                    "y": 240,
+                                    "vx": 0,
+                                    "vy": 0,
+                                    "color": (0, 0, 255),
+                                    "type": "TGT",
+                                }
+                            ]
                             self.scenario = PaintingScenario(target_id)
                         elif scenario_name == "DISCOVERY":
                             self.scenario = ScanningScenario(pattern="circular")
                         self.blocks = [
-                                {"id": "CP-1", "x": random.randint(100, 700), "y": random.randint(100, 500), "vx": 2, "vy": 1, "color": (255, 100, 0), "type": "TEL"},
-                                {"id": "CP-2", "x": random.randint(100, 700), "y": random.randint(100, 500), "vx": -1, "vy": 2, "color": (0, 150, 255), "type": "CP"},
-                                {"id": "TGT-ALPHA", "x": random.randint(100, 700), "y": random.randint(100, 500), "vx": 1, "vy": -1, "color": (0, 0, 255), "type": "SAM"},
-                                {"id": "TGT-BRAVO", "x": random.randint(100, 700), "y": random.randint(100, 500), "vx": -2, "vy": 0.5, "color": (0, 255, 255), "type": "TRUCK"}
-                            ]
+                            {
+                                "id": "CP-1",
+                                "x": random.randint(100, 700),
+                                "y": random.randint(100, 500),
+                                "vx": 2,
+                                "vy": 1,
+                                "color": (255, 100, 0),
+                                "type": "TEL",
+                            },
+                            {
+                                "id": "CP-2",
+                                "x": random.randint(100, 700),
+                                "y": random.randint(100, 500),
+                                "vx": -1,
+                                "vy": 2,
+                                "color": (0, 150, 255),
+                                "type": "CP",
+                            },
+                            {
+                                "id": "TGT-ALPHA",
+                                "x": random.randint(100, 700),
+                                "y": random.randint(100, 500),
+                                "vx": 1,
+                                "vy": -1,
+                                "color": (0, 0, 255),
+                                "type": "SAM",
+                            },
+                            {
+                                "id": "TGT-BRAVO",
+                                "x": random.randint(100, 700),
+                                "y": random.randint(100, 500),
+                                "vx": -2,
+                                "vy": 0.5,
+                                "color": (0, 255, 255),
+                                "type": "TRUCK",
+                            },
+                        ]
 
                 # Update scenario (only used when not connected to sim_engine)
                 if not self._has_sim_targets:
@@ -611,13 +705,9 @@ class DroneSimulator:
                     "kinematics": {
                         "latitude": self.state["lat"],
                         "longitude": self.state["lon"],
-                        "timestamp": datetime.now().isoformat()
+                        "timestamp": datetime.now().isoformat(),
                     },
-                    "metadata": {
-                        "affiliation": "FRIENDLY",
-                        "altitude": self.state["alt"],
-                        "yaw": self.state["yaw"]
-                    }
+                    "metadata": {"affiliation": "FRIENDLY", "altitude": self.state["alt"], "yaw": self.state["yaw"]},
                 }
                 try:
                     all_tracks = [drone_track] + detections
@@ -636,8 +726,7 @@ class DroneSimulator:
                     else:
                         log.error("connection_lost_retrying", error=str(exc))
                         await asyncio.sleep(5)
-                        break # Exit the inner while to trigger the outer reconnect
-
+                        break  # Exit the inner while to trigger the outer reconnect
 
         except (ConnectionError, OSError) as exc:
             log.error("global_error", error=str(exc))
@@ -648,19 +737,20 @@ class DroneSimulator:
         finally:
             await self.connector.close()
 
+
 async def main():
     # Multi-drone simulation with reduced load in Romania
     drones = [
         DroneSimulator("0", origin_lat=45.9432, origin_lon=24.9668, fps=8),
-        DroneSimulator("1", origin_lat=46.1000, origin_lon=25.2000, fps=8)
+        DroneSimulator("1", origin_lat=46.1000, origin_lon=25.2000, fps=8),
     ]
-
 
     # Change scenario for the second drone
     drones[1].scenario = ScanningScenario(pattern="circular")
     drones[1].state["alt"] = 150.0
 
     await asyncio.gather(*(d.run() for d in drones))
+
 
 if __name__ == "__main__":
     asyncio.run(main())

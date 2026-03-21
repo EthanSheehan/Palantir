@@ -22,7 +22,7 @@ test-cov:
 
 lint:
 	$(PYTHON) -m ruff check src/python/
-	cd src/frontend-react && npx eslint src/
+	pre-commit run --all-files
 
 typecheck:
 	$(PYTHON) -m mypy src/python/

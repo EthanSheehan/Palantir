@@ -1,8 +1,8 @@
 """Integration tests for sim_engine with probabilistic sensor model."""
 
+import os
 import random
 import sys
-import os
 
 import pytest
 
@@ -27,22 +27,20 @@ class TestProbabilisticDetection:
         ever_detected = False
         for _ in range(500):
             sim.tick()
-            if any(t.state != "UNDETECTED" for t in sim.targets):
+            if any(t.state != "UNDETECTED" for t in sim.targets.values()):
                 ever_detected = True
                 break
         assert ever_detected, "Expected at least one target detected within 500 ticks"
 
     def test_detected_targets_have_positive_confidence(self, sim):
         _tick_n(sim, 100)
-        for t in sim.targets:
+        for t in sim.targets.values():
             if t.state != "UNDETECTED":
-                assert t.detection_confidence > 0, (
-                    f"Target {t.id} in state {t.state} has zero confidence"
-                )
+                assert t.detection_confidence > 0, f"Target {t.id} in state {t.state} has zero confidence"
 
     def test_undetected_targets_have_zero_confidence(self, sim):
         _tick_n(sim, 100)
-        for t in sim.targets:
+        for t in sim.targets.values():
             if t.state == "UNDETECTED":
                 assert t.detection_confidence == 0.0, (
                     f"Target {t.id} is UNDETECTED but confidence={t.detection_confidence}"
@@ -66,17 +64,15 @@ class TestSetEnvironment:
         random.seed(42)
         sim_clear = SimulationModel()
         _tick_n(sim_clear, 200)
-        clear_detected = sum(1 for t in sim_clear.targets if t.state != "UNDETECTED")
+        clear_detected = sum(1 for t in sim_clear.targets.values() if t.state != "UNDETECTED")
 
         random.seed(42)
         sim_bad = SimulationModel()
         sim_bad.set_environment(time_of_day=2.0, cloud_cover=0.9, precipitation=0.8)
         _tick_n(sim_bad, 200)
-        bad_detected = sum(1 for t in sim_bad.targets if t.state != "UNDETECTED")
+        bad_detected = sum(1 for t in sim_bad.targets.values() if t.state != "UNDETECTED")
 
-        assert bad_detected <= clear_detected, (
-            f"Bad weather detected {bad_detected} >= clear weather {clear_detected}"
-        )
+        assert bad_detected <= clear_detected, f"Bad weather detected {bad_detected} >= clear weather {clear_detected}"
 
 
 class TestCommandsAfterSensorIntegration:
@@ -84,14 +80,14 @@ class TestCommandsAfterSensorIntegration:
         """Tick until at least one target is detected, return it."""
         for _ in range(500):
             sim.tick()
-            for t in sim.targets:
+            for t in sim.targets.values():
                 if t.state == "DETECTED":
                     return t
         pytest.skip("No target detected after 500 ticks")
 
     def test_command_follow_works(self, sim):
         target = self._detect_first_target(sim)
-        uav = sim.uavs[0]
+        uav = next(iter(sim.uavs.values()))
         sim.command_follow(uav.id, target.id)
         assert uav.mode == "FOLLOW"
         assert uav.tracked_target_id == target.id
@@ -99,21 +95,21 @@ class TestCommandsAfterSensorIntegration:
 
     def test_command_paint_works(self, sim):
         target = self._detect_first_target(sim)
-        uav = sim.uavs[0]
+        uav = next(iter(sim.uavs.values()))
         sim.command_paint(uav.id, target.id)
         assert uav.mode == "PAINT"
         assert target.state == "LOCKED"
 
     def test_command_intercept_works(self, sim):
         target = self._detect_first_target(sim)
-        uav = sim.uavs[0]
+        uav = next(iter(sim.uavs.values()))
         sim.command_intercept(uav.id, target.id)
         assert uav.mode == "INTERCEPT"
         assert target.state == "LOCKED"
 
     def test_cancel_track_reverts_state(self, sim):
         target = self._detect_first_target(sim)
-        uav = sim.uavs[0]
+        uav = next(iter(sim.uavs.values()))
         sim.command_follow(uav.id, target.id)
         sim.cancel_track(uav.id)
         assert uav.mode == "SEARCH"
@@ -122,7 +118,7 @@ class TestCommandsAfterSensorIntegration:
 
     def test_tick_runs_after_commands(self, sim):
         target = self._detect_first_target(sim)
-        uav = sim.uavs[0]
+        uav = next(iter(sim.uavs.values()))
         sim.command_follow(uav.id, target.id)
         _tick_n(sim, 50)
         state = sim.get_state()
@@ -134,17 +130,17 @@ class TestMultiSensorFusion:
     def _detect_first_target(self, sim):
         for _ in range(500):
             sim.tick()
-            for t in sim.targets:
+            for t in sim.targets.values():
                 if t.state == "DETECTED":
                     return t
         pytest.skip("No target detected after 500 ticks")
 
-    def test_detected_targets_have_fused_confidence(self, sim):
+    def test_detected_targets_have_fused_confidence(self, sim):  # noqa: F811
         # ENGAGED and DESTROYED targets skip the detection loop by design,
         # so they may have fused_confidence=0. Only check actively tracked states.
         _tick_n(sim, 100)
         skip_states = {"UNDETECTED", "ENGAGED", "DESTROYED", "NEUTRALIZED"}
-        for t in sim.targets:
+        for t in sim.targets.values():  # dict iteration
             if t.state not in skip_states:
                 assert t.fused_confidence > 0, f"Target {t.id} state={t.state} but fused_confidence=0"
 
@@ -156,15 +152,15 @@ class TestMultiSensorFusion:
 
     def test_sensor_count_positive_when_detected(self, sim):
         _tick_n(sim, 50)
-        detected = [t for t in sim.targets if t.state != "UNDETECTED"]
+        detected = [t for t in sim.targets.values() if t.state != "UNDETECTED"]
         if detected:
             for t in detected:
                 assert t.sensor_count >= 0
 
     def test_fused_higher_than_single(self, sim):
         """P1-SIM-CONFIDENCE: fused confidence from multiple sensors exceeds any single sensor alone."""
-        target = sim.targets[0]
-        for i, uav in enumerate(sim.uavs[:2]):
+        target = list(sim.targets.values())[0]
+        for i, uav in enumerate(list(sim.uavs.values())[:2]):
             uav.x = target.x + 0.01 * (i + 1)
             uav.y = target.y + 0.01 * (i + 1)
             uav.mode = "SEARCH"
@@ -180,14 +176,14 @@ class TestMultiSensorFusion:
 
     def test_confidence_degrades_on_removal(self, sim):
         """P1-SIM-DEGRADE: fused confidence decays when UAVs move out of detection range."""
-        target = sim.targets[0]
-        uav = sim.uavs[0]
+        target = list(sim.targets.values())[0]
+        uav = list(sim.uavs.values())[0]
         uav.x = target.x + 0.01
         uav.y = target.y + 0.01
         uav.mode = "SEARCH"
         _tick_n(sim, 10)
         initial_fused = target.fused_confidence
-        for u in sim.uavs:
+        for u in sim.uavs.values():
             u.x = target.x + 500.0
             u.y = target.y + 500.0
         _tick_n(sim, 20)
@@ -200,7 +196,7 @@ class TestMultiSensorFusion:
 class TestCancelTrackMulti:
     def test_cancel_track_removes_only_one_uav(self, sim):
         _tick_n(sim, 50)
-        tracked = [t for t in sim.targets if len(t.tracked_by_uav_ids) > 0]
+        tracked = [t for t in sim.targets.values() if len(t.tracked_by_uav_ids) > 0]
         if tracked:
             target = tracked[0]
             original_trackers = list(target.tracked_by_uav_ids)
@@ -246,9 +242,9 @@ class TestBackwardCompat:
 # Assessment interval integration tests (Phase 07, Plan 02)
 # ---------------------------------------------------------------------------
 
-import api_main as _api_main
-from battlespace_assessment import BattlespaceAssessor, AssessmentResult, ThreatCluster, CoverageGap, MovementCorridor
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+
+from battlespace_assessment import AssessmentResult, CoverageGap, MovementCorridor, ThreatCluster
 
 
 class TestAssessmentInterval:
@@ -276,14 +272,14 @@ class TestAssessmentInterval:
     def test_assessment_not_called_before_5s(self):
         """assess() must NOT be called when < 5 seconds have elapsed since last run."""
         import api_main as m
+
         # Save original state
         orig_last = m._last_assessment_time
         orig_cached = m._cached_assessment
         try:
             m._last_assessment_time = 0.0
             m._cached_assessment = None
-            with patch("api_main.assessor") as mock_assessor, \
-                 patch("api_main.time.monotonic", return_value=4.9):
+            with patch("api_main.assessor") as mock_assessor, patch("api_main.time.monotonic", return_value=4.9):
                 # Simulate the 5s guard logic
                 now = 4.9
                 if now - m._last_assessment_time >= 5.0:
@@ -296,13 +292,13 @@ class TestAssessmentInterval:
     def test_assessment_called_at_5s(self):
         """assess() MUST be called when >= 5 seconds have elapsed since last run."""
         import api_main as m
+
         orig_last = m._last_assessment_time
         orig_cached = m._cached_assessment
         try:
             m._last_assessment_time = 0.0
             m._cached_assessment = None
-            with patch("api_main.assessor") as mock_assessor, \
-                 patch("api_main.time.monotonic", return_value=5.1):
+            with patch("api_main.assessor") as mock_assessor, patch("api_main.time.monotonic", return_value=5.1):
                 mock_assessor.assess.return_value = self._make_result()
                 now = 5.1
                 if now - m._last_assessment_time >= 5.0:
@@ -322,6 +318,7 @@ class TestAssessmentInterval:
     def test_assessment_result_serialized(self):
         """_serialize_assessment must return dict with required keys."""
         import api_main as m
+
         result = self._make_result()
         serialized = m._serialize_assessment(result)
         assert "clusters" in serialized

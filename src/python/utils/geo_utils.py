@@ -32,10 +32,7 @@ def haversine_distance(a: Coordinate, b: Coordinate) -> float:
     dlat = lat2 - lat1
     dlon = lon2 - lon1
 
-    h = (
-        math.sin(dlat / 2) ** 2
-        + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
-    )
+    h = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
     return 2 * _EARTH_RADIUS_KM * math.asin(math.sqrt(h))
 
 
@@ -71,9 +68,7 @@ def filter_safe_waypoints(
     """
     safe: List[Waypoint] = []
     for wp in waypoints:
-        dominated = any(
-            is_inside_threat_ring(wp.position, tr) for tr in threat_rings
-        )
+        dominated = any(is_inside_threat_ring(wp.position, tr) for tr in threat_rings)
         if not dominated:
             safe.append(wp.model_copy(update={"is_safe": True}))
     return safe

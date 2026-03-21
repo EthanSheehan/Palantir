@@ -16,17 +16,11 @@ from dataclasses import dataclass
 from typing import Any
 
 import structlog
-
 from core.ontology import (
-    ActionableTarget,
     Detection,
     FriendlyForce,
     IdentityClassification,
     Location,
-    ROEAction,
-    RuleOfEngagement,
-    SensorType,
-    TaskingRequest,
 )
 from core.state import AnalystState
 from llm_adapter import LLMAdapter, LLMResponse
@@ -86,6 +80,7 @@ ROE Context:
 # Immutable evaluation result
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class TargetEvaluation:
     priority_score: int
@@ -99,13 +94,13 @@ class TargetEvaluation:
 # Utility helpers
 # ---------------------------------------------------------------------------
 
+
 def _haversine_m(a: Location, b: Location) -> float:
     R = 6_371_000
     lat1, lat2 = math.radians(a.latitude), math.radians(b.latitude)
     dlat = lat2 - lat1
     dlon = math.radians(b.longitude - a.longitude)
-    h = (math.sin(dlat / 2) ** 2
-         + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2)
+    h = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
     return 2 * R * math.asin(math.sqrt(h))
 
 
@@ -165,10 +160,7 @@ def _heuristic_reasoning(target_type: str, priority: int) -> str:
             f"Target type '{target_type}' is a low-priority target "
             f"(priority {priority}/10). Continued monitoring advised."
         )
-    return (
-        f"Target type '{target_type}' is minimal threat "
-        f"(priority {priority}/10). No action required."
-    )
+    return f"Target type '{target_type}' is minimal threat (priority {priority}/10). No action required."
 
 
 def _recommendation_for_priority(priority: int) -> str:
@@ -182,6 +174,7 @@ def _recommendation_for_priority(priority: int) -> str:
 # ---------------------------------------------------------------------------
 # Main agent
 # ---------------------------------------------------------------------------
+
 
 class StrategyAnalystAgent:
     def __init__(
@@ -201,23 +194,20 @@ class StrategyAnalystAgent:
             )
             decision = _decision_from_recommendation(evaluation.recommendation)
 
-            nominations.append(TargetNomination(
-                track_id=track.track_id,
-                decision=decision,
-                roe_compliance=evaluation.roe_compliant,
-                collateral_risk=evaluation.collateral_risk,
-                reasoning=evaluation.reasoning_trace,
-            ))
+            nominations.append(
+                TargetNomination(
+                    track_id=track.track_id,
+                    decision=decision,
+                    roe_compliance=evaluation.roe_compliant,
+                    collateral_risk=evaluation.collateral_risk,
+                    reasoning=evaluation.reasoning_trace,
+                )
+            )
 
-        nominated_count = sum(
-            1 for n in nominations if n.decision == EngagementDecision.NOMINATE
-        )
+        nominated_count = sum(1 for n in nominations if n.decision == EngagementDecision.NOMINATE)
         return StrategyAnalystOutput(
             nominations=nominations,
-            summary=(
-                f"Evaluated {len(isr_output.tracks)} tracks. "
-                f"{nominated_count} nominated."
-            ),
+            summary=(f"Evaluated {len(isr_output.tracks)} tracks. {nominated_count} nominated."),
         )
 
     async def evaluate_target(
@@ -359,6 +349,7 @@ class StrategyAnalystAgent:
 # Helper
 # ---------------------------------------------------------------------------
 
+
 def _decision_from_recommendation(recommendation: str) -> EngagementDecision:
     mapping = {
         "NOMINATE": EngagementDecision.NOMINATE,
@@ -372,5 +363,5 @@ def _decision_from_recommendation(recommendation: str) -> EngagementDecision:
 # LangGraph node (backward compatibility)
 # ---------------------------------------------------------------------------
 
-def evaluate_detections(state: AnalystState) -> dict[str, Any]:
-    ...
+
+def evaluate_detections(state: AnalystState) -> dict[str, Any]: ...

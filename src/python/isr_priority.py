@@ -9,12 +9,12 @@ ISRRequirement objects. No instance state, no side effects.
 Usage:
     from isr_priority import build_isr_queue, ISRRequirement, THREAT_WEIGHTS
 """
+
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import List
-import math
-
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -45,19 +45,21 @@ _MAX_RECOMMENDED_UAVS = 3
 # Dataclass
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class ISRRequirement:
     target_id: int
     target_type: str
-    urgency_score: float        # 0.0-1.0, higher = more urgent
-    verification_gap: float     # 1.0 - fused_confidence
+    urgency_score: float  # 0.0-1.0, higher = more urgent
+    verification_gap: float  # 1.0 - fused_confidence
     missing_sensor_types: tuple  # sensor types not yet contributing
-    recommended_uav_ids: tuple   # nearest IDLE UAVs with matching sensors
+    recommended_uav_ids: tuple  # nearest IDLE UAVs with matching sensors
 
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _score_target(target: dict) -> float:
     """
@@ -75,9 +77,7 @@ def _score_target(target: dict) -> float:
 def _missing_sensors(target: dict) -> tuple:
     """Return sensor types in ALL_SENSOR_TYPES not yet contributing (confidence > 0.05)."""
     contributing = {
-        c.get("sensor_type", "")
-        for c in target.get("sensor_contributions", [])
-        if c.get("confidence", 0.0) > 0.05
+        c.get("sensor_type", "") for c in target.get("sensor_contributions", []) if c.get("confidence", 0.0) > 0.05
     }
     return tuple(sorted(ALL_SENSOR_TYPES - contributing))
 
@@ -106,6 +106,7 @@ def _recommend_uavs(target: dict, missing: tuple, uavs: list[dict]) -> tuple:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def build_isr_queue(
     targets: list[dict],

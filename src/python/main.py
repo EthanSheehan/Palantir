@@ -10,8 +10,6 @@ Usage (from project root):
 
 from __future__ import annotations
 
-import json
-
 import structlog
 from langgraph.graph import END, START, StateGraph
 
@@ -35,6 +33,7 @@ logger = structlog.get_logger()
 # Graph construction
 # ---------------------------------------------------------------------------
 
+
 def build_graph() -> StateGraph:
     """Build and compile the Strategy Analyst LangGraph."""
     graph = StateGraph(AnalystState)
@@ -52,6 +51,7 @@ def build_graph() -> StateGraph:
 # ---------------------------------------------------------------------------
 # Demo scenario
 # ---------------------------------------------------------------------------
+
 
 def _demo_scenario() -> AnalystState:
     """Build a realistic demo scenario with mixed detection types."""
@@ -139,6 +139,7 @@ def _demo_scenario() -> AnalystState:
 # ---------------------------------------------------------------------------
 # Entry-point
 # ---------------------------------------------------------------------------
+
 
 def main() -> None:
     """Run the demo scenario through the Strategy Analyst graph."""

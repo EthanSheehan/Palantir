@@ -1,11 +1,9 @@
 import json
 from typing import Any
+
 from schemas.ontology import (
     SITREPQuery,
     SynthesisQueryOutput,
-    Track,
-    TargetNomination,
-    BattleDamageAssessment,
 )
 
 SYNTHESIS_QUERY_PROMPT = """You are the Synthesis & Query Agent (AIP Assist Layer). \
@@ -70,19 +68,13 @@ class SynthesisQueryAgent:
         context: dict = {}
 
         if query.context_tracks:
-            context["tracks"] = [
-                t.model_dump(mode="json") for t in query.context_tracks
-            ]
+            context["tracks"] = [t.model_dump(mode="json") for t in query.context_tracks]
 
         if query.context_nominations:
-            context["nominations"] = [
-                n.model_dump(mode="json") for n in query.context_nominations
-            ]
+            context["nominations"] = [n.model_dump(mode="json") for n in query.context_nominations]
 
         if query.context_bda:
-            context["bda_results"] = [
-                b.model_dump(mode="json") for b in query.context_bda
-            ]
+            context["bda_results"] = [b.model_dump(mode="json") for b in query.context_bda]
 
         return json.dumps(context, indent=2) if context else "{}"
 
@@ -135,9 +127,7 @@ class SynthesisQueryAgent:
 
         recommended_actions: list[str] = []
         if high_priority:
-            recommended_actions.append(
-                f"Review {len(high_priority)} high-priority target(s) on strike board."
-            )
+            recommended_actions.append(f"Review {len(high_priority)} high-priority target(s) on strike board.")
         if not tracks:
             recommended_actions.append("Continue ISR sweep — no tracks currently active.")
         else:
@@ -161,9 +151,13 @@ class SynthesisQueryAgent:
             + (f" {len(bda_results)} BDA report(s) available." if bda_results else "")
         )
 
-        confidence = 0.5 if not tracks else min(
-            0.9,
-            sum(t.get("confidence", 0.5) for t in tracks) / max(len(tracks), 1),
+        confidence = (
+            0.5
+            if not tracks
+            else min(
+                0.9,
+                sum(t.get("confidence", 0.5) for t in tracks) / max(len(tracks), 1),
+            )
         )
 
         output = {

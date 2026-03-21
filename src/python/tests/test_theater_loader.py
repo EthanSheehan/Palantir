@@ -1,22 +1,15 @@
-import tempfile
-import textwrap
-from pathlib import Path
-
 import pytest
 import yaml
-
 from theater_loader import (
-    Bounds,
-    TheaterConfig,
     TheaterValidationError,
     list_theaters,
     load_theater,
 )
 
-
 # ---------------------------------------------------------------------------
 # Loading each theater
 # ---------------------------------------------------------------------------
+
 
 class TestLoadTheaters:
     def test_load_romania(self):
@@ -53,6 +46,7 @@ class TestLoadTheaters:
 # Listing theaters
 # ---------------------------------------------------------------------------
 
+
 class TestListTheaters:
     def test_list_theaters_returns_all(self):
         theaters = list_theaters()
@@ -69,6 +63,7 @@ class TestListTheaters:
 # Error handling
 # ---------------------------------------------------------------------------
 
+
 class TestErrorHandling:
     def test_invalid_theater_name_raises_file_not_found(self):
         with pytest.raises(FileNotFoundError, match="nonexistent"):
@@ -78,6 +73,7 @@ class TestErrorHandling:
         bad_yaml = tmp_path / "broken.yaml"
         bad_yaml.write_text(yaml.dump({"name": "Test"}))
         import theater_loader
+
         monkeypatch.setattr(theater_loader, "THEATERS_DIR", tmp_path)
         with pytest.raises(TheaterValidationError, match="Missing required key"):
             load_theater("broken")
@@ -99,14 +95,13 @@ class TestErrorHandling:
                     "endurance_hours": 24,
                 }
             },
-            "red_force": {
-                "units": [{"type": "SAM", "count": 1, "behavior": "stationary"}]
-            },
+            "red_force": {"units": [{"type": "SAM", "count": 1, "behavior": "stationary"}]},
             "environment": {"weather": "clear", "time_of_day": "day", "terrain": "mixed"},
         }
         bad_yaml = tmp_path / "bad_bounds.yaml"
         bad_yaml.write_text(yaml.dump(data))
         import theater_loader
+
         monkeypatch.setattr(theater_loader, "THEATERS_DIR", tmp_path)
         with pytest.raises(TheaterValidationError, match="min_lon.*must be less than.*max_lon"):
             load_theater("bad_bounds")
@@ -128,14 +123,13 @@ class TestErrorHandling:
                     "endurance_hours": 24,
                 }
             },
-            "red_force": {
-                "units": [{"type": "SAM", "count": 1, "behavior": "stationary"}]
-            },
+            "red_force": {"units": [{"type": "SAM", "count": 1, "behavior": "stationary"}]},
             "environment": {"weather": "clear", "time_of_day": "day", "terrain": "mixed"},
         }
         bad_yaml = tmp_path / "bad_lat.yaml"
         bad_yaml.write_text(yaml.dump(data))
         import theater_loader
+
         monkeypatch.setattr(theater_loader, "THEATERS_DIR", tmp_path)
         with pytest.raises(TheaterValidationError, match="min_lat.*must be less than.*max_lat"):
             load_theater("bad_lat")
@@ -157,14 +151,13 @@ class TestErrorHandling:
                     "endurance_hours": 24,
                 }
             },
-            "red_force": {
-                "units": [{"type": "SAM", "count": 1, "behavior": "stationary"}]
-            },
+            "red_force": {"units": [{"type": "SAM", "count": 1, "behavior": "stationary"}]},
             "environment": {"weather": "clear", "time_of_day": "day", "terrain": "mixed"},
         }
         bad_yaml = tmp_path / "zero_uavs.yaml"
         bad_yaml.write_text(yaml.dump(data))
         import theater_loader
+
         monkeypatch.setattr(theater_loader, "THEATERS_DIR", tmp_path)
         with pytest.raises(TheaterValidationError, match="count must be positive"):
             load_theater("zero_uavs")
@@ -173,6 +166,7 @@ class TestErrorHandling:
 # ---------------------------------------------------------------------------
 # Immutability
 # ---------------------------------------------------------------------------
+
 
 class TestImmutability:
     def test_theater_config_is_frozen(self):
@@ -193,6 +187,7 @@ class TestImmutability:
 # ---------------------------------------------------------------------------
 # Required fields present
 # ---------------------------------------------------------------------------
+
 
 class TestRequiredFields:
     def test_all_required_fields_present_romania(self):

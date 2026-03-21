@@ -7,17 +7,14 @@ generation that avoids known adversary SAM envelopes.
 """
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, List
 
 from schemas.ontology import (
     BattlespaceManagerOutput,
-    Coordinate,
     MapLayer,
     MapLayerType,
-    MissionPath,
     ThreatRing,
     Track,
-    Waypoint,
 )
 from utils.geo_utils import filter_safe_waypoints, haversine_distance
 
@@ -138,10 +135,7 @@ class BattlespaceManagerAgent:
         for tr in new_intel:
             if tr.threat_id in existing_ids:
                 # Replace existing entry with updated intel
-                self._threat_rings = [
-                    t if t.threat_id != tr.threat_id else tr
-                    for t in self._threat_rings
-                ]
+                self._threat_rings = [t if t.threat_id != tr.threat_id else tr for t in self._threat_rings]
             else:
                 self._threat_rings.append(tr)
 
@@ -178,11 +172,10 @@ class BattlespaceManagerAgent:
             threats_json_str = "[]"
 
             if tracks_start != -1 and threats_start != -1:
-                tracks_block = query[tracks_start + len("CURRENT ISR TRACKS:\n"):threats_start].strip()
+                tracks_block = query[tracks_start + len("CURRENT ISR TRACKS:\n") : threats_start].strip()
                 terrain_start = query.find("TERRAIN CONTEXT:\n")
                 threats_block = query[
-                    threats_start + len("KNOWN THREAT RINGS:\n"):
-                    terrain_start if terrain_start != -1 else len(query)
+                    threats_start + len("KNOWN THREAT RINGS:\n") : terrain_start if terrain_start != -1 else len(query)
                 ].strip()
                 try:
                     tracks_data = json.loads(tracks_block) if tracks_block else []
@@ -252,12 +245,8 @@ class BattlespaceManagerAgent:
         terrain_data: str,
     ) -> str:
         """Compose a structured prompt for the LLM from input data."""
-        tracks_json = json.dumps(
-            [t.model_dump() for t in tracks], indent=2
-        )
-        threats_json = json.dumps(
-            [tr.model_dump() for tr in threat_rings], indent=2
-        )
+        tracks_json = json.dumps([t.model_dump() for t in tracks], indent=2)
+        threats_json = json.dumps([tr.model_dump() for tr in threat_rings], indent=2)
         return (
             f"CURRENT ISR TRACKS:\n{tracks_json}\n\n"
             f"KNOWN THREAT RINGS:\n{threats_json}\n\n"

@@ -20,15 +20,32 @@ _writer_task_handle: asyncio.Task | None = None
 
 
 async def _writer_loop() -> None:
-    """Background coroutine that drains the queue to disk."""
+    """Background coroutine that drains the queue to disk.
+
+    Keeps the file handle open to avoid per-event open/close syscalls.
+    Reopens the handle when the date changes (daily rotation).
+    """
     assert _queue is not None
     LOG_DIR.mkdir(exist_ok=True)
-    while True:
-        event = await _queue.get()
-        log_path = LOG_DIR / f"events-{date.today().isoformat()}.jsonl"
-        with open(log_path, "a") as f:
+    current_date = date.today()
+    log_path = LOG_DIR / f"events-{current_date.isoformat()}.jsonl"
+    f = open(log_path, "a")
+    try:
+        while True:
+            event = await _queue.get()
+            today = date.today()
+            if today != current_date:
+                # Date changed — rotate to new file
+                f.flush()
+                f.close()
+                current_date = today
+                log_path = LOG_DIR / f"events-{current_date.isoformat()}.jsonl"
+                f = open(log_path, "a")
             f.write(json.dumps(event, default=str) + "\n")
-        _queue.task_done()
+            f.flush()
+            _queue.task_done()
+    finally:
+        f.close()
 
 
 def log_event(event_type: str, data: dict) -> None:

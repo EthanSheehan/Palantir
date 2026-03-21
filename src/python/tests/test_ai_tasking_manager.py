@@ -9,27 +9,30 @@ Covers:
 """
 
 import json
-import pytest
-from unittest.mock import patch, MagicMock
+import os
 
 # Allow running from the src/python directory
-import sys, os
+import sys
+from unittest.mock import patch
+
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from agents.ai_tasking_manager import AITaskingManagerAgent
 from schemas.ontology import (
+    CollectionType,
     Detection,
-    SensorSource,
     SensorAsset,
+    SensorSource,
     SensorStatusEnum,
     SensorTaskingOrder,
-    TaskingManagerOutput,
-    CollectionType,
     TargetClassification,
+    TaskingManagerOutput,
 )
-from agents.ai_tasking_manager import AITaskingManagerAgent
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
+
 
 def _make_detection(confidence: float = 0.4) -> Detection:
     return Detection(
@@ -68,6 +71,7 @@ def _make_assets() -> list[SensorAsset]:
 
 
 # ── 1. Schema Validation ─────────────────────────────────────────────────────
+
 
 class TestSchemaValidation:
     def test_sensor_asset_valid(self):
@@ -111,6 +115,7 @@ class TestSchemaValidation:
 
 # ── 2. Threshold Gating ──────────────────────────────────────────────────────
 
+
 class TestThresholdGating:
     def test_high_confidence_skips_llm(self):
         agent = AITaskingManagerAgent(llm_client=None, confidence_threshold=0.7)
@@ -131,6 +136,7 @@ class TestThresholdGating:
 
 # ── 3. No Available Assets ───────────────────────────────────────────────────
 
+
 class TestNoAvailableAssets:
     def test_all_assets_offline(self):
         agent = AITaskingManagerAgent(llm_client=None, confidence_threshold=0.7)
@@ -142,7 +148,8 @@ class TestNoAvailableAssets:
                 asset_name="Dead Satellite",
                 sensor_type=SensorSource.SATELLITE,
                 status=SensorStatusEnum.OFFLINE,
-                lat=0, lon=0,
+                lat=0,
+                lon=0,
                 capabilities=[CollectionType.SAR],
             )
         ]
@@ -154,6 +161,7 @@ class TestNoAvailableAssets:
 
 
 # ── 4. Mocked LLM Response Parsing ──────────────────────────────────────────
+
 
 class TestMockedLLMParsing:
     def test_parses_valid_llm_response(self):

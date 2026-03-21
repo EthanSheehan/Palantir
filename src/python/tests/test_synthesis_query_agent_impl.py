@@ -2,17 +2,18 @@
 New tests for SynthesisQueryAgent._generate_response() heuristic.
 These must FAIL before implementation and PASS after.
 """
+
 import pytest
 from agents.synthesis_query_agent import SynthesisQueryAgent
 from schemas.ontology import (
-    SITREPQuery,
-    SynthesisQueryOutput,
-    Track,
-    TargetClassification,
-    TargetNomination,
-    EngagementDecision,
     BattleDamageAssessment,
     BDAResult,
+    EngagementDecision,
+    SITREPQuery,
+    SynthesisQueryOutput,
+    TargetClassification,
+    TargetNomination,
+    Track,
 )
 
 

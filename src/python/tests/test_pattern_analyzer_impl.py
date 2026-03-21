@@ -2,6 +2,7 @@
 New tests for PatternAnalyzerAgent._generate_response() heuristic.
 These must FAIL before implementation and PASS after.
 """
+
 import pytest
 from agents.pattern_analyzer import PatternAnalyzerAgent
 from schemas.ontology import PatternAnalyzerOutput

@@ -24,7 +24,9 @@ import uuid
 from typing import Any, List, Optional
 
 import structlog
-
+from hitl_manager import CourseOfAction as HITLCourseOfAction
+from llm_adapter import LLMAdapter
+from mission_data.asset_registry import get_available_effectors
 from schemas.ontology import (
     CourseOfAction,
     Effector,
@@ -33,9 +35,6 @@ from schemas.ontology import (
     TargetNomination,
     Track,
 )
-from mission_data.asset_registry import get_available_effectors
-from llm_adapter import LLMAdapter
-from hitl_manager import CourseOfAction as HITLCourseOfAction
 
 logger = structlog.get_logger()
 
@@ -112,14 +111,14 @@ COA_RESPONSE_SCHEMA = {
 #  Heuristic helpers (pure-python, no LLM)
 # ===========================================================================
 
+
 def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Great-circle distance between two points in kilometres."""
     R = 6_371.0
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
     dphi = math.radians(lat2 - lat1)
     dlam = math.radians(lon2 - lon1)
-    a = (math.sin(dphi / 2) ** 2
-         + math.cos(phi1) * math.cos(phi2) * math.sin(dlam / 2) ** 2)
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlam / 2) ** 2
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
@@ -181,6 +180,7 @@ def _risk_from_cost(cost_index: float) -> float:
 # ===========================================================================
 #  Agent class
 # ===========================================================================
+
 
 class TacticalPlannerAgent:
     """
@@ -288,19 +288,22 @@ class TacticalPlannerAgent:
         assets: list[dict],
     ) -> list[HITLCourseOfAction]:
         """Use LLMAdapter for reasoning-enhanced COA generation."""
-        context = json.dumps({
-            "target": target_data,
-            "available_effectors": [
-                {
-                    "name": a["effector"].name,
-                    "type": a["effector"].effector_type,
-                    "pk_rating": a.get("pk_rating", 0.0),
-                    "cost_index": a.get("cost_index", 10.0),
-                    "speed_kmh": a.get("speed_kmh", 0.0),
-                }
-                for a in assets
-            ],
-        }, indent=2)
+        context = json.dumps(
+            {
+                "target": target_data,
+                "available_effectors": [
+                    {
+                        "name": a["effector"].name,
+                        "type": a["effector"].effector_type,
+                        "pk_rating": a.get("pk_rating", 0.0),
+                        "cost_index": a.get("cost_index", 10.0),
+                        "speed_kmh": a.get("speed_kmh", 0.0),
+                    }
+                    for a in assets
+                ],
+            },
+            indent=2,
+        )
 
         messages = [
             {"role": "system", "content": self.system_prompt},
@@ -364,10 +367,7 @@ class TacticalPlannerAgent:
             pk_estimate=pk,
             risk_score=risk,
             composite_score=_compute_composite(pk, time_min, risk),
-            reasoning_trace=(
-                f"{trace_prefix}: {effector.name} "
-                f"(Pk={pk:.0%}, time={time_min:.1f}min, risk={risk:.1f})"
-            ),
+            reasoning_trace=(f"{trace_prefix}: {effector.name} (Pk={pk:.0%}, time={time_min:.1f}min, risk={risk:.1f})"),
             status="PROPOSED",
         )
 
@@ -430,13 +430,14 @@ class TacticalPlannerAgent:
     ) -> TacticalPlannerOutput:
         """Forward asset registry + target context to the LLM."""
         assets = get_available_effectors()
-        context = json.dumps({
-            "nomination": nomination.model_dump(),
-            "track": track.model_dump(),
-            "available_effectors": [
-                a["effector"].model_dump() for a in assets
-            ],
-        }, indent=2)
+        context = json.dumps(
+            {
+                "nomination": nomination.model_dump(),
+                "track": track.model_dump(),
+                "available_effectors": [a["effector"].model_dump() for a in assets],
+            },
+            indent=2,
+        )
 
         logger.warning("llm_not_implemented_falling_back_to_heuristic")
         return self._generate_heuristic(nomination, track)

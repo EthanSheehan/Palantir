@@ -9,7 +9,6 @@ import pytest
 
 pytestmark = pytest.mark.asyncio(loop_scope="function")
 
-from schemas.ontology import CourseOfAction, Effector
 from agents.effectors_agent import (
     DAMAGE_DAMAGED,
     DAMAGE_DESTROYED,
@@ -23,11 +22,12 @@ from agents.effectors_agent import (
     _determine_damage,
     _roll_hit,
 )
-
+from schemas.ontology import CourseOfAction, Effector
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 def _make_effector(**overrides) -> Effector:
     defaults = {
@@ -70,6 +70,7 @@ def _make_target_data(target_id: int = 42, state: str = "LOCKED", **overrides) -
 # ---------------------------------------------------------------------------
 # Pure function tests
 # ---------------------------------------------------------------------------
+
 
 class TestPkModifiers:
     def test_locked_adds_10_percent(self):
@@ -115,6 +116,7 @@ class TestDetermineDamage:
 # EngagementResult immutability
 # ---------------------------------------------------------------------------
 
+
 class TestEngagementResultImmutability:
     def test_frozen_dataclass(self):
         result = EngagementResult(
@@ -145,9 +147,15 @@ class TestEngagementResultImmutability:
         )
         fields = {f.name for f in dataclasses.fields(result)}
         expected = {
-            "target_id", "coa_id", "effector_used", "hit",
-            "damage_level", "bda_confidence", "assessment_notes",
-            "reasoning_trace", "timestamp",
+            "target_id",
+            "coa_id",
+            "effector_used",
+            "hit",
+            "damage_level",
+            "bda_confidence",
+            "assessment_notes",
+            "reasoning_trace",
+            "timestamp",
         }
         assert fields == expected
 
@@ -155,6 +163,7 @@ class TestEngagementResultImmutability:
 # ---------------------------------------------------------------------------
 # Engagement execution (async)
 # ---------------------------------------------------------------------------
+
 
 class TestExecuteEngagement:
     @pytest.mark.asyncio
@@ -222,6 +231,7 @@ class TestExecuteEngagement:
 # BDA report
 # ---------------------------------------------------------------------------
 
+
 class TestBDAReport:
     @pytest.mark.asyncio
     async def test_bda_has_required_fields(self):
@@ -275,6 +285,7 @@ class TestBDAReport:
 # Feedback recommendations
 # ---------------------------------------------------------------------------
 
+
 class TestFeedbackRecommendation:
     def _make_result(self, damage_level: str, hit: bool = True) -> EngagementResult:
         return EngagementResult(
@@ -291,25 +302,19 @@ class TestFeedbackRecommendation:
 
     def test_destroyed_closes_track(self):
         agent = EffectorsAgent()
-        feedback = agent.get_feedback_recommendation(
-            self._make_result(DAMAGE_DESTROYED)
-        )
+        feedback = agent.get_feedback_recommendation(self._make_result(DAMAGE_DESTROYED))
         assert feedback["action"] == FEEDBACK_CLOSE_TRACK
         assert feedback["new_target_state"] == "DESTROYED"
 
     def test_damaged_recommends_re_engage(self):
         agent = EffectorsAgent()
-        feedback = agent.get_feedback_recommendation(
-            self._make_result(DAMAGE_DAMAGED)
-        )
+        feedback = agent.get_feedback_recommendation(self._make_result(DAMAGE_DAMAGED))
         assert feedback["action"] == FEEDBACK_RE_ENGAGE
         assert feedback["new_target_state"] == "ENGAGED"
 
     def test_missed_recommends_re_detect(self):
         agent = EffectorsAgent()
-        feedback = agent.get_feedback_recommendation(
-            self._make_result(DAMAGE_MISSED, hit=False)
-        )
+        feedback = agent.get_feedback_recommendation(self._make_result(DAMAGE_MISSED, hit=False))
         assert feedback["action"] == FEEDBACK_RE_DETECT
         assert feedback["new_target_state"] == "ESCAPED"
 
@@ -332,9 +337,7 @@ class TestFeedbackRecommendation:
     def test_feedback_includes_reason(self):
         agent = EffectorsAgent()
         for damage in (DAMAGE_DESTROYED, DAMAGE_DAMAGED, DAMAGE_MISSED):
-            feedback = agent.get_feedback_recommendation(
-                self._make_result(damage)
-            )
+            feedback = agent.get_feedback_recommendation(self._make_result(damage))
             assert "reason" in feedback
             assert len(feedback["reason"]) > 0
 
@@ -342,6 +345,7 @@ class TestFeedbackRecommendation:
 # ---------------------------------------------------------------------------
 # Heuristic works without LLM
 # ---------------------------------------------------------------------------
+
 
 class TestHeuristicFallback:
     @pytest.mark.asyncio

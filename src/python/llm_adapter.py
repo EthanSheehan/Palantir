@@ -27,6 +27,7 @@ logger = structlog.get_logger()
 # Immutable response container
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class LLMResponse:
     content: str
@@ -69,6 +70,7 @@ _HEURISTIC_RESPONSE = LLMResponse(
 # Provider helpers
 # ---------------------------------------------------------------------------
 
+
 def _probe_gemini() -> tuple[bool, str]:
     """Check if Gemini API key is set and the SDK is installed."""
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
@@ -76,6 +78,7 @@ def _probe_gemini() -> tuple[bool, str]:
         return (False, "")
     try:
         from google import genai  # noqa: F401
+
         return (True, api_key)
     except ImportError:
         logger.warning("google_genai_sdk_not_installed", hint="pip install google-genai")
@@ -89,6 +92,7 @@ def _probe_anthropic() -> tuple[bool, str]:
         return (False, "")
     try:
         import anthropic  # noqa: F401
+
         return (True, api_key)
     except ImportError:
         logger.warning("anthropic_sdk_not_installed", hint="pip install anthropic")
@@ -123,6 +127,7 @@ def _resolve_ollama_model(hint: str, available: list[str]) -> str:
 # Main adapter
 # ---------------------------------------------------------------------------
 
+
 class LLMAdapter:
     """Unified LLM interface with provider chain and fallback."""
 
@@ -152,6 +157,7 @@ class LLMAdapter:
         if self._gemini_api_key:
             try:
                 from google import genai  # noqa: F401
+
                 self._gemini_available = True
                 self._fallback_only = False
                 logger.info("gemini_connected", model_map=_GEMINI_MODEL_MAP)
@@ -169,6 +175,7 @@ class LLMAdapter:
         if self._anthropic_api_key:
             try:
                 import anthropic  # noqa: F401
+
                 self._anthropic_available = True
                 self._fallback_only = False
                 logger.info("anthropic_connected", model_map=_ANTHROPIC_MODEL_MAP)
@@ -301,10 +308,12 @@ class LLMAdapter:
                 else:
                     # Gemini uses "user" and "model" roles
                     gemini_role = "model" if role == "assistant" else "user"
-                    contents.append(types.Content(
-                        role=gemini_role,
-                        parts=[types.Part.from_text(text=text)],
-                    ))
+                    contents.append(
+                        types.Content(
+                            role=gemini_role,
+                            parts=[types.Part.from_text(text=text)],
+                        )
+                    )
 
             config = types.GenerateContentConfig(
                 temperature=temperature,
@@ -322,9 +331,8 @@ class LLMAdapter:
             content = response.text or ""
             tokens = 0
             if response.usage_metadata:
-                tokens = (
-                    (response.usage_metadata.prompt_token_count or 0)
-                    + (response.usage_metadata.candidates_token_count or 0)
+                tokens = (response.usage_metadata.prompt_token_count or 0) + (
+                    response.usage_metadata.candidates_token_count or 0
                 )
 
             return LLMResponse(
@@ -438,6 +446,7 @@ class LLMAdapter:
 # JSON parsing helper
 # ---------------------------------------------------------------------------
 
+
 def _parse_json_permissive(text: str) -> dict[str, Any]:
     """Best-effort extraction of a JSON object from LLM output."""
     stripped = text.strip()
@@ -445,7 +454,7 @@ def _parse_json_permissive(text: str) -> dict[str, Any]:
     # Strip markdown code fences if present
     if stripped.startswith("```"):
         lines = stripped.split("\n")
-        lines = [l for l in lines if not l.strip().startswith("```")]
+        lines = [line for line in lines if not line.strip().startswith("```")]
         stripped = "\n".join(lines).strip()
 
     try:

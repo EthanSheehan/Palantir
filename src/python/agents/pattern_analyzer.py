@@ -7,12 +7,10 @@ and triggers predictive alerts before a kinetic event occurs.
 """
 
 import json
-from datetime import datetime
 from typing import Any
 
-from schemas.ontology import PatternAnalyzerOutput
 from mission_data.historical_activity import get_activity_summary, get_sector_activity
-
+from schemas.ontology import PatternAnalyzerOutput
 
 PATTERN_ANALYZER_PROMPT = """You are the Pattern Analyzer Agent for Project Antigravity. \
 You operate as a predictive intelligence layer, looking for the 'unseen' \
@@ -158,8 +156,7 @@ class PatternAnalyzerAgent:
                 "anomaly_type": anom_type,
                 "sector": sector,
                 "description": (
-                    f"{activity_type} frequency deviation of {deviation_pct:+.0f}% "
-                    f"vs baseline in sector {sector}."
+                    f"{activity_type} frequency deviation of {deviation_pct:+.0f}% vs baseline in sector {sector}."
                 ),
                 "severity": severity,
                 "baseline_value": round(baseline_rate, 3),

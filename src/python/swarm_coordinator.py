@@ -15,7 +15,6 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -44,6 +43,7 @@ _RESOLVED_STATES = frozenset({"VERIFIED", "NOMINATED", "LOCKED", "ENGAGED", "DES
 # Dataclasses
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class SwarmTask:
     target_id: int
@@ -66,6 +66,7 @@ class TaskingOrder:
 # SwarmCoordinator
 # ---------------------------------------------------------------------------
 
+
 class SwarmCoordinator:
     """Greedy swarm coordinator: assigns nearest eligible UAV to cover sensor
     gaps on active targets, respecting the idle-count floor."""
@@ -87,10 +88,7 @@ class SwarmCoordinator:
         now = time.time()
 
         # 1. Expiry check — remove stale tasks and release SUPPORT UAVs
-        expired_ids = [
-            tid for tid, task in self._active_tasks.items()
-            if now - task.created_at > _TASK_EXPIRY_SECONDS
-        ]
+        expired_ids = [tid for tid, task in self._active_tasks.items() if now - task.created_at > _TASK_EXPIRY_SECONDS]
         for tid in expired_ids:
             self._release_support_uavs(tid, uavs)
             del self._active_tasks[tid]
@@ -99,7 +97,8 @@ class SwarmCoordinator:
             # 2. Auto-release on resolved target state (skip when force — operator wants support)
             target_map = {t.id: t for t in targets}
             resolved_ids = [
-                tid for tid in list(self._active_tasks)
+                tid
+                for tid in list(self._active_tasks)
                 if tid in target_map and target_map[tid].state in _RESOLVED_STATES
             ]
             for tid in resolved_ids:
@@ -144,13 +143,15 @@ class SwarmCoordinator:
                 if uav is None:
                     continue
                 priority_counter += 1
-                orders.append(TaskingOrder(
-                    uav_id=uav.id,
-                    target_id=target.id,
-                    mode="SUPPORT",
-                    reason=sensor_type,
-                    priority=priority_counter,
-                ))
+                orders.append(
+                    TaskingOrder(
+                        uav_id=uav.id,
+                        target_id=target.id,
+                        mode="SUPPORT",
+                        reason=sensor_type,
+                        priority=priority_counter,
+                    )
+                )
                 idle_count -= 1
                 already_assigned.add(uav.id)
 
@@ -195,9 +196,7 @@ class SwarmCoordinator:
         for uav in uavs:
             if uav.mode == "SUPPORT" and target_id in uav.tracked_target_ids:
                 uav.mode = "SEARCH"
-                uav.tracked_target_ids = [
-                    tid for tid in uav.tracked_target_ids if tid != target_id
-                ]
+                uav.tracked_target_ids = [tid for tid in uav.tracked_target_ids if tid != target_id]
 
     def _sensor_gap(self, target) -> List[str]:
         """Return sensor types from SENSOR_TYPES not already contributed."""
@@ -219,10 +218,7 @@ class SwarmCoordinator:
         """Return closest assignable UAV that carries sensor_type, or None."""
         exclude = exclude or set()
         candidates = [
-            u for u in uavs
-            if u.mode in _ASSIGNABLE_MODES
-            and sensor_type in u.sensors
-            and u.id not in exclude
+            u for u in uavs if u.mode in _ASSIGNABLE_MODES and sensor_type in u.sensors and u.id not in exclude
         ]
         if not candidates:
             return None

@@ -22,7 +22,7 @@ ASSET_REGISTRY: list[dict] = [
         "lat": 33.50,
         "lon": 44.40,
         "pk_rating": 0.95,
-        "cost_index": 8.5,          # relative cost 1-10
+        "cost_index": 8.5,  # relative cost 1-10
         "speed_kmh": 1_960.0,
     },
     {
@@ -36,7 +36,7 @@ ASSET_REGISTRY: list[dict] = [
         "lon": 44.20,
         "pk_rating": 0.88,
         "cost_index": 5.0,
-        "speed_kmh": 0.0,           # rocket flight speed handled differently
+        "speed_kmh": 0.0,  # rocket flight speed handled differently
         "max_range_km": 300.0,
         "rocket_flight_time_min": 3.5,
     },
@@ -60,11 +60,11 @@ ASSET_REGISTRY: list[dict] = [
             effector_type="Non-Kinetic",
             status="Available",
         ),
-        "lat": 0.0,                 # location-agnostic
+        "lat": 0.0,  # location-agnostic
         "lon": 0.0,
         "pk_rating": 0.60,
         "cost_index": 1.0,
-        "speed_kmh": 0.0,           # instantaneous
+        "speed_kmh": 0.0,  # instantaneous
         "time_to_effect_min": 0.5,
     },
     {

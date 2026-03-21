@@ -2,20 +2,20 @@
 New tests for BattlespaceManagerAgent._generate_response() heuristic.
 These must FAIL before implementation and PASS after.
 """
+
 import pytest
 from agents.battlespace_manager import BattlespaceManagerAgent
 from schemas.ontology import (
     BattlespaceManagerOutput,
     Coordinate,
-    Track,
+    TargetClassification,
     ThreatRing,
     ThreatType,
-    TargetClassification,
+    Track,
 )
 
 
 def _make_track(track_id: str) -> Track:
-    from schemas.ontology import Detection, SensorSource
     return Track(
         track_id=track_id,
         lat=33.4,

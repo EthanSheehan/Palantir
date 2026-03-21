@@ -8,21 +8,29 @@ Invariants tested:
 4. DESTROYED, ESCAPED, UNDETECTED targets never appear in the queue.
 5. verification_gap is always in [0, 1].
 """
+
 from __future__ import annotations
 
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from hypothesis import given, settings, assume
+from hypothesis import given, settings
 from hypothesis import strategies as st
-
-from isr_priority import build_isr_queue, THREAT_WEIGHTS, _EXCLUDED_STATES
+from isr_priority import _EXCLUDED_STATES, THREAT_WEIGHTS, build_isr_queue
 
 TARGET_TYPES = list(THREAT_WEIGHTS.keys()) + ["UNKNOWN_TYPE"]
 ALL_STATES = [
-    "UNDETECTED", "DETECTED", "CLASSIFIED", "VERIFIED",
-    "NOMINATED", "LOCKED", "ENGAGED", "DESTROYED", "ESCAPED"
+    "UNDETECTED",
+    "DETECTED",
+    "CLASSIFIED",
+    "VERIFIED",
+    "NOMINATED",
+    "LOCKED",
+    "ENGAGED",
+    "DESTROYED",
+    "ESCAPED",
 ]
 ACTIVE_STATES = [s for s in ALL_STATES if s not in _EXCLUDED_STATES]
 SENSOR_TYPES = ["EO_IR", "SAR", "SIGINT"]
@@ -32,27 +40,33 @@ SENSOR_TYPES = ["EO_IR", "SAR", "SIGINT"]
 # Strategies
 # ---------------------------------------------------------------------------
 
-sensor_contrib_strategy = st.fixed_dictionaries({
-    "sensor_type": st.sampled_from(SENSOR_TYPES),
-    "confidence": st.floats(0.0, 1.0, allow_nan=False),
-})
+sensor_contrib_strategy = st.fixed_dictionaries(
+    {
+        "sensor_type": st.sampled_from(SENSOR_TYPES),
+        "confidence": st.floats(0.0, 1.0, allow_nan=False),
+    }
+)
 
-target_strategy = st.fixed_dictionaries({
-    "state": st.sampled_from(ALL_STATES),
-    "type": st.sampled_from(TARGET_TYPES),
-    "fused_confidence": st.floats(0.0, 1.0, allow_nan=False),
-    "time_in_state_sec": st.floats(0.0, 120.0, allow_nan=False),
-    "lat": st.floats(-90.0, 90.0, allow_nan=False),
-    "lon": st.floats(-180.0, 180.0, allow_nan=False),
-    "sensor_contributions": st.lists(sensor_contrib_strategy, min_size=0, max_size=4),
-})
+target_strategy = st.fixed_dictionaries(
+    {
+        "state": st.sampled_from(ALL_STATES),
+        "type": st.sampled_from(TARGET_TYPES),
+        "fused_confidence": st.floats(0.0, 1.0, allow_nan=False),
+        "time_in_state_sec": st.floats(0.0, 120.0, allow_nan=False),
+        "lat": st.floats(-90.0, 90.0, allow_nan=False),
+        "lon": st.floats(-180.0, 180.0, allow_nan=False),
+        "sensor_contributions": st.lists(sensor_contrib_strategy, min_size=0, max_size=4),
+    }
+)
 
-uav_strategy = st.fixed_dictionaries({
-    "mode": st.sampled_from(["IDLE", "SEARCH", "FOLLOW", "SUPPORT"]),
-    "sensors": st.lists(st.sampled_from(SENSOR_TYPES), min_size=0, max_size=3, unique=True),
-    "lat": st.floats(-90.0, 90.0, allow_nan=False),
-    "lon": st.floats(-180.0, 180.0, allow_nan=False),
-})
+uav_strategy = st.fixed_dictionaries(
+    {
+        "mode": st.sampled_from(["IDLE", "SEARCH", "FOLLOW", "SUPPORT"]),
+        "sensors": st.lists(st.sampled_from(SENSOR_TYPES), min_size=0, max_size=3, unique=True),
+        "lat": st.floats(-90.0, 90.0, allow_nan=False),
+        "lon": st.floats(-180.0, 180.0, allow_nan=False),
+    }
+)
 
 
 def build_targets(dicts):
@@ -66,6 +80,7 @@ def build_uavs(dicts):
 # ---------------------------------------------------------------------------
 # Property tests
 # ---------------------------------------------------------------------------
+
 
 @given(
     target_dicts=st.lists(target_strategy, min_size=0, max_size=15),
@@ -81,9 +96,7 @@ def test_isr_queue_sorted_descending(target_dicts, uav_dicts, max_req):
     queue = build_isr_queue(targets, uavs, max_requirements=max_req)
 
     scores = [r.urgency_score for r in queue]
-    assert scores == sorted(scores, reverse=True), (
-        f"Queue not sorted descending: {scores}"
-    )
+    assert scores == sorted(scores, reverse=True), f"Queue not sorted descending: {scores}"
 
 
 @given(
@@ -99,9 +112,7 @@ def test_isr_scores_always_non_negative(target_dicts, uav_dicts):
     queue = build_isr_queue(targets, uavs)
 
     for req in queue:
-        assert req.urgency_score >= 0.0, (
-            f"Negative urgency_score {req.urgency_score} for target {req.target_id}"
-        )
+        assert req.urgency_score >= 0.0, f"Negative urgency_score {req.urgency_score} for target {req.target_id}"
 
 
 @given(
@@ -117,9 +128,7 @@ def test_isr_queue_length_capped(target_dicts, uav_dicts, max_req):
 
     queue = build_isr_queue(targets, uavs, max_requirements=max_req)
 
-    assert len(queue) <= max_req, (
-        f"Queue length {len(queue)} exceeds max_requirements={max_req}"
-    )
+    assert len(queue) <= max_req, f"Queue length {len(queue)} exceeds max_requirements={max_req}"
 
 
 @given(
@@ -136,9 +145,7 @@ def test_excluded_states_not_in_queue(target_dicts, uav_dicts):
 
     excluded_ids = {t["id"] for t in targets if t["state"] in _EXCLUDED_STATES}
     for req in queue:
-        assert req.target_id not in excluded_ids, (
-            f"Target {req.target_id} with excluded state appeared in ISR queue"
-        )
+        assert req.target_id not in excluded_ids, f"Target {req.target_id} with excluded state appeared in ISR queue"
 
 
 @given(
@@ -155,15 +162,13 @@ def test_verification_gap_in_0_1(target_dicts, uav_dicts):
 
     for req in queue:
         assert 0.0 <= req.verification_gap <= 1.0, (
-            f"verification_gap {req.verification_gap} out of [0, 1] "
-            f"for target {req.target_id}"
+            f"verification_gap {req.verification_gap} out of [0, 1] for target {req.target_id}"
         )
 
 
 @given(
     target_dicts=st.lists(
-        target_strategy.filter(lambda t: t["state"] not in _EXCLUDED_STATES),
-        min_size=1, max_size=10
+        target_strategy.filter(lambda t: t["state"] not in _EXCLUDED_STATES), min_size=1, max_size=10
     ),
     uav_dicts=st.lists(uav_strategy, min_size=0, max_size=5),
 )
@@ -178,6 +183,4 @@ def test_active_targets_may_appear_in_queue(target_dicts, uav_dicts):
     # All returned IDs should map to active (non-excluded) targets
     active_ids = {t["id"] for t in targets if t["state"] not in _EXCLUDED_STATES}
     for req in queue:
-        assert req.target_id in active_ids, (
-            f"Non-active target {req.target_id} in queue"
-        )
+        assert req.target_id in active_ids, f"Non-active target {req.target_id} in queue"

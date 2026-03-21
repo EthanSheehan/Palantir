@@ -5,13 +5,8 @@ All tests must fail before battlespace_assessment.py exists, then pass after imp
 """
 
 import pytest
-
 from battlespace_assessment import (
     BattlespaceAssessor,
-    ThreatCluster,
-    CoverageGap,
-    MovementCorridor,
-    AssessmentResult,
 )
 
 
@@ -64,6 +59,7 @@ def _make_uav(id: int, lon: float, lat: float, mode: str = "SEARCH", x_idx: int 
 # ---------------------------------------------------------------------------
 # TestClustering
 # ---------------------------------------------------------------------------
+
 
 class TestClustering:
     def test_two_sams_within_radius_form_cluster(self):
@@ -139,6 +135,7 @@ class TestClustering:
 # TestCoverageGaps
 # ---------------------------------------------------------------------------
 
+
 class TestCoverageGaps:
     def test_zone_with_target_no_uav_is_gap(self):
         """Zone with uav_count=0 and a detected target -> is a gap."""
@@ -169,6 +166,7 @@ class TestCoverageGaps:
 # ---------------------------------------------------------------------------
 # TestZoneThreatScoring
 # ---------------------------------------------------------------------------
+
 
 class TestZoneThreatScoring:
     def test_single_target_in_zone(self):
@@ -207,14 +205,13 @@ class TestZoneThreatScoring:
 # TestMovementCorridors
 # ---------------------------------------------------------------------------
 
+
 class TestMovementCorridors:
     def test_moving_target_produces_corridor(self):
         """Target with 15 history entries spread > 0.005 deg -> 1 corridor."""
         # Spread across 0.01 degrees to exceed threshold
         history = [(28.0 + i * 0.001, 44.0 + i * 0.0005) for i in range(15)]
-        targets = [
-            _make_target(1, 28.014, 44.007, "TRUCK", position_history=history)
-        ]
+        targets = [_make_target(1, 28.014, 44.007, "TRUCK", position_history=history)]
         assessor = BattlespaceAssessor()
         result = assessor.assess(targets, [], [])
         assert len(result.movement_corridors) == 1
@@ -223,9 +220,7 @@ class TestMovementCorridors:
     def test_stationary_target_no_corridor(self):
         """Target with 15 entries at same position -> no corridor."""
         history = [(28.0, 44.0)] * 15
-        targets = [
-            _make_target(1, 28.0, 44.0, "TRUCK", position_history=history)
-        ]
+        targets = [_make_target(1, 28.0, 44.0, "TRUCK", position_history=history)]
         assessor = BattlespaceAssessor()
         result = assessor.assess(targets, [], [])
         assert len(result.movement_corridors) == 0
@@ -233,9 +228,7 @@ class TestMovementCorridors:
     def test_short_history_no_corridor(self):
         """Target with 5 entries -> no corridor (needs >= 10)."""
         history = [(28.0 + i * 0.001, 44.0 + i * 0.001) for i in range(5)]
-        targets = [
-            _make_target(1, 28.005, 44.005, "TRUCK", position_history=history)
-        ]
+        targets = [_make_target(1, 28.005, 44.005, "TRUCK", position_history=history)]
         assessor = BattlespaceAssessor()
         result = assessor.assess(targets, [], [])
         assert len(result.movement_corridors) == 0
@@ -244,6 +237,7 @@ class TestMovementCorridors:
 # ---------------------------------------------------------------------------
 # TestEdgeCases
 # ---------------------------------------------------------------------------
+
 
 class TestEdgeCases:
     def test_empty_targets_returns_empty_result(self):
@@ -284,6 +278,7 @@ class TestEdgeCases:
     def test_result_is_frozen(self):
         """AssessmentResult is immutable (frozen dataclass)."""
         from dataclasses import FrozenInstanceError
+
         assessor = BattlespaceAssessor()
         result = assessor.assess([], [], [])
         with pytest.raises((FrozenInstanceError, AttributeError, TypeError)):
@@ -292,6 +287,7 @@ class TestEdgeCases:
     def test_cluster_is_frozen(self):
         """ThreatCluster is immutable."""
         from dataclasses import FrozenInstanceError
+
         targets = [
             _make_target(1, 28.0, 44.0, "SAM"),
             _make_target(2, 28.05, 44.02, "SAM"),

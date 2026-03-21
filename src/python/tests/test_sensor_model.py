@@ -5,25 +5,25 @@ All tests must fail before sensor_model.py exists, then pass after implementatio
 """
 
 import math
+
 import pytest
 
 # Import the module under test — will fail until sensor_model.py is created
 from sensor_model import (
-    SensorConfig,
-    EnvironmentConditions,
-    DetectionResult,
     RCS_TABLE,
     SENSOR_CONFIGS,
-    deg_to_meters,
+    DetectionResult,
+    EnvironmentConditions,
     compute_aspect_rcs,
     compute_pd,
+    deg_to_meters,
     evaluate_detection,
 )
-
 
 # ---------------------------------------------------------------------------
 # deg_to_meters
 # ---------------------------------------------------------------------------
+
 
 class TestDegToMeters:
     def test_same_point_returns_zero(self):
@@ -62,6 +62,7 @@ class TestDegToMeters:
 # ---------------------------------------------------------------------------
 # compute_aspect_rcs
 # ---------------------------------------------------------------------------
+
 
 class TestComputeAspectRcs:
     def test_head_on_reduces_rcs(self):
@@ -102,6 +103,7 @@ class TestComputeAspectRcs:
 # ---------------------------------------------------------------------------
 # compute_pd
 # ---------------------------------------------------------------------------
+
 
 class TestComputePd:
     """Tests for the probability-of-detection sigmoid function."""
@@ -199,6 +201,7 @@ class TestComputePd:
 # evaluate_detection
 # ---------------------------------------------------------------------------
 
+
 class TestEvaluateDetection:
     """Tests for the top-level per-sensor-pair detection evaluation."""
 
@@ -208,8 +211,10 @@ class TestEvaluateDetection:
     def test_returns_detection_result_type(self):
         env = self._default_env()
         result = evaluate_detection(
-            uav_lat=45.0, uav_lon=25.0,
-            target_lat=45.001, target_lon=25.001,
+            uav_lat=45.0,
+            uav_lon=25.0,
+            target_lat=45.001,
+            target_lon=25.001,
             target_type="TRUCK",
             sensor_type="EO_IR",
             env=env,
@@ -219,8 +224,10 @@ class TestEvaluateDetection:
     def test_result_has_all_required_fields(self):
         env = self._default_env()
         result = evaluate_detection(
-            uav_lat=45.0, uav_lon=25.0,
-            target_lat=45.001, target_lon=25.001,
+            uav_lat=45.0,
+            uav_lon=25.0,
+            target_lat=45.001,
+            target_lon=25.001,
             target_type="SAM",
             sensor_type="SAR",
             env=env,
@@ -235,8 +242,10 @@ class TestEvaluateDetection:
     def test_sensor_type_recorded_in_result(self):
         env = self._default_env()
         result = evaluate_detection(
-            uav_lat=45.0, uav_lon=25.0,
-            target_lat=45.001, target_lon=25.001,
+            uav_lat=45.0,
+            uav_lon=25.0,
+            target_lat=45.001,
+            target_lon=25.001,
             target_type="TEL",
             sensor_type="SIGINT",
             env=env,
@@ -252,8 +261,10 @@ class TestEvaluateDetection:
         for _ in range(trials):
             # 10m separation, SAM (RCS=15m²), EO_IR sensor
             result = evaluate_detection(
-                uav_lat=45.0, uav_lon=25.0,
-                target_lat=45.00009, target_lon=25.00009,  # ~12m away
+                uav_lat=45.0,
+                uav_lon=25.0,
+                target_lat=45.00009,
+                target_lon=25.00009,  # ~12m away
                 target_type="SAM",
                 sensor_type="EO_IR",
                 env=env,
@@ -271,8 +282,10 @@ class TestEvaluateDetection:
         for _ in range(trials):
             # ~120km away (well beyond EO_IR 50km max), MANPADS (RCS=0.5m²)
             result = evaluate_detection(
-                uav_lat=45.0, uav_lon=25.0,
-                target_lat=46.08, target_lon=25.0,  # ~120km north
+                uav_lat=45.0,
+                uav_lon=25.0,
+                target_lat=46.08,
+                target_lon=25.0,  # ~120km north
                 target_type="MANPADS",
                 sensor_type="EO_IR",
                 env=env,
@@ -285,8 +298,10 @@ class TestEvaluateDetection:
     def test_range_computed_correctly(self):
         env = self._default_env()
         result = evaluate_detection(
-            uav_lat=45.0, uav_lon=25.0,
-            target_lat=46.0, target_lon=25.0,  # 1 degree north ≈ 111320m
+            uav_lat=45.0,
+            uav_lon=25.0,
+            target_lat=46.0,
+            target_lon=25.0,  # 1 degree north ≈ 111320m
             target_type="SAM",
             sensor_type="SAR",
             env=env,
@@ -296,8 +311,10 @@ class TestEvaluateDetection:
     def test_bearing_deg_within_valid_range(self):
         env = self._default_env()
         result = evaluate_detection(
-            uav_lat=45.0, uav_lon=25.0,
-            target_lat=45.5, target_lon=25.5,
+            uav_lat=45.0,
+            uav_lon=25.0,
+            target_lat=45.5,
+            target_lon=25.5,
             target_type="CP",
             sensor_type="EO_IR",
             env=env,
@@ -307,8 +324,10 @@ class TestEvaluateDetection:
     def test_confidence_bounded_zero_to_one(self):
         env = self._default_env()
         result = evaluate_detection(
-            uav_lat=45.0, uav_lon=25.0,
-            target_lat=45.1, target_lon=25.1,
+            uav_lat=45.0,
+            uav_lon=25.0,
+            target_lat=45.1,
+            target_lon=25.1,
             target_type="TRUCK",
             sensor_type="SAR",
             env=env,
@@ -319,8 +338,10 @@ class TestEvaluateDetection:
         """evaluate_detection should not raise for target types not in RCS_TABLE."""
         env = self._default_env()
         result = evaluate_detection(
-            uav_lat=45.0, uav_lon=25.0,
-            target_lat=45.001, target_lon=25.001,
+            uav_lat=45.0,
+            uav_lon=25.0,
+            target_lat=45.001,
+            target_lon=25.001,
             target_type="UNKNOWN_BOGUS",
             sensor_type="EO_IR",
             env=env,
@@ -331,8 +352,10 @@ class TestEvaluateDetection:
         """DetectionResult is a frozen dataclass — mutation must raise."""
         env = self._default_env()
         result = evaluate_detection(
-            uav_lat=45.0, uav_lon=25.0,
-            target_lat=45.001, target_lon=25.001,
+            uav_lat=45.0,
+            uav_lon=25.0,
+            target_lat=45.001,
+            target_lon=25.001,
             target_type="SAM",
             sensor_type="EO_IR",
             env=env,
@@ -344,6 +367,7 @@ class TestEvaluateDetection:
 # ---------------------------------------------------------------------------
 # RCS_TABLE and SENSOR_CONFIGS sanity checks
 # ---------------------------------------------------------------------------
+
 
 class TestConstants:
     def test_rcs_table_has_required_keys(self):

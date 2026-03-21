@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
-from pathlib import Path
+import os
+
+# Ensure src/python is importable
+import sys
 
 import pytest
 
-# Ensure src/python is importable
-import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import event_logger
