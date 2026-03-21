@@ -32,7 +32,7 @@ async def _broadcast_event(event: DomainEvent):
             await ws.send_text(msg)
         except Exception:
             dead.add(ws)
-    _event_clients -= dead
+    _event_clients.difference_update(dead)
 
 
 def setup_event_broadcast():

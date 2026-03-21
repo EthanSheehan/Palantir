@@ -159,7 +159,10 @@ class SimulationModel:
                 u.target = target_coord
                 self.active_flows.append({
                     "source": d["source_coord"],
-                    "target": target_coord
+                    "target": target_coord,
+                    "source_id": d["source_id"],
+                    "target_id": d["target_id"],
+                    "count": d["count"],
                 })
 
         # 6. Update Kinematics

@@ -92,15 +92,21 @@ export interface Alert {
   acknowledged_at?: string;
 }
 
+export interface ZoneRef {
+  id: number[];
+  lon: number;
+  lat: number;
+}
+
 export interface Recommendation {
   id: string;
-  source_zone?: string;
-  target_zone?: string;
+  source_zone?: ZoneRef;
+  target_zone?: ZoneRef;
   confidence?: number;
-  suggested_count?: number;
+  suggested_asset_count?: number;
   pressure_delta?: number;
-  ttl?: number;
   created_at?: string;
+  expires_at?: string;
 }
 
 export interface LayoutState {
