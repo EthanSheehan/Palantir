@@ -69,7 +69,7 @@ export interface AppStore {
     missionId: string | null;
     alertId: string | null;
     hoveredEntityId: string | null;
-    selectedTargetIds: number[];
+    selectedTargetIds: (number | string)[];
   };
 
   // ── Time ──
@@ -87,6 +87,9 @@ export interface AppStore {
   reservations: Record<string, TimelineReservation>;
   recommendations: Record<string, Recommendation>;
   commands: Record<string, Command>;
+
+  // ── Pinned Target (for cross-panel sort anchor) ──
+  pinnedTarget: { id: number | string; name: string; description?: string; lon: number; lat: number; aimpoints?: Array<{ id: number; lon: number; lat: number; type: string; description: string }> } | null;
 
   // ── Tool Mode ──
   toolMode: {
@@ -107,7 +110,7 @@ export interface AppStore {
   selectMission: (id: string | null) => void;
   selectAlert: (id: string | null) => void;
   setHoveredEntity: (id: string | null) => void;
-  selectTarget: (id: number | null, additive?: boolean) => void;
+  selectTarget: (id: number | string | null, additive?: boolean) => void;
   setTimeCursor: (ms: number | null) => void;
   setTimeMode: (mode: 'live' | 'historical') => void;
   setLeftPanelTab: (tab: LeftPanelTab) => void;
@@ -123,6 +126,7 @@ export interface AppStore {
   setAssets: (assets: Asset[]) => void;
   setLayout: (layout: Partial<LayoutState>) => void;
   setFilters: (filters: Partial<AppStore['filters']>) => void;
+  setPinnedTarget: (target: AppStore['pinnedTarget']) => void;
 }
 
 export const useAppStore = create<AppStore>()(subscribeWithSelector((set) => ({
@@ -288,6 +292,10 @@ export const useAppStore = create<AppStore>()(subscribeWithSelector((set) => ({
   setFilters: (filters) => set((state) => ({
     filters: { ...state.filters, ...filters },
   })),
+
+  pinnedTarget: null,
+
+  setPinnedTarget: (target) => set({ pinnedTarget: target }),
 })));
 
 // ── Auto-save layout to localStorage on change ──

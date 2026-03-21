@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { HTMLSelect, Button, Intent } from '@blueprintjs/core';
 import { SearchBar } from '../../components/SearchBar';
 import type { SearchResult } from '../../components/SearchBar';
@@ -224,8 +225,8 @@ function addComplexTargetVisualization(complex: ComplexTarget) {
   viewer.scene.requestRender();
 }
 
-/** Manage Cesium highlight rings for selected targets */
-function updateTargetHighlights(targetIds: number[]) {
+/** Manage Cesium highlight rings for selected targets (simple and MAP) */
+export function updateTargetHighlights(targetIds: (number | string)[]) {
   const viewer = (window as any).viewer;
   const Cesium = (window as any).Cesium;
   if (!viewer || !Cesium) return;
@@ -236,17 +237,28 @@ function updateTargetHighlights(targetIds: number[]) {
   if (targetIds.length === 0) { viewer.scene.requestRender(); return; }
 
   const targets = (window as any)._targets as Target[] | undefined;
-  if (!targets) return;
-
+  const complexTargets = (window as any)._complexTargets as ComplexTarget[] | undefined;
   const radius = 800;
   const segments = 48;
 
   targetIds.forEach((tid, idx) => {
-    const target = targets.find((t) => t.id === tid);
-    if (!target) return;
+    let lon: number | undefined, lat: number | undefined;
+
+    if (typeof tid === 'number') {
+      const target = targets?.find((t) => t.id === tid);
+      if (target) { lon = target.lon; lat = target.lat; }
+    } else {
+      // MAP complex target — highlight at centroid
+      const ct = complexTargets?.find((c) => c.id === tid);
+      if (ct && ct.aimpoints.length > 0) {
+        lon = ct.aimpoints.reduce((s, a) => s + a.lon, 0) / ct.aimpoints.length;
+        lat = ct.aimpoints.reduce((s, a) => s + a.lat, 0) / ct.aimpoints.length;
+      }
+    }
+    if (lon === undefined || lat === undefined) return;
 
     let terrainH = 0;
-    const carto = Cesium.Cartographic.fromDegrees(target.lon, target.lat);
+    const carto = Cesium.Cartographic.fromDegrees(lon, lat);
     const globe = viewer.scene.globe;
     if (globe) { const h = globe.getHeight(carto); if (h !== undefined) terrainH = h; }
 
@@ -254,11 +266,12 @@ function updateTargetHighlights(targetIds: number[]) {
       ? Cesium.Color.fromCssColorString('#f97316').withAlpha(0.8)
       : Cesium.Color.fromCssColorString('#fb923c').withAlpha(0.6);
 
+    const hlLon = lon, hlLat = lat;
     viewer.entities.add({
       id: `_target_highlight_${tid}`,
       polyline: {
         positions: new Cesium.CallbackProperty(() => {
-          const center = Cesium.Cartesian3.fromDegrees(target.lon, target.lat, terrainH);
+          const center = Cesium.Cartesian3.fromDegrees(hlLon, hlLat, terrainH);
           const transform = Cesium.Transforms.eastNorthUpToFixedFrame(center);
           const pts: any[] = [];
           for (let i = 0; i <= segments; i++) {
@@ -286,6 +299,7 @@ export function TargetsPanel() {
   const [, setTick] = useState(0);
   const selectedTargetIds = useAppStore((s) => s.selection.selectedTargetIds);
   const selectTarget = useAppStore((s) => s.selectTarget);
+  const setPinnedTarget = useAppStore((s) => s.setPinnedTarget);
 
   useEffect(() => { updateTargetHighlights(selectedTargetIds); }, [selectedTargetIds]);
 
@@ -367,9 +381,20 @@ export function TargetsPanel() {
     setTick((v) => v + 1);
   }, []);
 
+  const handlePinTarget = useCallback((id: number | string, name: string, lon: number, lat: number) => {
+    const current = useAppStore.getState().pinnedTarget;
+    if (current && current.id === id) {
+      setPinnedTarget(null); // unpin if already pinned
+    } else {
+      setPinnedTarget({ id, name, lon, lat });
+      // Switch to assets tab
+      useAppStore.getState().setLeftPanelTab('assets');
+    }
+  }, [setPinnedTarget]);
+
   const handleCreateMAP = useCallback(() => {
     if (selectedTargetIds.length < 2) return;
-    mergeTargetsIntoComplex(selectedTargetIds);
+    mergeTargetsIntoComplex(selectedTargetIds.filter((id): id is number => typeof id === 'number'));
     selectTarget(null); // clear selection
     setTick((v) => v + 1);
   }, [selectedTargetIds, selectTarget]);
@@ -446,7 +471,22 @@ export function TargetsPanel() {
         <div className="complex-targets-section">
           <div className="section-label">Multi Aim Point Targets</div>
           {complexTargets.map((ct) => (
-            <ComplexTargetCard key={ct.id} complex={ct} onRemove={handleRemoveComplex}
+            <ComplexTargetCard key={ct.id} complex={ct}
+              isSelected={selectedTargetIds.includes(ct.id)}
+              onClick={(shiftKey) => selectTarget(ct.id, shiftKey)}
+              onRemove={handleRemoveComplex}
+              onPin={() => {
+                if (ct.aimpoints.length === 0) return;
+                const lon = ct.aimpoints.reduce((s, a) => s + a.lon, 0) / ct.aimpoints.length;
+                const lat = ct.aimpoints.reduce((s, a) => s + a.lat, 0) / ct.aimpoints.length;
+                const current = useAppStore.getState().pinnedTarget;
+                if (current && current.id === ct.id) {
+                  setPinnedTarget(null);
+                } else {
+                  setPinnedTarget({ id: ct.id, name: ct.name, description: ct.description, lon, lat, aimpoints: ct.aimpoints });
+                  useAppStore.getState().setLeftPanelTab('assets');
+                }
+              }}
               onUpdate={(field, value) => { (ct as any)[field] = value; setTick((v) => v + 1); }} />
           ))}
         </div>
@@ -467,6 +507,7 @@ export function TargetsPanel() {
             <TargetCard key={t.id} target={t} isSelected={selectedTargetIds.includes(t.id)}
               onClick={(shiftKey) => handleTargetClick(t, shiftKey)}
               onRemove={(e) => handleRemove(t.id, e)}
+              onPin={() => handlePinTarget(t.id, `TGT-${String(t.id).padStart(3, '0')}`, t.lon, t.lat)}
               onUpdate={(field, value) => { (t as any)[field] = value; setTick((v) => v + 1); }} />
           ))
         )}
@@ -489,21 +530,86 @@ export function TargetsPanel() {
 
 function ComplexTargetCard({
   complex,
+  isSelected,
+  onClick,
   onRemove,
+  onPin,
   onUpdate,
 }: {
   complex: ComplexTarget;
+  isSelected: boolean;
+  onClick: (shiftKey: boolean) => void;
   onRemove: (id: string, e: React.MouseEvent) => void;
+  onPin: () => void;
   onUpdate: (field: string, value: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [editingAimpoints, setEditingAimpoints] = useState(false);
+  const [repaintingApId, setRepaintingApId] = useState<number | null>(null);
+  const [highlightedApId, setHighlightedApId] = useState<number | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
   const [editingField, setEditingField] = useState<'type' | 'description' | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [, setApTick] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (editingField && inputRef.current) { inputRef.current.focus(); inputRef.current.select(); }
   }, [editingField]);
+
+  // Highlight individual aimpoint on globe
+  useEffect(() => {
+    const viewer = (window as any).viewer;
+    const Cesium = (window as any).Cesium;
+    if (!viewer || !Cesium) return;
+
+    // Remove previous aimpoint highlight
+    const old = viewer.entities.getById('_ap_highlight');
+    if (old) viewer.entities.remove(old);
+
+    if (highlightedApId === null) { viewer.scene.requestRender(); return; }
+
+    const ap = complex.aimpoints.find((a) => a.id === highlightedApId);
+    if (!ap) return;
+
+    let terrainH = 0;
+    const carto = Cesium.Cartographic.fromDegrees(ap.lon, ap.lat);
+    const globe = viewer.scene.globe;
+    if (globe) { const h = globe.getHeight(carto); if (h !== undefined) terrainH = h; }
+
+    const radius = 500;
+    const segments = 48;
+    viewer.entities.add({
+      id: '_ap_highlight',
+      polyline: {
+        positions: (() => {
+          const center = Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, terrainH);
+          const transform = Cesium.Transforms.eastNorthUpToFixedFrame(center);
+          const pts: any[] = [];
+          for (let i = 0; i <= segments; i++) {
+            const angle = (i / segments) * Math.PI * 2;
+            const local = new Cesium.Cartesian3(Math.cos(angle) * radius, Math.sin(angle) * radius, 0);
+            pts.push(Cesium.Matrix4.multiplyByPoint(transform, local, new Cesium.Cartesian3()));
+          }
+          return pts;
+        })(),
+        width: 2.5,
+        material: Cesium.Color.fromCssColorString('#f97316').withAlpha(0.8),
+        clampToGround: true,
+      },
+    });
+    viewer.scene.requestRender();
+
+    return () => {
+      const e = viewer.entities.getById('_ap_highlight');
+      if (e) { viewer.entities.remove(e); viewer.scene.requestRender(); }
+    };
+  }, [highlightedApId, complex.aimpoints]);
+
+  // Clear aimpoint highlight when card collapses or editing stops
+  useEffect(() => {
+    if (!expanded || !editingAimpoints) setHighlightedApId(null);
+  }, [expanded, editingAimpoints]);
 
   const startEdit = useCallback((field: 'type' | 'description', e: React.MouseEvent) => {
     e.stopPropagation();
@@ -530,20 +636,103 @@ function ComplexTargetCard({
     });
   }, [complex.aimpoints]);
 
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCtxMenu({ x: e.clientX, y: e.clientY });
+  }, []);
+
+  // Close context menu on outside click
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const close = () => setCtxMenu(null);
+    window.addEventListener('click', close);
+    return () => window.removeEventListener('click', close);
+  }, [ctxMenu]);
+
+  // Clear repainting state if tool changes away
+  useEffect(() => {
+    if (repaintingApId === null) return;
+    const controller = (window as any).MapToolController;
+    if (!controller?.onToolChange) return;
+    const cb = (toolId: string) => {
+      if (toolId !== 'repaint_aimpoint') setRepaintingApId(null);
+    };
+    controller.onToolChange(cb);
+    // No unsub available — cb is lightweight and self-guards via repaintingApId check
+  }, [repaintingApId]);
+
+  const handleRepaintAimpoint = useCallback((ap: ComplexTarget['aimpoints'][0]) => {
+    const repaintFn = (window as any)._repaintAimpoint;
+    if (!repaintFn) return;
+
+    // Already repainting this one? Cancel.
+    if (repaintingApId === ap.id) {
+      setRepaintingApId(null);
+      repaintFn(null);
+      return;
+    }
+
+    setRepaintingApId(ap.id);
+
+    repaintFn(ap.id, ({ lon, lat }: { lon: number; lat: number }) => {
+      // Update aimpoint coordinates in-place
+      ap.lon = lon;
+      ap.lat = lat;
+
+      // Refresh complex target visualization (connecting lines, centroid diamond)
+      const viewer = (window as any).viewer;
+      if (viewer) {
+        ['_complex_line_', '_complex_label_', '_complex_diamond_top_', '_complex_diamond_bot_', '_complex_stalk_'].forEach((prefix: string) => {
+          const e = viewer.entities.getById(`${prefix}${complex.id}`);
+          if (e) viewer.entities.remove(e);
+        });
+        addComplexTargetVisualization(complex);
+      }
+
+      // Done
+      setRepaintingApId(null);
+      setApTick((v) => v + 1);
+    });
+  }, [complex, repaintingApId]);
+
+  const updateAimpoint = useCallback((apId: number, field: string, value: string) => {
+    const ap = complex.aimpoints.find((a) => a.id === apId);
+    if (ap) { (ap as any)[field] = value; setApTick((v) => v + 1); }
+  }, [complex.aimpoints]);
+
   return (
-    <div className="complex-target-card" onClick={() => setExpanded(!expanded)}>
+    <div className={`complex-target-card${isSelected ? ' target-selected' : ''}`}
+      onClick={(e) => { onClick(e.shiftKey); setExpanded(!expanded); }}
+      onContextMenu={handleContextMenu}>
+
+      {/* Right-click context menu — rendered via portal to avoid overflow clipping */}
+      {ctxMenu && createPortal(
+        <div className="target-ctx-menu" style={{ position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 9999 }}
+          onClick={(e) => e.stopPropagation()}>
+          <button className="target-ctx-item" onClick={() => { setEditingAimpoints(!editingAimpoints); setExpanded(true); setCtxMenu(null); }}>
+            {editingAimpoints ? 'Stop Editing Aimpoints' : 'Edit Aimpoints'}
+          </button>
+        </div>,
+        document.body
+      )}
+      <button className="target-pin-btn" onClick={(e) => { e.stopPropagation(); onPin(); }} title="Select Target">
+        <svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" strokeWidth="2" fill="none"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg>
+      </button>
       <div className="complex-card-header">
         <button className="target-remove-hover" onClick={(e) => onRemove(complex.id, e)} title="Remove">&times;</button>
         <span className="complex-icon">&#x2B23;</span>
         <span className="complex-name">{complex.name}</span>
-        {/* Editable type badge */}
+        {/* Editable type badge — only editable when selected */}
         {editingField === 'type' ? (
           <input ref={inputRef} className="target-type-input" value={editValue}
             onChange={(e) => setEditValue(e.target.value)} onBlur={commitEdit}
             onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditingField(null); }}
             onClick={(e) => e.stopPropagation()} placeholder="type..." />
         ) : (
-          <span className="target-type-badge" onClick={(e) => startEdit('type', e)} title="Click to edit type">
+          <span className={`target-type-badge${isSelected ? ' editable' : ''}`}
+            onClick={isSelected ? (e) => startEdit('type', e) : undefined}
+            title={isSelected ? 'Click to edit type' : undefined}>
             {complex.type || 'multi-aim'}
           </span>
         )}
@@ -556,23 +745,33 @@ function ComplexTargetCard({
         </button>
       </div>
 
-      {/* Editable description */}
+      {/* Centroid coordinates — always visible, above description (consistent with simple targets) */}
+      {complex.aimpoints.length > 0 && (
+        <div className="target-coords">
+          {(complex.aimpoints.reduce((s, a) => s + a.lat, 0) / complex.aimpoints.length).toFixed(4)}&deg; N &nbsp; {(complex.aimpoints.reduce((s, a) => s + a.lon, 0) / complex.aimpoints.length).toFixed(4)}&deg; E
+        </div>
+      )}
+
+      {/* Editable description — always shows placeholder, only editable when selected */}
       {editingField === 'description' ? (
         <input ref={inputRef} className="target-desc-input" value={editValue}
           onChange={(e) => setEditValue(e.target.value)} onBlur={commitEdit}
           onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditingField(null); }}
           onClick={(e) => e.stopPropagation()} placeholder="Add description..." />
       ) : (
-        <div className="target-desc" onClick={(e) => startEdit('description', e)}>
+        <div className={`target-desc${isSelected ? ' editable' : ''}`}
+          onClick={isSelected ? (e) => startEdit('description', e) : undefined}>
           {complex.description || 'Click to add description...'}
         </div>
       )}
 
+      {/* Aimpoints count — always visible */}
+      <div className="complex-aimpoints-label">Aimpoints ({complex.aimpoints.length})</div>
+
       {/* Expanded aimpoint details */}
       {expanded && (
-        <div className="complex-aimpoints">
-          <div className="aimpoints-header">Aimpoints ({complex.aimpoints.length})</div>
-          <table className="aimpoints-table">
+        <div className="complex-aimpoints" onClick={(e) => e.stopPropagation()}>
+          <table className="aimpoints-table" style={{ marginTop: 0 }}>
             <thead>
               <tr>
                 <th>ID</th>
@@ -580,16 +779,31 @@ function ComplexTargetCard({
                 <th>Lat</th>
                 <th>Lon</th>
                 <th>Description</th>
+                {editingAimpoints && <th></th>}
               </tr>
             </thead>
             <tbody>
               {complex.aimpoints.map((ap) => (
                 <tr key={ap.id}>
-                  <td className="ap-id">AP-{String(ap.id).padStart(3, '0')}</td>
-                  <td className="ap-type">{ap.type}</td>
-                  <td className="ap-coord">{ap.lat.toFixed(4)}</td>
-                  <td className="ap-coord">{ap.lon.toFixed(4)}</td>
-                  <td className="ap-desc">{ap.description || '\u2014'}</td>
+                  <td className={`ap-id ap-id-clickable${highlightedApId === ap.id ? ' ap-id-active' : ''}`}
+                    onClick={() => setHighlightedApId(highlightedApId === ap.id ? null : ap.id)}
+                    title="Click to highlight on globe">AP-{String(ap.id).padStart(3, '0')}</td>
+                  {editingAimpoints ? (
+                    <>
+                      <td><input className="ap-edit-input" value={ap.type} onChange={(e) => updateAimpoint(ap.id, 'type', e.target.value)} /></td>
+                      <td className="ap-coord">{ap.lat.toFixed(4)}</td>
+                      <td className="ap-coord">{ap.lon.toFixed(4)}</td>
+                      <td><input className="ap-edit-input ap-edit-desc" value={ap.description} onChange={(e) => updateAimpoint(ap.id, 'description', e.target.value)} placeholder="description..." /></td>
+                      <td><button className={`ap-repaint-btn${repaintingApId === ap.id ? ' repainting-active' : ''}`} onClick={() => handleRepaintAimpoint(ap)} title={repaintingApId === ap.id ? 'Click to cancel' : 'Repaint on globe'}>&#x21BB;</button></td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="ap-type">{ap.type}</td>
+                      <td className="ap-coord">{ap.lat.toFixed(4)}</td>
+                      <td className="ap-coord">{ap.lon.toFixed(4)}</td>
+                      <td className="ap-desc">{ap.description || '\u2014'}</td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -607,12 +821,14 @@ function TargetCard({
   isSelected,
   onClick,
   onRemove,
+  onPin,
   onUpdate,
 }: {
   target: Target;
   isSelected: boolean;
   onClick: (shiftKey: boolean) => void;
   onRemove: (e: React.MouseEvent) => void;
+  onPin: () => void;
   onUpdate: (field: string, value: string) => void;
 }) {
   const [editingField, setEditingField] = useState<'type' | 'description' | null>(null);
@@ -636,6 +852,9 @@ function TargetCard({
 
   return (
     <div className={`target-card-react${isSelected ? ' target-selected' : ''}`} onClick={(e) => onClick(e.shiftKey)}>
+      <button className="target-pin-btn" onClick={(e) => { e.stopPropagation(); onPin(); }} title="Select Target">
+        <svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" strokeWidth="2" fill="none"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg>
+      </button>
       <div className="target-card-header">
         <button className="target-remove-hover" onClick={onRemove} title="Remove target">&times;</button>
         <span className="target-diamond">&#x25C7;</span>
@@ -646,7 +865,9 @@ function TargetCard({
             onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditingField(null); }}
             onClick={(e) => e.stopPropagation()} placeholder="type..." />
         ) : (
-          <span className="target-type-badge" onClick={(e) => startEdit('type', e)} title="Click to edit type">
+          <span className={`target-type-badge${isSelected ? ' editable' : ''}`}
+            onClick={isSelected ? (e) => startEdit('type', e) : undefined}
+            title={isSelected ? 'Click to edit type' : undefined}>
             {target.type || 'unknown'}
           </span>
         )}
@@ -660,7 +881,8 @@ function TargetCard({
           onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditingField(null); }}
           onClick={(e) => e.stopPropagation()} placeholder="Add description..." />
       ) : (
-        <div className="target-desc" onClick={(e) => startEdit('description', e)}>
+        <div className={`target-desc${isSelected ? ' editable' : ''}`}
+          onClick={isSelected ? (e) => startEdit('description', e) : undefined}>
           {target.description || 'Click to add description...'}
         </div>
       )}

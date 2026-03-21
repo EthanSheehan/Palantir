@@ -4,6 +4,97 @@
   gap: 6px;
 }
 
+/* ---- Pinned Target Card ---- */
+.pinned-target-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: rgba(249, 115, 22, 0.08);
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  border-radius: 2px;
+  box-shadow: inset 2px 0 0 #f97316;
+}
+
+.pinned-diamond {
+  color: #f97316;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.pinned-name {
+  color: #f97316;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.pinned-coords {
+  color: #64748b;
+  font-size: 0.58rem;
+  font-family: 'JetBrains Mono', monospace;
+  margin-left: auto;
+}
+
+/* Unpin overlay button — reuses .target-pin-btn from TargetsPanel.css */
+.pinned-unpin-btn.target-pin-btn {
+  background: rgba(239, 68, 68, 0.15);
+  border-left-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+.pinned-unpin-btn.target-pin-btn:hover {
+  background: rgba(239, 68, 68, 0.3);
+}
+
+.pinned-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+/* ---- Pinned MAP Aimpoints Table ---- */
+.pinned-aimpoints-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 4px;
+  border-top: 1px solid rgba(249, 115, 22, 0.15);
+  padding-top: 4px;
+}
+
+.pinned-aimpoints-table th {
+  font-size: 0.5rem;
+  font-weight: 600;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: left;
+  padding: 2px 3px;
+  border-bottom: 1px solid rgba(100, 116, 139, 0.1);
+}
+
+.pinned-aimpoints-table td {
+  font-size: 0.58rem;
+  padding: 2px 3px;
+  color: #94a3b8;
+}
+
+.pinned-aimpoints-table .ap-id {
+  color: #e2e8f0;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+}
+
+.pinned-aimpoints-table .ap-type {
+  text-transform: uppercase;
+  font-size: 0.5rem;
+}
+
+.pinned-aimpoints-table .ap-coord {
+  font-family: 'JetBrains Mono', monospace;
+}
+
 .search-bar-input-wrap {
   display: flex;
   align-items: center;

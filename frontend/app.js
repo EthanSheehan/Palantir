@@ -1248,6 +1248,104 @@ function _renderHalos() {
 
 const _targets = [];       // [{ id, lon, lat, topCone, botCone, lensTopCone, lensBotCone }]
 window._targets = _targets; // Expose for React SearchBar target search
+
+// ── Aimpoint Repaint API (for React TargetsPanel) ──
+// Activates a one-shot globe-click mode. On click:
+//   1. Deletes old diamond entities for the aimpoint
+//   2. Creates new diamond at the clicked position (NOT added to _targets)
+//   3. Calls onComplete({ lon, lat }) so React can update aimpoint data
+// Call with null to cancel.
+let _repaintState = null;
+
+// Register the repaint_aimpoint tool immediately (not lazily)
+MapToolController.registerTool({
+    id: 'repaint_aimpoint',
+    label: 'Repaint Aimpoint',
+    hint: 'Click globe to relocate aimpoint.',
+    onActivate() {
+        console.log('[Repaint] tool ACTIVATED, _repaintState=', _repaintState);
+        viewer.canvas.classList.add('paint-target-cursor');
+    },
+    onDeactivate() {
+        console.log('[Repaint] tool DEACTIVATED');
+        viewer.canvas.classList.remove('paint-target-cursor');
+        // NOTE: Do NOT clear _repaintState here — it's managed by _repaintAimpoint()
+    },
+    onLeftClick(movement) {
+        console.log('[Repaint] onLeftClick, _repaintState=', _repaintState);
+        if (!_repaintState) {
+            console.warn('[Repaint] onLeftClick but _repaintState is null — bailing');
+            return;
+        }
+        const state = _repaintState;
+
+        let cartesian = viewer.scene.pickPosition(movement.position);
+        if (!cartesian) cartesian = viewer.camera.pickEllipsoid(movement.position, viewer.scene.globe.ellipsoid);
+        if (!cartesian) {
+            console.warn('[Repaint] could not pick position on globe');
+            return;
+        }
+
+        const carto = Cesium.Cartographic.fromCartesian(cartesian);
+        const newLon = Cesium.Math.toDegrees(carto.longitude);
+        const newLat = Cesium.Math.toDegrees(carto.latitude);
+        console.log('[Repaint] new position:', newLon, newLat, 'for aimpoint', state.apId);
+
+        // Remove old diamond entities from main viewer
+        ['target_top_', 'target_bot_'].forEach(prefix => {
+            const mainId = prefix + state.apId + '_main';
+            const e = viewer.entities.getById(mainId);
+            if (e) { viewer.entities.remove(e); console.log('[Repaint] removed', mainId); }
+            else { console.warn('[Repaint] entity not found:', mainId); }
+        });
+        // Remove old diamond entities from lens viewer (if open)
+        if (_lensViewer) {
+            ['target_top_', 'target_bot_'].forEach(prefix => {
+                const lensId = prefix + state.apId + '_lens';
+                const e = _lensViewer.entities.getById(lensId);
+                if (e) { _lensViewer.entities.remove(e); console.log('[Repaint] removed', lensId); }
+            });
+        }
+
+        // Create new diamond (NOT added to _targets array)
+        _diamondEntities(viewer, newLon, newLat, state.apId);
+        if (_lensViewer) {
+            _diamondEntities(_lensViewer, newLon, newLat, state.apId);
+            _lensViewer.scene.requestRender();
+        }
+        viewer.scene.requestRender();
+        console.log('[Repaint] created new diamond entities for', state.apId);
+
+        // Notify React
+        if (state.onComplete) state.onComplete({ lon: newLon, lat: newLat });
+
+        // Return to select mode (one-shot)
+        _repaintState = null;
+        MapToolController.setTool('select');
+    },
+});
+
+window._repaintAimpoint = function(apId, onComplete) {
+    console.log('[Repaint] _repaintAimpoint called, apId=', apId, 'activeTool=', MapToolController.getActiveTool());
+
+    // Cancel mode
+    if (apId === null) {
+        _repaintState = null;
+        if (MapToolController.getActiveTool() === 'repaint_aimpoint') {
+            MapToolController.setTool('select');
+        }
+        return;
+    }
+
+    // If already repainting, switch back to select first to reset state cleanly
+    if (MapToolController.getActiveTool() === 'repaint_aimpoint') {
+        MapToolController.setTool('select');
+    }
+
+    _repaintState = { apId, onComplete };
+    MapToolController.setTool('repaint_aimpoint');
+    console.log('[Repaint] tool set, activeTool now=', MapToolController.getActiveTool());
+};
 let _targetIdCounter = 0;
 
 // NOTE: Cesium's DataSourceCollection does NOT support sharing one DataSource
