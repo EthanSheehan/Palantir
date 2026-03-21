@@ -2,6 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  user-select: none;
 }
 
 /* Apply Blueprint-style squared edges globally in targets panel */
@@ -154,11 +155,14 @@
   border: 1px solid rgba(100, 116, 139, 0.15);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  cursor: pointer;
   transition: border-color 0.15s;
 }
 
-.target-type-badge:hover {
+.target-type-badge.editable {
+  cursor: pointer;
+}
+
+.target-type-badge.editable:hover {
   border-color: rgba(56, 189, 248, 0.4);
   color: #e2e8f0;
 }
@@ -181,6 +185,11 @@
 .target-type-input::placeholder {
   color: #475569;
   text-transform: none;
+}
+
+.target-type-input,
+.target-desc-input {
+  user-select: text;
 }
 
 .target-coords {
@@ -215,8 +224,10 @@
   opacity: 0.5;
 }
 
-.target-card-react:hover .target-zoom-btn {
+.target-card-react:hover .target-zoom-btn,
+.complex-target-card:hover .target-zoom-btn {
   opacity: 1;
+  right: 30px;
 }
 
 .target-zoom-btn:hover {
@@ -232,12 +243,15 @@
   font-style: italic;
   padding: 2px 4px 2px 20px;
   margin-top: 2px;
-  cursor: text;
   border-radius: 2px;
   transition: background 0.1s;
 }
 
-.target-desc:hover {
+.target-desc.editable {
+  cursor: text;
+}
+
+.target-desc.editable:hover {
   background: rgba(255, 255, 255, 0.04);
   color: #94a3b8;
 }
@@ -303,7 +317,7 @@
 
 /* ---- Complex Target Card ---- */
 .complex-target-card {
-  padding: 8px 10px;
+  padding: 6px 8px;
   border-radius: 2px;
   background: rgba(249, 115, 22, 0.04);
   border: 1px solid rgba(249, 115, 22, 0.2);
@@ -352,6 +366,25 @@
   padding: 1px 5px;
   border-radius: 2px;
   border: 1px solid rgba(100, 116, 139, 0.15);
+}
+
+/* ---- Complex Card Always-Visible Info ---- */
+.complex-coords {
+  color: #64748b;
+  font-size: 0.62rem;
+  font-family: 'JetBrains Mono', monospace;
+  margin-top: 2px;
+  padding-left: 20px;
+}
+
+.complex-aimpoints-label {
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 4px;
+  padding-left: 20px;
 }
 
 /* ---- Aimpoints Table (expanded) ---- */
@@ -406,6 +439,23 @@
   font-weight: 600;
 }
 
+.ap-id-clickable {
+  cursor: pointer;
+  border-radius: 2px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.ap-id-clickable:hover {
+  color: #f97316;
+  background: rgba(249, 115, 22, 0.1);
+}
+
+.ap-id-active {
+  color: #f97316 !important;
+  background: rgba(249, 115, 22, 0.15);
+  box-shadow: inset 2px 0 0 #f97316;
+}
+
 .ap-type {
   text-transform: uppercase;
   font-size: 0.55rem !important;
@@ -418,4 +468,130 @@
 .ap-desc {
   font-style: italic;
   color: #64748b;
+}
+
+/* ---- Context Menu ---- */
+.target-ctx-menu {
+  background: rgba(8, 14, 28, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  border-radius: 2px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  padding: 2px 0;
+  min-width: 140px;
+}
+
+.target-ctx-item {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  color: #e2e8f0;
+  font-size: 0.68rem;
+  font-family: 'Inter', sans-serif;
+  padding: 6px 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.target-ctx-item:hover {
+  background: rgba(56, 189, 248, 0.1);
+  color: #38bdf8;
+}
+
+/* ---- Editable Aimpoint Inputs ---- */
+.ap-edit-input {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(100, 116, 139, 0.25);
+  border-radius: 2px;
+  color: #e2e8f0;
+  font-size: 0.55rem;
+  font-family: 'Inter', sans-serif;
+  text-transform: uppercase;
+  padding: 1px 3px;
+  width: 50px;
+  outline: none;
+  user-select: text;
+}
+
+.ap-edit-input:focus {
+  border-color: rgba(56, 189, 248, 0.5);
+}
+
+.ap-edit-desc {
+  text-transform: none;
+  width: 70px;
+}
+
+.ap-edit-input::placeholder {
+  color: #475569;
+  text-transform: none;
+  font-style: italic;
+}
+
+.ap-repaint-btn {
+  background: rgba(249, 115, 22, 0.1);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: 2px;
+  color: #f97316;
+  font-size: 0.7rem;
+  cursor: pointer;
+  padding: 1px 4px;
+  line-height: 1;
+  transition: all 0.15s;
+}
+
+.ap-repaint-btn:hover {
+  background: rgba(249, 115, 22, 0.25);
+  border-color: rgba(249, 115, 22, 0.5);
+}
+
+.ap-repaint-btn.repainting-active {
+  background: rgba(0, 0, 0, 0.8);
+  border-color: #f97316;
+  color: #f97316;
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.4);
+  animation: repaint-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes repaint-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(249, 115, 22, 0.4); }
+  50% { box-shadow: 0 0 14px rgba(249, 115, 22, 0.7); }
+}
+
+/* ---- Pin-to-Assets Button (right edge overlay) ---- */
+/* Add right padding on hover so pin button doesn't cover content */
+.target-card-react:hover,
+.complex-target-card:hover {
+  padding-right: 34px;
+}
+
+.target-pin-btn {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  overflow: hidden;
+  background: rgba(249, 115, 22, 0.15);
+  border: none;
+  border-left: 1px solid rgba(249, 115, 22, 0.3);
+  color: #f97316;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: width 0.15s, background 0.15s;
+  padding: 0;
+  z-index: 2;
+}
+
+.target-card-react:hover .target-pin-btn,
+.complex-target-card:hover .target-pin-btn {
+  width: 26px;
+}
+
+.target-pin-btn:hover {
+  background: rgba(249, 115, 22, 0.3);
 }

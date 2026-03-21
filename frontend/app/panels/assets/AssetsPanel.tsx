@@ -1,10 +1,12 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Tag, Intent, ProgressBar } from '@blueprintjs/core';
 import { useAppStore } from '../../store/appStore';
 import type { Asset } from '../../store/types';
 import { SearchBar, haversineKm } from '../../components/SearchBar';
 import type { SearchResult } from '../../components/SearchBar';
 import './AssetsPanel.css';
+import '../targets/TargetsPanel.css';
+import { updateTargetHighlights } from '../targets/TargetsPanel';
 
 const DOMAIN_FILTERS = ['Air', 'Land', 'Space'] as const;
 
@@ -103,8 +105,30 @@ export function AssetsPanel() {
   const allAssets = useAppStore((s) => s.assets);
   const primaryId = useAppStore((s) => s.selection.primaryAssetId);
   const selectedIds = useAppStore((s) => s.selection.assetIds);
+  const pinnedTarget = useAppStore((s) => s.pinnedTarget);
+  const setPinnedTarget = useAppStore((s) => s.setPinnedTarget);
+  const [pinnedHighlighted, setPinnedHighlighted] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [sortAnchor, setSortAnchor] = useState<{ lon: number; lat: number; label: string } | null>(null);
+
+  // Auto-set/clear sortAnchor when a target is pinned/unpinned
+  useEffect(() => {
+    if (pinnedTarget) {
+      setSortAnchor({ lon: pinnedTarget.lon, lat: pinnedTarget.lat, label: pinnedTarget.name });
+    } else {
+      setSortAnchor(null);
+      setPinnedHighlighted(false);
+    }
+  }, [pinnedTarget]);
+
+  // Sync highlight ring with pinnedHighlighted state
+  useEffect(() => {
+    if (pinnedHighlighted && pinnedTarget) {
+      updateTargetHighlights([pinnedTarget.id]);
+    } else {
+      updateTargetHighlights([]);
+    }
+  }, [pinnedHighlighted, pinnedTarget]);
 
   const toggleFilter = useCallback((f: string) => {
     setActiveFilters((prev) => {
@@ -141,7 +165,12 @@ export function AssetsPanel() {
 
   const handleSearchResult = useCallback((result: SearchResult | null) => {
     if (!result) {
-      setSortAnchor(null);
+      // Fall back to pinned target sort anchor if one exists
+      if (pinnedTarget) {
+        setSortAnchor({ lon: pinnedTarget.lon, lat: pinnedTarget.lat, label: pinnedTarget.name });
+      } else {
+        setSortAnchor(null);
+      }
       handleSearchLocation(null);
       return;
     }
@@ -170,10 +199,57 @@ export function AssetsPanel() {
     }
 
     handleSearchLocation(result);
-  }, []);
+  }, [pinnedTarget]);
 
   return (
     <div className="assets-panel">
+      {pinnedTarget && (
+        <div className="complex-target-card target-selected" style={{ position: 'relative' }}
+          onClick={() => setPinnedHighlighted((v) => !v)}>
+          <button className="target-pin-btn pinned-unpin-btn" onClick={(e) => { e.stopPropagation(); setPinnedTarget(null); }} title="Remove from Assets">
+            <svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" strokeWidth="2" fill="none"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg>
+          </button>
+          <div className="complex-card-header">
+            <span className="complex-icon">{pinnedTarget.aimpoints ? '\u2B23' : '\u25C7'}</span>
+            <span className="complex-name">{pinnedTarget.name}</span>
+            <span className="target-type-badge">multi-aim</span>
+            {pinnedTarget.aimpoints && <span className="complex-count">{pinnedTarget.aimpoints.length} pts</span>}
+          </div>
+          <div className="target-coords">
+            {pinnedTarget.lat.toFixed(4)}&deg; N &nbsp; {pinnedTarget.lon.toFixed(4)}&deg; E
+          </div>
+          <div className="target-desc">{pinnedTarget.description || 'Click to add description...'}</div>
+          {pinnedTarget.aimpoints && pinnedTarget.aimpoints.length > 0 && (
+            <>
+              <div className="complex-aimpoints-label">Aimpoints ({pinnedTarget.aimpoints.length})</div>
+              <div className="complex-aimpoints">
+                <table className="aimpoints-table" style={{ marginTop: 0 }}>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Type</th>
+                      <th>Lat</th>
+                      <th>Lon</th>
+                      <th>Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pinnedTarget.aimpoints.map((ap) => (
+                      <tr key={ap.id}>
+                        <td className="ap-id">AP-{String(ap.id).padStart(3, '0')}</td>
+                        <td className="ap-type">{ap.type}</td>
+                        <td className="ap-coord">{ap.lat.toFixed(4)}</td>
+                        <td className="ap-coord">{ap.lon.toFixed(4)}</td>
+                        <td className="ap-desc">{ap.description || '\u2014'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      )}
       <SearchBar
         assets={assets}
         getDisplayName={getDisplayName}
