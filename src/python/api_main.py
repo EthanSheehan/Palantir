@@ -19,6 +19,7 @@ from typing import Optional
 
 import structlog
 import uvicorn
+from aar_engine import AAREngine
 from agents.ai_tasking_manager import AITaskingManagerAgent
 from agents.battlespace_manager import BattlespaceManagerAgent
 from agents.isr_observer import ISRObserverAgent
@@ -103,6 +104,7 @@ hitl = HITLManager()
 clients: dict = {}  # websocket -> info dict
 assistant = TacticalAssistant()
 mission_store = MissionStore()
+aar_engine = AAREngine(mission_store, audit_log)
 
 # ROE engine — load theater-specific rules if available
 import pathlib as _pathlib
@@ -412,6 +414,88 @@ async def get_mission(mission_id: int):
 async def get_target_history(mission_id: int, target_id: int):
     events = mission_store.get_target_history(mission_id, target_id)
     return {"events": events}
+
+
+@app.get("/api/kill-chain")
+async def get_kill_chain():
+    """Return current F2T2EA kill chain phase breakdown."""
+    if _loop_state.cached_kill_chain is not None:
+        return _loop_state.cached_kill_chain
+    # Compute fresh if no cached data yet
+    from kill_chain_tracker import KillChainTracker
+
+    tracker = KillChainTracker()
+    state = sim.get_state()
+    strike_board_data = hitl.get_strike_board()
+    statuses = tracker.compute(
+        targets=state.get("targets", []),
+        drones=state.get("uavs", []),
+        strike_board=strike_board_data,
+    )
+    return tracker.to_dict(statuses)
+
+
+# ---------------------------------------------------------------------------
+# AAR (After-Action Review) endpoints
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/aar/{mission_id}/timeline")
+async def get_aar_timeline(mission_id: int):
+    mission = mission_store.get_mission(mission_id)
+    if not mission:
+        raise HTTPException(status_code=404, detail="Mission not found")
+    timeline = aar_engine.build_timeline(mission_id)
+    return {
+        "mission_id": timeline.mission_id,
+        "phases": timeline.phases,
+        "total_ticks": timeline.total_ticks,
+        "duration_seconds": timeline.duration_seconds,
+    }
+
+
+@app.get("/api/aar/{mission_id}/report")
+async def get_aar_report(mission_id: int):
+    mission = mission_store.get_mission(mission_id)
+    if not mission:
+        raise HTTPException(status_code=404, detail="Mission not found")
+    report = aar_engine.generate_report(mission_id)
+    return {
+        "mission_id": report.mission_id,
+        "theater": report.theater,
+        "duration_seconds": report.duration_seconds,
+        "targets_detected": report.targets_detected,
+        "targets_engaged": report.targets_engaged,
+        "engagements_successful": report.engagements_successful,
+        "operator_overrides": report.operator_overrides,
+        "ai_acceptance_rate": report.ai_acceptance_rate,
+        "phase_breakdown": report.phase_breakdown,
+    }
+
+
+@app.get("/api/aar/{mission_id}/replay")
+async def get_aar_replay(
+    mission_id: int,
+    start: int = 0,
+    end: Optional[int] = None,
+    speed: int = 1,
+):
+    mission = mission_store.get_mission(mission_id)
+    if not mission:
+        raise HTTPException(status_code=404, detail="Mission not found")
+    step = max(speed, 1)
+    snapshots = aar_engine.get_snapshots(mission_id, start_tick=start, end_tick=end, step=step)
+    return {
+        "snapshots": [
+            {
+                "timestamp": s.timestamp,
+                "tick": s.tick,
+                "state_json": s.state_json,
+                "decisions": s.decisions,
+            }
+            for s in snapshots
+        ]
+    }
 
 
 # ---------------------------------------------------------------------------

@@ -10,7 +10,11 @@ import time
 from typing import TYPE_CHECKING, Callable
 
 import structlog
+from confidence_gate import DEFAULT_THRESHOLDS, ConfidenceGate
+from explainability import ExplainabilityEngine
 from roe_engine import ROEDecision, ROEEngine
+
+_explainability = ExplainabilityEngine()
 
 if TYPE_CHECKING:
     from agents.tactical_planner import TacticalPlannerAgent
@@ -61,6 +65,7 @@ async def demo_autopilot(
     tactical_planner: TacticalPlannerAgent,
     get_effectors: Callable | None = None,
     roe_engine: ROEEngine | None = None,
+    confidence_gate: ConfidenceGate | None = None,
     approval_delay: float = DEFAULT_APPROVAL_DELAY,
     follow_delay: float = DEFAULT_FOLLOW_DELAY,
     paint_delay: float = DEFAULT_PAINT_DELAY,
@@ -80,6 +85,9 @@ async def demo_autopilot(
         ),
         target_type="DASHBOARD",
     )
+
+    if confidence_gate is None:
+        confidence_gate = ConfidenceGate(DEFAULT_THRESHOLDS)
 
     in_flight: set[str] = set()
     enemy_intercept_dispatched: set[int] = set()
@@ -181,6 +189,29 @@ async def demo_autopilot(
                 continue
             approval_timestamps.append(_now_cb)
 
+            # --- Confidence gate check (W4-004) ---
+            gate_decision = confidence_gate.evaluate(
+                "AUTHORIZE_COA",
+                entry.get("detection_confidence", 0.0),
+                target_type=entry.get("target_type"),
+            )
+            if gate_decision == "ESCALATE":
+                logger.info(
+                    "demo_autopilot_confidence_escalate",
+                    entry_id=entry_id,
+                    confidence=entry.get("detection_confidence"),
+                    target_type=entry.get("target_type"),
+                )
+                await intel_router.emit(
+                    "INTEL_FEED",
+                    {
+                        "event": "CONFIDENCE_ESCALATE",
+                        "summary": f"Confidence gate ESCALATED {entry.get('target_type')} (id={target_id}) — awaiting operator",
+                    },
+                )
+                in_flight.discard(entry_id)
+                continue
+
             # --- ROE veto check ---
             if roe_engine is not None:
                 roe_decision = roe_engine.evaluate(
@@ -221,11 +252,22 @@ async def demo_autopilot(
 
             from audit_log import audit_log
 
+            nom_explanation = _explainability.explain_nomination(
+                target={
+                    "target_id": target_id,
+                    "target_type": entry.get("target_type", "UNKNOWN"),
+                    "detection_confidence": entry.get("detection_confidence", 0.0),
+                },
+                fusion_result={"confidence": entry.get("detection_confidence", 0.0), "sensor_count": 1},
+                roe_decision=roe_decision.value if roe_engine and roe_decision else "PERMITTED",
+                autonomy_level=getattr(sim, "autonomy_level", "SUPERVISED"),
+            )
+
             audit_log.append(
                 "NOMINATION_APPROVED",
                 autonomy_level=getattr(sim, "autonomy_level", "SUPERVISED"),
                 target_id=target_id,
-                details={"entry_id": entry_id, "source": "autopilot"},
+                details={"entry_id": entry_id, "source": "autopilot", "explanation": nom_explanation.to_dict()},
             )
 
             session_engagement_count += 1
@@ -337,6 +379,27 @@ async def demo_autopilot(
                         target_type="DASHBOARD",
                     )
 
+                    # --- Confidence gate on COA authorization ---
+                    coa_gate = confidence_gate.evaluate(
+                        "ENGAGE",
+                        entry.get("detection_confidence", 0.0),
+                        target_type=entry.get("target_type"),
+                    )
+                    if coa_gate == "ESCALATE":
+                        logger.info(
+                            "demo_autopilot_coa_confidence_escalate",
+                            entry_id=entry_id,
+                        )
+                        await intel_router.emit(
+                            "INTEL_FEED",
+                            {
+                                "event": "CONFIDENCE_ESCALATE",
+                                "summary": f"Confidence gate ESCALATED COA auth for {entry.get('target_type')} (id={target_id})",
+                            },
+                        )
+                        in_flight.discard(entry_id)
+                        continue
+
                     # Auto-authorize best COA
                     await asyncio.sleep(paint_delay)
                     entry = _get_entry_if_status(hitl, entry_id, "APPROVED")
@@ -351,12 +414,37 @@ async def demo_autopilot(
                             in_flight.discard(entry_id)
                             continue
                         else:
+                            coa_explanation = _explainability.explain_coa(
+                                coa={
+                                    "id": best_coa.id,
+                                    "effector_name": best_coa.effector_name,
+                                    "pk_estimate": best_coa.pk_estimate,
+                                    "time_to_effect_min": best_coa.time_to_effect_min,
+                                    "risk_score": best_coa.risk_score,
+                                },
+                                target={"target_type": entry.get("target_type", "UNKNOWN"), "target_id": target_id},
+                                alternatives=[
+                                    {
+                                        "id": c.id,
+                                        "effector_name": c.effector_name,
+                                        "pk_estimate": c.pk_estimate,
+                                        "reason": f"Lower composite score ({c.composite_score:.2f})",
+                                    }
+                                    for c in coas[1:]
+                                ],
+                                roe_decision=roe_decision.value if roe_engine and roe_decision else "PERMITTED",
+                            )
                             audit_log.append(
                                 "COA_AUTHORIZED",
                                 autonomy_level=getattr(sim, "autonomy_level", "SUPERVISED"),
                                 target_id=target_id,
                                 drone_id=uav_id,
-                                details={"entry_id": entry_id, "coa_id": best_coa.id, "source": "autopilot"},
+                                details={
+                                    "entry_id": entry_id,
+                                    "coa_id": best_coa.id,
+                                    "source": "autopilot",
+                                    "explanation": coa_explanation.to_dict(),
+                                },
                             )
                             await broadcast_fn(
                                 json.dumps(

@@ -35,6 +35,12 @@ class LLMResponse:
     provider: str
     tokens_used: int
 
+    @property
+    def source_label(self) -> str:
+        from explainability import format_source_label
+
+        return format_source_label(self.provider, self.model)
+
 
 # ---------------------------------------------------------------------------
 # Model-hint mappings per provider
@@ -136,10 +142,12 @@ class LLMAdapter:
         ollama_base_url: str = "http://localhost:11434",
         anthropic_api_key: Optional[str] = None,
         gemini_api_key: Optional[str] = None,
+        override_tracker: Any = None,
     ) -> None:
         self._ollama_base_url = ollama_base_url
         self._anthropic_api_key = anthropic_api_key or ""
         self._gemini_api_key = gemini_api_key or ""
+        self._override_tracker = override_tracker
 
         # Provider state
         self._gemini_available = False
@@ -206,6 +214,9 @@ class LLMAdapter:
 
     # -- Public API ----------------------------------------------------------
 
+    def set_override_tracker(self, tracker: Any) -> None:
+        self._override_tracker = tracker
+
     async def complete(
         self,
         messages: list[dict[str, str]],
@@ -214,6 +225,11 @@ class LLMAdapter:
         max_tokens: int = 1024,
     ) -> LLMResponse:
         """Send a completion request to the best available provider."""
+        if self._override_tracker:
+            override_ctx = self._override_tracker.get_prompt_context()
+            if override_ctx:
+                messages = [{"role": "system", "content": override_ctx}, *messages]
+
         if self._fallback_only:
             return _HEURISTIC_RESPONSE
 

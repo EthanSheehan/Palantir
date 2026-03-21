@@ -11,6 +11,7 @@ import structlog
 from battlespace_assessment import BattlespaceAssessor
 from intel_feed import IntelFeedRouter
 from isr_priority import build_isr_queue
+from kill_chain_tracker import KillChainTracker
 
 if TYPE_CHECKING:
     from hitl_manager import HITLManager
@@ -61,6 +62,8 @@ class SimulationLoopState:
         self.last_assessment_time: float = 0.0
         self.cached_assessment: dict | None = None
         self.cached_isr_queue: list | None = None
+        self.kill_chain_tracker: KillChainTracker = KillChainTracker()
+        self.cached_kill_chain: dict | None = None
 
 
 async def simulation_loop(
@@ -84,6 +87,10 @@ async def simulation_loop(
 
     while True:
         sim.tick()
+
+        # Expire time-bounded autonomy grants
+        if hasattr(sim, "autonomy_policy"):
+            sim.autonomy_policy = sim.autonomy_policy.tick()
 
         # Cache get_state() once per tick
         state = sim.get_state()
@@ -165,13 +172,24 @@ async def simulation_loop(
             del loop_state.prev_target_states[stale_tid]
 
         if clients:
-            state["strike_board"] = hitl.get_strike_board()
+            strike_board_data = hitl.get_strike_board()
+            state["strike_board"] = strike_board_data
             state["demo_mode"] = settings.demo_mode
             if loop_state.cached_assessment is not None:
                 state["assessment"] = loop_state.cached_assessment
             if loop_state.cached_isr_queue is not None:
                 state["isr_queue"] = loop_state.cached_isr_queue
             state["coverage_mode"] = sim.coverage_mode
+
+            # Kill chain progress indicator
+            kc_statuses = loop_state.kill_chain_tracker.compute(
+                targets=state.get("targets", []),
+                drones=state.get("uavs", []),
+                strike_board=strike_board_data,
+            )
+            loop_state.cached_kill_chain = loop_state.kill_chain_tracker.to_dict(kc_statuses)
+            state["kill_chain"] = loop_state.cached_kill_chain
+
             state_json = json.dumps({"type": "state", "data": state})
             await broadcast_fn(state_json, target_type="DASHBOARD")
 

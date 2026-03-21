@@ -111,6 +111,9 @@ class SimulationModel:
 
         # Phase 3: autonomy system fields
         self.autonomy_level: str = "MANUAL"
+        from autonomy_policy import AutonomyPolicy
+
+        self.autonomy_policy: AutonomyPolicy = AutonomyPolicy(default_level="MANUAL")
         self.pending_transitions: dict = {}
         self.supervised_timeout_sec: float = SUPERVISED_TIMEOUT_SEC
 

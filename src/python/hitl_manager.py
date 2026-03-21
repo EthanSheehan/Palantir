@@ -41,6 +41,7 @@ class StrikeBoardEntry:
     status: str  # PENDING, APPROVED, REJECTED, RETASKED
     nominated_at: str  # ISO timestamp
     decision: Optional[dict] = None  # {action, rationale, timestamp}
+    explanation: Optional[dict] = None  # DecisionExplanation.to_dict()
 
 
 @dataclass(frozen=True)
@@ -166,6 +167,7 @@ class HITLManager:
                 "status": e.status,
                 "nominated_at": e.nominated_at,
                 "decision": e.decision,
+                "explanation": e.explanation,
             }
             for e in self._strike_board
         ]

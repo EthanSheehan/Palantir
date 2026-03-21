@@ -60,6 +60,7 @@ _ACTION_SCHEMAS: dict[str, dict[str, str]] = {
     "verify_target": {"target_id": "int"},
     "scan_area": {"drone_id": "int"},
     "set_autonomy_level": {"level": "str"},
+    "set_action_autonomy": {"action": "str", "level": "str"},
     "set_drone_autonomy": {"drone_id": "int"},
     "approve_transition": {"drone_id": "int"},
     "reject_transition": {"drone_id": "int"},
@@ -138,7 +139,17 @@ def _build_sitrep_payload(sim: SimulationModel, hitl: HITLManager, query_text: s
 class HandlerContext:
     """Holds shared dependencies injected from api_main."""
 
-    __slots__ = ("sim", "hitl", "intel_router", "broadcast", "clients", "ai_tasking_manager", "raw_data", "roe_engine")
+    __slots__ = (
+        "sim",
+        "hitl",
+        "intel_router",
+        "broadcast",
+        "clients",
+        "ai_tasking_manager",
+        "raw_data",
+        "roe_engine",
+        "override_tracker",
+    )
 
     def __init__(
         self,
@@ -151,6 +162,7 @@ class HandlerContext:
         ai_tasking_manager,
         raw_data: str,
         roe_engine: ROEEngine | None = None,
+        override_tracker=None,
     ):
         self.sim = sim
         self.hitl = hitl
@@ -160,6 +172,7 @@ class HandlerContext:
         self.ai_tasking_manager = ai_tasking_manager
         self.raw_data = raw_data
         self.roe_engine = roe_engine
+        self.override_tracker = override_tracker
 
 
 async def _handle_spike(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:
@@ -266,15 +279,36 @@ async def _handle_approve_nomination(payload: dict, websocket: WebSocket, ctx: H
 
 async def _handle_reject_nomination(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:
     rationale = payload.get("rationale", "")
+    reason = payload.get("reason")
+    reason_text = payload.get("reason_text")
     try:
         ctx.hitl.reject_nomination(payload["entry_id"], rationale)
         from audit_log import audit_log
 
+        details: dict = {"entry_id": payload["entry_id"], "action": "reject_nomination", "rationale": rationale}
+        if reason:
+            details["reason"] = reason
+        if reason_text:
+            details["reason_text"] = reason_text
         audit_log.append(
             "OPERATOR_OVERRIDE",
             autonomy_level=getattr(ctx.sim, "autonomy_level", "MANUAL"),
-            details={"entry_id": payload["entry_id"], "action": "reject_nomination", "rationale": rationale},
+            details=details,
         )
+        if ctx.override_tracker and reason:
+            from override_tracker import OverrideReason
+
+            try:
+                reason_enum = OverrideReason(reason)
+            except ValueError:
+                reason_enum = OverrideReason.OTHER
+            ctx.override_tracker.record(
+                action_type="REJECT_NOMINATION",
+                target_id=payload.get("target_id"),
+                reason=reason_enum,
+                free_text=reason_text,
+                ai_recommendation=rationale or "AI nomination",
+            )
         response = json.dumps({"type": "HITL_UPDATE", "action": "rejected", "entry": ctx.hitl.get_strike_board()})
         await ctx.broadcast(response, target_type="DASHBOARD")
     except ValueError as exc:
@@ -319,15 +353,36 @@ async def _handle_authorize_coa(payload: dict, websocket: WebSocket, ctx: Handle
 
 async def _handle_reject_coa(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:
     rationale = payload.get("rationale", "")
+    reason = payload.get("reason")
+    reason_text = payload.get("reason_text")
     try:
         ctx.hitl.reject_coa(payload["entry_id"], rationale)
         from audit_log import audit_log
 
+        details: dict = {"entry_id": payload["entry_id"], "action": "reject_coa", "rationale": rationale}
+        if reason:
+            details["reason"] = reason
+        if reason_text:
+            details["reason_text"] = reason_text
         audit_log.append(
             "OPERATOR_OVERRIDE",
             autonomy_level=getattr(ctx.sim, "autonomy_level", "MANUAL"),
-            details={"entry_id": payload["entry_id"], "action": "reject_coa", "rationale": rationale},
+            details=details,
         )
+        if ctx.override_tracker and reason:
+            from override_tracker import OverrideReason
+
+            try:
+                reason_enum = OverrideReason(reason)
+            except ValueError:
+                reason_enum = OverrideReason.OTHER
+            ctx.override_tracker.record(
+                action_type="REJECT_COA",
+                target_id=payload.get("target_id"),
+                reason=reason_enum,
+                free_text=reason_text,
+                ai_recommendation=rationale or "AI COA",
+            )
         response = json.dumps(
             {
                 "type": "HITL_UPDATE",
@@ -458,8 +513,48 @@ async def _handle_set_autonomy_level(payload: dict, websocket: WebSocket, ctx: H
         )
         return
     ctx.sim.autonomy_level = level
+    # Keep autonomy_policy default in sync (backward compat)
+    if hasattr(ctx.sim, "autonomy_policy"):
+        ctx.sim.autonomy_policy = ctx.sim.autonomy_policy.set_default_level(level)
     await ctx.intel_router.emit("COMMAND_FEED", {"action": "set_autonomy_level", "level": level, "source": "operator"})
     logger.info("autonomy_level_set", level=level)
+
+
+async def _handle_set_action_autonomy(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:
+    from autonomy_policy import VALID_ACTIONS, VALID_LEVELS
+
+    action = payload.get("action", "")
+    level = payload.get("level", "")
+    duration = payload.get("duration_seconds")
+    if action not in VALID_ACTIONS:
+        await _send_error(websocket, f"Invalid action. Must be one of: {sorted(VALID_ACTIONS)}", "set_action_autonomy")
+        return
+    if level not in VALID_LEVELS:
+        await _send_error(websocket, f"Invalid level. Must be one of: {sorted(VALID_LEVELS)}", "set_action_autonomy")
+        return
+    if not hasattr(ctx.sim, "autonomy_policy"):
+        await _send_error(websocket, "Autonomy policy not initialized", "set_action_autonomy")
+        return
+    ctx.sim.autonomy_policy = ctx.sim.autonomy_policy.set_action_level(action, level, duration_seconds=duration)
+    await ctx.intel_router.emit(
+        "COMMAND_FEED",
+        {
+            "action": "set_action_autonomy",
+            "target_action": action,
+            "level": level,
+            "duration": duration,
+            "source": "operator",
+        },
+    )
+    logger.info("action_autonomy_set", target_action=action, level=level, duration=duration)
+
+
+async def _handle_force_manual(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:
+    ctx.sim.autonomy_level = "MANUAL"
+    if hasattr(ctx.sim, "autonomy_policy"):
+        ctx.sim.autonomy_policy = ctx.sim.autonomy_policy.force_manual()
+    await ctx.intel_router.emit("COMMAND_FEED", {"action": "force_manual", "source": "operator"})
+    logger.info("force_manual_activated")
 
 
 async def _handle_set_drone_autonomy(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:
@@ -664,6 +759,8 @@ _DISPATCH_TABLE: dict[str, Callable] = {
     "retask_sensors": _handle_retask_sensors,
     "reset": _handle_reset,
     "set_autonomy_level": _handle_set_autonomy_level,
+    "set_action_autonomy": _handle_set_action_autonomy,
+    "force_manual": _handle_force_manual,
     "set_drone_autonomy": _handle_set_drone_autonomy,
     "approve_transition": _handle_approve_transition,
     "reject_transition": _handle_reject_transition,
