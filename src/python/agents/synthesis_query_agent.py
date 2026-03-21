@@ -89,32 +89,91 @@ class SynthesisQueryAgent:
     def _generate_response(self, query: str, context_json: str) -> str:
         """
         Wrapper to call the underlying LLM.
-        Implement according to specifically chosen LLM provider.
-
-        Args:
-            query:        The commander's free-form question.
-            context_json: Serialised JSON context (tracks, nominations, BDA).
-
-        Returns:
-            Raw JSON string from the LLM conforming to SynthesisQueryOutput.
+        Falls back to heuristic SITREP when llm_client is None.
         """
-        # Example for OpenAI client:
-        # response = self.llm_client.beta.chat.completions.parse(
-        #     model="gpt-4o",
-        #     messages=[
-        #         {"role": "system", "content": self.system_prompt},
-        #         {
-        #             "role": "user",
-        #             "content": (
-        #                 f"Commander Query:\n{query}\n\n"
-        #                 f"Current Operational Context:\n{context_json}"
-        #             ),
-        #         },
-        #     ],
-        #     response_format=SynthesisQueryOutput,
-        # )
-        # return response.choices[0].message.content
-        raise NotImplementedError("LLM integration needs to be completed.")
+        if self.llm_client is not None:
+            # Example for OpenAI client:
+            # response = self.llm_client.beta.chat.completions.parse(
+            #     model="gpt-4o",
+            #     messages=[
+            #         {"role": "system", "content": self.system_prompt},
+            #         {
+            #             "role": "user",
+            #             "content": (
+            #                 f"Commander Query:\n{query}\n\n"
+            #                 f"Current Operational Context:\n{context_json}"
+            #             ),
+            #         },
+            #     ],
+            #     response_format=SynthesisQueryOutput,
+            # )
+            # return response.choices[0].message.content
+            raise NotImplementedError("LLM integration needs to be completed.")
+
+        return self._heuristic_sitrep(context_json)
+
+    def _heuristic_sitrep(self, context_json: str) -> str:
+        """Build a structured SITREP from context without an LLM."""
+        try:
+            ctx = json.loads(context_json)
+        except (json.JSONDecodeError, TypeError):
+            ctx = {}
+
+        tracks = ctx.get("tracks", [])
+        nominations = ctx.get("nominations", [])
+        bda_results = ctx.get("bda_results", [])
+
+        track_count = len(tracks)
+        high_priority = [t for t in tracks if t.get("is_high_priority")]
+        threat_types = list({t.get("classification", "UNKNOWN") for t in tracks})
+
+        key_threats = [
+            f"{t.get('classification', 'UNKNOWN')} track {t.get('track_id', '?')} "
+            f"(confidence: {t.get('confidence', 0.0):.0%})"
+            for t in sorted(tracks, key=lambda x: x.get("confidence", 0.0), reverse=True)[:5]
+        ]
+
+        recommended_actions: list[str] = []
+        if high_priority:
+            recommended_actions.append(
+                f"Review {len(high_priority)} high-priority target(s) on strike board."
+            )
+        if not tracks:
+            recommended_actions.append("Continue ISR sweep — no tracks currently active.")
+        else:
+            recommended_actions.append("Maintain sensor coverage on active tracks.")
+
+        data_sources: list[str] = []
+        if tracks:
+            data_sources.append("ISR Tracks")
+        if nominations:
+            data_sources.append("Strike Board Nominations")
+        if bda_results:
+            data_sources.append("Battle Damage Assessments")
+        if not data_sources:
+            data_sources.append("No data sources available")
+
+        narrative = (
+            f"SITREP: {track_count} active track(s) detected"
+            + (f", types: {', '.join(threat_types)}" if threat_types else "")
+            + f". {len(high_priority)} high-priority target(s)."
+            + (f" {len(nominations)} nomination(s) pending." if nominations else "")
+            + (f" {len(bda_results)} BDA report(s) available." if bda_results else "")
+        )
+
+        confidence = 0.5 if not tracks else min(
+            0.9,
+            sum(t.get("confidence", 0.5) for t in tracks) / max(len(tracks), 1),
+        )
+
+        output = {
+            "sitrep_narrative": narrative,
+            "key_threats": key_threats,
+            "recommended_actions": recommended_actions,
+            "data_sources_consulted": data_sources,
+            "confidence": round(confidence, 3),
+        }
+        return json.dumps(output)
 
     # ── Public API ────────────────────────────────────────────────────────────
 

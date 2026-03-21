@@ -14,6 +14,9 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
 
+import numpy as np
+from scipy.spatial import KDTree
+
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -120,6 +123,10 @@ class BattlespaceAssessor:
         if not detected:
             return []
 
+        positions = np.array([list(_get_xy(t)) for t in detected], dtype=float)
+        tree = KDTree(positions)
+        neighbor_indices = tree.query_ball_point(positions, r=CLUSTER_RADIUS_DEG)
+
         visited = set()
         clusters: List[ThreatCluster] = []
 
@@ -127,11 +134,8 @@ class BattlespaceAssessor:
             if anchor["id"] in visited:
                 continue
 
-            ax, ay = _get_xy(anchor)
-            neighbors = [
-                t for t in detected
-                if math.hypot(_get_xy(t)[0] - ax, _get_xy(t)[1] - ay) <= CLUSTER_RADIUS_DEG
-            ]
+            idxs = neighbor_indices[i]
+            neighbors = [detected[j] for j in idxs]
 
             if len(neighbors) < MIN_CLUSTER_SIZE:
                 continue

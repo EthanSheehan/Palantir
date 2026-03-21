@@ -28,7 +28,6 @@ from agents.ai_tasking_manager import AITaskingManagerAgent
 from agents.battlespace_manager import BattlespaceManagerAgent
 from agents.synthesis_query_agent import SynthesisQueryAgent
 from llm_adapter import LLMAdapter
-from pipeline import F2T2EAPipeline
 from schemas.ontology import (
     Detection,
     EngagementDecision,
@@ -126,7 +125,6 @@ _ACTION_SCHEMAS: dict[str, dict[str, str]] = {
 # ---------------------------------------------------------------------------
 
 llm_adapter = LLMAdapter()
-pipeline = F2T2EAPipeline(llm_client=None, available_effectors=None)
 isr_observer = ISRObserverAgent()
 strategy_analyst = StrategyAnalystAgent()
 tactical_planner = TacticalPlannerAgent()

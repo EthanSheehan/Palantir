@@ -240,3 +240,33 @@ class TestImmutability:
         assert original.status == "PENDING"
         assert approved.status == "APPROVED"
         assert original is not approved
+
+
+# ---------------------------------------------------------------------------
+# Replay attack prevention (W1-012)
+# ---------------------------------------------------------------------------
+
+class TestReplayAttackPrevention:
+    def test_replay_rejected_nomination_fails(self, manager, sample_target_data, sample_evaluation):
+        """A REJECTED nomination cannot be replayed to APPROVED."""
+        entry = manager.nominate_target(sample_target_data, sample_evaluation)
+        manager.reject_nomination(entry.id, rationale="False positive")
+
+        with pytest.raises(ValueError, match="REJECTED"):
+            manager.approve_nomination(entry.id, rationale="Replay attempt")
+
+    def test_replay_approved_nomination_fails(self, manager, sample_target_data, sample_evaluation):
+        """An APPROVED nomination cannot be re-approved."""
+        entry = manager.nominate_target(sample_target_data, sample_evaluation)
+        manager.approve_nomination(entry.id, rationale="Confirmed hostile")
+
+        with pytest.raises(ValueError, match="APPROVED"):
+            manager.approve_nomination(entry.id, rationale="Replay attempt")
+
+    def test_only_pending_can_transition(self, manager, sample_target_data, sample_evaluation):
+        """Only PENDING entries can be transitioned; RETASKED also blocks replay."""
+        entry = manager.nominate_target(sample_target_data, sample_evaluation)
+        manager.retask_nomination(entry.id, rationale="Need more intel")
+
+        with pytest.raises(ValueError, match="RETASKED"):
+            manager.approve_nomination(entry.id, rationale="Replay attempt")

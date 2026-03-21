@@ -197,6 +197,16 @@ class HITLManager:
     ) -> StrikeBoardEntry:
         """Create a new entry with updated status, replacing the old one."""
         idx, old = self._find_entry(entry_id)
+        if old.status != "PENDING":
+            logger.warning(
+                "security_replay_attempt",
+                entry_id=entry_id,
+                current_status=old.status,
+                attempted_status=new_status,
+            )
+            raise ValueError(
+                f"Cannot transition entry {entry_id} from status {old.status!r}: only PENDING entries can be transitioned"
+            )
         updated = replace(
             old,
             status=new_status,

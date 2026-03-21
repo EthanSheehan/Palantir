@@ -96,6 +96,9 @@ BDA_ORBIT_RADIUS_DEG = 0.009           # ~1km tight orbit for damage assessment
 BDA_DURATION_SEC = 30.0                # Auto-transition to SEARCH after 30s
 SUPERVISED_TIMEOUT_SEC = 10.0          # Supervised pending transition auto-approve timeout
 
+# RTB arrival threshold: switch to IDLE when within this distance of home (km)
+ARRIVAL_THRESHOLD_KM = 0.5
+
 # Max turn rate for fixed-wing (radians/sec, ~3 deg/sec standard rate turn)
 MAX_TURN_RATE = math.radians(3.0)
 
@@ -282,6 +285,7 @@ class UAV:
         self.target = None
         self.commanded_target = None
         self.service_timer = 0.0
+        self.home_position: Tuple[float, float] = (x, y)
 
         # New fields
         self.altitude_m = 3000.0
@@ -384,11 +388,23 @@ class UAV:
             self.y += self.vy * dt_sec
 
         elif self.mode == "RTB":
-            # Placeholder — drift slowly for now
-            self.vx *= 0.98
-            self.vy *= 0.98
-            self.x += self.vx * dt_sec
-            self.y += self.vy * dt_sec
+            home_x, home_y = self.home_position
+            dx = home_x - self.x
+            dy = home_y - self.y
+            dist_deg = math.hypot(dx, dy)
+            if dist_deg < ARRIVAL_THRESHOLD_KM * DEG_PER_KM:
+                self.mode = "IDLE"
+                self.vx = 0.0
+                self.vy = 0.0
+            else:
+                self._turn_toward((dx / dist_deg) * speed, (dy / dist_deg) * speed, speed, dt_sec)
+                self.x += self.vx * dt_sec
+                self.y += self.vy * dt_sec
+                # Re-check arrival after moving (handles overshoot at speed)
+                if math.hypot(home_x - self.x, home_y - self.y) < ARRIVAL_THRESHOLD_KM * DEG_PER_KM:
+                    self.mode = "IDLE"
+                    self.vx = 0.0
+                    self.vy = 0.0
 
         # VIEWING, FOLLOWING, PAINTING are handled in SimulationModel.tick()
 
@@ -603,6 +619,10 @@ class SimulationModel:
                 uav.altitude_m = float(self.theater.blue_force.uavs.default_altitude_m)
                 uav.sensor_type = self.theater.blue_force.uavs.sensor_type
                 uav.fuel_hours = float(self.theater.blue_force.uavs.endurance_hours)
+                uav.home_position = (
+                    self.theater.blue_force.uavs.base_lon,
+                    self.theater.blue_force.uavs.base_lat,
+                )
             self.uavs.append(uav)
 
         # Spawn targets from theater config

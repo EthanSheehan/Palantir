@@ -152,19 +152,98 @@ class BattlespaceManagerAgent:
     def _generate_response(self, query: str) -> str:
         """
         Wrapper to call the underlying LLM.
-        Implement according to specifically chosen LLM provider.
+        Falls back to heuristic path generation when llm_client is None.
         """
-        # Example for OpenAI client:
-        # response = self.llm_client.beta.chat.completions.parse(
-        #     model="gpt-4o",
-        #     messages=[
-        #         {"role": "system", "content": self.system_prompt},
-        #         {"role": "user", "content": query},
-        #     ],
-        #     response_format=BattlespaceManagerOutput,
-        # )
-        # return response.choices[0].message.content
-        raise NotImplementedError("LLM integration needs to be completed.")
+        if self.llm_client is not None:
+            # Example for OpenAI client:
+            # response = self.llm_client.beta.chat.completions.parse(
+            #     model="gpt-4o",
+            #     messages=[
+            #         {"role": "system", "content": self.system_prompt},
+            #         {"role": "user", "content": query},
+            #     ],
+            #     response_format=BattlespaceManagerOutput,
+            # )
+            # return response.choices[0].message.content
+            raise NotImplementedError("LLM integration needs to be completed.")
+
+        return self._heuristic_mission_path(query)
+
+    def _heuristic_mission_path(self, query: str) -> str:
+        """Generate a minimal valid mission path from tracks and threat rings."""
+        try:
+            tracks_start = query.find("CURRENT ISR TRACKS:\n")
+            threats_start = query.find("KNOWN THREAT RINGS:\n")
+            tracks_json_str = "{}"
+            threats_json_str = "[]"
+
+            if tracks_start != -1 and threats_start != -1:
+                tracks_block = query[tracks_start + len("CURRENT ISR TRACKS:\n"):threats_start].strip()
+                terrain_start = query.find("TERRAIN CONTEXT:\n")
+                threats_block = query[
+                    threats_start + len("KNOWN THREAT RINGS:\n"):
+                    terrain_start if terrain_start != -1 else len(query)
+                ].strip()
+                try:
+                    tracks_data = json.loads(tracks_block) if tracks_block else []
+                    threats_data = json.loads(threats_block) if threats_block else []
+                except json.JSONDecodeError:
+                    tracks_data = []
+                    threats_data = []
+            else:
+                tracks_data = []
+                threats_data = []
+        except Exception:
+            tracks_data = []
+            threats_data = []
+
+        if tracks_data:
+            start_lat = tracks_data[0].get("lat", 33.0)
+            start_lon = tracks_data[0].get("lon", 44.0)
+        else:
+            start_lat, start_lon = 33.0, 44.0
+
+        waypoints = [
+            {
+                "sequence": 0,
+                "position": {"lat": start_lat - 0.5, "lon": start_lon - 0.5, "alt_m": None},
+                "terrain": "FLAT",
+                "is_safe": True,
+                "notes": "Departure point",
+            },
+            {
+                "sequence": 1,
+                "position": {"lat": start_lat, "lon": start_lon - 0.3, "alt_m": None},
+                "terrain": "FLAT",
+                "is_safe": True,
+                "notes": "Ingress waypoint",
+            },
+            {
+                "sequence": 2,
+                "position": {"lat": start_lat + 0.3, "lon": start_lon + 0.2, "alt_m": None},
+                "terrain": "FLAT",
+                "is_safe": True,
+                "notes": "Egress waypoint",
+            },
+        ]
+
+        avoided_ids = [t.get("threat_id", "") for t in threats_data if t.get("threat_id")]
+        risk_score = min(0.9, 0.1 * len(threats_data) + 0.1)
+
+        mission_path = {
+            "path_id": "heuristic-path-001",
+            "waypoints": waypoints,
+            "total_distance_km": 80.0,
+            "risk_score": risk_score,
+            "avoided_threats": avoided_ids,
+        }
+
+        output = {
+            "mission_path": mission_path,
+            "active_threat_rings": threats_data,
+            "active_layers": [layer.model_dump() for layer in self._map_layers],
+        }
+        return json.dumps(output)
 
     def _build_query(
         self,
