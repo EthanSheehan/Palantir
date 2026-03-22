@@ -107,9 +107,11 @@ export function AssetsPanel() {
   const selectedIds = useAppStore((s) => s.selection.assetIds);
   const pinnedTarget = useAppStore((s) => s.pinnedTarget);
   const setPinnedTarget = useAppStore((s) => s.setPinnedTarget);
+  const setLeftPanelTab = useAppStore((s) => s.setLeftPanelTab);
   const [pinnedHighlighted, setPinnedHighlighted] = useState(false);
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [sortAnchor, setSortAnchor] = useState<{ lon: number; lat: number; label: string } | null>(null);
+  const [subTab, setSubTab] = useState<'active' | 'create'>('active');
 
   // Auto-set/clear sortAnchor when a target is pinned/unpinned
   useEffect(() => {
@@ -206,7 +208,7 @@ export function AssetsPanel() {
       {pinnedTarget && (
         <div className="complex-target-card target-selected" style={{ position: 'relative' }}
           onClick={() => setPinnedHighlighted((v) => !v)}>
-          <button className="target-pin-btn pinned-unpin-btn" onClick={(e) => { e.stopPropagation(); setPinnedTarget(null); }} title="Remove from Assets">
+          <button className="target-pin-btn pinned-unpin-btn" onClick={(e) => { e.stopPropagation(); setPinnedTarget(null); setLeftPanelTab('targets' as any); }} title="Remove from Assets">
             <svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" strokeWidth="2" fill="none"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg>
           </button>
           <div className="complex-card-header">
@@ -250,6 +252,13 @@ export function AssetsPanel() {
           )}
         </div>
       )}
+
+      {/* ── Sub-tab bar ── */}
+      <div className="assets-subtabs">
+        <button className={`assets-subtab${subTab === 'active' ? ' assets-subtab-active' : ''}`} onClick={() => setSubTab('active')}>Active</button>
+        <button className={`assets-subtab${subTab === 'create' ? ' assets-subtab-active' : ''}`} onClick={() => setSubTab('create')}>Create Package</button>
+      </div>
+
       <SearchBar
         assets={assets}
         getDisplayName={getDisplayName}
@@ -257,50 +266,58 @@ export function AssetsPanel() {
         onResultSelected={handleSearchResult}
       />
 
-      {sortAnchor && (
-        <div className="sort-anchor-label">
-          Sorted by distance to <strong>{sortAnchor.label}</strong>
-        </div>
+      {subTab === 'active' && (
+        <>
+          {sortAnchor && (
+            <div className="sort-anchor-label">
+              Sorted by distance to <strong>{sortAnchor.label}</strong>
+            </div>
+          )}
+
+          <div className="assets-filters">
+            {DOMAIN_FILTERS.map((f) => {
+              const key = f.toLowerCase();
+              const isActive = activeFilters.has(key);
+              return (
+                <button
+                  key={key}
+                  className={`filter-toggle${isActive ? ' filter-active' : ''}`}
+                  onClick={() => toggleFilter(key)}
+                >
+                  {f}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="assets-list">
+            {filtered.length === 0 && (
+              <div className="empty-state">No assets match filter</div>
+            )}
+            {filtered.map((asset) => {
+              const isPrimary = asset.id === primaryId;
+              const isSecondary = !isPrimary && selectedIds.includes(asset.id);
+              const dist = sortAnchor
+                ? haversineKm(sortAnchor.lon, sortAnchor.lat, asset.position?.lon ?? 0, asset.position?.lat ?? 0)
+                : null;
+              return (
+                <AssetCard
+                  key={asset.id}
+                  asset={asset}
+                  isPrimary={isPrimary}
+                  isSecondary={isSecondary}
+                  onClick={handleClick}
+                  distanceKm={dist}
+                />
+              );
+            })}
+          </div>
+        </>
       )}
 
-      <div className="assets-filters">
-        {DOMAIN_FILTERS.map((f) => {
-          const key = f.toLowerCase();
-          const isActive = activeFilters.has(key);
-          return (
-            <button
-              key={key}
-              className={`filter-toggle${isActive ? ' filter-active' : ''}`}
-              onClick={() => toggleFilter(key)}
-            >
-              {f}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="assets-list">
-        {filtered.length === 0 && (
-          <div className="empty-state">No assets match filter</div>
-        )}
-        {filtered.map((asset) => {
-          const isPrimary = asset.id === primaryId;
-          const isSecondary = !isPrimary && selectedIds.includes(asset.id);
-          const dist = sortAnchor
-            ? haversineKm(sortAnchor.lon, sortAnchor.lat, asset.position?.lon ?? 0, asset.position?.lat ?? 0)
-            : null;
-          return (
-            <AssetCard
-              key={asset.id}
-              asset={asset}
-              isPrimary={isPrimary}
-              isSecondary={isSecondary}
-              onClick={handleClick}
-              distanceKm={dist}
-            />
-          );
-        })}
-      </div>
+      {subTab === 'create' && (
+        <div className="empty-state">Package creation coming soon</div>
+      )}
     </div>
   );
 }
@@ -339,6 +356,9 @@ function AssetCard({
         e.dataTransfer.setData('uavId', asset.id.replace('uav_', ''));
       }}
     >
+      <button className="asset-assign-btn" onClick={(e) => { e.stopPropagation(); }} title="Assign Asset to Target">
+        <svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" strokeWidth="2" fill="none"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg>
+      </button>
       {/* ── Compact header (always visible) ── */}
       <div className="asset-card-header">
         <div className="asset-card-name">
@@ -435,26 +455,11 @@ function AssetCard({
         </div>
       )}
 
-      {/* ── Compact inline telemetry (only when collapsed) ── */}
+      {/* ── Coordinates (target-style, always visible when collapsed) ── */}
       {!isExpanded && (
         <>
-          <div className="asset-card-telem">
-            <div className="telem-cell">
-              <span className="telem-label">LON</span>
-              <span className="telem-value">{pos.lon?.toFixed(4)}</span>
-            </div>
-            <div className="telem-cell">
-              <span className="telem-label">LAT</span>
-              <span className="telem-value">{pos.lat?.toFixed(4)}</span>
-            </div>
-            <div className="telem-cell">
-              <span className="telem-label">ALT</span>
-              <span className="telem-value">{(pos.alt_m ?? 0).toFixed(0)}m</span>
-            </div>
-            <div className="telem-cell">
-              <span className="telem-label">HDG</span>
-              <span className="telem-value">{(asset.heading_deg ?? 0).toFixed(0)}&deg;</span>
-            </div>
+          <div className="target-coords">
+            {pos.lat?.toFixed(4)}&deg; N &nbsp; {pos.lon?.toFixed(4)}&deg; E &nbsp; {(pos.alt_m ?? 0).toFixed(0)}m &nbsp; {(asset.heading_deg ?? 0).toFixed(0)}&deg;
           </div>
           <div className="asset-card-systems">
             <div className="system-bar-group">

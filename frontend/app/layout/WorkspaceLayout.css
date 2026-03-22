@@ -30,7 +30,7 @@
   width: var(--ws-left-width, 380px);
   min-width: 240px;
   max-width: 800px;
-  background: rgba(8, 14, 28, 0.55);
+  background: rgba(4, 8, 18, 0.75);
   backdrop-filter: blur(8px) saturate(150%);
   -webkit-backdrop-filter: blur(8px) saturate(150%);
   border: 1px solid rgba(148, 163, 184, 0.1);
@@ -61,7 +61,7 @@
   padding: 6px 8px;
   border-bottom: 1px solid rgba(100, 116, 139, 0.2);
   flex-shrink: 0;
-  background: rgba(10, 15, 25, 0.6);
+  background: transparent;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
@@ -168,7 +168,7 @@
 
 /* ---- TOP COMMAND BAR ---- */
 .ws-top-bar {
-  background: rgba(10, 15, 25, 0.6);
+  background: rgba(8, 14, 28, 0.55);
   backdrop-filter: blur(8px) saturate(150%);
   -webkit-backdrop-filter: blur(8px) saturate(150%);
   border-bottom: 1px solid rgba(100, 116, 139, 0.2);

@@ -557,6 +557,11 @@ function ComplexTargetCard({
     if (editingField && inputRef.current) { inputRef.current.focus(); inputRef.current.select(); }
   }, [editingField]);
 
+  // Collapse when deselected
+  useEffect(() => {
+    if (!isSelected) { setExpanded(false); setEditingAimpoints(false); }
+  }, [isSelected]);
+
   // Highlight individual aimpoint on globe
   useEffect(() => {
     const viewer = (window as any).viewer;
