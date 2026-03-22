@@ -18,6 +18,10 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from terrain_model import TerrainModel
 
 # ---------------------------------------------------------------------------
 # Sensor configuration
@@ -208,6 +212,13 @@ def compute_pd(
 # ---------------------------------------------------------------------------
 
 
+def _compute_bearing(uav_lat: float, uav_lon: float, target_lat: float, target_lon: float) -> float:
+    dlat = target_lat - uav_lat
+    dlon = (target_lon - uav_lon) * math.cos(math.radians((uav_lat + target_lat) / 2.0))
+    bearing_rad = math.atan2(dlon, dlat)
+    return (math.degrees(bearing_rad) + 360.0) % 360.0
+
+
 def evaluate_detection(
     uav_lat: float,
     uav_lon: float,
@@ -219,6 +230,7 @@ def evaluate_detection(
     aspect_deg: float = 90.0,
     emitting: bool = True,
     altitude_m: float = 0.0,
+    terrain_model: "Optional[TerrainModel]" = None,
 ) -> DetectionResult:
     """Evaluate whether a UAV sensor detects a ground target in a single pass.
 
@@ -233,10 +245,34 @@ def evaluate_detection(
     env              : Environmental conditions (cloud, precipitation, ToD).
     aspect_deg       : Sensor-to-target aspect angle in degrees (default 90°).
     emitting         : Whether the target is actively emitting (SIGINT gate).
+    terrain_model    : Optional TerrainModel; if LOS is blocked, Pd = 0.
     """
     sensor_cfg = SENSOR_CONFIGS[sensor_type]
 
     range_m = deg_to_meters(uav_lat, uav_lon, target_lat, target_lon)
+
+    # Terrain LOS gate — import deferred to avoid circular imports
+    if terrain_model is not None:
+        from terrain_model import has_line_of_sight  # noqa: PLC0415
+
+        if not has_line_of_sight(
+            terrain_model,
+            uav_lat,
+            uav_lon,
+            altitude_m,
+            target_lat,
+            target_lon,
+            0.0,
+        ):
+            bearing_deg = _compute_bearing(uav_lat, uav_lon, target_lat, target_lon)
+            return DetectionResult(
+                detected=False,
+                pd=0.0,
+                range_m=range_m,
+                sensor_type=sensor_type,
+                confidence=0.0,
+                bearing_deg=bearing_deg,
+            )
 
     base_rcs = RCS_TABLE.get(target_type, _FALLBACK_RCS_M2)
     effective_rcs = compute_aspect_rcs(base_rcs, aspect_deg)
@@ -257,10 +293,7 @@ def evaluate_detection(
     confidence = float(max(0.0, min(1.0, pd * sensor_cfg.resolution_factor)))
 
     # Bearing from UAV to target (degrees from north, clockwise)
-    dlat = target_lat - uav_lat
-    dlon = (target_lon - uav_lon) * math.cos(math.radians((uav_lat + target_lat) / 2.0))
-    bearing_rad = math.atan2(dlon, dlat)
-    bearing_deg = (math.degrees(bearing_rad) + 360.0) % 360.0
+    bearing_deg = _compute_bearing(uav_lat, uav_lon, target_lat, target_lon)
 
     return DetectionResult(
         detected=detected,

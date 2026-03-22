@@ -66,8 +66,11 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _make_decision(action: str, rationale: str) -> dict:
-    return {"action": action, "rationale": rationale, "timestamp": _now_iso()}
+def _make_decision(action: str, rationale: str, operator_id: str | None = None) -> dict:
+    d: dict = {"action": action, "rationale": rationale, "timestamp": _now_iso()}
+    if operator_id is not None:
+        d["operator_id"] = operator_id
+    return d
 
 
 # ---------------------------------------------------------------------------
@@ -106,17 +109,19 @@ class HITLManager:
         logger.info("target_nominated", entry_id=entry.id, target_type=entry.target_type)
         return entry
 
-    def approve_nomination(self, entry_id: str, rationale: str = "") -> StrikeBoardEntry:
+    def approve_nomination(
+        self, entry_id: str, rationale: str = "", operator_id: str | None = None
+    ) -> StrikeBoardEntry:
         """Operator approves a target for COA generation."""
-        return self._transition_entry(entry_id, "APPROVED", rationale)
+        return self._transition_entry(entry_id, "APPROVED", rationale, operator_id=operator_id)
 
-    def reject_nomination(self, entry_id: str, rationale: str = "") -> StrikeBoardEntry:
+    def reject_nomination(self, entry_id: str, rationale: str = "", operator_id: str | None = None) -> StrikeBoardEntry:
         """Operator rejects a target."""
-        return self._transition_entry(entry_id, "REJECTED", rationale)
+        return self._transition_entry(entry_id, "REJECTED", rationale, operator_id=operator_id)
 
-    def retask_nomination(self, entry_id: str, rationale: str = "") -> StrikeBoardEntry:
+    def retask_nomination(self, entry_id: str, rationale: str = "", operator_id: str | None = None) -> StrikeBoardEntry:
         """Operator requests more intel on this target."""
-        return self._transition_entry(entry_id, "RETASKED", rationale)
+        return self._transition_entry(entry_id, "RETASKED", rationale, operator_id=operator_id)
 
     # ── Gate 2: COA authorization ──────────────────────────────────────────
 
@@ -197,6 +202,7 @@ class HITLManager:
         entry_id: str,
         new_status: str,
         rationale: str,
+        operator_id: str | None = None,
     ) -> StrikeBoardEntry:
         """Create a new entry with updated status, replacing the old one."""
         idx, old = self._find_entry(entry_id)
@@ -213,7 +219,7 @@ class HITLManager:
         updated = replace(
             old,
             status=new_status,
-            decision=_make_decision(new_status, rationale),
+            decision=_make_decision(new_status, rationale, operator_id=operator_id),
         )
         self._strike_board = [updated if i == idx else e for i, e in enumerate(self._strike_board)]
         try:
