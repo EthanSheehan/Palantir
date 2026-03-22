@@ -1,0 +1,83 @@
+name: "Palantir Demo — F2T2EA Kill Chain"
+description: >
+  Automated demo scenario that exercises the full F2T2EA kill chain.
+  Spawns targets at intervals, introduces weather degradation, and
+  triggers enemy UAV incursions to demonstrate autonomous C2 capabilities.
+theater: romania
+
+events:
+  # T+0: Initial target set — SAM battery and TEL pair
+  - time_offset_s: 0
+    event_type: SPAWN_TARGET
+    params:
+      target_type: SAM
+      x: 26.5
+      y: 45.8
+
+  - time_offset_s: 5
+    event_type: SPAWN_TARGET
+    params:
+      target_type: TEL
+      x: 27.1
+      y: 46.2
+
+  # T+15: Enemy RECON UAV enters airspace
+  - time_offset_s: 15
+    event_type: TRIGGER_ENEMY_UAV
+    params:
+      uav_id: 100
+      x: 28.0
+      y: 47.0
+      mode: RECON
+
+  # T+30: Weather front rolls in
+  - time_offset_s: 30
+    event_type: SET_WEATHER
+    params:
+      zone_id: zone_north
+      state: RAIN
+
+  # T+45: Logistics convoy spotted
+  - time_offset_s: 45
+    event_type: SPAWN_TARGET
+    params:
+      target_type: TRUCK
+      x: 25.3
+      y: 44.9
+
+  # T+60: Enemy ATTACK UAV — escalation
+  - time_offset_s: 60
+    event_type: TRIGGER_ENEMY_UAV
+    params:
+      uav_id: 101
+      x: 29.0
+      y: 46.5
+      mode: ATTACK
+
+  # T+75: Speed up simulation for rapid exercise completion
+  - time_offset_s: 75
+    event_type: SET_SPEED
+    params:
+      multiplier: 5
+
+  # T+90: Comms degradation in eastern zone
+  - time_offset_s: 90
+    event_type: DEGRADE_COMMS
+    params:
+      zone_id: zone_east
+      degradation: 0.6
+
+  # T+120: Command Post target — high-value
+  - time_offset_s: 120
+    event_type: SPAWN_TARGET
+    params:
+      target_type: CP
+      x: 26.8
+      y: 46.0
+
+  # T+150: Storm front — maximum sensor degradation
+  - time_offset_s: 150
+    event_type: SET_WEATHER
+    params:
+      zone_id: zone_north
+      state: STORM

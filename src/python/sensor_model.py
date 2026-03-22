@@ -98,6 +98,200 @@ SENSOR_CONFIGS: dict[str, SensorConfig] = {
 
 
 # ---------------------------------------------------------------------------
+# Radar range equation — Nathanson model
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RadarParameters:
+    """Per-sensor radar hardware parameters for the Nathanson range equation.
+
+    SNR ∝ P_t * G^2 * lambda^2 * sigma / R^4
+    """
+
+    transmit_power_w: float  # Transmitter peak power (Watts)
+    antenna_gain_dbi: float  # Antenna gain (dBi)
+    wavelength_m: float  # Carrier wavelength (meters), λ = c/f
+    noise_figure_db: float  # Receiver noise figure (dB)
+
+
+# Radar parameters per sensor type. None = passive sensor (no transmit).
+# SAR: X-band (10 GHz), λ=0.03 m, 1 kW typical airborne SAR
+# SIGINT: passive intercept receiver — no transmit power
+# EO_IR: electro-optical/IR — passive, no radar transmit
+SENSOR_RADAR_PARAMS: dict[str, Optional[RadarParameters]] = {
+    "EO_IR": None,  # passive optical/IR sensor
+    "SAR": RadarParameters(
+        transmit_power_w=1_000.0,  # 1 kW peak, typical airborne SAR
+        antenna_gain_dbi=30.0,  # 30 dBi phased array
+        wavelength_m=0.03,  # 10 GHz X-band
+        noise_figure_db=5.0,
+    ),
+    "SIGINT": None,  # passive intercept — no transmit
+}
+
+# Boltzmann constant (J/K)
+_K_BOLTZMANN = 1.380649e-23
+# System noise temperature (K) — standard ~290 K receiver temperature
+_NOISE_TEMP_K = 290.0
+# Reference bandwidth (Hz) — 1 MHz typical pulse compression output
+_NOISE_BW_HZ = 1e6
+
+# Detection threshold SNR (dB): Pd=0.5 at this SNR for snr_to_pd()
+_DETECTION_THRESHOLD_DB = 13.0  # ~13 dB for Pd=0.5 in Swerling Case 1
+
+# Rain-specific specific attenuation model coefficients (ITU-R P.838 simplified)
+# α (dB/km) = k * R_rain^α_exp where R_rain is rain rate in mm/h
+# Approximate specific attenuation at 10 GHz in moderate rain: ~0.01 dB/km/mm/h
+_RAIN_ATTENUATION_RATE_DB_PER_KM_PER_MH = {
+    "CLEAR": 0.0,
+    "OVERCAST": 0.0002,
+    "RAIN": 0.005,
+    "STORM": 0.025,
+}
+# Frequency scaling exponent — higher freq = more attenuation
+_FREQ_ATTENUATION_EXPONENT = 1.6
+
+
+def compute_snr(range_m: float, rcs_m2: float, radar_params: RadarParameters) -> float:
+    """Return received SNR in dB using the Nathanson radar range equation.
+
+    SNR = (P_t * G^2 * lambda^2 * sigma) / ((4*pi)^3 * R^4 * k * T * B * F)
+
+    Parameters
+    ----------
+    range_m      : Slant range to target (metres).
+    rcs_m2       : Target radar cross-section (m²).
+    radar_params : Sensor-specific radar hardware parameters.
+
+    Returns
+    -------
+    SNR in dB.  May be negative for long-range / low-RCS targets.
+    """
+    P_t = radar_params.transmit_power_w
+    # Convert dBi to linear gain
+    G = 10.0 ** (radar_params.antenna_gain_dbi / 10.0)
+    lam = radar_params.wavelength_m
+    sigma = max(rcs_m2, 1e-6)  # guard against zero RCS
+    R = max(range_m, 1.0)  # guard against zero range
+    F = 10.0 ** (radar_params.noise_figure_db / 10.0)
+
+    numerator = P_t * (G**2) * (lam**2) * sigma
+    denominator = ((4.0 * math.pi) ** 3) * (R**4) * _K_BOLTZMANN * _NOISE_TEMP_K * _NOISE_BW_HZ * F
+
+    snr_linear = numerator / denominator
+    return float(10.0 * math.log10(max(snr_linear, 1e-20)))
+
+
+def snr_to_pd(snr_db: float, threshold_db: float) -> float:
+    """Map SNR (dB) to probability of detection using a sigmoid function.
+
+    Pd = sigmoid((SNR_dB - threshold_dB) * 0.5)
+    At SNR == threshold → Pd ≈ 0.5; well above threshold → Pd → 1; below → Pd → 0.
+
+    Returns float in [0, 1].
+    """
+    x = (snr_db - threshold_db) * 0.5
+    if x >= 0:
+        pd = 1.0 / (1.0 + math.exp(-x))
+    else:
+        exp_x = math.exp(x)
+        pd = exp_x / (1.0 + exp_x)
+    return float(max(0.0, min(1.0, pd)))
+
+
+def compute_weather_attenuation(freq_ghz: float, weather_state: str, range_m: float) -> float:
+    """Return one-way path attenuation (dB) due to weather at given frequency.
+
+    Uses a simplified ITU-R P.838 model:
+        attenuation (dB) = base_rate * (freq_ghz / 10.0)^1.6 * range_km
+
+    Parameters
+    ----------
+    freq_ghz    : Radar carrier frequency in GHz.
+    weather_state : Weather state string (CLEAR, OVERCAST, RAIN, STORM).
+    range_m     : One-way path length in metres.
+
+    Returns
+    -------
+    Attenuation in dB (non-negative).
+    """
+    base_rate = _RAIN_ATTENUATION_RATE_DB_PER_KM_PER_MH.get(weather_state, 0.0)
+    range_km = range_m / 1000.0
+    freq_scale = (freq_ghz / 10.0) ** _FREQ_ATTENUATION_EXPONENT
+    attenuation_db = base_rate * freq_scale * range_km
+    return float(max(0.0, attenuation_db))
+
+
+def compute_detection_probability(
+    range_m: float,
+    rcs_m2: float,
+    sensor_type: str,
+    env: EnvironmentConditions,
+    emitting: bool = True,
+    altitude_m: float = 0.0,
+) -> float:
+    """Return Pd in [0,1] using the radar range equation for active sensors.
+
+    For passive sensors (EO_IR, SIGINT), falls back to the legacy compute_pd()
+    model so backward compatibility is maintained.
+
+    Parameters
+    ----------
+    range_m      : Slant range to target (metres).
+    rcs_m2       : Target radar cross-section (m²).
+    sensor_type  : Key into SENSOR_CONFIGS and SENSOR_RADAR_PARAMS.
+    env          : Environmental conditions.
+    emitting     : Whether the target is actively emitting (SIGINT gate).
+    altitude_m   : Sensor altitude (for altitude penalty on passive sensors).
+    """
+    sensor_cfg = SENSOR_CONFIGS[sensor_type]
+
+    # SIGINT hard gate
+    if sensor_cfg.requires_emitter and not emitting:
+        return 0.0
+
+    radar_params = SENSOR_RADAR_PARAMS.get(sensor_type)
+
+    if radar_params is not None:
+        # Active radar sensor — use Nathanson range equation
+        # Determine carrier frequency from wavelength (c = f*λ)
+        freq_ghz = 3e8 / (radar_params.wavelength_m * 1e9)
+
+        # Two-way path weather attenuation (dB)
+        weather_state = _env_to_weather_state(env)
+        weather_att_db = compute_weather_attenuation(freq_ghz, weather_state, range_m) * 2.0
+
+        snr_db = compute_snr(range_m, rcs_m2, radar_params) - weather_att_db
+        pd = snr_to_pd(snr_db, _DETECTION_THRESHOLD_DB)
+    else:
+        # Passive sensor (EO_IR, SIGINT) — use legacy sigmoid model
+        pd = compute_pd(
+            range_m=range_m,
+            rcs_m2=rcs_m2,
+            sensor_type=sensor_type,
+            sensor_cfg=sensor_cfg,
+            env=env,
+            emitting=emitting,
+            altitude_m=altitude_m,
+        )
+
+    return float(max(0.0, min(1.0, pd)))
+
+
+def _env_to_weather_state(env: EnvironmentConditions) -> str:
+    """Map EnvironmentConditions to a weather state string for attenuation lookup."""
+    combined = env.cloud_cover + env.precipitation
+    if combined >= 1.5:
+        return "STORM"
+    if combined >= 0.8:
+        return "RAIN"
+    if combined >= 0.3:
+        return "OVERCAST"
+    return "CLEAR"
+
+
+# ---------------------------------------------------------------------------
 # Core geometry
 # ---------------------------------------------------------------------------
 
