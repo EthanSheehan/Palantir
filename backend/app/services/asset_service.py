@@ -28,6 +28,8 @@ class AssetService:
 
     async def update_telemetry(self, asset_id: str, position: Position,
                                 velocity: Velocity, heading_deg: float,
+                                pitch_deg: float = 0.0,
+                                roll_deg: float = 0.0,
                                 battery_pct: float = 100.0,
                                 link_quality: float = 1.0,
                                 persist_to_log: bool = True) -> Optional[Asset]:
@@ -38,6 +40,8 @@ class AssetService:
         asset.position = position
         asset.velocity = velocity
         asset.heading_deg = heading_deg
+        asset.pitch_deg = pitch_deg
+        asset.roll_deg = roll_deg
         asset.battery_pct = battery_pct
         asset.link_quality = link_quality
         asset.last_telemetry_time = _now()
@@ -56,6 +60,8 @@ class AssetService:
                     "position": position.model_dump(),
                     "velocity": velocity.model_dump(),
                     "heading_deg": heading_deg,
+                    "pitch_deg": pitch_deg,
+                    "roll_deg": roll_deg,
                     "battery_pct": battery_pct,
                     "link_quality": link_quality,
                 },

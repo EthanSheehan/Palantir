@@ -38,7 +38,8 @@ class SimulatorAdapter(ExecutionAdapter):
             if uav is None:
                 return AdapterResult(success=False, error=f"UAV {target_id} not found in sim")
 
-            self.sim.command_move(uav.id, lon, lat)
+            alt = dest.get("alt_m")
+            self.sim.command_move(uav.id, lon, lat, alt)
             self._pending_commands[command.id] = command
             return AdapterResult(success=True, correlation_id=command.id)
 
@@ -78,14 +79,33 @@ class SimulatorAdapter(ExecutionAdapter):
                 asset_id=f"uav_{uav.id}",
                 lon=uav.x,
                 lat=uav.y,
-                alt_m=1000.0,
+                alt_m=uav.alt_m,
                 vx_mps=uav.vx * 111000,  # rough deg/s to m/s
                 vy_mps=uav.vy * 111000,
                 heading_deg=heading,
+                pitch_deg=uav.pitch_deg,
+                roll_deg=uav.roll_deg,
                 battery_pct=battery,
                 link_quality=link,
                 mode=status,
             ))
+
+        # Launcher ground vehicles — stationary
+        for launcher in self.sim.launchers:
+            link = min(1.0, max(0.0, 0.95 + random.gauss(0, 0.02)))
+            updates.append(TelemetryUpdate(
+                asset_id=f"launcher_{launcher.id}",
+                lon=launcher.x,
+                lat=launcher.y,
+                alt_m=0.0,
+                vx_mps=0.0,
+                vy_mps=0.0,
+                heading_deg=launcher.heading,
+                battery_pct=100.0,
+                link_quality=link,
+                mode=launcher.mode,
+            ))
+
         return updates
 
     def get_connection_status(self) -> AdapterStatus:

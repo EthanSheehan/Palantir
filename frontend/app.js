@@ -149,7 +149,12 @@ MapToolController.init(viewer, null); // ws set later after connectWebSocket
 
     btnWaypoint.addEventListener('click', () => {
         if (!trackedDroneEntity) return;
-        MapToolController.setTool('set_waypoint');
+        // Toggle: if already in waypoint mode, cancel back to select
+        if (MapToolController.getActiveTool() === 'set_waypoint') {
+            MapToolController.setTool('select');
+        } else {
+            MapToolController.setTool('set_waypoint');
+        }
         hideMenu();
     });
 
@@ -175,6 +180,13 @@ let gridVisState = 1; // 2 = ON, 1 = OUTLINES ONLY (default), 0 = OFF
 const zoneAttributesCache = {}; // Cache to prevent lookup overhead
 const flowLines = []; 
 const uavEntities = {};
+
+// ── 3D Trajectory Trail ─────────────────────────────────────────────────────
+// Per-drone position history for rendering flight path as a 3D polyline.
+// Subsampled at 2Hz (every 5th update from the 10Hz sim feed).
+const droneTrailHistories = {};   // { droneId: Cartesian3[] }
+const TRAIL_MAX_SAMPLES   = 300;  // ~150 seconds of trail at 2Hz
+const TRAIL_SUBSAMPLE     = 5;    // Record every 5th position update
 
 // Dictionary to track active 3D Range visualizations { uavId: [Entity, Entity...] }
 const droneRangeVisuals = {};
@@ -416,7 +428,7 @@ function updateSimulation(state) {
         const color = Cesium.Color.fromCssColorString(colorStr);
         const billboardImage = getDronePin(colorStr);
         
-        const position = Cesium.Cartesian3.fromDegrees(uav.lon, uav.lat, 1000);
+        const position = Cesium.Cartesian3.fromDegrees(uav.lon, uav.lat, uav.alt_m || 2000);
         
         // Model is always grey
         const modelColor = Cesium.Color.fromCssColorString('#888888');
@@ -499,11 +511,34 @@ function updateSimulation(state) {
                 }
             });
             marker._tether = tether;
-            
+
+            // 3D trajectory trail — blue polyline showing flight path in space
+            const trailEntity = viewer.entities.add({
+                polyline: {
+                    positions: new Cesium.CallbackProperty(() => {
+                        const hist = droneTrailHistories[uav.id];
+                        if (!hist || hist.length < 2) return [];
+                        // Append live position so trail connects smoothly to drone
+                        const livePos = marker.position.getValue(viewer.clock.currentTime);
+                        if (livePos) return [...hist, livePos];
+                        return hist;
+                    }, false),
+                    width: 2.5,
+                    material: new Cesium.PolylineGlowMaterialProperty({
+                        glowPower: 0.15,
+                        color: Cesium.Color.fromCssColorString('#60a5fa').withAlpha(0.7)
+                    }),
+                    clampToGround: false  // True 3D line at altitude, not projected on ground
+                }
+            });
+            trailEntity.show = false; // Hidden by default; shown when drone is selected
+            marker._trail = trailEntity;
+
             uavEntities[uav.id] = marker;
-            // Store previous position to calculate heading
+            // Store previous position to calculate heading and pitch
             marker._lastLon = uav.lon;
             marker._lastLat = uav.lat;
+            marker._lastAlt = uav.alt_m || 2000;
             marker._lastMode = colorStr;
         } else {
             const marker = uavEntities[uav.id];
@@ -531,6 +566,19 @@ function updateSimulation(state) {
             
             marker.position.addSample(targetTime, position);
 
+            // ── Trail history recording (subsampled to 2Hz from 10Hz feed) ──
+            if (!marker._trailTickCount) marker._trailTickCount = 0;
+            marker._trailTickCount++;
+            if (marker._trailTickCount % TRAIL_SUBSAMPLE === 0) {
+                if (!droneTrailHistories[uav.id]) droneTrailHistories[uav.id] = [];
+                const hist = droneTrailHistories[uav.id];
+                hist.push(Cesium.Cartesian3.clone(position));
+                // Amortized pruning: drop oldest chunk when buffer exceeds max
+                if (hist.length > TRAIL_MAX_SAMPLES + 50) {
+                    hist.splice(0, 50);
+                }
+            }
+
             // Prune old samples to prevent unbounded growth (Hermite interpolation
             // cost scales with sample count). Keep last 30 samples (~3s at 10Hz).
             if (marker.position._property && marker.position._property._times &&
@@ -553,9 +601,9 @@ function updateSimulation(state) {
             const dx = uav.lon - marker._lastLon;
             const dy = uav.lat - marker._lastLat;
             
-            // INCREASE THRESHOLD to 0.002 to prevent 10Hz jitter / stuttering
+            // Threshold tuned for 150 km/h (~0.0000375 deg/tick at 10Hz)
             const movementDist = Math.abs(dx) + Math.abs(dy);
-            if (movementDist > 0.002) {
+            if (movementDist > 0.00005) {
                 // Correct for map projection distortion (longitude shrinks towards the poles)
                 const latRad = Cesium.Math.toRadians(uav.lat);
                 const dxScaled = dx * Math.cos(latRad);
@@ -577,9 +625,39 @@ function updateSimulation(state) {
                 heading = marker._lastHeading + (diff * 0.3);
                 marker._lastHeading = heading;
 
-                const pitch = 0.0;
-                const roll = 0.0;
-                const hpr = new Cesium.HeadingPitchRoll(heading, pitch, roll);
+                // Compute pitch from altitude change (climb/descend angle)
+                const altNow = uav.alt_m || 2000;
+                const lastAlt = marker._lastAlt || altNow;
+                const dAlt = altNow - lastAlt; // meters
+                const dHoriz = movementDist * 111000; // rough deg-to-meters
+                let pitch = 0.0;
+                if (Math.abs(dAlt) > 1 && dHoriz > 0.1) {
+                    // Negative because Cesium pitch: negative = nose up
+                    pitch = -Math.atan2(dAlt, dHoriz);
+                }
+                // Smooth pitch transitions
+                if (!marker._lastPitch) marker._lastPitch = 0;
+                pitch = marker._lastPitch + (pitch - marker._lastPitch) * 0.3;
+                marker._lastPitch = pitch;
+                marker._lastAlt = altNow;
+
+                // Compute roll from heading change rate (bank into turns)
+                let roll = 0.0;
+                const headingDelta = diff; // already computed above (normalized heading change)
+                // Bank angle proportional to turn rate, capped at ~30°
+                const maxBank = Cesium.Math.toRadians(30);
+                roll = Math.max(-maxBank, Math.min(maxBank, headingDelta * 3.0));
+                // Smooth roll transitions
+                if (!marker._lastRoll) marker._lastRoll = 0;
+                roll = marker._lastRoll + (roll - marker._lastRoll) * 0.3;
+                marker._lastRoll = roll;
+
+                // Fixed V2.glb model axis mapping:
+                //   Cesium heading → model yaw (correct)
+                //   Cesium pitch slot → actually controls model ROLL (bank into turns)
+                //   Cesium roll slot → actually controls model PITCH (nose up/down)
+                // So we pass: HeadingPitchRoll(heading, turnRoll, climbPitch)
+                const hpr = new Cesium.HeadingPitchRoll(heading, roll, pitch);
                 
                 // Compute quaternion at the new target position and interpolate smoothly to it
                 const quat = Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
@@ -599,7 +677,79 @@ function updateSimulation(state) {
             }
         }
     });
-    
+
+    // 4.4 Update Launchers (ground vehicles)
+    if (state.launchers) {
+        state.launchers.forEach(launcher => {
+            const launcherId = `launcher_${launcher.id}`;
+            const position = Cesium.Cartesian3.fromDegrees(launcher.lon, launcher.lat, 0);
+            const modelColor = Cesium.Color.fromCssColorString('#6b8e23'); // olive green
+            if (!uavEntities[launcherId]) {
+                try {
+                    // Create launcher entity — clamped to ground
+                    // Subtract 90° to correct model's forward axis alignment
+                    const hpr = new Cesium.HeadingPitchRoll(
+                        Cesium.Math.toRadians((launcher.heading || 0) - 90), 0, 0
+                    );
+                    const orientation = Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
+
+                    const launcherName = `Launcher - ${String(launcher.id + 1).padStart(2, '0')}`;
+                    const marker = viewer.entities.add({
+                        id: launcherId,
+                        name: launcherName,
+                        position: position,
+                        orientation: orientation,
+                        point: {
+                            pixelSize: 8,
+                            color: Cesium.Color.fromCssColorString('#22c55e'),
+                            outlineColor: Cesium.Color.BLACK,
+                            outlineWidth: 1,
+                            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(30000.0, 50000000.0),
+                            disableDepthTestDistance: Number.POSITIVE_INFINITY
+                        },
+                        billboard: {
+                            image: getDronePin('#6b8e23'),
+                            scale: 0.8,
+                            verticalOrigin: Cesium.VerticalOrigin.CENTER,
+                            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(40000.0, 1600000.0),
+                            disableDepthTestDistance: Number.POSITIVE_INFINITY
+                        },
+                        label: {
+                            text: launcherName,
+                            font: '12px Inter, Helvetica, sans-serif',
+                            fillColor: Cesium.Color.fromCssColorString('#22c55e'),
+                            outlineColor: Cesium.Color.BLACK,
+                            outlineWidth: 2,
+                            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                            pixelOffset: new Cesium.Cartesian2(0, -15),
+                            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                            disableDepthTestDistance: Number.POSITIVE_INFINITY
+                        },
+                        model: {
+                            uri: 'launcher.glb',
+                            minimumPixelSize: 100,
+                            maximumScale: 50.0,
+                            color: modelColor,
+                            colorBlendMode: Cesium.ColorBlendMode.MIX,
+                            colorBlendAmount: 0.5,
+                            castShadows: false,
+                            receiveShadows: false,
+                            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0.0, 40000.0)
+                        }
+                    });
+
+                    uavEntities[launcherId] = marker;
+                } catch (err) {
+                    console.error('[Launcher] Failed to create entity', launcherId, err);
+                }
+            }
+        });
+    }
+
     const _uavCountEl = document.getElementById('uavCount');
     const _zoneCountEl = document.getElementById('zoneCount');
     if (_uavCountEl) _uavCountEl.textContent = state.uavs.length;
@@ -847,11 +997,14 @@ function updateSimulation(state) {
     }
 
     Object.keys(uavEntities).forEach(id => {
+        if (String(id).startsWith('launcher_')) return; // Skip launchers — they're managed separately
         if (!currentUavIds.has(parseInt(id))) {
             const marker = uavEntities[id];
             if (marker._tether) viewer.entities.remove(marker._tether);
+            if (marker._trail) viewer.entities.remove(marker._trail);
             viewer.entities.remove(marker);
             delete uavEntities[id];
+            delete droneTrailHistories[id];
             
             // Clean up range visuals if drone is deleted
             if (droneRangeVisuals[id]) {
@@ -1025,8 +1178,21 @@ if (typeof MapToolController !== 'undefined' && MapToolController.onToolChange) 
 
 AppState.subscribe('selection.changed', () => {
     _updateGroundRings();
+    _updateTrailVisibility();
     viewer.scene.requestRender();
 });
+
+// Show/hide 3D trajectory trails based on which drones are selected
+function _updateTrailVisibility() {
+    const selectedIds = new Set(AppState.state.selection.assetIds); // e.g. ['uav_3', 'uav_7']
+    Object.keys(uavEntities).forEach(id => {
+        if (String(id).startsWith('launcher_')) return;
+        const marker = uavEntities[id];
+        if (marker._trail) {
+            marker._trail.show = selectedIds.has('uav_' + id);
+        }
+    });
+}
 
 // ── Halo Canvas Overlay ─────────────────────────────────────────────────────
 // All selection rings (compass ring + secondary drone rings) are drawn here as a
@@ -1846,12 +2012,30 @@ function connectWebSocket() {
                         mode: u.mode,
                         status: u.mode === 'serving' ? 'on_task' : u.mode === 'repositioning' ? 'transiting' : 'idle',
                         health: 'nominal',
-                        position: { lat: u.lat, lon: u.lon, alt_m: 1000 },
+                        position: { lat: u.lat, lon: u.lon, alt_m: u.alt_m || 2000 },
                         heading_deg: hdg,
                         battery_pct: typeof u.battery_pct === 'number' ? u.battery_pct : 100 - (u.id * 0.3) - (_now % 60000) / 60000 * 2,
                         link_quality: typeof u.link_quality === 'number' ? u.link_quality : 0.92 + Math.sin(u.id + _now / 10000) * 0.06,
                     });
                 });
+
+                // Bridge launcher state into React
+                if (payload.data.launchers) {
+                    payload.data.launchers.forEach(l => {
+                        AppState.updateAsset({
+                            id: `launcher_${l.id}`,
+                            name: `Launcher - ${String(l.id + 1).padStart(2, '0')}`,
+                            type: 'launcher',
+                            mode: l.mode || 'idle',
+                            status: 'idle',
+                            health: 'nominal',
+                            position: { lat: l.lat, lon: l.lon, alt_m: 0 },
+                            heading_deg: l.heading || 0,
+                            battery_pct: 100,
+                            link_quality: 0.95,
+                        });
+                    });
+                }
             }
         }
     };
@@ -1894,15 +2078,6 @@ function scrubToSnapshot(state) {
     // Bridge scrub state into AppState so React panels show historical data
     if (typeof AppState !== 'undefined') {
         state.uavs.forEach(u => {
-            const prev = window._prevUavPos ? window._prevUavPos[u.id] : null;
-            let hdg = prev ? prev.hdg || 0 : 0;
-            if (prev) {
-                const dlon = u.lon - prev.lon;
-                const dlat = u.lat - prev.lat;
-                if (Math.abs(dlon) > 0.0001 || Math.abs(dlat) > 0.0001) {
-                    hdg = ((Math.atan2(dlon * Math.cos(u.lat * Math.PI / 180), dlat) * 180 / Math.PI) + 360) % 360;
-                }
-            }
             AppState.updateAsset({
                 id: `uav_${u.id}`,
                 name: `UAV-${String(u.id).padStart(2, '0')}`,
@@ -1910,8 +2085,10 @@ function scrubToSnapshot(state) {
                 mode: u.mode,
                 status: u.mode === 'serving' ? 'on_task' : u.mode === 'repositioning' ? 'transiting' : 'idle',
                 health: 'nominal',
-                position: { lat: u.lat, lon: u.lon, alt_m: 1000 },
-                heading_deg: hdg,
+                position: { lat: u.lat, lon: u.lon, alt_m: u.alt_m || 2000 },
+                heading_deg: u.heading_deg || 0,
+                pitch_deg: u.pitch_deg || 0,
+                roll_deg: u.roll_deg || 0,
                 battery_pct: 100 - (u.id * 0.3),
                 link_quality: 0.92,
             });
@@ -1922,12 +2099,32 @@ function scrubToSnapshot(state) {
     state.uavs.forEach(uav => {
         const marker = uavEntities[uav.id];
         if (!marker) return;
-        const position = Cesium.Cartesian3.fromDegrees(uav.lon, uav.lat, 1000);
+        const position = Cesium.Cartesian3.fromDegrees(uav.lon, uav.lat, uav.alt_m || 2000);
         // Temporarily replace the SampledPositionProperty with a constant
         if (!marker._livePosProperty) {
             marker._livePosProperty = marker.position; // stash the real one
         }
         marker.position = new Cesium.ConstantPositionProperty(position);
+
+        // Update orientation from stored heading/pitch/roll
+        // Fixed V2.glb axis mapping: Cesium HPR(heading, turnRoll, climbPitch)
+        // pitch_deg = climb angle (nose up/down), roll_deg = bank angle (turning)
+        // Negate climb angle to correct inversion in scrub view
+        const climbAngle = -Cesium.Math.toRadians(uav.pitch_deg || 0);
+        const bankAngle = Cesium.Math.toRadians(uav.roll_deg || 0);
+        // Sim heading_deg = atan2(vx, vy) in degrees (bearing from north, vx=lon, vy=lat)
+        // Live renderer uses atan2(dlat, dlonScaled) then: (PI/2) - angle + PI
+        // Since sim's atan2(vx,vy) ≈ atan2(dlon,dlat) = (PI/2 - atan2(dlat,dlon)),
+        // the conversion is: cesiumHeading = heading_rad + PI (just add the 180° model offset)
+        let scrubHeading = Cesium.Math.toRadians(uav.heading_deg || 0) + Math.PI;
+        // Same axis swap as live: HPR(heading, bankAngle→cesiumPitch, climbAngle→cesiumRoll)
+        const scrubHpr = new Cesium.HeadingPitchRoll(scrubHeading, bankAngle, climbAngle);
+        if (!marker._liveOrientProperty) {
+            marker._liveOrientProperty = marker.orientation;
+        }
+        marker.orientation = new Cesium.ConstantProperty(
+            Cesium.Transforms.headingPitchRollQuaternion(position, scrubHpr)
+        );
 
         // Update color
         let colorStr = '#3b82f6';
@@ -1949,6 +2146,10 @@ function restoreLivePositions() {
         if (marker._livePosProperty) {
             marker.position = marker._livePosProperty;
             delete marker._livePosProperty;
+        }
+        if (marker._liveOrientProperty) {
+            marker.orientation = marker._liveOrientProperty;
+            delete marker._liveOrientProperty;
         }
         // Reset the interpolation buffer timing so next WS frame re-syncs cleanly
         marker._lastTargetTime = null;

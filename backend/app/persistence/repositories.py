@@ -24,16 +24,17 @@ class AssetRepo:
         self.db.execute(
             """INSERT INTO assets (id, name, type, status, mode,
                 lon, lat, alt_m, vx_mps, vy_mps, vz_mps,
-                heading_deg, battery_pct, link_quality, health, payload_state,
+                heading_deg, pitch_deg, roll_deg, battery_pct, link_quality, health, payload_state,
                 home_lon, home_lat, home_alt_m,
                 assigned_mission_id, assigned_task_id, last_telemetry_time,
                 capabilities, version, updated_at)
-            VALUES (?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?)
+            VALUES (?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?,?,?, ?,?,?, ?,?,?, ?,?,?)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name, type=excluded.type, status=excluded.status, mode=excluded.mode,
                 lon=excluded.lon, lat=excluded.lat, alt_m=excluded.alt_m,
                 vx_mps=excluded.vx_mps, vy_mps=excluded.vy_mps, vz_mps=excluded.vz_mps,
-                heading_deg=excluded.heading_deg, battery_pct=excluded.battery_pct,
+                heading_deg=excluded.heading_deg, pitch_deg=excluded.pitch_deg, roll_deg=excluded.roll_deg,
+                battery_pct=excluded.battery_pct,
                 link_quality=excluded.link_quality, health=excluded.health,
                 payload_state=excluded.payload_state,
                 home_lon=excluded.home_lon, home_lat=excluded.home_lat, home_alt_m=excluded.home_alt_m,
@@ -47,7 +48,8 @@ class AssetRepo:
                 asset.id, asset.name, asset.type, asset.status.value, asset.mode.value,
                 asset.position.lon, asset.position.lat, asset.position.alt_m,
                 asset.velocity.vx_mps, asset.velocity.vy_mps, asset.velocity.vz_mps,
-                asset.heading_deg, asset.battery_pct, asset.link_quality,
+                asset.heading_deg, asset.pitch_deg, asset.roll_deg,
+                asset.battery_pct, asset.link_quality,
                 asset.health.value, asset.payload_state,
                 asset.home_location.lon, asset.home_location.lat, asset.home_location.alt_m,
                 asset.assigned_mission_id, asset.assigned_task_id, asset.last_telemetry_time,
@@ -95,7 +97,10 @@ class AssetRepo:
             status=row["status"], mode=row["mode"],
             position=Position(lon=row["lon"], lat=row["lat"], alt_m=row["alt_m"]),
             velocity=Velocity(vx_mps=row["vx_mps"], vy_mps=row["vy_mps"], vz_mps=row["vz_mps"]),
-            heading_deg=row["heading_deg"], battery_pct=row["battery_pct"],
+            heading_deg=row["heading_deg"],
+            pitch_deg=row["pitch_deg"] if "pitch_deg" in row.keys() else 0.0,
+            roll_deg=row["roll_deg"] if "roll_deg" in row.keys() else 0.0,
+            battery_pct=row["battery_pct"],
             link_quality=row["link_quality"], health=row["health"],
             payload_state=row["payload_state"],
             home_location=Position(lon=row["home_lon"], lat=row["home_lat"], alt_m=row["home_alt_m"]),

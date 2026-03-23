@@ -32,6 +32,8 @@ class TelemetryUpdate:
     vy_mps: float = 0.0
     vz_mps: float = 0.0
     heading_deg: float = 0.0
+    pitch_deg: float = 0.0
+    roll_deg: float = 0.0
     battery_pct: float = 100.0
     link_quality: float = 1.0
     mode: str = "idle"

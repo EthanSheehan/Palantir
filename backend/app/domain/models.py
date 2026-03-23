@@ -66,6 +66,8 @@ class Asset(BaseModel):
     position: Position = Field(default_factory=Position)
     velocity: Velocity = Field(default_factory=Velocity)
     heading_deg: float = 0.0
+    pitch_deg: float = 0.0
+    roll_deg: float = 0.0
     battery_pct: float = 100.0
     link_quality: float = 1.0
     health: AssetHealth = AssetHealth.nominal

@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS assets (
     vy_mps REAL DEFAULT 0.0,
     vz_mps REAL DEFAULT 0.0,
     heading_deg REAL DEFAULT 0.0,
+    pitch_deg REAL DEFAULT 0.0,
+    roll_deg REAL DEFAULT 0.0,
     battery_pct REAL DEFAULT 100.0,
     link_quality REAL DEFAULT 1.0,
     health TEXT DEFAULT 'nominal',

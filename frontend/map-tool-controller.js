@@ -62,6 +62,16 @@ const MapToolController = (() => {
             _droneRightClickCbs.forEach(cb => cb(entity, movement.position));
         }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
 
+        // Ctrl+scroll wheel — route to active tool's onCtrlWheel callback
+        viewer.canvas.addEventListener('wheel', (e) => {
+            if (e.ctrlKey && _activeTool && _tools[_activeTool] && _tools[_activeTool].onCtrlWheel) {
+                e.preventDefault();
+                e.stopPropagation();
+                _tools[_activeTool].onCtrlWheel(e.deltaY > 0 ? -1 : 1);
+                _viewer.scene.requestRender();
+            }
+        }, { passive: false });
+
         // Suppress browser default context menu on the Cesium canvas
         viewer.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
@@ -340,27 +350,29 @@ const MapToolController = (() => {
         return cartesian;
     }
 
-    function _placeWaypoint(droneId, cartesian) {
+    function _placeWaypoint(droneId, cartesian, altitude) {
         const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
         const lon = Cesium.Math.toDegrees(cartographic.longitude);
         const lat = Cesium.Math.toDegrees(cartographic.latitude);
+        const alt = altitude || _waypointPreviewAlt || 2000;
 
-        // Send WS command
+        // Send WS command with altitude
         if (_ws && _ws.readyState === WebSocket.OPEN) {
             _ws.send(JSON.stringify({
                 action: "move_drone",
                 drone_id: droneId,
                 target_lon: lon,
-                target_lat: lat
+                target_lat: lat,
+                target_alt: alt
             }));
         }
 
         // Create or update visual marker
         if (!_droneWaypoints[droneId]) {
             const waypointEntity = _viewer.entities.add({
-                position: cartesian,
+                position: Cesium.Cartesian3.fromDegrees(lon, lat, alt / 2),
                 cylinder: {
-                    length: 2000.0,
+                    length: alt,
                     topRadius: 20.0,
                     bottomRadius: 20.0,
                     material: Cesium.Color.fromCssColorString('#22c55e').withAlpha(0.6),
@@ -393,7 +405,9 @@ const MapToolController = (() => {
                 trajectory: trajectoryEntity
             };
         } else {
-            _droneWaypoints[droneId].waypoint.position = cartesian;
+            // Update existing waypoint with new position and altitude
+            _droneWaypoints[droneId].waypoint.position = Cesium.Cartesian3.fromDegrees(lon, lat, alt / 2);
+            _droneWaypoints[droneId].waypoint.cylinder.length = alt;
         }
     }
 
@@ -492,15 +506,68 @@ const MapToolController = (() => {
 
     // ─── SET WAYPOINT TOOL ─────────────────────────────────────
 
+    // Waypoint preview state
+    let _waypointPreview = null;       // { cylinder, trajectory }
+    let _waypointPreviewAlt = 2000.0;  // Preview altitude in meters
+    let _waypointPreviewPos = null;    // Current preview cartesian (ground)
+    let _waypointPreviewLon = 0;       // Cached lon/lat for cylinder CallbackProperty
+    let _waypointPreviewLat = 0;
+
+    function _createWaypointPreview() {
+        if (_waypointPreview) return; // Already exists
+
+        // Cylinder uses CallbackProperty for smooth real-time position tracking
+        const cylinderEntity = _viewer.entities.add({
+            position: new Cesium.CallbackProperty(() => {
+                if (!_waypointPreviewPos) return Cesium.Cartesian3.fromDegrees(0, 0, 0);
+                return Cesium.Cartesian3.fromDegrees(_waypointPreviewLon, _waypointPreviewLat, _waypointPreviewAlt / 2);
+            }, false),
+            show: false,
+            cylinder: {
+                length: new Cesium.CallbackProperty(() => _waypointPreviewAlt, false),
+                topRadius: 20.0,
+                bottomRadius: 20.0,
+                material: Cesium.Color.fromCssColorString('#22c55e').withAlpha(0.4),
+                outline: true,
+                outlineColor: Cesium.Color.fromCssColorString('#22c55e').withAlpha(0.6)
+            }
+        });
+        const trajectoryEntity = _viewer.entities.add({
+            show: false,
+            polyline: {
+                positions: new Cesium.CallbackProperty(() => {
+                    if (!_trackedDroneEntity || !_waypointPreviewPos) return [];
+                    const start = _trackedDroneEntity.position.getValue(_viewer.clock.currentTime);
+                    if (start && _waypointPreviewPos) return [start, _waypointPreviewPos];
+                    return [];
+                }, false),
+                width: 2,
+                material: new Cesium.PolylineDashMaterialProperty({
+                    color: Cesium.Color.fromCssColorString('#22c55e'),
+                    dashLength: 20.0
+                }),
+                clampToGround: true
+            }
+        });
+        _waypointPreview = { cylinder: cylinderEntity, trajectory: trajectoryEntity };
+    }
+
+    function _removeWaypointPreview() {
+        if (!_waypointPreview) return;
+        _viewer.entities.remove(_waypointPreview.cylinder);
+        _viewer.entities.remove(_waypointPreview.trajectory);
+        _waypointPreview = null;
+        _waypointPreviewPos = null;
+    }
+
     const _setWaypointTool = {
         id: 'set_waypoint',
         label: 'Waypoint',
         icon: '📍',
-        hint: 'Click terrain to place waypoint for selected drone.',
+        hint: 'Click terrain to place waypoint. Ctrl+scroll to adjust altitude.',
 
         onLeftClick(movement) {
             if (!_trackedDroneEntity) {
-                // No drone selected — fall back to select
                 returnToPreviousTool();
                 return;
             }
@@ -510,7 +577,7 @@ const MapToolController = (() => {
                 const markerId = _trackedDroneEntity.id.replace('uav_', '');
                 const dId = parseInt(markerId);
 
-                _placeWaypoint(dId, cartesian);
+                _placeWaypoint(dId, cartesian, _waypointPreviewAlt);
 
                 // Reset inline button if present
                 const inlineBtn = document.getElementById(`inlineSetWaypointBtn_${dId}`);
@@ -521,18 +588,90 @@ const MapToolController = (() => {
                     inlineBtn.style.color = '';
                 }
 
-                // Return to select tool
+                _removeWaypointPreview();
                 returnToPreviousTool();
             }
         },
 
         onDoubleClick() {},
+
         onMouseMove(movement) {
-            // Could add a preview line here in future
+            if (!_trackedDroneEntity) return;
+            const cartesian = _pickTerrain(movement.endPosition);
+            if (!cartesian) return;
+
+            // Update cached position for CallbackProperty to pick up
+            const carto = Cesium.Cartographic.fromCartesian(cartesian);
+            _waypointPreviewLon = Cesium.Math.toDegrees(carto.longitude);
+            _waypointPreviewLat = Cesium.Math.toDegrees(carto.latitude);
+            _waypointPreviewPos = cartesian;
+
+            // Dynamically cap altitude based on distance to drone at max climb angle
+            const MAX_CLIMB_DEG = 15.0;
+            const dronePos = _trackedDroneEntity.position.getValue(_viewer.clock.currentTime);
+            if (dronePos) {
+                const droneCarto = Cesium.Cartographic.fromCartesian(dronePos);
+                const droneAlt = droneCarto.height || 2000;
+                const dLon = (_waypointPreviewLon - Cesium.Math.toDegrees(droneCarto.longitude)) * 111000 * Math.cos(droneCarto.latitude);
+                const dLat = (_waypointPreviewLat - Cesium.Math.toDegrees(droneCarto.latitude)) * 111000;
+                const horizDist = Math.sqrt(dLon * dLon + dLat * dLat);
+                const maxAlt = droneAlt + horizDist * Math.tan(Cesium.Math.toRadians(MAX_CLIMB_DEG));
+                if (_waypointPreviewAlt > maxAlt) {
+                    _waypointPreviewAlt = Math.max(200, maxAlt);
+                }
+            }
+
+            if (_waypointPreview) {
+                _waypointPreview.cylinder.show = true;
+                _waypointPreview.trajectory.show = true;
+            }
+            _viewer.scene.requestRender();
         },
 
-        onActivate() {},
-        onDeactivate() {}
+        onCtrlWheel(direction) {
+            // direction: +1 = scroll up (increase alt), -1 = scroll down (decrease alt)
+            const MAX_CLIMB_DEG = 15.0; // Must match UAV.MAX_CLIMB_DEG in sim.py
+            let newAlt = _waypointPreviewAlt + direction * 100;
+
+            // When increasing altitude, cap by what the drone can achieve at max climb angle
+            if (direction > 0 && _trackedDroneEntity && _waypointPreviewPos) {
+                const dronePos = _trackedDroneEntity.position.getValue(_viewer.clock.currentTime);
+                if (dronePos) {
+                    const droneCarto = Cesium.Cartographic.fromCartesian(dronePos);
+                    const droneAlt = droneCarto.height || 2000;
+                    // Horizontal distance from drone to waypoint preview in meters
+                    const dLon = (_waypointPreviewLon - Cesium.Math.toDegrees(droneCarto.longitude)) * 111000 * Math.cos(droneCarto.latitude);
+                    const dLat = (_waypointPreviewLat - Cesium.Math.toDegrees(droneCarto.latitude)) * 111000;
+                    const horizDist = Math.sqrt(dLon * dLon + dLat * dLat);
+                    // Max achievable altitude = droneAlt + horizDist * tan(maxClimb)
+                    const maxAlt = droneAlt + horizDist * Math.tan(Cesium.Math.toRadians(MAX_CLIMB_DEG));
+                    newAlt = Math.min(newAlt, maxAlt);
+                }
+            }
+
+            _waypointPreviewAlt = Math.max(200, Math.min(5000, newAlt));
+            _viewer.scene.requestRender();
+        },
+
+        onActivate() {
+            // Default altitude from tracked drone's current altitude
+            if (_trackedDroneEntity) {
+                const pos = _trackedDroneEntity.position.getValue(_viewer.clock.currentTime);
+                if (pos) {
+                    const carto = Cesium.Cartographic.fromCartesian(pos);
+                    _waypointPreviewAlt = Math.max(200, carto.height || 2000);
+                } else {
+                    _waypointPreviewAlt = 2000.0;
+                }
+            } else {
+                _waypointPreviewAlt = 2000.0;
+            }
+            _createWaypointPreview();
+        },
+
+        onDeactivate() {
+            _removeWaypointPreview();
+        }
     };
 
     // ─── Macro tracking tick (called from render loop in app.js) ───
