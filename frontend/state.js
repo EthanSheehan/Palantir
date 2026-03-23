@@ -41,6 +41,9 @@ const AppState = (() => {
             missionState: null,
             alertSeverity: null,
         },
+
+        // Projected target for timeline ETA bars (set from React)
+        projectedTarget: null,  // { lon, lat, label } | null
     };
 
     // Subscribers: path -> [callback]
@@ -353,6 +356,11 @@ const AppState = (() => {
         }
     }
 
+    function setProjectedTarget(target) {
+        _state.projectedTarget = target;
+        _notify('projectedTarget.changed', target);
+    }
+
     return {
         get state() { return _state; },
         subscribe,
@@ -361,6 +369,7 @@ const AppState = (() => {
         select, selectMulti, clearSelection,
         setConnected, setEventWsConnected, setTimeMode, setTimeCursor,
         pushSnapshot, getSnapshotAt, getSnapshotBufferRange,
+        setProjectedTarget,
         handleEvent,
     };
 })();

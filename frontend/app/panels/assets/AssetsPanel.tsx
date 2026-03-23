@@ -32,8 +32,14 @@ function getManufacturerLabel(asset: Asset): string {
   return 'AMS Fixed';
 }
 
-/** Cruise speed ~2.2 km/s (0.02 deg/s from sim.py). */
-const CRUISE_SPEED_KMS = 2.2;
+/** Compute speed from velocity vector in m/s. */
+function getSpeedMps(asset: Asset): number {
+  const vel = asset.velocity as any;
+  if (!vel) return 0;
+  const vx = vel.vx_mps ?? vel.vx ?? 0;
+  const vy = vel.vy_mps ?? vel.vy ?? 0;
+  return Math.sqrt(vx * vx + vy * vy);
+}
 
 /** Format seconds into human-readable ETA. */
 function formatEta(seconds: number): string {
@@ -131,6 +137,14 @@ export function AssetsPanel() {
       setPinnedHighlighted(false);
     }
   }, [pinnedTarget]);
+
+  // Bridge sortAnchor to legacy AppState for timeline ETA bars
+  useEffect(() => {
+    const AppState = (window as any).AppState;
+    if (AppState?.setProjectedTarget) {
+      AppState.setProjectedTarget(sortAnchor);
+    }
+  }, [sortAnchor]);
 
   // Sync highlight ring with pinnedHighlighted state
   useEffect(() => {
@@ -402,7 +416,8 @@ function AssetCard({
   const batteryPct = asset.battery_pct ?? 0;
   const linkPct = (asset.link_quality ?? 0) * 100;
   const displayName = getDisplayName(asset);
-  const etaSec = distanceKm !== null ? distanceKm / CRUISE_SPEED_KMS : null;
+  const speedMps = getSpeedMps(asset);
+  const etaSec = distanceKm !== null && speedMps > 0.1 ? (distanceKm * 1000) / speedMps : null;
   const isLauncher = asset.id.startsWith('launcher_');
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
 
@@ -463,7 +478,7 @@ function AssetCard({
           {distanceKm !== null && !isExpanded && (
             <div className="asset-dist-group">
               <span className="asset-dist">{distanceKm < 1 ? `${(distanceKm * 1000).toFixed(0)}m` : `${distanceKm.toFixed(1)}km`}</span>
-              <span className="asset-eta">{formatEta(etaSec!)}</span>
+              <span className="asset-eta">{etaSec !== null ? formatEta(etaSec) : '—'}</span>
             </div>
           )}
           <Tag intent={modeIntent} minimal className="asset-tag-sm">
@@ -490,7 +505,7 @@ function AssetCard({
                   </tr>
                   <tr>
                     <td className="detail-label">Time to Target</td>
-                    <td className="detail-value detail-accent">{formatEta(etaSec!)}</td>
+                    <td className="detail-value detail-accent">{etaSec !== null ? formatEta(etaSec) : '—'}</td>
                   </tr>
                 </>
               )}
