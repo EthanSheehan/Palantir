@@ -69,3 +69,32 @@
 #ams-react-app .bp5-non-ideal-state {
   border-radius: 2px;
 }
+
+/* ---- Navbar ---- */
+#ams-react-app .bp5-navbar {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* ---- Tabs ---- */
+#ams-react-app .bp5-tabs .bp5-tab {
+  border-radius: 2px;
+}
+
+#ams-react-app .bp5-tab-indicator-wrapper .bp5-tab-indicator {
+  border-radius: 0;
+}
+
+/* ---- Section ---- */
+#ams-react-app .bp5-section {
+  border-radius: 2px;
+}
+
+#ams-react-app .bp5-section-card {
+  border-radius: 2px;
+}
+
+/* ---- Spinner in search bar ---- */
+#ams-react-app .bp5-spinner .bp5-spinner-head {
+  stroke: #38bdf8;
+}

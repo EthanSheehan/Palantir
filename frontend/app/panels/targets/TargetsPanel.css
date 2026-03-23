@@ -3,16 +3,44 @@
   flex-direction: column;
   gap: 6px;
   user-select: none;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  margin-right: -12px;
 }
 
-/* Apply Blueprint-style squared edges globally in targets panel */
-.targets-panel .search-bar-input-wrap {
-  border-radius: 2px;
+/* Restore right padding for non-scrolling elements */
+.targets-panel .search-bar-container,
+.targets-panel .sort-anchor-label,
+.targets-panel .targets-toolbar {
+  margin-right: 12px;
 }
 
-.targets-panel .search-bar-dropdown {
-  border-radius: 2px;
+.targets-scroll-area {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 6px;
 }
+
+.targets-scroll-area::-webkit-scrollbar {
+  width: 6px;
+}
+.targets-scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+.targets-scroll-area::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 0;
+}
+.targets-scroll-area::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 
 /* ---- Toolbar (filter + paint) ---- */
 .targets-toolbar {
@@ -21,23 +49,58 @@
   gap: 6px;
 }
 
-.targets-type-select {
+/* Target type filter (Blueprint Select) — wrapper needs flex: 1 */
+.targets-toolbar > .bp5-popover-target {
   flex: 1;
+  min-width: 0;
 }
 
-.targets-type-select select {
+.targets-type-select.bp5-button {
+  flex: 1;
+  width: 100%;
   background: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid rgba(100, 116, 139, 0.2) !important;
+  border: 1px solid rgba(100, 116, 139, 0.2);
   color: #e2e8f0 !important;
-  font-size: 0.7rem !important;
-  font-family: 'Inter', sans-serif !important;
-  border-radius: 2px !important;
+  font-size: 0.7rem;
+  font-family: 'Inter', sans-serif;
+  justify-content: space-between;
+  box-shadow: none !important;
+  height: 26px;
+}
+
+.targets-type-select.bp5-button:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(100, 116, 139, 0.4);
+}
+
+.targets-paint-btn.bp5-button {
+  height: 26px;
+}
+
+/* Portal container must be above the left rail (z-index: 80) */
+.targets-filter-portal {
+  z-index: 200 !important;
+}
+
+.targets-filter-popover.bp5-popover {
+  z-index: 200 !important;
+}
+
+/* Filter dropdown — Blueprint dark theme, smaller text */
+.targets-filter-portal .bp5-menu-item {
+  font-size: 0.7rem;
+}
+
+.targets-filter-portal .bp5-menu-item .bp5-text-overflow-ellipsis {
+  font-size: 0.7rem;
 }
 
 .targets-paint-btn.bp5-button {
   border-radius: 2px;
   white-space: nowrap;
   flex-shrink: 0;
+  width: 70px;
+  justify-content: center;
 }
 
 .targets-paint-btn.painting-active.bp5-button {
@@ -71,35 +134,35 @@
   gap: 4px;
 }
 
-.target-card-react {
+.target-card-react.bp5-card {
   padding: 6px 8px;
-  border-radius: 2px;
-  background: #0f1523;
+  background: #0f1523 !important;
   border: 1px solid rgba(100, 116, 139, 0.1);
-  cursor: pointer;
+  box-shadow: none !important;
   transition: all 0.15s;
 }
 
-.target-card-react:hover {
-  background: #151b2b;
+.target-card-react.bp5-card:hover {
+  background: #151b2b !important;
   border-color: rgba(100, 116, 139, 0.25);
 }
 
 /* Selected target — orange, matches target diamond color */
-.target-card-react.target-selected {
+.target-card-react.bp5-card.target-selected {
   border-color: rgba(249, 115, 22, 0.6);
-  background: #1c1410;
-  box-shadow: inset 2px 0 0 #f97316;
+  background: #1c1410 !important;
+  box-shadow: inset 2px 0 0 #f97316 !important;
 }
 
-.target-card-react.target-selected .target-id {
+.target-card-react.bp5-card.target-selected .target-id {
   color: #f97316;
 }
 
 /* Selected MAP target — same halo as simple targets */
-.complex-target-card.target-selected {
+.complex-target-card.bp5-card.target-selected {
   border-color: rgba(249, 115, 22, 0.6);
-  box-shadow: inset 2px 0 0 #f97316;
+  background: #1c1410 !important;
+  box-shadow: inset 2px 0 0 #f97316 !important;
 }
 
 .target-card-header {
@@ -109,32 +172,29 @@
 }
 
 /* Delete × on left, hidden until card hover */
-.target-remove-hover {
-  background: none;
-  border: none;
+.target-remove-hover.bp5-button {
   color: #64748b;
-  font-size: 0.85rem;
-  cursor: pointer;
-  padding: 0 3px;
-  line-height: 1;
-  border-radius: 2px;
   opacity: 0;
   width: 0;
+  min-width: 0;
+  min-height: 0;
   overflow: hidden;
   transition: opacity 0.15s, width 0.15s, margin 0.15s;
   margin-right: -6px;
   flex-shrink: 0;
+  padding: 0;
 }
 
-.target-card-react:hover .target-remove-hover {
+.target-card-react:hover .target-remove-hover.bp5-button,
+.complex-target-card:hover .target-remove-hover.bp5-button {
   opacity: 1;
-  width: 16px;
+  width: 20px;
   margin-right: 0;
 }
 
-.target-remove-hover:hover {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.1);
+.target-remove-hover.bp5-button:hover {
+  color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.1) !important;
 }
 
 .target-diamond {
@@ -207,39 +267,36 @@
 }
 
 /* ---- Zoom-to button ---- */
-.target-card-react {
+.target-card-react.bp5-card {
   position: relative;
 }
 
-.target-zoom-btn {
+.target-zoom-btn.bp5-button {
   position: absolute;
   bottom: 4px;
   right: 4px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.04) !important;
   border: 1px solid rgba(100, 116, 139, 0.15);
-  border-radius: 2px;
   color: #64748b;
+  min-width: 20px;
+  min-height: 20px;
   width: 20px;
   height: 20px;
   padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
   transition: all 0.15s;
   opacity: 0.5;
 }
 
-.target-card-react:hover .target-zoom-btn,
-.complex-target-card:hover .target-zoom-btn {
+.target-card-react:hover .target-zoom-btn.bp5-button,
+.complex-target-card:hover .target-zoom-btn.bp5-button {
   opacity: 1;
   right: 30px;
 }
 
-.target-zoom-btn:hover {
-  background: rgba(249, 115, 22, 0.15);
+.target-zoom-btn.bp5-button:hover {
+  background: rgba(249, 115, 22, 0.15) !important;
   border-color: rgba(249, 115, 22, 0.4);
-  color: #f97316;
+  color: #f97316 !important;
 }
 
 /* ---- Inline-editable description ---- */
@@ -321,13 +378,12 @@
   letter-spacing: 0.03em;
 }
 
-/* ---- Complex Target Card ---- */
-.complex-target-card {
+/* ---- Complex Target Card (Blueprint Card) ---- */
+.complex-target-card.bp5-card {
   padding: 6px 8px;
-  border-radius: 2px;
-  background: #12100e;
+  background: #12100e !important;
   border: 1px solid rgba(249, 115, 22, 0.2);
-  cursor: pointer;
+  box-shadow: none !important;
   transition: all 0.15s;
   position: relative;
   overflow: hidden;
@@ -336,12 +392,6 @@
 .complex-target-card:hover {
   background: #1c1410;
   border-color: rgba(249, 115, 22, 0.35);
-}
-
-.complex-target-card:hover .target-remove-hover {
-  opacity: 1;
-  width: 16px;
-  margin-right: 0;
 }
 
 .complex-card-header {
@@ -476,34 +526,13 @@
   color: #64748b;
 }
 
-/* ---- Context Menu ---- */
-.target-ctx-menu {
-  background: rgba(8, 14, 28, 0.95);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(100, 116, 139, 0.3);
-  border-radius: 2px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  padding: 2px 0;
-  min-width: 140px;
+/* ---- Context Menu (Blueprint Menu) ---- */
+.target-ctx-menu.bp5-menu {
+  min-width: 100px;
 }
 
-.target-ctx-item {
-  display: block;
-  width: 100%;
-  background: none;
-  border: none;
-  color: #e2e8f0;
-  font-size: 0.68rem;
-  font-family: 'Inter', sans-serif;
-  padding: 6px 12px;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.1s;
-}
-
-.target-ctx-item:hover {
-  background: rgba(56, 189, 248, 0.1);
-  color: #38bdf8;
+.target-ctx-menu.bp5-menu .bp5-menu-item {
+  font-size: 0.7rem;
 }
 
 /* ---- Editable Aimpoint Inputs ---- */
@@ -573,31 +602,33 @@
   padding-right: 34px;
 }
 
-.target-pin-btn {
+.target-pin-btn.bp5-button {
   position: absolute;
   right: 0;
   top: 0;
   bottom: 0;
   width: 0;
-  overflow: hidden;
-  background: rgba(249, 115, 22, 0.15);
+  min-width: 0 !important;
+  min-height: 0;
+  height: auto;
+  overflow: hidden !important;
+  background: rgba(249, 115, 22, 0.15) !important;
   border: none;
   border-left: 1px solid rgba(249, 115, 22, 0.3);
-  color: #f97316;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: width 0.15s, background 0.15s;
-  padding: 0;
+  border-radius: 0 !important;
+  color: #f97316 !important;
+  transition: width 0.15s, background 0.15s, min-width 0.15s;
+  padding: 0 !important;
   z-index: 2;
+  box-shadow: none !important;
 }
 
-.target-card-react:hover .target-pin-btn,
-.complex-target-card:hover .target-pin-btn {
+.target-card-react:hover .target-pin-btn.bp5-button,
+.complex-target-card:hover .target-pin-btn.bp5-button {
   width: 26px;
+  min-width: 26px;
 }
 
-.target-pin-btn:hover {
-  background: rgba(249, 115, 22, 0.3);
+.target-pin-btn.bp5-button:hover {
+  background: rgba(249, 115, 22, 0.3) !important;
 }

@@ -9,17 +9,19 @@
   padding: 24px 0;
 }
 
-.command-row {
+.command-row.bp5-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 4px 6px;
-  border-radius: 2px;
   font-size: 0.72rem;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(100, 116, 139, 0.08);
 }
 
-.command-row:hover {
-  background: rgba(255, 255, 255, 0.04);
+.command-row.bp5-card:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
 }
 
 .command-type {
