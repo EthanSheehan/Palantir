@@ -118,6 +118,42 @@ CREATE TABLE IF NOT EXISTS alerts (
     metadata TEXT DEFAULT '{}'
 );
 
+CREATE TABLE IF NOT EXISTS aimpoints (
+    id TEXT PRIMARY KEY,
+    lon REAL NOT NULL DEFAULT 0.0,
+    lat REAL NOT NULL DEFAULT 0.0,
+    type TEXT NOT NULL DEFAULT 'unknown',
+    description TEXT DEFAULT '',
+    target_id TEXT,
+    version INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (target_id) REFERENCES targets(id)
+);
+
+CREATE TABLE IF NOT EXISTS targets (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL DEFAULT '',
+    type TEXT NOT NULL DEFAULT 'single',
+    description TEXT DEFAULT '',
+    state TEXT NOT NULL DEFAULT 'active',
+    aimpoint_ids TEXT DEFAULT '[]',
+    version INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_aimpoints_target ON aimpoints(target_id);
+
+CREATE TABLE IF NOT EXISTS domain_snapshots (
+    id TEXT PRIMARY KEY,
+    timestamp TEXT NOT NULL,
+    snapshot TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_snapshots_time ON domain_snapshots(timestamp);
+
 CREATE TABLE IF NOT EXISTS event_log (
     id TEXT PRIMARY KEY,
     type TEXT NOT NULL,

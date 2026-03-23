@@ -3,6 +3,7 @@ import { subscribeWithSelector } from 'zustand/middleware';
 import type {
   Asset, Mission, Alert, TimelineReservation, Command,
   Recommendation, LayoutState,
+  Aimpoint, Target, HistoricalSnapshot,
 } from './types';
 
 // ── Layout Persistence ──
@@ -69,7 +70,7 @@ export interface AppStore {
     missionId: string | null;
     alertId: string | null;
     hoveredEntityId: string | null;
-    selectedTargetIds: (number | string)[];
+    selectedTargetIds: string[];
   };
 
   // ── Time ──
@@ -87,9 +88,17 @@ export interface AppStore {
   reservations: Record<string, TimelineReservation>;
   recommendations: Record<string, Recommendation>;
   commands: Record<string, Command>;
+  aimpoints: Record<string, Aimpoint>;
+  targets: Record<string, Target>;
+
+  // ── Historical State ──
+  historicalState: {
+    active: boolean;
+    snapshot: HistoricalSnapshot | null;
+  };
 
   // ── Pinned Target (for cross-panel sort anchor) ──
-  pinnedTarget: { id: number | string; name: string; description?: string; lon: number; lat: number; aimpoints?: Array<{ id: number; lon: number; lat: number; type: string; description: string }> } | null;
+  pinnedTarget: { id: string; name: string; description?: string; lon: number; lat: number; aimpoints?: Array<{ id: string; lon: number; lat: number; type: string; description: string }> } | null;
 
   // ── Tool Mode ──
   toolMode: {
@@ -110,7 +119,7 @@ export interface AppStore {
   selectMission: (id: string | null) => void;
   selectAlert: (id: string | null) => void;
   setHoveredEntity: (id: string | null) => void;
-  selectTarget: (id: number | string | null, additive?: boolean) => void;
+  selectTarget: (id: string | null, additive?: boolean) => void;
   setTimeCursor: (ms: number | null) => void;
   setTimeMode: (mode: 'live' | 'historical') => void;
   setLeftPanelTab: (tab: LeftPanelTab) => void;
@@ -127,6 +136,13 @@ export interface AppStore {
   setLayout: (layout: Partial<LayoutState>) => void;
   setFilters: (filters: Partial<AppStore['filters']>) => void;
   setPinnedTarget: (target: AppStore['pinnedTarget']) => void;
+  updateAimpoint: (apt: Aimpoint) => void;
+  removeAimpoint: (id: string) => void;
+  updateTarget: (tgt: Target) => void;
+  removeTarget: (id: string) => void;
+  setAimpoints: (apts: Aimpoint[]) => void;
+  setTargets: (tgts: Target[]) => void;
+  setHistoricalState: (snapshot: HistoricalSnapshot | null) => void;
 }
 
 export const useAppStore = create<AppStore>()(subscribeWithSelector((set) => ({
@@ -168,6 +184,13 @@ export const useAppStore = create<AppStore>()(subscribeWithSelector((set) => ({
   reservations: {},
   recommendations: {},
   commands: {},
+  aimpoints: {},
+  targets: {},
+
+  historicalState: {
+    active: false,
+    snapshot: null,
+  },
 
   toolMode: {
     mode: null,
@@ -296,6 +319,43 @@ export const useAppStore = create<AppStore>()(subscribeWithSelector((set) => ({
   pinnedTarget: null,
 
   setPinnedTarget: (target) => set({ pinnedTarget: target }),
+
+  updateAimpoint: (apt) => set((state) => ({
+    aimpoints: { ...state.aimpoints, [apt.id]: apt },
+  })),
+
+  removeAimpoint: (id) => set((state) => {
+    const { [id]: _, ...rest } = state.aimpoints;
+    return { aimpoints: rest };
+  }),
+
+  updateTarget: (tgt) => set((state) => ({
+    targets: { ...state.targets, [tgt.id]: tgt },
+  })),
+
+  removeTarget: (id) => set((state) => {
+    const { [id]: _, ...rest } = state.targets;
+    return { targets: rest };
+  }),
+
+  setAimpoints: (apts) => set(() => {
+    const map: Record<string, Aimpoint> = {};
+    for (const a of apts) map[a.id] = a;
+    return { aimpoints: map };
+  }),
+
+  setTargets: (tgts) => set(() => {
+    const map: Record<string, Target> = {};
+    for (const t of tgts) map[t.id] = t;
+    return { targets: map };
+  }),
+
+  setHistoricalState: (snapshot) => set(() => ({
+    historicalState: {
+      active: snapshot !== null,
+      snapshot,
+    },
+  })),
 })));
 
 // ── Auto-save layout to localStorage on change ──

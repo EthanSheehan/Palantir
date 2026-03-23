@@ -1,8 +1,24 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 from ..dependencies import ctx
 
 router = APIRouter(prefix="/timeline", tags=["timeline"])
+
+
+@router.get("/state")
+def get_state_at_time(at: str = Query(..., description="ISO 8601 timestamp")):
+    """Reconstruct full domain state at a given point in time."""
+    state = ctx.snapshot_service.reconstruct_state_at(at)
+    return state
+
+
+@router.get("/range")
+def get_available_range():
+    """Return the earliest and latest snapshot timestamps available for scrubbing."""
+    rng = ctx.snapshot_service.get_available_range()
+    if not rng:
+        return {"earliest": None, "latest": None}
+    return rng
 
 
 @router.get("")

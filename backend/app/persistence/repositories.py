@@ -7,6 +7,7 @@ from typing import Optional
 from ..domain.models import (
     Asset, Mission, Task, Command, TimelineReservation, Alert, DomainEvent,
     Position, Velocity, MissionConstraints, TaskTarget, TaskConstraints,
+    Aimpoint, Target,
 )
 
 
@@ -528,3 +529,172 @@ class EventLogRepo:
             )
             for r in rows
         ]
+
+
+# ── Aimpoint Repository ──
+
+class AimpointRepo:
+    def __init__(self, db: sqlite3.Connection):
+        self.db = db
+
+    def insert(self, apt: Aimpoint):
+        self.db.execute(
+            """INSERT INTO aimpoints (id, lon, lat, type, description,
+                target_id, version, created_at, updated_at)
+            VALUES (?,?,?,?,?, ?,?,?,?)""",
+            (
+                apt.id, apt.lon, apt.lat, apt.type.value, apt.description,
+                apt.target_id, apt.version, apt.created_at, apt.updated_at,
+            ),
+        )
+        self.db.commit()
+
+    def update(self, apt: Aimpoint):
+        self.db.execute(
+            """UPDATE aimpoints SET lon=?, lat=?, type=?, description=?,
+                target_id=?, version=?, updated_at=?
+            WHERE id=?""",
+            (
+                apt.lon, apt.lat, apt.type.value, apt.description,
+                apt.target_id, apt.version, _now(), apt.id,
+            ),
+        )
+        self.db.commit()
+
+    def get(self, apt_id: str) -> Optional[Aimpoint]:
+        row = self.db.execute("SELECT * FROM aimpoints WHERE id=?", (apt_id,)).fetchone()
+        if not row:
+            return None
+        return self._row_to_aimpoint(row)
+
+    def list_all(self, target_id: str = None, apt_type: str = None) -> list[Aimpoint]:
+        query = "SELECT * FROM aimpoints WHERE 1=1"
+        params: list = []
+        if target_id:
+            query += " AND target_id=?"
+            params.append(target_id)
+        if apt_type:
+            query += " AND type=?"
+            params.append(apt_type)
+        rows = self.db.execute(query, params).fetchall()
+        return [self._row_to_aimpoint(r) for r in rows]
+
+    def delete(self, apt_id: str):
+        self.db.execute("DELETE FROM aimpoints WHERE id=?", (apt_id,))
+        self.db.commit()
+
+    @staticmethod
+    def _row_to_aimpoint(row) -> Aimpoint:
+        return Aimpoint(
+            id=row["id"], lon=row["lon"], lat=row["lat"],
+            type=row["type"], description=row["description"] or "",
+            target_id=row["target_id"],
+            version=row["version"],
+            created_at=row["created_at"] or "",
+            updated_at=row["updated_at"] or "",
+        )
+
+
+# ── Target Repository ──
+
+class TargetRepo:
+    def __init__(self, db: sqlite3.Connection):
+        self.db = db
+
+    def insert(self, tgt: Target):
+        self.db.execute(
+            """INSERT INTO targets (id, name, type, description, state,
+                aimpoint_ids, version, created_at, updated_at)
+            VALUES (?,?,?,?,?, ?,?,?,?)""",
+            (
+                tgt.id, tgt.name, tgt.type, tgt.description, tgt.state.value,
+                json.dumps(tgt.aimpoint_ids), tgt.version,
+                tgt.created_at, tgt.updated_at,
+            ),
+        )
+        self.db.commit()
+
+    def update(self, tgt: Target):
+        self.db.execute(
+            """UPDATE targets SET name=?, type=?, description=?, state=?,
+                aimpoint_ids=?, version=?, updated_at=?
+            WHERE id=?""",
+            (
+                tgt.name, tgt.type, tgt.description, tgt.state.value,
+                json.dumps(tgt.aimpoint_ids), tgt.version, _now(), tgt.id,
+            ),
+        )
+        self.db.commit()
+
+    def get(self, tgt_id: str) -> Optional[Target]:
+        row = self.db.execute("SELECT * FROM targets WHERE id=?", (tgt_id,)).fetchone()
+        if not row:
+            return None
+        return self._row_to_target(row)
+
+    def list_all(self, state: str = None, tgt_type: str = None) -> list[Target]:
+        query = "SELECT * FROM targets WHERE 1=1"
+        params: list = []
+        if state:
+            query += " AND state=?"
+            params.append(state)
+        if tgt_type:
+            query += " AND type=?"
+            params.append(tgt_type)
+        rows = self.db.execute(query, params).fetchall()
+        return [self._row_to_target(r) for r in rows]
+
+    def delete(self, tgt_id: str):
+        self.db.execute("DELETE FROM targets WHERE id=?", (tgt_id,))
+        self.db.commit()
+
+    @staticmethod
+    def _row_to_target(row) -> Target:
+        return Target(
+            id=row["id"], name=row["name"], type=row["type"],
+            description=row["description"] or "",
+            state=row["state"],
+            aimpoint_ids=json.loads(row["aimpoint_ids"] or "[]"),
+            version=row["version"],
+            created_at=row["created_at"] or "",
+            updated_at=row["updated_at"] or "",
+        )
+
+
+# ── Domain Snapshot Repository ──
+
+class SnapshotRepo:
+    def __init__(self, db: sqlite3.Connection):
+        self.db = db
+
+    def insert(self, snapshot_id: str, timestamp: str, snapshot_json: str):
+        self.db.execute(
+            "INSERT INTO domain_snapshots (id, timestamp, snapshot) VALUES (?,?,?)",
+            (snapshot_id, timestamp, snapshot_json),
+        )
+        self.db.commit()
+
+    def get_nearest_before(self, timestamp: str) -> Optional[dict]:
+        row = self.db.execute(
+            "SELECT * FROM domain_snapshots WHERE timestamp<=? ORDER BY timestamp DESC LIMIT 1",
+            (timestamp,),
+        ).fetchone()
+        if not row:
+            return None
+        return {
+            "id": row["id"],
+            "timestamp": row["timestamp"],
+            "snapshot": json.loads(row["snapshot"]),
+        }
+
+    def get_range(self) -> Optional[dict]:
+        row = self.db.execute(
+            "SELECT MIN(timestamp) as earliest, MAX(timestamp) as latest FROM domain_snapshots"
+        ).fetchone()
+        if not row or not row["earliest"]:
+            return None
+        return {"earliest": row["earliest"], "latest": row["latest"]}
+
+    def prune(self, before: str):
+        self.db.execute("DELETE FROM domain_snapshots WHERE timestamp<?", (before,))
+        self.db.commit()

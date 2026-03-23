@@ -14,6 +14,8 @@ class CreateTaskRequest(BaseModel):
     type: str = "goto"
     priority: str = "normal"
     target: dict = {}
+    target_id: Optional[str] = None
+    aimpoint_id: Optional[str] = None
     service_time_sec: Optional[float] = None
     earliest_start: Optional[str] = None
     latest_finish: Optional[str] = None
@@ -38,6 +40,8 @@ async def create_task(mission_id: str, req: CreateTaskRequest):
         priority=Priority(req.priority) if req.priority in Priority.__members__ else Priority.normal,
         target=TaskTarget(
             kind=TargetKind(target_kind) if target_kind in TargetKind.__members__ else TargetKind.point,
+            target_id=req.target_id,
+            aimpoint_id=req.aimpoint_id,
             data=target_data,
         ),
         service_time_sec=req.service_time_sec,

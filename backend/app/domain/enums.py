@@ -182,3 +182,17 @@ class AlertSourceType(str, Enum):
     task = "task"
     command = "command"
     system = "system"
+
+
+class AimpointType(str, Enum):
+    unknown = "unknown"
+    primary = "primary"
+    secondary = "secondary"
+    alternate = "alternate"
+    decoy = "decoy"
+
+
+class TargetState(str, Enum):
+    active = "active"
+    archived = "archived"
+    deleted = "deleted"

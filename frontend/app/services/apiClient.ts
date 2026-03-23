@@ -2,7 +2,7 @@
  * Typed AMS REST API Client
  * Uses Vite proxy — no hardcoded host:port.
  */
-import type { Asset, Mission, Task, Command, TimelineReservation, Alert, Recommendation } from '../store/types';
+import type { Asset, Mission, Task, Command, TimelineReservation, Alert, Recommendation, Aimpoint, Target, HistoricalSnapshot } from '../store/types';
 
 const BASE = '/api/v1';
 
@@ -137,6 +137,56 @@ export function getRecommendations() {
 
 export function convertRecommendation(recId: string) {
   return _fetch<Mission>(`/macrogrid/recommendations/${recId}/convert`, { method: 'POST' });
+}
+
+// ── Aimpoints ──
+
+export function listAimpoints(filters: Record<string, string> = {}) {
+  return _fetch<{ aimpoints: Aimpoint[] }>(`/aimpoints${_params(filters)}`);
+}
+
+export function createAimpoint(data: { lon: number; lat: number; type?: string; description?: string }) {
+  return _fetch<Aimpoint>('/aimpoints', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export function updateAimpoint(id: string, data: Partial<Aimpoint>) {
+  return _fetch<Aimpoint>(`/aimpoints/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export function deleteAimpoint(id: string) {
+  return _fetch<{ ok: boolean }>(`/aimpoints/${id}`, { method: 'DELETE' });
+}
+
+// ── Targets ──
+
+export function listTargets(filters: Record<string, string> = {}) {
+  return _fetch<{ targets: Target[] }>(`/targets${_params(filters)}`);
+}
+
+export function createTarget(data: { name: string; description?: string; aimpoint_ids: string[] }) {
+  return _fetch<Target>('/targets', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export function updateTargetEntity(id: string, data: Partial<Target>) {
+  return _fetch<Target>(`/targets/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export function deleteTarget(id: string) {
+  return _fetch<{ ok: boolean }>(`/targets/${id}`, { method: 'DELETE' });
+}
+
+export function addAimpointToTarget(targetId: string, aimpointId: string) {
+  return _fetch<Target>(`/targets/${targetId}/aimpoints?aimpoint_id=${encodeURIComponent(aimpointId)}`, { method: 'POST' });
+}
+
+export function removeAimpointFromTarget(targetId: string, aimpointId: string) {
+  return _fetch<Target>(`/targets/${targetId}/aimpoints/${aimpointId}`, { method: 'DELETE' });
+}
+
+// ── Historical State ──
+
+export function getStateAtTime(isoTimestamp: string) {
+  return _fetch<HistoricalSnapshot>(`/timeline/state?at=${encodeURIComponent(isoTimestamp)}`);
 }
 
 // ── Events ──

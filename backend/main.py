@@ -19,7 +19,7 @@ from app.api.router import api_router
 from app.api.ws import router as ws_router, setup_event_broadcast
 from app.domain.models import Asset, Position, Velocity, _now
 from app.domain.enums import AssetStatus, AssetMode
-from app.config import TELEMETRY_PERSIST_INTERVAL
+from app.config import TELEMETRY_PERSIST_INTERVAL, SNAPSHOT_INTERVAL_SEC, SNAPSHOT_RETENTION_HOURS
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -176,8 +176,21 @@ async def startup_event():
     # Start background loops
     asyncio.create_task(simulation_loop())
     asyncio.create_task(telemetry_ingestion_loop())
+    asyncio.create_task(snapshot_capture_loop())
 
     logger.info("AMS platform started — API at /api/v1, events at /ws/events, legacy at /ws/stream")
+
+
+async def snapshot_capture_loop():
+    """Periodically capture domain snapshots and prune old ones."""
+    logger.info("Starting snapshot capture loop every %ds", SNAPSHOT_INTERVAL_SEC)
+    while True:
+        await asyncio.sleep(SNAPSHOT_INTERVAL_SEC)
+        try:
+            ctx.snapshot_service.capture_snapshot()
+            ctx.snapshot_service.prune_old_snapshots(SNAPSHOT_RETENTION_HOURS)
+        except Exception:
+            logger.exception("Snapshot capture/prune failed")
 
 
 # ── Legacy WebSocket (unchanged) ──

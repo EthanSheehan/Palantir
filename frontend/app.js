@@ -379,6 +379,7 @@ function initOrUpdateZonesPrimitive(stateZones) {
 }
 
 // 4. Update Loop
+window.updateSimulation = updateSimulation;
 function updateSimulation(state) {
     viewer.scene.requestRender();
 
@@ -434,30 +435,16 @@ function updateSimulation(state) {
         const modelColor = Cesium.Color.fromCssColorString('#888888');
 
         if (!uavEntities[uav.id]) {
-            const positionProperty = new Cesium.SampledPositionProperty();
-            positionProperty.forwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
-            positionProperty.backwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
-            positionProperty.setInterpolationOptions({
-                interpolationDegree: 2,
-                interpolationAlgorithm: Cesium.HermitePolynomialApproximation
-            });
-            positionProperty.addSample(viewer.clock.currentTime, position);
-            
-            const orientationProperty = new Cesium.SampledProperty(Cesium.Quaternion);
-            orientationProperty.forwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
-            orientationProperty.backwardExtrapolationType = Cesium.ExtrapolationType.HOLD;
-            orientationProperty.setInterpolationOptions({
-                interpolationDegree: 2,
-                interpolationAlgorithm: Cesium.HermitePolynomialApproximation
-            });
-            const hpr = new Cesium.HeadingPitchRoll(0, 0, 0); 
-            orientationProperty.addSample(viewer.clock.currentTime, Cesium.Transforms.headingPitchRollQuaternion(position, hpr));
+            const positionProperty = new Cesium.ConstantPositionProperty(position);
+
+            const hpr = new Cesium.HeadingPitchRoll(0, 0, 0);
+            const orientation = Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
 
             const marker = viewer.entities.add({
                 id: `uav_${uav.id}`,
                 name: `Fixed - ${String(uav.id + 1).padStart(2, '0')}`,
                 position: positionProperty,
-                orientation: orientationProperty,
+                orientation: orientation,
                 point: {
                     pixelSize: 6,
                     color: color,
@@ -496,7 +483,8 @@ function updateSimulation(state) {
                 polyline: {
                     positions: new Cesium.CallbackProperty((time) => {
                         try {
-                            const currentPos = positionProperty.getValue(time);
+                            // Read from marker.position (not captured closure) so it updates with scrub
+                            const currentPos = marker.position.getValue(time);
                             if (!currentPos) return [];
                             const carto = Cesium.Cartographic.fromCartesian(currentPos);
                             if (!carto) return [];
@@ -542,59 +530,29 @@ function updateSimulation(state) {
             marker._lastMode = colorStr;
         } else {
             const marker = uavEntities[uav.id];
-            
-            // The simulation backend updates at roughly 10Hz (100ms).
-            // To completely eliminate camera tracking stuttering, we must rigidly space out samples by exactly 0.1s.
-            let targetTime;
-            const now = viewer.clock.currentTime;
-            
-            if (!marker._lastTargetTime) {
-                // Initialize the buffer 300ms (0.3s) into the future to completely absorb network jitter
-                targetTime = Cesium.JulianDate.addSeconds(now, 0.3, new Cesium.JulianDate());
-            } else {
-                targetTime = Cesium.JulianDate.addSeconds(marker._lastTargetTime, 0.1, new Cesium.JulianDate());
-                
-                // Buffer Drift Check: The playback head (now) must never overtake targetTime.
-                const diff = Cesium.JulianDate.secondsDifference(targetTime, now);
-                // If the future buffer shrinks below 100ms (danger of stuttering/starvation) 
-                // or grows beyond 500ms (too much lag buildup), force a smooth resync.
-                if (diff < 0.1 || diff > 0.5) {
-                    targetTime = Cesium.JulianDate.addSeconds(now, 0.3, new Cesium.JulianDate());
-                }
-            }
-            marker._lastTargetTime = targetTime;
-            
-            marker.position.addSample(targetTime, position);
 
-            // ── Trail history recording (subsampled to 2Hz from 10Hz feed) ──
-            if (!marker._trailTickCount) marker._trailTickCount = 0;
-            marker._trailTickCount++;
-            if (marker._trailTickCount % TRAIL_SUBSAMPLE === 0) {
-                if (!droneTrailHistories[uav.id]) droneTrailHistories[uav.id] = [];
-                const hist = droneTrailHistories[uav.id];
-                hist.push(Cesium.Cartesian3.clone(position));
-                // Amortized pruning: drop oldest chunk when buffer exceeds max
-                if (hist.length > TRAIL_MAX_SAMPLES + 50) {
-                    hist.splice(0, 50);
-                }
+            // Set position directly — same path for live and scrub data
+            marker.position = new Cesium.ConstantPositionProperty(position);
+            // Debug: log every position set for uav_0
+            if (uav.id === 0 && !window._posLogThrottle) window._posLogThrottle = 0;
+            if (uav.id === 0 && Date.now() - window._posLogThrottle > 200) {
+                window._posLogThrottle = Date.now();
+                const mode = (typeof AppState !== 'undefined') ? AppState.state.timeMode : '?';
+                console.log(`[POS uav_0] mode=${mode} lon=${uav.lon.toFixed(4)} lat=${uav.lat.toFixed(4)}`);
             }
 
-            // Prune old samples to prevent unbounded growth (Hermite interpolation
-            // cost scales with sample count). Keep last 30 samples (~3s at 10Hz).
-            if (marker.position._property && marker.position._property._times &&
-                marker.position._property._times.length > 60) {
-                const times = marker.position._property._times;
-                const values = marker.position._property._values;
-                const excess = times.length - 30;
-                times.splice(0, excess);
-                values.splice(0, excess * 3); // Cartesian3 = 3 floats per sample
-            }
-            if (marker.orientation._times && marker.orientation._times.length > 60) {
-                const times = marker.orientation._times;
-                const values = marker.orientation._values;
-                const excess = times.length - 30;
-                times.splice(0, excess);
-                values.splice(0, excess * 4); // Quaternion = 4 floats per sample
+            // ── Trail history recording (subsampled to 2Hz from 10Hz feed, live mode only) ──
+            if (typeof AppState === 'undefined' || AppState.state.timeMode === 'live') {
+                if (!marker._trailTickCount) marker._trailTickCount = 0;
+                marker._trailTickCount++;
+                if (marker._trailTickCount % TRAIL_SUBSAMPLE === 0) {
+                    if (!droneTrailHistories[uav.id]) droneTrailHistories[uav.id] = [];
+                    const hist = droneTrailHistories[uav.id];
+                    hist.push(Cesium.Cartesian3.clone(position));
+                    if (hist.length > TRAIL_MAX_SAMPLES + 50) {
+                        hist.splice(0, 50);
+                    }
+                }
             }
 
             // Calculate orientation dynamically from movement vector
@@ -661,7 +619,7 @@ function updateSimulation(state) {
                 
                 // Compute quaternion at the new target position and interpolate smoothly to it
                 const quat = Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
-                marker.orientation.addSample(targetTime, quat);
+                marker.orientation = new Cesium.ConstantProperty(quat);
                 
                 marker._lastLon = uav.lon;
                 marker._lastLat = uav.lat;
@@ -1585,6 +1543,14 @@ function _createTargetDiamond(lon, lat, type) {
     _targets.push(target);
     _renderTargetList();
     viewer.scene.requestRender();
+
+    // Also persist to backend API
+    fetch('/api/v1/aimpoints', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lon, lat, type: targetType }),
+    }).catch(err => console.warn('Failed to persist aimpoint:', err));
+
     return target;
 }
 
@@ -1645,6 +1611,262 @@ function _renderTargetList() {
         container.appendChild(card);
     });
 }
+
+// ── Sync Cesium entities from AppState aimpoint events ──
+// Tracks which aimpoint IDs already have Cesium entities to avoid duplicates
+const _renderedAimpointIds = new Set();
+
+function _renderAimpointBatch(aimpoints) {
+    let added = 0;
+    for (const apt of aimpoints) {
+        if (_renderedAimpointIds.has(apt.id)) continue;
+        _renderedAimpointIds.add(apt.id);
+        _diamondEntities(viewer, apt.lon, apt.lat, apt.id);
+        if (_lensViewer) {
+            _diamondEntities(_lensViewer, apt.lon, apt.lat, apt.id);
+        }
+        added++;
+    }
+    if (added > 0) {
+        viewer.scene.requestRender();
+        if (_lensViewer) _lensViewer.scene.requestRender();
+    }
+}
+
+AppState.subscribe('aimpoints.snapshot', (aimpoints) => {
+    _renderAimpointBatch(aimpoints);
+});
+
+// Also sync when the WS event client connects (covers all race conditions)
+AppState.subscribe('connection.eventWs', () => {
+    setTimeout(() => {
+        if (AppState.state.aimpoints.size > 0) {
+            _renderAimpointBatch(Array.from(AppState.state.aimpoints.values()));
+        }
+    }, 500);
+});
+
+// Fallback: poll once after a delay to catch any missed events on page load
+setTimeout(() => {
+    if (AppState.state.aimpoints.size > 0 && _renderedAimpointIds.size === 0) {
+        _renderAimpointBatch(Array.from(AppState.state.aimpoints.values()));
+    }
+}, 2000);
+
+AppState.subscribe('aimpoints.updated', (apt) => {
+    if (_renderedAimpointIds.has(apt.id)) {
+        // Update position: remove old entities, create new
+        ['main', 'lens'].forEach(suffix => {
+            const v = suffix === 'main' ? viewer : _lensViewer;
+            if (!v) return;
+            const top = v.entities.getById(`target_top_${apt.id}_${suffix}`);
+            if (top) v.entities.remove(top);
+            const bot = v.entities.getById(`target_bot_${apt.id}_${suffix}`);
+            if (bot) v.entities.remove(bot);
+        });
+    }
+    _renderedAimpointIds.add(apt.id);
+    _diamondEntities(viewer, apt.lon, apt.lat, apt.id);
+    if (_lensViewer) _diamondEntities(_lensViewer, apt.lon, apt.lat, apt.id);
+    viewer.scene.requestRender();
+    if (_lensViewer) _lensViewer.scene.requestRender();
+});
+
+AppState.subscribe('aimpoints.deleted', (id) => {
+    _renderedAimpointIds.delete(id);
+    ['main', 'lens'].forEach(suffix => {
+        const v = suffix === 'main' ? viewer : _lensViewer;
+        if (!v) return;
+        const top = v.entities.getById(`target_top_${id}_${suffix}`);
+        if (top) v.entities.remove(top);
+        const bot = v.entities.getById(`target_bot_${id}_${suffix}`);
+        if (bot) v.entities.remove(bot);
+    });
+    viewer.scene.requestRender();
+    if (_lensViewer) _lensViewer.scene.requestRender();
+});
+
+// ── 2D diamond icon for billboard fallback at distance ──
+let _orangeDiamondIcon = null;
+function _makeOrangeDiamondIcon() {
+    if (_orangeDiamondIcon) return _orangeDiamondIcon;
+    const c = document.createElement('canvas');
+    c.width = 16; c.height = 16;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#f97316';
+    ctx.beginPath();
+    ctx.moveTo(8, 0); ctx.lineTo(16, 8); ctx.lineTo(8, 16); ctx.lineTo(0, 8);
+    ctx.closePath(); ctx.fill();
+    _orangeDiamondIcon = c.toDataURL();
+    return _orangeDiamondIcon;
+}
+
+// ── Sync Cesium entities for MAP targets (connecting lines, centroid diamond, label) ──
+const _renderedTargetIds = new Set();
+
+function _renderTargetVisualization(tgt) {
+    // Resolve aimpoints from AppState
+    const aimpoints = (tgt.aimpoint_ids || [])
+        .map(id => AppState.state.aimpoints.get(id))
+        .filter(Boolean);
+    if (aimpoints.length < 2) return;
+
+    const id = tgt.id;
+
+    // Connecting lines between aimpoints (dashed loop)
+    const positions = aimpoints.map(ap =>
+        Cesium.Cartesian3.fromDegrees(ap.lon, ap.lat, 100));
+    positions.push(positions[0]); // close loop
+
+    viewer.entities.add({
+        id: `_complex_line_${id}`,
+        polyline: {
+            positions,
+            width: 2,
+            material: new Cesium.PolylineDashMaterialProperty({
+                color: Cesium.Color.fromCssColorString('#f97316').withAlpha(0.6),
+                dashLength: 12,
+            }),
+            clampToGround: true,
+        },
+    });
+
+    // Centroid
+    const centLon = aimpoints.reduce((s, a) => s + a.lon, 0) / aimpoints.length;
+    const centLat = aimpoints.reduce((s, a) => s + a.lat, 0) / aimpoints.length;
+
+    // Coverage radius
+    let maxDistDeg = 0;
+    aimpoints.forEach(ap => {
+        const d = Math.sqrt((ap.lon - centLon) ** 2 + (ap.lat - centLat) ** 2);
+        if (d > maxDistDeg) maxDistDeg = d;
+    });
+    const coverageKm = maxDistDeg * 111;
+    const diamondRadius = Math.max(60, Math.min(200, coverageKm * 2));
+    const diamondHalfH = diamondRadius * 1.4;
+    const diamondAlt = 500 + coverageKm * 5;
+
+    let terrainH = 0;
+    const carto = Cesium.Cartographic.fromDegrees(centLon, centLat);
+    const globe = viewer.scene.globe;
+    if (globe) { const h = globe.getHeight(carto); if (h !== undefined) terrainH = h; }
+    const baseAlt = terrainH + diamondAlt;
+
+    const color = Cesium.Color.fromCssColorString('#f97316').withAlpha(0.7);
+    const outline = Cesium.Color.fromCssColorString('#fdba74');
+
+    // Upper cone
+    viewer.entities.add({
+        id: `_complex_diamond_top_${id}`,
+        position: Cesium.Cartesian3.fromDegrees(centLon, centLat, baseAlt + diamondHalfH / 2),
+        cylinder: {
+            length: diamondHalfH, topRadius: 0, bottomRadius: diamondRadius,
+            material: color, outline: true, outlineColor: outline,
+            outlineWidth: 1, numberOfVerticalLines: 0,
+        },
+    });
+
+    // Lower cone (flipped)
+    const botPos = Cesium.Cartesian3.fromDegrees(centLon, centLat, baseAlt - diamondHalfH / 2);
+    const flipped = Cesium.Transforms.headingPitchRollQuaternion(
+        botPos, new Cesium.HeadingPitchRoll(0, Math.PI, 0));
+    viewer.entities.add({
+        id: `_complex_diamond_bot_${id}`,
+        position: botPos,
+        orientation: flipped,
+        cylinder: {
+            length: diamondHalfH, topRadius: 0, bottomRadius: diamondRadius,
+            material: color, outline: true, outlineColor: outline,
+            outlineWidth: 1, numberOfVerticalLines: 0,
+        },
+    });
+
+    // Label + 2D billboard that fades in at distance
+    viewer.entities.add({
+        id: `_complex_label_${id}`,
+        position: Cesium.Cartesian3.fromDegrees(centLon, centLat, baseAlt + diamondHalfH + 50),
+        label: {
+            text: tgt.name || id,
+            font: '12px Inter, sans-serif',
+            fillColor: Cesium.Color.fromCssColorString('#f97316'),
+            outlineColor: Cesium.Color.BLACK,
+            outlineWidth: 2,
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+            pixelOffset: new Cesium.Cartesian2(0, -4),
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+            scaleByDistance: new Cesium.NearFarScalar(1000, 1.0, 500000, 0.4),
+        },
+        billboard: {
+            image: _makeOrangeDiamondIcon(),
+            width: 16,
+            height: 16,
+            verticalOrigin: Cesium.VerticalOrigin.CENTER,
+            scaleByDistance: new Cesium.NearFarScalar(5000, 0.0, 50000, 1.0),
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+    });
+
+    // Vertical stalk from ground to diamond
+    viewer.entities.add({
+        id: `_complex_stalk_${id}`,
+        polyline: {
+            positions: [
+                Cesium.Cartesian3.fromDegrees(centLon, centLat, terrainH),
+                Cesium.Cartesian3.fromDegrees(centLon, centLat, baseAlt),
+            ],
+            width: 1,
+            material: Cesium.Color.fromCssColorString('#f97316').withAlpha(0.3),
+        },
+    });
+
+    viewer.scene.requestRender();
+}
+
+function _removeTargetVisualization(id) {
+    ['_complex_line_', '_complex_label_', '_complex_diamond_top_',
+     '_complex_diamond_bot_', '_complex_stalk_'].forEach(prefix => {
+        const e = viewer.entities.getById(`${prefix}${id}`);
+        if (e) viewer.entities.remove(e);
+    });
+    viewer.scene.requestRender();
+}
+
+function _syncAllTargets() {
+    const targets = Array.from(AppState.state.targets.values());
+    for (const tgt of targets) {
+        if (_renderedTargetIds.has(tgt.id)) continue;
+        if (tgt.state === 'deleted') continue;
+        _renderedTargetIds.add(tgt.id);
+        _renderTargetVisualization(tgt);
+    }
+}
+
+AppState.subscribe('targets.snapshot', () => { _syncAllTargets(); });
+
+// Fallback: sync targets after a delay to catch race conditions
+setTimeout(() => {
+    if (AppState.state.targets.size > 0 && _renderedTargetIds.size === 0) {
+        _syncAllTargets();
+    }
+}, 2500);
+
+AppState.subscribe('targets.updated', (tgt) => {
+    if (_renderedTargetIds.has(tgt.id)) {
+        _removeTargetVisualization(tgt.id);
+    }
+    if (tgt.state !== 'deleted') {
+        _renderedTargetIds.add(tgt.id);
+        _renderTargetVisualization(tgt);
+    } else {
+        _renderedTargetIds.delete(tgt.id);
+    }
+});
+
+AppState.subscribe('targets.deleted', (id) => {
+    _renderedTargetIds.delete(id);
+    _removeTargetVisualization(id);
+});
 
 (function initTargets() {
     // Wire paint button
@@ -1977,7 +2199,8 @@ function connectWebSocket() {
                 AppState.pushSnapshot(payload.data);
             }
 
-            // Only update the 3D map if we're in live mode (not scrubbing)
+            // Update the 3D map — only in live mode
+            // In scrub mode: do nothing here — timeline panel calls updateSimulation directly
             if (typeof AppState === 'undefined' || AppState.state.timeMode === 'live') {
                 updateSimulation(payload.data);
             }
@@ -2047,10 +2270,10 @@ if (typeof WsClient !== 'undefined') {
     WsClient.connect();
 }
 
-// 5.2 Timeline scrub → replay historical snapshots on the 3D map
-//     Uses a lightweight renderer that directly sets entity positions
-//     WITHOUT adding samples to the SampledPositionProperty interpolation buffer.
-function scrubToSnapshot(state) {
+// 5.2 Timeline scrub — REMOVED: scrub is now handled by updateSimulation directly.
+//     The timeline panel calls window.updateSimulation() with historical data.
+//     No separate scrub rendering system needed.
+if (false) { function scrubToSnapshot(state) {
     viewer.scene.requestRender();
 
     // Update zones + flows normally (these are stateless)
@@ -2169,7 +2392,7 @@ if (typeof AppState !== 'undefined') {
             scrubToSnapshot(snapshot);
         }
     });
-}
+} } // end of disabled scrubToSnapshot block
 
 // 5.3 Initialize Panel Modules
 if (typeof Toolbar !== 'undefined') {

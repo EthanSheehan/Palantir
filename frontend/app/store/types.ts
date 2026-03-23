@@ -109,6 +109,40 @@ export interface Recommendation {
   expires_at?: string;
 }
 
+export interface Aimpoint {
+  id: string;
+  lon: number;
+  lat: number;
+  type: string;
+  description: string;
+  target_id?: string | null;
+  version?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Target {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  state: string;
+  aimpoint_ids: string[];
+  version?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface HistoricalSnapshot {
+  timestamp: string;
+  assets: Asset[];
+  aimpoints: Aimpoint[];
+  targets: Target[];
+  missions: Mission[];
+  reservations: TimelineReservation[];
+  alerts: Alert[];
+}
+
 export interface LayoutState {
   leftWidth: number;
   leftCollapsed: boolean;
