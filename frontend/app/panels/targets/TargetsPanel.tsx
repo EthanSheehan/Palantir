@@ -4,12 +4,14 @@ import { HTMLSelect, Button, Intent } from '@blueprintjs/core';
 import { SearchBar } from '../../components/SearchBar';
 import type { SearchResult } from '../../components/SearchBar';
 import { useAppStore } from '../../store/appStore';
+import type { Aimpoint as StoreAimpoint, Target as StoreTarget } from '../../store/types';
+import * as api from '../../services/apiClient';
 import './TargetsPanel.css';
 
-// ── Data Models ──
+// ── Data Models (legacy compat wrappers) ──
 
 interface Target {
-  id: number;
+  id: number | string;
   lon: number;
   lat: number;
   type: string;
@@ -27,7 +29,7 @@ interface ComplexTarget {
   type: string;
   description: string;
   aimpoints: Array<{
-    id: number;
+    id: number | string;
     lon: number;
     lat: number;
     type: string;
@@ -36,51 +38,104 @@ interface ComplexTarget {
   createdAt: number;
 }
 
+/** Read aimpoints from Zustand store, falling back to legacy window array */
 function getTargets(): Target[] {
+  const storeAimpoints = useAppStore.getState().aimpoints;
+  const fromStore = Object.values(storeAimpoints);
+  if (fromStore.length > 0) {
+    return fromStore.map((a) => ({
+      id: a.id,
+      lon: a.lon,
+      lat: a.lat,
+      type: a.type || 'unknown',
+      description: a.description || '',
+    }));
+  }
+  // Legacy fallback
   return ((window as any)._targets as Target[]) || [];
 }
 
+/** Read targets from Zustand store, falling back to legacy window array */
 function getComplexTargets(): ComplexTarget[] {
+  const storeTargets = useAppStore.getState().targets;
+  const storeAimpoints = useAppStore.getState().aimpoints;
+  const fromStore = Object.values(storeTargets);
+  if (fromStore.length > 0) {
+    return fromStore.map((t) => ({
+      id: t.id,
+      name: t.name,
+      type: t.type,
+      description: t.description,
+      aimpoints: t.aimpoint_ids
+        .map((aid) => storeAimpoints[aid])
+        .filter(Boolean)
+        .map((a) => ({
+          id: a.id,
+          lon: a.lon,
+          lat: a.lat,
+          type: a.type || 'unknown',
+          description: a.description || '',
+        })),
+      createdAt: t.created_at ? new Date(t.created_at).getTime() : Date.now(),
+    }));
+  }
+  // Legacy fallback
   if (!(window as any)._complexTargets) (window as any)._complexTargets = [];
   return (window as any)._complexTargets as ComplexTarget[];
 }
 
-let _complexIdCounter = 0;
+/** Generate a display name like APT-001 based on creation order */
+function _aimpointDisplayName(id: number | string): string {
+  if (typeof id === 'number') return `APT-${String(id).padStart(3, '0')}`;
+  try {
+    const aimpoints = useAppStore.getState().aimpoints;
+    const sorted = Object.values(aimpoints)
+      .sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
+    const idx = sorted.findIndex((a) => a.id === id);
+    if (idx >= 0) return `APT-${String(idx + 1).padStart(3, '0')}`;
+  } catch { /* fallback below */ }
+  return `APT-${String(id).slice(4, 8)}`;
+}
 
-/** Merge selected simple targets into a complex Multi Aim Point target */
-function mergeTargetsIntoComplex(targetIds: number[]): ComplexTarget | null {
-  const targets = getTargets();
-  const selected = targetIds.map((id) => targets.find((t) => t.id === id)).filter(Boolean) as Target[];
-  if (selected.length < 2) return null;
+/** Merge selected aimpoints into a target via backend API */
+async function mergeTargetsIntoComplex(targetIds: (number | string)[]): Promise<ComplexTarget | null> {
+  const aptIds = targetIds.map(String);
+  if (aptIds.length < 2) return null;
 
-  const complex: ComplexTarget = {
-    id: `cplx_${++_complexIdCounter}`,
-    name: `MAP-${String(_complexIdCounter).padStart(3, '0')}`,
-    type: 'multi-aim',
-    description: '',
-    aimpoints: selected.map((t) => ({
-      id: t.id,
-      lon: t.lon,
-      lat: t.lat,
-      type: t.type || 'unknown',
-      description: t.description || '',
-    })),
-    createdAt: Date.now(),
-  };
+  try {
+    // Create target on backend
+    const target = await api.createTarget({
+      name: '',  // Backend will auto-name or we can generate
+      aimpoint_ids: aptIds,
+    });
 
-  getComplexTargets().push(complex);
+    // The backend event will update the store; build a local ComplexTarget for immediate rendering
+    const storeAimpoints = useAppStore.getState().aimpoints;
+    const complex: ComplexTarget = {
+      id: target.id,
+      name: target.name,
+      type: target.type,
+      description: target.description,
+      aimpoints: target.aimpoint_ids
+        .map((aid) => storeAimpoints[aid])
+        .filter(Boolean)
+        .map((a) => ({
+          id: a.id,
+          lon: a.lon,
+          lat: a.lat,
+          type: a.type || 'unknown',
+          description: a.description || '',
+        })),
+      createdAt: Date.now(),
+    };
 
-  // Remove simple targets from the _targets array (keep Cesium entities)
-  const simpleTargets = (window as any)._targets as Target[];
-  targetIds.forEach((id) => {
-    const idx = simpleTargets.findIndex((t) => t.id === id);
-    if (idx >= 0) simpleTargets.splice(idx, 1);
-  });
-
-  // Add connecting lines on the globe
-  addComplexTargetVisualization(complex);
-
-  return complex;
+    // Add connecting lines on the globe
+    addComplexTargetVisualization(complex);
+    return complex;
+  } catch (err) {
+    console.error('Failed to create target:', err);
+    return null;
+  }
 }
 
 /** Generate a small orange diamond icon for billboard fallback at distance */
@@ -236,20 +291,40 @@ export function updateTargetHighlights(targetIds: (number | string)[]) {
 
   if (targetIds.length === 0) { viewer.scene.requestRender(); return; }
 
-  const targets = (window as any)._targets as Target[] | undefined;
-  const complexTargets = (window as any)._complexTargets as ComplexTarget[] | undefined;
+  const store = (window as any).__zustandStore;
+  const storeAimpoints = store?.getState?.()?.aimpoints || {};
+  const storeTargets = store?.getState?.()?.targets || {};
+  const legacyTargets = (window as any)._targets as Target[] | undefined;
+  const legacyComplex = (window as any)._complexTargets as ComplexTarget[] | undefined;
   const radius = 800;
   const segments = 48;
 
   targetIds.forEach((tid, idx) => {
     let lon: number | undefined, lat: number | undefined;
+    const tidStr = String(tid);
 
-    if (typeof tid === 'number') {
-      const target = targets?.find((t) => t.id === tid);
+    // Check store aimpoints first (apt_xxx IDs)
+    if (storeAimpoints[tidStr]) {
+      lon = storeAimpoints[tidStr].lon;
+      lat = storeAimpoints[tidStr].lat;
+    }
+    // Check store targets (tgt_xxx IDs) — highlight at centroid
+    else if (storeTargets[tidStr]) {
+      const tgt = storeTargets[tidStr];
+      const apts = tgt.aimpoint_ids.map((aid: string) => storeAimpoints[aid]).filter(Boolean);
+      if (apts.length > 0) {
+        lon = apts.reduce((s: number, a: any) => s + a.lon, 0) / apts.length;
+        lat = apts.reduce((s: number, a: any) => s + a.lat, 0) / apts.length;
+      }
+    }
+    // Legacy fallback: numeric ID simple target
+    else if (typeof tid === 'number') {
+      const target = legacyTargets?.find((t) => t.id === tid);
       if (target) { lon = target.lon; lat = target.lat; }
-    } else {
-      // MAP complex target — highlight at centroid
-      const ct = complexTargets?.find((c) => c.id === tid);
+    }
+    // Legacy fallback: complex target string ID
+    else {
+      const ct = legacyComplex?.find((c) => c.id === tidStr);
       if (ct && ct.aimpoints.length > 0) {
         lon = ct.aimpoints.reduce((s, a) => s + a.lon, 0) / ct.aimpoints.length;
         lat = ct.aimpoints.reduce((s, a) => s + a.lat, 0) / ct.aimpoints.length;
@@ -354,30 +429,37 @@ export function TargetsPanel() {
   }, []);
 
   const handleTargetClick = useCallback((t: Target, shiftKey: boolean) => {
-    selectTarget(t.id, shiftKey);
+    selectTarget(String(t.id), shiftKey);
   }, [selectTarget]);
 
-  const handleRemove = useCallback((id: number, e: React.MouseEvent) => {
+  const handleRemove = useCallback((id: number | string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const targets = (window as any)._targets as Target[];
     const viewer = (window as any).viewer;
     const lensViewer = (window as any)._lensViewer;
-    const idx = targets.findIndex((t) => t.id === id);
-    if (idx === -1) return;
-    const t = targets.splice(idx, 1)[0] as any;
-    // Remove from main viewer (by ref or by ID)
-    if (t.topCone) viewer?.entities.remove(t.topCone);
-    else if (viewer) { const e = viewer.entities.getById(`target_top_${id}_main`); if (e) viewer.entities.remove(e); }
-    if (t.botCone) viewer?.entities.remove(t.botCone);
-    else if (viewer) { const e = viewer.entities.getById(`target_bot_${id}_main`); if (e) viewer.entities.remove(e); }
-    // Remove from lens viewer
-    if (t.lensTopCone && lensViewer) { lensViewer.entities.remove(t.lensTopCone); lensViewer.entities.remove(t.lensBotCone); }
-    else if (lensViewer) {
+
+    // Remove Cesium entities
+    if (viewer) {
+      const top = viewer.entities.getById(`target_top_${id}_main`); if (top) viewer.entities.remove(top);
+      const bot = viewer.entities.getById(`target_bot_${id}_main`); if (bot) viewer.entities.remove(bot);
+      viewer.scene.requestRender();
+    }
+    if (lensViewer) {
       const lt = lensViewer.entities.getById(`target_top_${id}_lens`); if (lt) lensViewer.entities.remove(lt);
       const lb = lensViewer.entities.getById(`target_bot_${id}_lens`); if (lb) lensViewer.entities.remove(lb);
       lensViewer.scene.requestRender();
     }
-    viewer?.scene.requestRender();
+
+    // Delete via API (string ID = backend aimpoint)
+    if (typeof id === 'string' && id.startsWith('apt_')) {
+      api.deleteAimpoint(id).catch(console.error);
+    } else {
+      // Legacy numeric ID — remove from window._targets
+      const targets = (window as any)._targets as Target[];
+      if (targets) {
+        const idx = targets.findIndex((t) => t.id === id);
+        if (idx >= 0) targets.splice(idx, 1);
+      }
+    }
     setTick((v) => v + 1);
   }, []);
 
@@ -394,9 +476,10 @@ export function TargetsPanel() {
 
   const handleCreateMAP = useCallback(() => {
     if (selectedTargetIds.length < 2) return;
-    mergeTargetsIntoComplex(selectedTargetIds.filter((id): id is number => typeof id === 'number'));
-    selectTarget(null); // clear selection
-    setTick((v) => v + 1);
+    mergeTargetsIntoComplex(selectedTargetIds).then(() => {
+      selectTarget(null); // clear selection
+      setTick((v) => v + 1);
+    });
   }, [selectedTargetIds, selectTarget]);
 
   const handleRemoveComplex = useCallback((id: string, e: React.MouseEvent) => {
@@ -429,6 +512,7 @@ export function TargetsPanel() {
       });
     }
 
+    // Remove from legacy list if present
     list.splice(idx, 1);
 
     // Remove all complex target Cesium entities
@@ -438,6 +522,11 @@ export function TargetsPanel() {
         if (e) viewer.entities.remove(e);
       });
       viewer.scene.requestRender();
+    }
+
+    // Delete via API if it's a backend target
+    if (id.startsWith('tgt_')) {
+      api.deleteTarget(id).catch(console.error);
     }
     setTick((v) => v + 1);
   }, []);
@@ -469,7 +558,7 @@ export function TargetsPanel() {
       {/* Complex targets (Multi Aim Point) */}
       {complexTargets.length > 0 && (
         <div className="complex-targets-section">
-          <div className="section-label">Multi Aim Point Targets</div>
+          <div className="section-label">Targets</div>
           {complexTargets.map((ct) => (
             <ComplexTargetCard key={ct.id} complex={ct}
               isSelected={selectedTargetIds.includes(ct.id)}
@@ -494,20 +583,20 @@ export function TargetsPanel() {
 
       {/* Simple targets */}
       {(filtered.length > 0 || complexTargets.length === 0) && (
-        <div className="section-label">{complexTargets.length > 0 ? 'Simple Targets' : ''}</div>
+        <div className="section-label">{complexTargets.length > 0 ? 'Aimpoints' : ''}</div>
       )}
 
       <div className="targets-list">
         {filtered.length === 0 ? (
           <div className="empty-state">
-            {targets.length === 0 ? 'No targets. Use + to paint.' : 'No targets match filter.'}
+            {targets.length === 0 ? 'No aimpoints. Use + to paint.' : 'No aimpoints match filter.'}
           </div>
         ) : (
           filtered.map((t) => (
             <TargetCard key={t.id} target={t} isSelected={selectedTargetIds.includes(t.id)}
               onClick={(shiftKey) => handleTargetClick(t, shiftKey)}
               onRemove={(e) => handleRemove(t.id, e)}
-              onPin={() => handlePinTarget(t.id, `TGT-${String(t.id).padStart(3, '0')}`, t.lon, t.lat)}
+              onPin={() => handlePinTarget(String(t.id), _aimpointDisplayName(t.id), t.lon, t.lat)}
               onUpdate={(field, value) => { (t as any)[field] = value; setTick((v) => v + 1); }} />
           ))
         )}
@@ -518,7 +607,7 @@ export function TargetsPanel() {
         <div className="merge-bar">
           <Button intent={Intent.WARNING} fill className="merge-btn" onClick={handleCreateMAP}
             icon="merge-columns">
-            Create Multi Aim Point ({selectedTargetIds.length} targets)
+            Create Target ({selectedTargetIds.length} aimpoints)
           </Button>
         </div>
       )}
@@ -863,7 +952,7 @@ function TargetCard({
       <div className="target-card-header">
         <button className="target-remove-hover" onClick={onRemove} title="Remove target">&times;</button>
         <span className="target-diamond">&#x25C7;</span>
-        <span className="target-id">TGT-{String(target.id).padStart(3, '0')}</span>
+        <span className="target-id">{_aimpointDisplayName(target.id)}</span>
         {editingField === 'type' ? (
           <input ref={inputRef} className="target-type-input" value={editValue}
             onChange={(e) => setEditValue(e.target.value)} onBlur={commitEdit}

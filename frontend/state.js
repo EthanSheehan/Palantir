@@ -13,6 +13,8 @@ const AppState = (() => {
         alerts: new Map(),
         reservations: new Map(),
         recommendations: new Map(),
+        aimpoints: new Map(),
+        targets: new Map(),
 
         // Selection (centralized)
         selection: {
@@ -214,6 +216,15 @@ const AppState = (() => {
             const assets = event.payload?.assets || [];
             assets.forEach(a => _state.assets.set(a.id, a));
             _notify('assets.snapshot', Array.from(_state.assets.values()));
+
+            // Aimpoints and targets initial snapshot
+            const aimpoints = event.payload?.aimpoints || [];
+            aimpoints.forEach(a => _state.aimpoints.set(a.id, a));
+            _notify('aimpoints.snapshot', Array.from(_state.aimpoints.values()));
+
+            const targets = event.payload?.targets || [];
+            targets.forEach(t => _state.targets.set(t.id, t));
+            _notify('targets.snapshot', Array.from(_state.targets.values()));
             return;
         }
 
@@ -311,6 +322,29 @@ const AppState = (() => {
                 _notify('reservations.updated', event.payload);
             } else if (type === 'timeline.conflict_detected') {
                 _notify('timeline.conflict', event.payload);
+            }
+        }
+
+        if (type.startsWith('aimpoint.')) {
+            if (type === 'aimpoint.created' || type === 'aimpoint.updated') {
+                const apt = event.payload;
+                _state.aimpoints.set(apt.id || event.entity_id, apt);
+                _notify('aimpoints.updated', apt);
+            } else if (type === 'aimpoint.deleted') {
+                _state.aimpoints.delete(event.entity_id);
+                _notify('aimpoints.deleted', event.entity_id);
+            }
+        }
+
+        if (type.startsWith('target.')) {
+            if (type === 'target.deleted') {
+                _state.targets.delete(event.entity_id);
+                _notify('targets.deleted', event.entity_id);
+            } else {
+                // created, updated, aimpoint_added, aimpoint_removed
+                const tgt = event.payload;
+                _state.targets.set(tgt.id || event.entity_id, tgt);
+                _notify('targets.updated', tgt);
             }
         }
 

@@ -11,6 +11,7 @@ from .enums import (
     CommandType, CommandTargetType, CommandState,
     ReservationPhase, ReservationStatus, ReservationSource,
     AlertType, AlertSeverity, AlertState, AlertSourceType,
+    AimpointType, TargetState,
 )
 
 
@@ -38,6 +39,8 @@ class Velocity(BaseModel):
 
 class TaskTarget(BaseModel):
     kind: TargetKind = TargetKind.point
+    target_id: Optional[str] = None
+    aimpoint_id: Optional[str] = None
     data: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -157,6 +160,32 @@ class Alert(BaseModel):
     source_id: str = ""
     message: str = ""
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+# ── Target entities ──
+
+class Aimpoint(BaseModel):
+    id: str = Field(default_factory=lambda: _gen_id("apt"))
+    lon: float = 0.0
+    lat: float = 0.0
+    type: AimpointType = AimpointType.unknown
+    description: str = ""
+    target_id: Optional[str] = None
+    version: int = 1
+    created_at: str = Field(default_factory=_now)
+    updated_at: str = Field(default_factory=_now)
+
+
+class Target(BaseModel):
+    id: str = Field(default_factory=lambda: _gen_id("tgt"))
+    name: str = ""
+    type: str = "single"
+    description: str = ""
+    state: TargetState = TargetState.active
+    aimpoint_ids: list[str] = Field(default_factory=list)
+    version: int = 1
+    created_at: str = Field(default_factory=_now)
+    updated_at: str = Field(default_factory=_now)
 
 
 # ── Domain event ──

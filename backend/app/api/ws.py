@@ -49,11 +49,15 @@ async def websocket_events(ws: WebSocket):
     # Send initial state snapshot
     try:
         assets = ctx.asset_service.list_assets()
+        aimpoints = ctx.target_service.list_aimpoints()
+        targets = ctx.target_service.list_targets()
         await ws.send_text(json.dumps({
             "type": "connection.established",
             "payload": {
                 "asset_count": len(assets),
                 "assets": [a.model_dump() for a in assets],
+                "aimpoints": [a.model_dump() for a in aimpoints],
+                "targets": [t.model_dump() for t in targets],
             },
         }))
     except Exception:

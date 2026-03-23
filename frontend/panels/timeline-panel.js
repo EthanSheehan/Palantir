@@ -2,6 +2,7 @@
  * Timeline Panel — swimlane view of asset reservations
  * Canvas-based renderer with video-editor-style playhead scrubbing.
  */
+console.log('[TimelinePanel] v25 loaded — scrub with clock pause + position freeze');
 const TimelinePanel = (() => {
     let _canvas = null;
     let _ctx2d = null;
@@ -24,6 +25,130 @@ const TimelinePanel = (() => {
     // Hover state for lane remove buttons
     let _hoveredLaneIdx = -1;
     let _currentAssets = []; // kept in sync by render() for event handler use
+
+    // Backend snapshot range (fetched once on init, updated periodically)
+    let _backendRange = null; // { earliest: ms, latest: ms }
+
+    async function _fetchBackendRange() {
+        try {
+            const resp = await fetch('/api/v1/timeline/range');
+            if (!resp.ok) return;
+            const data = await resp.json();
+            if (data.earliest && data.latest) {
+                _backendRange = {
+                    earliest: new Date(data.earliest).getTime(),
+                    latest: new Date(data.latest).getTime(),
+                };
+            }
+        } catch { /* ignore */ }
+    }
+
+    // Scrub just changes the data source — no special rendering needed
+    function _enterScrubRendering() {
+        // Nothing to do — updateSimulation in app.js handles the data switch
+    }
+
+    function _renderScrubFrame() {
+        const viewer = window.viewer;
+        if (viewer) viewer.scene.requestRender();
+    }
+
+    function _exitScrubRendering() {
+        // Nothing to do — updateSimulation in app.js switches back to live data
+    }
+
+    function _setCesiumPositions(assets) {
+        // Historical data is fed into the store; app.js reads it from there
+        // via the updateSimulation scrub path. Just request a render.
+        _renderScrubFrame();
+    }
+
+    function _restoreLivePositions() {
+        // Nothing to restore — same entities, same pipeline
+    }
+
+    // Historical state application — uses local buffer when possible, backend otherwise
+    let _lastFetchedMs = null;
+    let _fetchInFlight = false;
+    let _pendingFetchMs = null;
+    const THROTTLE_MS = 200;
+
+    async function _doHistoricalFetch(ms) {
+        if (_fetchInFlight) {
+            _pendingFetchMs = ms;
+            return;
+        }
+        _fetchInFlight = true;
+        _lastFetchedMs = ms;
+        try {
+            const isoTime = new Date(ms).toISOString();
+            console.log('[Scrub] Fetching state at', isoTime);
+            const resp = await fetch(`/api/v1/timeline/state?at=${encodeURIComponent(isoTime)}`);
+            if (resp.ok) {
+                const state = await resp.json();
+                // Apply IMMEDIATELY — call updateSimulation directly
+                if (window.updateSimulation && state.assets) {
+                    window.updateSimulation({
+                        uavs: state.assets
+                            .filter(a => a.id?.startsWith('uav_'))
+                            .map(a => ({
+                                id: parseInt(a.id.replace('uav_', ''), 10),
+                                lon: a.position?.lon || 0,
+                                lat: a.position?.lat || 0,
+                                alt_m: a.position?.alt_m || 2000,
+                                mode: a.status === 'on_task' ? 'serving' : a.status === 'transiting' ? 'repositioning' : 'idle',
+                            })),
+                        zones: [], flows: [], launchers: [],
+                    });
+                }
+                const store = window.__zustandStore;
+                if (store) {
+                    store.getState().setHistoricalState(state);
+                }
+            } else {
+                console.warn('[Scrub] Fetch failed:', resp.status);
+            }
+        } catch (err) {
+            console.warn('[Scrub] Historical fetch error:', err);
+        }
+        _fetchInFlight = false;
+        // If another position was requested while we were fetching, fetch that too
+        if (_pendingFetchMs !== null && _pendingFetchMs !== ms) {
+            const next = _pendingFetchMs;
+            _pendingFetchMs = null;
+            _doHistoricalFetch(next);
+        }
+    }
+
+    function _applyHistoricalState(ms) {
+        const store = window.__zustandStore;
+        if (!store) return;
+
+        // Try local snapshot buffer first (instant, no network)
+        const bufferRange = AppState.getSnapshotBufferRange();
+        if (bufferRange && ms >= bufferRange.start && ms <= bufferRange.end) {
+            const snapshot = AppState.getSnapshotAt(ms);
+            if (snapshot) {
+                // Apply IMMEDIATELY — don't wait for WS handler
+                if (window.updateSimulation) {
+                    window.updateSimulation(snapshot);
+                }
+                store.getState().setHistoricalState({
+                    timestamp: new Date(ms).toISOString(),
+                    assets: (snapshot.uavs || []).map(u => ({
+                        id: `uav_${u.id}`,
+                        position: { lon: u.lon || u.x, lat: u.lat || u.y, alt_m: u.alt_m || 2000 },
+                    })),
+                    aimpoints: [], targets: [],
+                    missions: [], reservations: [], alerts: [],
+                });
+            }
+            return;
+        }
+
+        // Outside local buffer — fetch from backend
+        _doHistoricalFetch(ms);
+    }
 
     const REMOVE_BTN_X = 2;  // left edge of × button (before the label)
 
@@ -72,6 +197,11 @@ const TimelinePanel = (() => {
 
         _ctx2d = _canvas.getContext('2d');
 
+        // Fetch backend snapshot range (how far back we can scrub)
+        _fetchBackendRange();
+        // Refresh periodically as new snapshots are captured
+        setInterval(_fetchBackendRange, 30000);
+
         // ── Zoom ──
         _canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
@@ -119,6 +249,7 @@ const TimelinePanel = (() => {
                 _playheadMs = _xToMs(canvasX);
                 // Clamp to not go past "now"
                 _playheadMs = Math.min(_playheadMs, Date.now());
+                _applyHistoricalState(_playheadMs);
                 AppState.setTimeCursor(_playheadMs);
                 render();
                 return;
@@ -177,6 +308,7 @@ const TimelinePanel = (() => {
                     const canvasX = e.clientX - rect.left;
                     if (canvasX > HEADER_WIDTH && canvasX < _canvas.width) {
                         _playheadMs = Math.min(_xToMs(canvasX), Date.now());
+                        _applyHistoricalState(_playheadMs);
                         AppState.setTimeCursor(_playheadMs);
                         render();
                     }
@@ -211,7 +343,13 @@ const TimelinePanel = (() => {
             const canvasX = e.clientX - rect.left;
             if (canvasX > HEADER_WIDTH) {
                 _playheadMs = null;
+                _lastFetchedMs = null;
+                _restoreLivePositions();
+                _exitScrubRendering();
                 AppState.setTimeCursor(null);
+                if (window.__zustandStore) {
+                    window.__zustandStore.getState().setHistoricalState(null);
+                }
                 render();
             }
         });
@@ -288,7 +426,16 @@ const TimelinePanel = (() => {
         // Build in selection order so swimlanes match click sequence (primary first)
         const assets = selectedAssetIds.map(id => assetMap.get(id)).filter(Boolean);
         _currentAssets = assets;
-        const reservations = Array.from(AppState.state.reservations.values());
+        let reservations = Array.from(AppState.state.reservations.values());
+        // In historical mode, filter reservations to those active at cursor time
+        if (AppState.state.timeMode !== 'live' && _playheadMs) {
+            const cursorIso = new Date(_playheadMs).toISOString();
+            reservations = reservations.filter(r => {
+                const startMs = new Date(r.start_time).getTime();
+                const endMs = new Date(r.end_time).getTime();
+                return startMs <= _playheadMs && endMs >= _playheadMs;
+            });
+        }
         const range = _viewEndMs - _viewStartMs;
         const dataW = W - HEADER_WIDTH;
 
@@ -307,11 +454,13 @@ const TimelinePanel = (() => {
             tickTime += tickInterval;
         }
 
-        // Draw snapshot buffer range (subtle tinted background)
-        const bufRange = AppState.getSnapshotBufferRange();
-        if (bufRange) {
-            const bx1 = Math.max(HEADER_WIDTH, _msToX(bufRange.start));
-            const bx2 = Math.min(W, _msToX(bufRange.end));
+        // Draw scrubbable range — backend database range (full history) + local buffer
+        const localBuf = AppState.getSnapshotBufferRange();
+        const rangeStart = _backendRange ? _backendRange.earliest : (localBuf ? localBuf.start : null);
+        const rangeEnd = localBuf ? localBuf.end : (_backendRange ? _backendRange.latest : null);
+        if (rangeStart !== null && rangeEnd !== null) {
+            const bx1 = Math.max(HEADER_WIDTH, _msToX(rangeStart));
+            const bx2 = Math.min(W, _msToX(rangeEnd));
             if (bx2 > bx1) {
                 ctx.fillStyle = 'rgba(250, 204, 21, 0.04)';
                 ctx.fillRect(bx1, TOP_MARGIN, bx2 - bx1, H - TOP_MARGIN);

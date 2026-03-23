@@ -2,9 +2,40 @@
  * Narrow imperative bridge between React/Zustand and the Cesium viewer.
  * All communication from React to Cesium goes through these methods.
  */
+import { useAppStore } from '../appStore';
 
 function getViewer(): any {
   return (window as any).viewer;
+}
+
+// Subscribe to historical state changes and update Cesium entity positions
+let _historicalSubscribed = false;
+function _ensureHistoricalSubscription() {
+  if (_historicalSubscribed) return;
+  _historicalSubscribed = true;
+
+  useAppStore.subscribe(
+    (s) => s.historicalState,
+    (historicalState) => {
+      const viewer = getViewer();
+      if (!viewer) return;
+      const Cesium = (window as any).Cesium;
+      if (!Cesium) return;
+
+      if (!historicalState.active) {
+        // Exiting historical mode — restore live position properties
+        const entities = viewer.entities.values;
+        for (let i = 0; i < entities.length; i++) {
+          const entity = entities[i];
+          if (entity._livePositionProperty) {
+            entity.position = entity._livePositionProperty;
+            entity._livePositionProperty = undefined;
+          }
+        }
+        viewer.scene.requestRender();
+      }
+    },
+  );
 }
 
 function getMapToolController(): any {
@@ -66,6 +97,11 @@ export const cesiumBridge = {
     if (viewer?.scene) {
       viewer.scene.requestRender();
     }
+  },
+
+  /** Initialize historical mode subscription for Cesium */
+  initHistoricalMode() {
+    _ensureHistoricalSubscription();
   },
 
   /** Trigger viewer resize (after layout changes) */

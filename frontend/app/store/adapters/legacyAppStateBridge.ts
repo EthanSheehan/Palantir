@@ -7,7 +7,7 @@
  * A semaphore flag prevents infinite echo loops.
  */
 import { useAppStore } from '../appStore';
-import type { Asset, Alert } from '../types';
+import type { Asset, Alert, Aimpoint, Target } from '../types';
 
 let _bridgeUpdating = false;
 
@@ -54,6 +54,8 @@ function _initBridge(AppState: any): () => void {
   }));
 
   unsubs.push(AppState.subscribe('assets.telemetry', (asset: Asset) => {
+    // Don't push live telemetry into the store when viewing historical state
+    if (store.getState().historicalState.active) return;
     guarded(() => store.getState().updateAsset(asset));
   }));
 
@@ -107,6 +109,32 @@ function _initBridge(AppState: any): () => void {
     if (rec && rec.id) {
       guarded(() => store.getState().updateRecommendation(rec as any));
     }
+  }));
+
+  // Aimpoints
+  unsubs.push(AppState.subscribe('aimpoints.snapshot', (aimpoints: Aimpoint[]) => {
+    guarded(() => store.getState().setAimpoints(aimpoints));
+  }));
+
+  unsubs.push(AppState.subscribe('aimpoints.updated', (apt: Aimpoint) => {
+    guarded(() => store.getState().updateAimpoint(apt));
+  }));
+
+  unsubs.push(AppState.subscribe('aimpoints.deleted', (id: string) => {
+    guarded(() => store.getState().removeAimpoint(id));
+  }));
+
+  // Targets
+  unsubs.push(AppState.subscribe('targets.snapshot', (targets: Target[]) => {
+    guarded(() => store.getState().setTargets(targets));
+  }));
+
+  unsubs.push(AppState.subscribe('targets.updated', (tgt: Target) => {
+    guarded(() => store.getState().updateTarget(tgt));
+  }));
+
+  unsubs.push(AppState.subscribe('targets.deleted', (id: string) => {
+    guarded(() => store.getState().removeTarget(id));
   }));
 
   // Connection

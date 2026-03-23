@@ -49,3 +49,19 @@ export const useIsLive = () =>
 /** Current time cursor */
 export const useTimeCursor = () =>
   useAppStore((s: AppStore) => s.time.cursorMs);
+
+/** Aimpoints as array */
+export const useAimpointList = () =>
+  useAppStore((s: AppStore) => Object.values(s.aimpoints));
+
+/** Targets as array */
+export const useTargetList = () =>
+  useAppStore((s: AppStore) => Object.values(s.targets));
+
+/** Selected targets as objects */
+export const useSelectedTargets = () =>
+  useAppStore((s: AppStore) =>
+    s.selection.selectedTargetIds
+      .map((id) => s.targets[id])
+      .filter((t): t is NonNullable<typeof t> => t != null)
+  );

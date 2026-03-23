@@ -63,43 +63,80 @@ function searchEntities(query: string, assets: Asset[], getDisplayName: (a: Asse
     }));
 }
 
-/** Search targets from both simple _targets and complex _complexTargets arrays. */
+/** Search targets from Zustand store (aimpoints + targets), with legacy fallback. */
 function searchTargets(query: string): SearchResult[] {
   const q = query.toLowerCase();
   const results: SearchResult[] = [];
 
-  // Simple targets
-  const targets = (window as any)._targets as Array<{ id: number; lon: number; lat: number }> | undefined;
-  if (targets) {
-    targets
-      .filter((t) => `tgt-${String(t.id).padStart(3, '0')}`.includes(q) || `target ${t.id}`.includes(q))
+  // Search aimpoints from store
+  const storeAimpoints = Object.values((window as any).__zustandStore?.getState?.()?.aimpoints || {}) as Array<{ id: string; lon: number; lat: number; type?: string }>;
+  if (storeAimpoints.length > 0) {
+    storeAimpoints
+      .filter((a) => a.id.toLowerCase().includes(q) || 'aimpoint'.includes(q) || 'apt'.includes(q))
       .slice(0, 3)
-      .forEach((t) => results.push({
-        label: `TGT-${String(t.id).padStart(3, '0')}`,
-        sublabel: `${t.lat.toFixed(3)}, ${t.lon.toFixed(3)}`,
+      .forEach((a) => results.push({
+        label: a.id,
+        sublabel: `${a.lat.toFixed(3)}, ${a.lon.toFixed(3)}`,
         type: 'target' as const,
-        lon: t.lon,
-        lat: t.lat,
+        lon: a.lon,
+        lat: a.lat,
       }));
+  } else {
+    // Legacy fallback
+    const targets = (window as any)._targets as Array<{ id: number; lon: number; lat: number }> | undefined;
+    if (targets) {
+      targets
+        .filter((t) => `tgt-${String(t.id).padStart(3, '0')}`.includes(q) || `target ${t.id}`.includes(q))
+        .slice(0, 3)
+        .forEach((t) => results.push({
+          label: `TGT-${String(t.id).padStart(3, '0')}`,
+          sublabel: `${t.lat.toFixed(3)}, ${t.lon.toFixed(3)}`,
+          type: 'target' as const,
+          lon: t.lon,
+          lat: t.lat,
+        }));
+    }
   }
 
-  // Complex (MAP) targets
-  const complexTargets = (window as any)._complexTargets as Array<{ id: string; name: string; aimpoints: Array<{ lon: number; lat: number }> }> | undefined;
-  if (complexTargets) {
-    complexTargets
-      .filter((c) => c.name.toLowerCase().includes(q) || c.id.toLowerCase().includes(q) || 'map'.includes(q) || 'multi'.includes(q))
+  // Search targets from store
+  const storeTargets = Object.values((window as any).__zustandStore?.getState?.()?.targets || {}) as Array<{ id: string; name: string; aimpoint_ids: string[] }>;
+  const storeApts = (window as any).__zustandStore?.getState?.()?.aimpoints || {};
+  if (storeTargets.length > 0) {
+    storeTargets
+      .filter((t) => t.name.toLowerCase().includes(q) || t.id.toLowerCase().includes(q) || 'target'.includes(q))
       .slice(0, 3)
-      .forEach((c) => {
-        const centLon = c.aimpoints.reduce((s, a) => s + a.lon, 0) / c.aimpoints.length;
-        const centLat = c.aimpoints.reduce((s, a) => s + a.lat, 0) / c.aimpoints.length;
+      .forEach((t) => {
+        const apts = t.aimpoint_ids.map((id: string) => storeApts[id]).filter(Boolean) as Array<{ lon: number; lat: number }>;
+        if (apts.length === 0) return;
+        const centLon = apts.reduce((s, a) => s + a.lon, 0) / apts.length;
+        const centLat = apts.reduce((s, a) => s + a.lat, 0) / apts.length;
         results.push({
-          label: c.name,
-          sublabel: `${c.aimpoints.length} aimpoints`,
+          label: t.name || t.id,
+          sublabel: `${apts.length} aimpoints`,
           type: 'target' as const,
           lon: centLon,
           lat: centLat,
         });
       });
+  } else {
+    // Legacy fallback
+    const complexTargets = (window as any)._complexTargets as Array<{ id: string; name: string; aimpoints: Array<{ lon: number; lat: number }> }> | undefined;
+    if (complexTargets) {
+      complexTargets
+        .filter((c) => c.name.toLowerCase().includes(q) || c.id.toLowerCase().includes(q) || 'map'.includes(q) || 'multi'.includes(q))
+        .slice(0, 3)
+        .forEach((c) => {
+          const centLon = c.aimpoints.reduce((s, a) => s + a.lon, 0) / c.aimpoints.length;
+          const centLat = c.aimpoints.reduce((s, a) => s + a.lat, 0) / c.aimpoints.length;
+          results.push({
+            label: c.name,
+            sublabel: `${c.aimpoints.length} aimpoints`,
+            type: 'target' as const,
+            lon: centLon,
+            lat: centLat,
+          });
+        });
+    }
   }
 
   return results.slice(0, 5);

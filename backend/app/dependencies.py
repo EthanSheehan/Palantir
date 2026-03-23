@@ -10,6 +10,7 @@ from .persistence.database import get_db
 from .persistence.repositories import (
     AssetRepo, MissionRepo, TaskRepo, CommandRepo,
     TimelineRepo, AlertRepo, EventLogRepo,
+    AimpointRepo, TargetRepo, SnapshotRepo,
 )
 from .services.asset_service import AssetService
 from .services.mission_service import MissionService
@@ -17,6 +18,8 @@ from .services.command_service import CommandService
 from .services.timeline_service import TimelineService
 from .services.alert_service import AlertService
 from .services.macrogrid_service import MacroGridService
+from .services.target_service import TargetService
+from .services.snapshot_service import SnapshotService
 from .adapters.base import ExecutionAdapter
 
 
@@ -35,6 +38,9 @@ class AppContext:
         self.timeline_repo: Optional[TimelineRepo] = None
         self.alert_repo: Optional[AlertRepo] = None
         self.event_log_repo: Optional[EventLogRepo] = None
+        self.aimpoint_repo: Optional[AimpointRepo] = None
+        self.target_repo: Optional[TargetRepo] = None
+        self.snapshot_repo: Optional[SnapshotRepo] = None
 
         # Services
         self.asset_service: Optional[AssetService] = None
@@ -43,6 +49,8 @@ class AppContext:
         self.timeline_service: Optional[TimelineService] = None
         self.alert_service: Optional[AlertService] = None
         self.macrogrid_service: Optional[MacroGridService] = None
+        self.target_service: Optional[TargetService] = None
+        self.snapshot_service: Optional[SnapshotService] = None
 
     def init(self, adapter: ExecutionAdapter, grid=None):
         db = get_db()
@@ -56,6 +64,9 @@ class AppContext:
         self.timeline_repo = TimelineRepo(db)
         self.alert_repo = AlertRepo(db)
         self.event_log_repo = EventLogRepo(db)
+        self.aimpoint_repo = AimpointRepo(db)
+        self.target_repo = TargetRepo(db)
+        self.snapshot_repo = SnapshotRepo(db)
 
         # Wire event log to bus
         self.bus.set_log_repo(self.event_log_repo)
@@ -67,6 +78,12 @@ class AppContext:
         self.command_service = CommandService(self.command_repo, self.bus, adapter)
         self.timeline_service = TimelineService(self.timeline_repo, self.bus)
         self.alert_service = AlertService(self.alert_repo, self.bus)
+        self.target_service = TargetService(self.aimpoint_repo, self.target_repo, self.bus)
+        self.snapshot_service = SnapshotService(
+            self.snapshot_repo, self.asset_repo, self.aimpoint_repo,
+            self.target_repo, self.mission_repo, self.timeline_repo,
+            self.alert_repo, self.event_log_repo,
+        )
         if grid:
             self.macrogrid_service = MacroGridService(grid, self.bus)
 
