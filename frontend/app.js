@@ -2212,20 +2212,30 @@ function connectWebSocket() {
             const _isLive = typeof AppState === 'undefined' || AppState.state.timeMode === 'live';
             if (_isLive && typeof AppState !== 'undefined' && payload.data.uavs && (_now - window._lastReactBridgeMs) > 500) {
                 window._lastReactBridgeMs = _now;
+                const bridgeDt = (_now - (window._prevBridgeMs || _now)) / 1000 || 0.5;
+                window._prevBridgeMs = _now;
                 payload.data.uavs.forEach(u => {
-                    // Compute heading from position delta (sim doesn't send vx/vy)
+                    // Compute heading and velocity from position delta (sim doesn't send vx/vy)
                     const prev = window._prevUavPos[u.id];
                     let hdg = 0;
+                    let vx_mps = 0, vy_mps = 0;
                     if (prev) {
                         const dlon = u.lon - prev.lon;
                         const dlat = u.lat - prev.lat;
                         if (Math.abs(dlon) > 0.0001 || Math.abs(dlat) > 0.0001) {
                             hdg = ((Math.atan2(dlon * Math.cos(u.lat * Math.PI / 180), dlat) * 180 / Math.PI) + 360) % 360;
+                            // Convert degree deltas to meters, then to m/s
+                            const mPerDegLat = 111320;
+                            const mPerDegLon = 111320 * Math.cos(u.lat * Math.PI / 180);
+                            vx_mps = (dlon * mPerDegLon) / bridgeDt;
+                            vy_mps = (dlat * mPerDegLat) / bridgeDt;
                         } else {
                             hdg = prev.hdg || 0; // Keep last heading when stationary
+                            vx_mps = prev.vx || 0;
+                            vy_mps = prev.vy || 0;
                         }
                     }
-                    window._prevUavPos[u.id] = { lon: u.lon, lat: u.lat, hdg: hdg };
+                    window._prevUavPos[u.id] = { lon: u.lon, lat: u.lat, hdg: hdg, vx: vx_mps, vy: vy_mps };
 
                     // Update the canonical uav_N entry (React filters on this prefix)
                     AppState.updateAsset({
@@ -2236,6 +2246,7 @@ function connectWebSocket() {
                         status: u.mode === 'serving' ? 'on_task' : u.mode === 'repositioning' ? 'transiting' : 'idle',
                         health: 'nominal',
                         position: { lat: u.lat, lon: u.lon, alt_m: u.alt_m || 2000 },
+                        velocity: { vx_mps: vx_mps, vy_mps: vy_mps, vz_mps: 0 },
                         heading_deg: hdg,
                         battery_pct: typeof u.battery_pct === 'number' ? u.battery_pct : 100 - (u.id * 0.3) - (_now % 60000) / 60000 * 2,
                         link_quality: typeof u.link_quality === 'number' ? u.link_quality : 0.92 + Math.sin(u.id + _now / 10000) * 0.06,

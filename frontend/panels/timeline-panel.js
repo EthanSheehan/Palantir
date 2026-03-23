@@ -374,6 +374,7 @@ const TimelinePanel = (() => {
         AppState.subscribe('reservations.*', render);
         AppState.subscribe('assets.snapshot', render);
         AppState.subscribe('selection.changed', render);
+        AppState.subscribe('projectedTarget.changed', render);
 
         // Listen for external "return to live" (e.g. toolbar button)
         AppState.subscribe('time.cursorChanged', (ms) => {
@@ -536,6 +537,60 @@ const TimelinePanel = (() => {
                 }
             });
         });
+
+        // ── Draw projected ETA bars (purple) ──
+        const projTarget = AppState.state.projectedTarget;
+        if (projTarget) {
+            const nowMs = Date.now();
+            const nowX = _msToX(nowMs);
+            const R = 6371; // Earth radius km
+            const toRad = (d) => d * Math.PI / 180;
+            assets.forEach((asset, i) => {
+                const y = TOP_MARGIN + i * LANE_HEIGHT;
+                if (y > H) return;
+                const pos = asset.position || asset;
+                const aLon = pos.lon; const aLat = pos.lat;
+                if (aLon == null || aLat == null) return;
+                // Haversine distance
+                const dLat = toRad(projTarget.lat - aLat);
+                const dLon = toRad(projTarget.lon - aLon);
+                const a = Math.sin(dLat / 2) ** 2 +
+                    Math.cos(toRad(aLat)) * Math.cos(toRad(projTarget.lat)) *
+                    Math.sin(dLon / 2) ** 2;
+                const distKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                // Speed from velocity (m/s)
+                const vel = asset.velocity || {};
+                const vx = vel.vx_mps || vel.vx || 0;
+                const vy = vel.vy_mps || vel.vy || 0;
+                const speedMps = Math.sqrt(vx * vx + vy * vy);
+                if (speedMps < 0.1) return; // stationary — skip
+                const etaSec = (distKm * 1000) / speedMps;
+                const etaMs = etaSec * 1000;
+                const x1 = Math.max(HEADER_WIDTH, nowX);
+                const x2 = Math.min(W, _msToX(nowMs + etaMs));
+                if (x2 <= x1) return;
+                const blockW = x2 - x1;
+                // Purple bar
+                ctx.fillStyle = '#a855f7';
+                ctx.globalAlpha = 0.5;
+                ctx.fillRect(x1, y + 2, blockW, LANE_HEIGHT - 4);
+                ctx.globalAlpha = 1.0;
+                // Dashed border
+                ctx.strokeStyle = '#ffffff44';
+                ctx.setLineDash([4, 4]);
+                ctx.strokeRect(x1, y + 2, blockW, LANE_HEIGHT - 4);
+                ctx.setLineDash([]);
+                // ETA label
+                const etaLabel = etaSec < 60 ? `${Math.round(etaSec)}s`
+                    : etaSec < 3600 ? `${Math.floor(etaSec / 60)}m ${Math.round(etaSec % 60)}s`
+                    : `${Math.floor(etaSec / 3600)}h ${Math.round((etaSec % 3600) / 60)}m`;
+                if (blockW > 30) {
+                    ctx.fillStyle = '#e9d5ff';
+                    ctx.font = '10px Inter, monospace';
+                    ctx.fillText(etaLabel, x1 + 4, y + LANE_HEIGHT / 2 + 3);
+                }
+            });
+        }
 
         // Draw header separator
         ctx.fillStyle = '#334155';
