@@ -127,11 +127,11 @@ const MapToolController = (() => {
         if (lockBtn) {
             lockBtn.addEventListener('click', () => {
                 _zoomOnSelect = !_zoomOnSelect;
-                lockBtn.textContent = _zoomOnSelect ? '⊡' : '⊞';
                 lockBtn.title = _zoomOnSelect
-                    ? 'Zoom to drone on select (click to disable)'
+                    ? 'Zoom to Asset (click to disable)'
                     : 'Multi-view: no zoom on select (click to enable)';
-                lockBtn.style.opacity = _zoomOnSelect ? '0.5' : '1';
+                lockBtn.style.opacity = _zoomOnSelect ? '1' : '0.5';
+                lockBtn.dispatchEvent(new CustomEvent('zoomToggle', { detail: { zoomOn: _zoomOnSelect } }));
             });
         }
 

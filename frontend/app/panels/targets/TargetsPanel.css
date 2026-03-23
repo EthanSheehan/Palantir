@@ -172,12 +172,13 @@
 }
 
 /* Delete × on left, hidden until card hover */
-.target-remove-hover.bp5-button {
+.target-remove-hover.bp5-button.bp5-small {
   color: #64748b;
   opacity: 0;
   width: 0;
   min-width: 0;
-  min-height: 0;
+  min-height: 0 !important;
+  height: 16px;
   overflow: hidden;
   transition: opacity 0.15s, width 0.15s, margin 0.15s;
   margin-right: -6px;
@@ -185,14 +186,14 @@
   padding: 0;
 }
 
-.target-card-react:hover .target-remove-hover.bp5-button,
-.complex-target-card:hover .target-remove-hover.bp5-button {
+.target-card-react:hover .target-remove-hover.bp5-button.bp5-small,
+.complex-target-card:hover .target-remove-hover.bp5-button.bp5-small {
   opacity: 1;
   width: 20px;
   margin-right: 0;
 }
 
-.target-remove-hover.bp5-button:hover {
+.target-remove-hover.bp5-button.bp5-small:hover {
   color: #ef4444 !important;
   background: rgba(239, 68, 68, 0.1) !important;
 }
@@ -284,12 +285,14 @@
   height: 20px;
   padding: 0;
   transition: all 0.15s;
-  opacity: 0.5;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .target-card-react:hover .target-zoom-btn.bp5-button,
 .complex-target-card:hover .target-zoom-btn.bp5-button {
   opacity: 1;
+  pointer-events: auto;
   right: 30px;
 }
 

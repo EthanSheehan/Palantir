@@ -95,7 +95,20 @@ function _aimpointDisplayName(id: number | string): string {
     const idx = sorted.findIndex((a) => a.id === id);
     if (idx >= 0) return `APT-${String(idx + 1).padStart(3, '0')}`;
   } catch { /* fallback below */ }
-  return `APT-${String(id).slice(4, 8)}`;
+  return `APT-${String(id).slice(4, 12)}`;
+}
+
+/** Generate a display name like TGT-001 for targets */
+export function targetDisplayName(id: string, name?: string): string {
+  if (name) return name;
+  try {
+    const targets = useAppStore.getState().targets;
+    const sorted = Object.values(targets)
+      .sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
+    const idx = sorted.findIndex((t) => t.id === id);
+    if (idx >= 0) return `TGT-${String(idx + 1).padStart(3, '0')}`;
+  } catch { /* fallback below */ }
+  return `TGT-${String(id).slice(4, 12)}`;
 }
 
 /** Merge selected aimpoints into a target via backend API */
@@ -104,9 +117,12 @@ async function mergeTargetsIntoComplex(targetIds: (number | string)[]): Promise<
   if (aptIds.length < 2) return null;
 
   try {
+    // Generate a sequential name based on existing target count
+    const existingCount = Object.keys(useAppStore.getState().targets).length;
+    const autoName = `TGT-${String(existingCount + 1).padStart(3, '0')}`;
     // Create target on backend
     const target = await api.createTarget({
-      name: '',  // Backend will auto-name or we can generate
+      name: autoName,
       aimpoint_ids: aptIds,
     });
 
@@ -838,7 +854,7 @@ function ComplexTargetCard({
       <div className="complex-card-header">
         <Button icon="cross" minimal small className="target-remove-hover" onClick={(e) => onRemove(complex.id, e)} title="Remove" />
         <span className="complex-icon">&#x2B23;</span>
-        <span className="complex-name">{complex.name}</span>
+        <span className="complex-name">{targetDisplayName(complex.id, complex.name)}</span>
         {/* Editable type badge — only editable when selected */}
         {editingField === 'type' ? (
           <input ref={inputRef} className="target-type-input" value={editValue}
@@ -853,7 +869,7 @@ function ComplexTargetCard({
           </span>
         )}
         <span className="complex-count">{complex.aimpoints.length} pts</span>
-        <Button icon="zoom-to-fit" minimal small className="target-zoom-btn" onClick={handleZoom} title="Zoom to target" />
+        <Button icon="locate" minimal small className="target-zoom-btn" onClick={handleZoom} title="Zoom to Target" />
       </div>
 
       {/* Centroid coordinates — always visible, above description (consistent with simple targets) */}
@@ -898,7 +914,7 @@ function ComplexTargetCard({
                 <tr key={ap.id}>
                   <td className={`ap-id ap-id-clickable${highlightedApId === ap.id ? ' ap-id-active' : ''}`}
                     onClick={() => setHighlightedApId(highlightedApId === ap.id ? null : ap.id)}
-                    title="Click to highlight on globe">AP-{String(ap.id).padStart(3, '0')}</td>
+                    title="Click to highlight on globe">{_aimpointDisplayName(ap.id)}</td>
                   {editingAimpoints ? (
                     <>
                       <td><input className="ap-edit-input" value={ap.type} onChange={(e) => updateAimpoint(ap.id, 'type', e.target.value)} /></td>
@@ -995,11 +1011,11 @@ function TargetCard({
           {target.description || 'Click to add description...'}
         </div>
       )}
-      <Button icon="zoom-to-fit" minimal small className="target-zoom-btn" onClick={(e) => {
+      <Button icon="locate" minimal small className="target-zoom-btn" onClick={(e) => {
         e.stopPropagation();
         const viewer = (window as any).viewer; const Cesium = (window as any).Cesium;
         if (viewer && Cesium) viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(target.lon, target.lat, 5000), orientation: { heading: 0, pitch: Cesium.Math.toRadians(-90), roll: 0 }, duration: 1.2 });
-      }} title="Zoom to target" />
+      }} title="Zoom to Target" />
     </Card>
   );
 }

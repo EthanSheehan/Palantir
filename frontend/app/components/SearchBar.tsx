@@ -256,7 +256,8 @@ export function SearchBar({
   return (
     <div className="search-bar-container" ref={containerRef}>
       <InputGroup
-        leftIcon="search"
+        leftIcon="geosearch"
+        intent="none"
         placeholder={placeholder ?? 'Search location, asset...'}
         value={query}
         onChange={handleInputChange}

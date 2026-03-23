@@ -69,6 +69,8 @@
 }
 
 .pinned-target-map-card:hover .target-zoom-btn.bp5-button {
+  opacity: 1;
+  pointer-events: auto;
   right: 30px;
 }
 

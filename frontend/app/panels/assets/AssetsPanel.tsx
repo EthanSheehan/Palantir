@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Tag, Intent, ProgressBar, Card, Button, ButtonGroup, Tabs, Tab, NonIdealState, Menu, MenuItem } from '@blueprintjs/core';
 import { useAppStore } from '../../store/appStore';
 import type { Asset } from '../../store/types';
@@ -6,7 +7,7 @@ import { SearchBar, haversineKm } from '../../components/SearchBar';
 import type { SearchResult } from '../../components/SearchBar';
 import './AssetsPanel.css';
 import '../targets/TargetsPanel.css';
-import { updateTargetHighlights } from '../targets/TargetsPanel';
+import { updateTargetHighlights, targetDisplayName } from '../targets/TargetsPanel';
 
 const DOMAIN_FILTERS = ['Air', 'Land', 'Space'] as const;
 
@@ -219,10 +220,10 @@ export function AssetsPanel() {
           <Button icon="cross" minimal small className="pinned-unpin-btn" onClick={(e) => { e.stopPropagation(); setPinnedTarget(null); setLeftPanelTab('targets' as any); }} title="Remove from Assets" />
           <div className="complex-card-header">
             <span className="complex-icon">{pinnedTarget.aimpoints ? '\u2B23' : '\u25C7'}</span>
-            <span className="complex-name">{pinnedTarget.name}</span>
+            <span className="complex-name">{targetDisplayName(pinnedTarget.id, pinnedTarget.name)}</span>
             <span className="target-type-badge">multi-aim</span>
             {pinnedTarget.aimpoints && <span className="complex-count">{pinnedTarget.aimpoints.length} pts</span>}
-            <Button icon="zoom-to-fit" minimal small className="target-zoom-btn" onClick={(e) => {
+            <Button icon="locate" minimal small className="target-zoom-btn" onClick={(e) => {
               e.stopPropagation();
               const viewer = (window as any).viewer;
               const Cesium = (window as any).Cesium;
@@ -234,7 +235,7 @@ export function AssetsPanel() {
                 orientation: { heading: 0, pitch: Cesium.Math.toRadians(-90), roll: 0 },
                 duration: 1.2,
               });
-            }} title="Zoom to target" />
+            }} title="Zoom to Target" />
           </div>
           <div className="target-coords">
             {pinnedTarget.lat.toFixed(4)}&deg; N &nbsp; {pinnedTarget.lon.toFixed(4)}&deg; E
@@ -442,13 +443,14 @@ function AssetCard({
       }}
     >
       {/* Launcher right-click context menu */}
-      {ctxMenu && (
+      {ctxMenu && createPortal(
         <div className="bp5-dark" style={{ position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 9999 }}
           onClick={(e) => e.stopPropagation()}>
           <Menu className="asset-ctx-menu" small>
             <MenuItem icon="rocket" text="Launch Fixed Asset" onClick={handleLaunch} />
           </Menu>
-        </div>
+        </div>,
+        document.body
       )}
       <Button icon="plus" minimal small className="asset-assign-btn" onClick={(e) => { e.stopPropagation(); }} title="Assign Asset to Target" />
       {/* ── Compact header (always visible) ── */}
