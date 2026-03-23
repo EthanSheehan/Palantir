@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Tabs, Tab } from '@blueprintjs/core';
 import { useAppStore } from '../store/appStore';
 import type { LeftPanelTab } from '../store/appStore';
 import { cesiumBridge } from '../store/adapters/cesiumBridge';
@@ -130,6 +131,10 @@ export function LeftRail() {
     };
   }, [isDragging, setLayout]);
 
+  const handleTabChange = useCallback((newTabId: string) => {
+    setLeftPanelTab(newTabId as LeftPanelTab);
+  }, [setLeftPanelTab]);
+
   return (
     <>
       <div
@@ -138,18 +143,27 @@ export function LeftRail() {
         style={{ width: layout.leftCollapsed ? undefined : layout.leftWidth }}
       >
         {/* Tab bar */}
-        <div className="ws-tab-bar">
+        <Tabs
+          id="left-rail-tabs"
+          selectedTabId={activeTab}
+          onChange={handleTabChange}
+          className="ws-tab-bar"
+          renderActiveTabPanelOnly={false}
+        >
           {TABS.map((tab) => (
-            <button
+            <Tab
               key={tab.id}
+              id={tab.id}
               className={`ws-tab-btn${activeTab === tab.id ? ' ws-active' : ''}`}
-              onClick={() => setLeftPanelTab(tab.id)}
-            >
-              <span className="ws-tab-icon">{tab.icon}</span>
-              <span className="ws-tab-label">{tab.label}</span>
-            </button>
+              title={
+                <>
+                  <span className="ws-tab-icon">{tab.icon}</span>
+                  <span className="ws-tab-label">{tab.label}</span>
+                </>
+              }
+            />
           ))}
-        </div>
+        </Tabs>
 
         {/* React panels for migrated tabs */}
         {Object.entries(REACT_PANELS).map(([tabId, Panel]) => (

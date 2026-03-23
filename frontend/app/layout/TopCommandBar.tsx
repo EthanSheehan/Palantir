@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { Navbar, NavbarGroup, NavbarHeading, NavbarDivider } from '@blueprintjs/core';
 
 /**
  * Top toolbar bar — app title + tool palette.
@@ -25,9 +26,12 @@ export function TopCommandBar() {
   }, []);
 
   return (
-    <div className="ws-top-bar">
-      <span className="ws-app-title">System Dashboard</span>
-      <div ref={paletteRef} className="ws-tool-palette" />
-    </div>
+    <Navbar className="ws-top-bar" fixedToTop={false}>
+      <NavbarGroup>
+        <NavbarHeading className="ws-app-title">System Dashboard</NavbarHeading>
+        <NavbarDivider />
+        <div ref={paletteRef} className="ws-tool-palette" />
+      </NavbarGroup>
+    </Navbar>
   );
 }

@@ -1,4 +1,4 @@
-import { Tag, Intent, NonIdealState } from '@blueprintjs/core';
+import { Tag, Intent, NonIdealState, Card } from '@blueprintjs/core';
 import { useAppStore } from '../../store/appStore';
 import './CommandsPanel.css';
 
@@ -23,12 +23,12 @@ export function CommandsPanel() {
     <div className="commands-panel">
       <h3 className="panel-title">Command History</h3>
       {commandList.map((cmd) => (
-        <div key={cmd.id} className="command-row">
+        <Card key={cmd.id} interactive className="command-row">
           <span className="command-type">{cmd.type}</span>
           <Tag intent={cmdStateIntent(cmd.state)} minimal className="command-state">
             {cmd.state}
           </Tag>
-        </div>
+        </Card>
       ))}
     </div>
   );

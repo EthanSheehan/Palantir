@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { Tag, Intent, ProgressBar } from '@blueprintjs/core';
+import { Tag, Intent, ProgressBar, Card, Button, ButtonGroup, Tabs, Tab, NonIdealState, Menu, MenuItem } from '@blueprintjs/core';
 import { useAppStore } from '../../store/appStore';
 import type { Asset } from '../../store/types';
 import { SearchBar, haversineKm } from '../../components/SearchBar';
@@ -215,16 +214,27 @@ export function AssetsPanel() {
   return (
     <div className="assets-panel">
       {pinnedTarget && (
-        <div className="complex-target-card target-selected" style={{ position: 'relative' }}
+        <Card className="pinned-target-map-card" interactive
           onClick={() => setPinnedHighlighted((v) => !v)}>
-          <button className="target-pin-btn pinned-unpin-btn" onClick={(e) => { e.stopPropagation(); setPinnedTarget(null); setLeftPanelTab('targets' as any); }} title="Remove from Assets">
-            <svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" strokeWidth="2" fill="none"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg>
-          </button>
+          <Button icon="cross" minimal small className="pinned-unpin-btn" onClick={(e) => { e.stopPropagation(); setPinnedTarget(null); setLeftPanelTab('targets' as any); }} title="Remove from Assets" />
           <div className="complex-card-header">
             <span className="complex-icon">{pinnedTarget.aimpoints ? '\u2B23' : '\u25C7'}</span>
             <span className="complex-name">{pinnedTarget.name}</span>
             <span className="target-type-badge">multi-aim</span>
             {pinnedTarget.aimpoints && <span className="complex-count">{pinnedTarget.aimpoints.length} pts</span>}
+            <Button icon="zoom-to-fit" minimal small className="target-zoom-btn" onClick={(e) => {
+              e.stopPropagation();
+              const viewer = (window as any).viewer;
+              const Cesium = (window as any).Cesium;
+              if (!viewer || !Cesium || !pinnedTarget.aimpoints?.length) return;
+              const centLon = pinnedTarget.aimpoints.reduce((s, a) => s + a.lon, 0) / pinnedTarget.aimpoints.length;
+              const centLat = pinnedTarget.aimpoints.reduce((s, a) => s + a.lat, 0) / pinnedTarget.aimpoints.length;
+              viewer.camera.flyTo({
+                destination: Cesium.Cartesian3.fromDegrees(centLon, centLat, 15000),
+                orientation: { heading: 0, pitch: Cesium.Math.toRadians(-90), roll: 0 },
+                duration: 1.2,
+              });
+            }} title="Zoom to target" />
           </div>
           <div className="target-coords">
             {pinnedTarget.lat.toFixed(4)}&deg; N &nbsp; {pinnedTarget.lon.toFixed(4)}&deg; E
@@ -259,14 +269,19 @@ export function AssetsPanel() {
               </div>
             </>
           )}
-        </div>
+        </Card>
       )}
 
       {/* ── Sub-tab bar ── */}
-      <div className="assets-subtabs">
-        <button className={`assets-subtab${subTab === 'active' ? ' assets-subtab-active' : ''}`} onClick={() => setSubTab('active')}>Active</button>
-        <button className={`assets-subtab${subTab === 'create' ? ' assets-subtab-active' : ''}`} onClick={() => setSubTab('create')}>Create Package</button>
-      </div>
+      <Tabs
+        id="assets-subtabs"
+        selectedTabId={subTab}
+        onChange={(id) => setSubTab(id as 'active' | 'create')}
+        className="assets-subtabs"
+      >
+        <Tab id="active" title="Active" />
+        <Tab id="create" title="Create Package" />
+      </Tabs>
 
       <SearchBar
         assets={assets}
@@ -283,25 +298,28 @@ export function AssetsPanel() {
             </div>
           )}
 
-          <div className="assets-filters">
+          <ButtonGroup className="assets-filters" fill>
             {DOMAIN_FILTERS.map((f) => {
               const key = f.toLowerCase();
               const isActive = activeFilters.has(key);
               return (
-                <button
+                <Button
                   key={key}
-                  className={`filter-toggle${isActive ? ' filter-active' : ''}`}
+                  small
+                  active={isActive}
+                  intent={isActive ? Intent.PRIMARY : Intent.NONE}
                   onClick={() => toggleFilter(key)}
+                  className="filter-toggle"
                 >
                   {f}
-                </button>
+                </Button>
               );
             })}
-          </div>
+          </ButtonGroup>
 
           <div className="assets-list">
             {filtered.length === 0 && (
-              <div className="empty-state">No assets match filter</div>
+              <NonIdealState description="No assets match filter" className="panel-empty-state" />
             )}
             {filtered.map((asset) => {
               const isPrimary = asset.id === primaryId;
@@ -334,7 +352,7 @@ export function AssetsPanel() {
           <div className="assets-list">
             {(() => {
               const launchers = filtered.filter((a) => a.id.startsWith('launcher_'));
-              if (launchers.length === 0) return <div className="empty-state">No launchers available</div>;
+              if (launchers.length === 0) return <NonIdealState description="No launchers available" className="panel-empty-state" />;
               return launchers.map((asset) => {
                 const isPrimary = asset.id === primaryId;
                 const isSecondary = !isPrimary && selectedIds.includes(asset.id);
@@ -413,26 +431,26 @@ function AssetCard({
   }, [asset.id]);
 
   return (
-    <div
+    <Card
+      interactive
       className={`asset-card${selClass}${isExpanded ? ' asset-expanded' : ''}`}
-      onClick={(e) => onClick(asset.id, e.shiftKey)}
+      onClick={(e) => onClick(asset.id, (e as any).shiftKey)}
       onContextMenu={handleContextMenu}
       draggable
       onDragStart={(e) => {
-        e.dataTransfer.setData('uavId', asset.id.replace('uav_', ''));
+        (e as any).dataTransfer.setData('uavId', asset.id.replace('uav_', ''));
       }}
     >
       {/* Launcher right-click context menu */}
-      {ctxMenu && createPortal(
-        <div className="target-ctx-menu" style={{ position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 9999 }}
+      {ctxMenu && (
+        <div className="bp5-dark" style={{ position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 9999 }}
           onClick={(e) => e.stopPropagation()}>
-          <button className="target-ctx-item" onClick={handleLaunch}>Launch Fixed Asset</button>
-        </div>,
-        document.body
+          <Menu className="asset-ctx-menu" small>
+            <MenuItem icon="rocket" text="Launch Fixed Asset" onClick={handleLaunch} />
+          </Menu>
+        </div>
       )}
-      <button className="asset-assign-btn" onClick={(e) => { e.stopPropagation(); }} title="Assign Asset to Target">
-        <svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" strokeWidth="2" fill="none"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg>
-      </button>
+      <Button icon="plus" minimal small className="asset-assign-btn" onClick={(e) => { e.stopPropagation(); }} title="Assign Asset to Target" />
       {/* ── Compact header (always visible) ── */}
       <div className="asset-card-header">
         <div className="asset-card-name">
@@ -549,6 +567,6 @@ function AssetCard({
           </div>
         </>
       )}
-    </div>
+    </Card>
   );
 }

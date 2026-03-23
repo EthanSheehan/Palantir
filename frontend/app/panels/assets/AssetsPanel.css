@@ -2,44 +2,110 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  margin-right: -12px;
 }
 
-/* Extra gap below pinned target card */
-.assets-panel > .complex-target-card {
+/* Restore right spacing for non-scrolling elements that extend to edge */
+.assets-panel .assets-filters {
+  padding-right: 12px;
+}
+
+.assets-panel .pinned-target-map-card {
+  margin-right: 12px;
+}
+
+.assets-panel .assets-subtabs {
+  margin-right: 12px;
+}
+
+.assets-panel .search-bar-container {
+  margin-right: 12px;
+}
+
+.assets-panel .sort-anchor-label {
+  margin-right: 12px;
+}
+
+/* Pinned MAP target card in assets panel */
+.pinned-target-map-card.bp5-card {
+  background: #12100e !important;
+  box-shadow: inset 2px 0 0 #f97316 !important;
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  padding: 10px 12px;
   margin-bottom: 6px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.15s;
 }
 
-/* ---- Sub-tab bar ---- */
-.assets-subtabs {
-  display: flex;
-  gap: 0;
-  border-bottom: 1px solid rgba(100, 116, 139, 0.2);
+/* Unpin button — right-edge sliding pill, same as assign/pin buttons but red */
+.pinned-target-map-card .pinned-unpin-btn.bp5-button {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  min-width: 0 !important;
+  min-height: 0;
+  height: auto;
+  overflow: hidden !important;
+  background: rgba(239, 68, 68, 0.15) !important;
+  border: none;
+  border-left: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 0 !important;
+  color: #ef4444 !important;
+  transition: width 0.15s, min-width 0.15s, background 0.15s;
+  padding: 0 !important;
+  z-index: 2;
+  box-shadow: none !important;
+}
+
+.pinned-target-map-card.bp5-card:hover .pinned-unpin-btn.bp5-button {
+  width: 26px;
+  min-width: 26px;
+}
+
+.pinned-target-map-card:hover .target-zoom-btn.bp5-button {
+  right: 30px;
+}
+
+.pinned-target-map-card .pinned-unpin-btn.bp5-button:hover {
+  background: rgba(239, 68, 68, 0.3) !important;
+}
+
+/* Add right padding on hover so pill doesn't cover content */
+.pinned-target-map-card.bp5-card:hover {
+  padding-right: 34px;
+}
+
+/* ---- Sub-tab bar (Blueprint Tabs) ---- */
+.assets-subtabs.bp5-tabs {
   margin-bottom: 2px;
 }
 
-.assets-subtab {
+.assets-subtabs .bp5-tab-list {
+  border-bottom: 1px solid rgba(100, 116, 139, 0.2);
+}
+
+.assets-subtabs .bp5-tab {
   flex: 1;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: rgba(255, 255, 255, 0.6);
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  text-align: center;
+  justify-content: center;
   font-size: 0.7rem;
   font-weight: 600;
   letter-spacing: 0.03em;
-  padding: 6px 0;
-  cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
-  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
 }
 
-.assets-subtab:hover {
-  color: rgba(255, 255, 255, 0.85);
-}
-
-.assets-subtab-active {
+.assets-subtabs .bp5-tab[aria-selected="true"] {
   color: #fff;
-  border-bottom-color: #fff;
+}
+
+.assets-subtabs .bp5-tab-indicator-wrapper .bp5-tab-indicator {
+  background: #fff;
 }
 
 /* ---- Pinned Target Card ---- */
@@ -74,15 +140,18 @@
   margin-left: auto;
 }
 
-/* Unpin overlay button — reuses .target-pin-btn from TargetsPanel.css */
-.pinned-unpin-btn.target-pin-btn {
-  background: rgba(239, 68, 68, 0.15);
-  border-left-color: rgba(239, 68, 68, 0.3);
-  color: #ef4444;
+/* Unpin overlay button */
+.pinned-unpin-btn.bp5-button {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #ef4444 !important;
 }
 
-.pinned-unpin-btn.target-pin-btn:hover {
-  background: rgba(239, 68, 68, 0.3);
+.pinned-unpin-btn.bp5-button:hover {
+  background: rgba(239, 68, 68, 0.3) !important;
 }
 
 .pinned-header {
@@ -133,133 +202,6 @@
   font-family: 'JetBrains Mono', monospace;
 }
 
-.search-bar-input-wrap {
-  display: flex;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(100, 116, 139, 0.2);
-  border-radius: 2px;
-  padding: 0 8px;
-  gap: 6px;
-  transition: border-color 0.15s;
-}
-
-.search-bar-input-wrap:focus-within {
-  border-color: rgba(56, 189, 248, 0.5);
-}
-
-.search-bar-icon {
-  flex-shrink: 0;
-  opacity: 0.6;
-}
-
-.search-bar-input {
-  flex: 1;
-  background: none;
-  border: none;
-  outline: none;
-  color: #e2e8f0;
-  font-size: 0.72rem;
-  font-family: 'Inter', sans-serif;
-  padding: 5px 0;
-  min-width: 0;
-}
-
-.search-bar-input::placeholder {
-  color: #475569;
-}
-
-.search-bar-clear {
-  background: none;
-  border: none;
-  color: #64748b;
-  font-size: 0.9rem;
-  cursor: pointer;
-  padding: 0 2px;
-  line-height: 1;
-}
-
-.search-bar-clear:hover {
-  color: #e2e8f0;
-}
-
-.search-bar-spinner {
-  width: 10px;
-  height: 10px;
-  border: 2px solid rgba(56, 189, 248, 0.3);
-  border-top-color: #38bdf8;
-  border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-  flex-shrink: 0;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* ---- Search Dropdown ---- */
-.search-bar-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  z-index: 200;
-  margin-top: 2px;
-  background: rgba(8, 14, 28, 0.95);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(100, 116, 139, 0.25);
-  border-radius: 2px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.search-result {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  cursor: pointer;
-  transition: background 0.1s;
-}
-
-.search-result:hover {
-  background: rgba(56, 189, 248, 0.08);
-}
-
-.search-result-type {
-  font-size: 0.7rem;
-  width: 14px;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.search-type-location { color: #22c55e; }
-.search-type-asset { color: #38bdf8; }
-.search-type-target { color: #f97316; }
-
-.search-result-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.search-result-label {
-  color: #e2e8f0;
-  font-size: 0.7rem;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.search-result-sub {
-  color: #64748b;
-  font-size: 0.6rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
 /* ---- Sort Anchor Label ---- */
 .sort-anchor-label {
@@ -299,37 +241,31 @@
   border: 1px solid rgba(250, 204, 21, 0.2);
 }
 
-.assets-filters {
-  display: flex;
-  gap: 4px;
+/* ---- Domain Filters (Blueprint ButtonGroup) ---- */
+.assets-filters.bp5-button-group {
   margin-bottom: 6px;
+  gap: 6px;
 }
 
-.filter-toggle {
-  flex: 1;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(100, 116, 139, 0.2);
-  border-radius: 2px;
-  color: #64748b;
+.assets-filters .bp5-button.filter-toggle {
   font-size: 0.65rem;
   font-weight: 600;
-  font-family: 'Inter', sans-serif;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  padding: 4px 0;
-  cursor: pointer;
-  transition: all 0.15s;
+  background: transparent !important;
+  border: 1px solid rgba(100, 116, 139, 0.2);
+  color: #64748b;
 }
 
-.filter-toggle:hover {
+.assets-filters .bp5-button.filter-toggle:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
   color: #e2e8f0;
-  background: rgba(255, 255, 255, 0.08);
   border-color: rgba(100, 116, 139, 0.4);
 }
 
-.filter-toggle.filter-active {
+.assets-filters .bp5-button.filter-toggle.bp5-active {
+  background: rgba(56, 189, 248, 0.1) !important;
   color: #38bdf8;
-  background: rgba(56, 189, 248, 0.1);
   border-color: rgba(56, 189, 248, 0.4);
 }
 
@@ -337,47 +273,74 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 6px;
 }
 
-/* ---- Asset Card ---- */
-.asset-card {
+.assets-list::-webkit-scrollbar {
+  width: 6px;
+}
+.assets-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.assets-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 0;
+}
+.assets-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* ---- Asset Card (Blueprint Card) ---- */
+.asset-card.bp5-card {
   padding: 6px 8px;
-  border-radius: 2px;
-  background: #0f1523;
+  background: #0f1523 !important;
   border: 1px solid rgba(100, 116, 139, 0.1);
-  cursor: pointer;
-  transition: all 0.15s;
+  box-shadow: none !important;
   position: relative;
+  transition: all 0.15s;
 }
 
-.asset-card:hover {
-  background: #151b2b;
+.asset-card.bp5-card:hover {
+  background: #151b2b !important;
   border-color: rgba(100, 116, 139, 0.25);
   padding-right: 34px;
 }
 
 /* ---- Assign-to-Target Button (right edge overlay) ---- */
-.asset-assign-btn {
+.asset-assign-btn.bp5-button {
   position: absolute;
   right: 0;
   top: 0;
   bottom: 0;
   width: 0;
-  overflow: hidden;
-  background: rgba(100, 116, 139, 0.15);
+  min-width: 0 !important;
+  overflow: hidden !important;
+  background: rgba(100, 116, 139, 0.15) !important;
   border: none;
   border-left: 1px solid rgba(100, 116, 139, 0.3);
+  border-radius: 0 !important;
   color: #94a3b8;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: width 0.15s, background 0.15s;
-  padding: 0;
+  transition: width 0.15s, background 0.15s, min-width 0.15s;
+  padding: 0 !important;
   z-index: 2;
+  min-height: 0;
+  height: auto;
+  box-shadow: none !important;
 }
 
-.asset-card:hover .asset-assign-btn {
+.asset-card.bp5-card:hover .asset-assign-btn.bp5-button {
+  min-width: 26px;
+}
+
+.asset-card.bp5-card:hover .asset-assign-btn {
   width: 26px;
 }
 
@@ -386,52 +349,67 @@
 }
 
 /* Gold assign button for primary selection */
-.asset-card.asset-primary .asset-assign-btn {
+.asset-card.bp5-card.asset-primary .asset-assign-btn {
   background: rgba(250, 204, 21, 0.15);
   border-left-color: rgba(250, 204, 21, 0.3);
   color: #facc15;
 }
 
-.asset-card.asset-primary .asset-assign-btn:hover {
+.asset-card.bp5-card.asset-primary .asset-assign-btn:hover {
   background: rgba(250, 204, 21, 0.3);
 }
 
 /* Cyan assign button for secondary selection */
-.asset-card.asset-secondary .asset-assign-btn {
+.asset-card.bp5-card.asset-secondary .asset-assign-btn {
   background: rgba(34, 211, 238, 0.15);
   border-left-color: rgba(34, 211, 238, 0.3);
   color: #22d3ee;
 }
 
-.asset-card.asset-secondary .asset-assign-btn:hover {
+.asset-card.bp5-card.asset-secondary .asset-assign-btn:hover {
   background: rgba(34, 211, 238, 0.3);
 }
 
 /* Expanded cards need more hover padding so pill doesn't cover content */
-.asset-card.asset-expanded:hover {
+.asset-card.bp5-card.asset-expanded:hover {
   padding-right: 34px;
 }
 
 /* Primary selection — gold */
-.asset-card.asset-primary {
+.asset-card.bp5-card.asset-primary {
   border-color: rgba(250, 204, 21, 0.6);
-  background: #1c1a10;
-  box-shadow: inset 2px 0 0 #facc15;
+  background: #1c1a10 !important;
+  box-shadow: inset 2px 0 0 #facc15 !important;
 }
 
-.asset-card.asset-primary .asset-id {
+.asset-card.bp5-card.asset-primary .asset-id {
   color: #facc15;
 }
 
 /* Secondary selection — cyan */
-.asset-card.asset-secondary {
+.asset-card.bp5-card.asset-secondary {
   border-color: rgba(34, 211, 238, 0.4);
-  background: #0c1520;
-  box-shadow: inset 2px 0 0 #22d3ee;
+  background: #0c1520 !important;
+  box-shadow: inset 2px 0 0 #22d3ee !important;
 }
 
-.asset-card.asset-secondary .asset-id {
+.asset-card.bp5-card.asset-secondary .asset-id {
   color: #22d3ee;
+}
+
+/* Context menu */
+.asset-ctx-menu.bp5-menu {
+  min-width: 100px;
+}
+
+.asset-ctx-menu.bp5-menu .bp5-menu-item {
+  font-size: 0.7rem;
+}
+
+/* Empty state */
+.panel-empty-state.bp5-non-ideal-state {
+  padding: 16px 8px;
+  font-size: 0.7rem;
 }
 
 /* ---- Card Header ---- */
@@ -477,7 +455,7 @@
 }
 
 /* ---- Expanded Detail Table ---- */
-.asset-card.asset-expanded {
+.asset-card.bp5-card.asset-expanded {
   padding: 8px 10px 10px;
 }
 
