@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { Button } from '@blueprintjs/core';
 import { useAppStore } from '../store/appStore';
 import { InspectorPanel } from '../panels/inspector/InspectorPanel';
 import { cesiumBridge } from '../store/adapters/cesiumBridge';
@@ -77,9 +78,7 @@ export function RightInspectorDrawer() {
       >
         <div className="ws-right-drawer-header">
           <span className="ws-right-drawer-title">INSPECTOR</span>
-          <button className="ws-right-drawer-close" onClick={handleClose} title="Close inspector">
-            &times;
-          </button>
+          <Button icon="cross" minimal small onClick={handleClose} title="Close inspector" />
         </div>
         <div className="ws-right-drawer-content">
           <InspectorPanel />

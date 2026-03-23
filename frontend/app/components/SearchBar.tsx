@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { InputGroup, Button, Spinner, Icon, Menu, MenuItem } from '@blueprintjs/core';
 import type { Asset } from '../store/types';
 import './SearchBar.css';
 
@@ -142,6 +143,12 @@ function searchTargets(query: string): SearchResult[] {
   return results.slice(0, 5);
 }
 
+const TYPE_ICON: Record<string, { icon: string; className: string }> = {
+  location: { icon: 'map-marker', className: 'search-type-location' },
+  asset: { icon: 'cube', className: 'search-type-asset' },
+  target: { icon: 'diamond', className: 'search-type-target' },
+};
+
 // ── SearchBar Component ──
 
 export function SearchBar({
@@ -237,44 +244,44 @@ export function SearchBar({
     onResultSelected(null);
   }, [onResultSelected]);
 
+  const rightElement = (
+    <>
+      {loading && <Spinner size={12} />}
+      {query && (
+        <Button icon="cross" minimal small onClick={handleClear} />
+      )}
+    </>
+  );
+
   return (
     <div className="search-bar-container" ref={containerRef}>
-      <div className="search-bar-input-wrap">
-        <svg className="search-bar-icon" viewBox="0 0 16 16" width="12" height="12">
-          <path fill="#64748b" d="M11.7 10.3l3 3a1 1 0 01-1.4 1.4l-3-3a6 6 0 111.4-1.4zM7 11a4 4 0 100-8 4 4 0 000 8z"/>
-        </svg>
-        <input
-          type="text"
-          className="search-bar-input"
-          placeholder={placeholder ?? 'Search location, asset...'}
-          value={query}
-          onChange={handleInputChange}
-          onFocus={() => { if (results.length > 0) setIsOpen(true); }}
-          onKeyDown={handleKeyDown}
-        />
-        {query && (
-          <button className="search-bar-clear" onClick={handleClear}>&times;</button>
-        )}
-        {loading && <span className="search-bar-spinner" />}
-      </div>
+      <InputGroup
+        leftIcon="search"
+        placeholder={placeholder ?? 'Search location, asset...'}
+        value={query}
+        onChange={handleInputChange}
+        onFocus={() => { if (results.length > 0) setIsOpen(true); }}
+        onKeyDown={handleKeyDown}
+        rightElement={rightElement}
+        small
+        className="search-bar-input"
+      />
       {isOpen && results.length > 0 && (
-        <div className="search-bar-dropdown">
-          {results.map((r, i) => (
-            <div
-              key={`${r.type}-${r.label}-${i}`}
-              className="search-result"
-              onClick={() => handleSelect(r)}
-            >
-              <span className={`search-result-type search-type-${r.type}`}>
-                {r.type === 'location' ? '\u25CB' : r.type === 'asset' ? '\u25A0' : '\u25C7'}
-              </span>
-              <div className="search-result-text">
-                <span className="search-result-label">{r.label}</span>
-                <span className="search-result-sub">{r.sublabel}</span>
-              </div>
-            </div>
-          ))}
-        </div>
+        <Menu className="search-bar-dropdown">
+          {results.map((r, i) => {
+            const typeInfo = TYPE_ICON[r.type] ?? { icon: 'dot', className: '' };
+            return (
+              <MenuItem
+                key={`${r.type}-${r.label}-${i}`}
+                icon={<Icon icon={typeInfo.icon as any} className={typeInfo.className} size={12} />}
+                text={<span className="search-result-label">{r.label}</span>}
+                labelElement={<span className="search-result-sub">{r.sublabel}</span>}
+                onClick={() => handleSelect(r)}
+                className="search-result-item"
+              />
+            );
+          })}
+        </Menu>
       )}
     </div>
   );

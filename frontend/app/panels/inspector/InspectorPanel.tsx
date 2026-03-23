@@ -1,4 +1,4 @@
-import { Button, Tag, Intent, ProgressBar, NonIdealState } from '@blueprintjs/core';
+import { Button, Tag, Intent, ProgressBar, NonIdealState, Section as BpSection, SectionCard } from '@blueprintjs/core';
 import { useAppStore } from '../../store/appStore';
 import { useSelectedAsset, useSelectedMission, useSelectedAlert } from '../../store/selectors';
 import * as api from '../../services/apiClient';
@@ -145,10 +145,11 @@ function AlertInspector() {
 // Helper components
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="inspector-section">
-      <h4>{title}</h4>
-      {children}
-    </div>
+    <BpSection title={title} compact className="inspector-section">
+      <SectionCard className="inspector-section-card">
+        {children}
+      </SectionCard>
+    </BpSection>
   );
 }
 

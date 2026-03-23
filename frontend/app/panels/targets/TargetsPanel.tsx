@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { HTMLSelect, Button, Intent } from '@blueprintjs/core';
+import { Button, Intent, Card, NonIdealState, Menu, MenuItem } from '@blueprintjs/core';
+import { Select } from '@blueprintjs/select';
 import { SearchBar } from '../../components/SearchBar';
 import type { SearchResult } from '../../components/SearchBar';
 import { useAppStore } from '../../store/appStore';
@@ -542,12 +543,30 @@ export function TargetsPanel() {
       )}
 
       <div className="targets-toolbar">
-        <HTMLSelect value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="targets-type-select">
-          <option value="all">All Types ({targets.length})</option>
-          {types.map((t) => (
-            <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)} ({targets.filter((tg) => (tg.type || 'unknown') === t).length})</option>
-          ))}
-        </HTMLSelect>
+        <Select<string>
+          items={['all', ...types]}
+          itemRenderer={(item, { handleClick, modifiers }) => (
+            <MenuItem
+              key={item}
+              text={item === 'all' ? `All Types (${targets.length})` : `${item.charAt(0).toUpperCase() + item.slice(1)} (${targets.filter((tg) => (tg.type || 'unknown') === item).length})`}
+              onClick={handleClick}
+              active={modifiers.active}
+              selected={item === typeFilter}
+              roleStructure="listoption"
+            />
+          )}
+          onItemSelect={(item) => setTypeFilter(item)}
+          filterable={false}
+          popoverProps={{ minimal: true, matchTargetWidth: true, className: 'targets-filter-popover', portalClassName: 'targets-filter-portal', usePortal: true }}
+          menuProps={{ className: 'targets-filter-menu bp5-small' }}
+        >
+          <Button
+            small
+            rightIcon="caret-down"
+            text={typeFilter === 'all' ? `All Types (${targets.length})` : `${typeFilter.charAt(0).toUpperCase() + typeFilter.slice(1)} (${targets.filter((tg) => (tg.type || 'unknown') === typeFilter).length})`}
+            className="targets-type-select"
+          />
+        </Select>
         <Button small intent={isPainting ? Intent.NONE : Intent.DANGER} icon={isPainting ? undefined : 'plus'}
           className={`targets-paint-btn${isPainting ? ' painting-active' : ''}`} onClick={handlePaint}
           title={isPainting ? 'Click to stop painting' : 'Paint Target'}>
@@ -555,6 +574,7 @@ export function TargetsPanel() {
         </Button>
       </div>
 
+      <div className="targets-scroll-area">
       {/* Complex targets (Multi Aim Point) */}
       {complexTargets.length > 0 && (
         <div className="complex-targets-section">
@@ -588,9 +608,11 @@ export function TargetsPanel() {
 
       <div className="targets-list">
         {filtered.length === 0 ? (
-          <div className="empty-state">
-            {targets.length === 0 ? 'No aimpoints. Use + to paint.' : 'No aimpoints match filter.'}
-          </div>
+          <NonIdealState
+            description={targets.length === 0 ? 'No aimpoints. Use + to paint.' : 'No aimpoints match filter.'}
+            className="panel-empty-state"
+          />
+
         ) : (
           filtered.map((t) => (
             <TargetCard key={t.id} target={t} isSelected={selectedTargetIds.includes(t.id)}
@@ -611,6 +633,7 @@ export function TargetsPanel() {
           </Button>
         </div>
       )}
+      </div>
     </div>
   );
 }
@@ -796,25 +819,24 @@ function ComplexTargetCard({
   }, [complex.aimpoints]);
 
   return (
-    <div className={`complex-target-card${isSelected ? ' target-selected' : ''}`}
-      onClick={(e) => { onClick(e.shiftKey); setExpanded(!expanded); }}
+    <Card interactive className={`complex-target-card${isSelected ? ' target-selected' : ''}`}
+      onClick={(e) => { onClick((e as any).shiftKey); setExpanded(!expanded); }}
       onContextMenu={handleContextMenu}>
 
-      {/* Right-click context menu — rendered via portal to avoid overflow clipping */}
+      {/* Right-click context menu — portalled to body to avoid Card clipping */}
       {ctxMenu && createPortal(
-        <div className="target-ctx-menu" style={{ position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 9999 }}
+        <div className="bp5-dark" style={{ position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 9999 }}
           onClick={(e) => e.stopPropagation()}>
-          <button className="target-ctx-item" onClick={() => { setEditingAimpoints(!editingAimpoints); setExpanded(true); setCtxMenu(null); }}>
-            {editingAimpoints ? 'Stop Editing Aimpoints' : 'Edit Aimpoints'}
-          </button>
+          <Menu className="target-ctx-menu" small>
+            <MenuItem icon="edit" text={editingAimpoints ? 'Stop Editing Aimpoints' : 'Edit Aimpoints'}
+              onClick={() => { setEditingAimpoints(!editingAimpoints); setExpanded(true); setCtxMenu(null); }} />
+          </Menu>
         </div>,
         document.body
       )}
-      <button className="target-pin-btn" onClick={(e) => { e.stopPropagation(); onPin(); }} title="Select Target">
-        <svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" strokeWidth="2" fill="none"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg>
-      </button>
+      <Button icon="plus" minimal small className="target-pin-btn" onClick={(e) => { e.stopPropagation(); onPin(); }} title="Select Target" />
       <div className="complex-card-header">
-        <button className="target-remove-hover" onClick={(e) => onRemove(complex.id, e)} title="Remove">&times;</button>
+        <Button icon="cross" minimal small className="target-remove-hover" onClick={(e) => onRemove(complex.id, e)} title="Remove" />
         <span className="complex-icon">&#x2B23;</span>
         <span className="complex-name">{complex.name}</span>
         {/* Editable type badge — only editable when selected */}
@@ -831,12 +853,7 @@ function ComplexTargetCard({
           </span>
         )}
         <span className="complex-count">{complex.aimpoints.length} pts</span>
-        <button className="target-zoom-btn" onClick={handleZoom} title="Zoom to target">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-            <path d="M2 1L6 5L2 9" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-            <path d="M6 1L10 5L6 9" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-          </svg>
-        </button>
+        <Button icon="zoom-to-fit" minimal small className="target-zoom-btn" onClick={handleZoom} title="Zoom to target" />
       </div>
 
       {/* Centroid coordinates — always visible, above description (consistent with simple targets) */}
@@ -904,7 +921,7 @@ function ComplexTargetCard({
           </table>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -945,12 +962,10 @@ function TargetCard({
   }, [editingField, editValue, onUpdate]);
 
   return (
-    <div className={`target-card-react${isSelected ? ' target-selected' : ''}`} onClick={(e) => onClick(e.shiftKey)}>
-      <button className="target-pin-btn" onClick={(e) => { e.stopPropagation(); onPin(); }} title="Select Target">
-        <svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" strokeWidth="2" fill="none"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg>
-      </button>
+    <Card interactive className={`target-card-react${isSelected ? ' target-selected' : ''}`} onClick={(e) => onClick((e as any).shiftKey)}>
+      <Button icon="plus" minimal small className="target-pin-btn" onClick={(e) => { e.stopPropagation(); onPin(); }} title="Select Target" />
       <div className="target-card-header">
-        <button className="target-remove-hover" onClick={onRemove} title="Remove target">&times;</button>
+        <Button icon="cross" minimal small className="target-remove-hover" onClick={onRemove} title="Remove target" />
         <span className="target-diamond">&#x25C7;</span>
         <span className="target-id">{_aimpointDisplayName(target.id)}</span>
         {editingField === 'type' ? (
@@ -980,16 +995,11 @@ function TargetCard({
           {target.description || 'Click to add description...'}
         </div>
       )}
-      <button className="target-zoom-btn" onClick={(e) => {
+      <Button icon="zoom-to-fit" minimal small className="target-zoom-btn" onClick={(e) => {
         e.stopPropagation();
         const viewer = (window as any).viewer; const Cesium = (window as any).Cesium;
         if (viewer && Cesium) viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(target.lon, target.lat, 5000), orientation: { heading: 0, pitch: Cesium.Math.toRadians(-90), roll: 0 }, duration: 1.2 });
-      }} title="Zoom to target">
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-          <path d="M2 1L6 5L2 9" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-          <path d="M6 1L10 5L6 9" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-        </svg>
-      </button>
-    </div>
+      }} title="Zoom to target" />
+    </Card>
   );
 }

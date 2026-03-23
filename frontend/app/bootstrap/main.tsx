@@ -7,6 +7,7 @@ import { useAppStore } from '../store/appStore';
 // Import Blueprint CSS + global overrides
 import '@blueprintjs/core/lib/css/blueprint.css';
 import '@blueprintjs/icons/lib/css/blueprint-icons.css';
+import '@blueprintjs/select/lib/css/blueprint-select.css';
 import '../theme/global-overrides.css';
 
 // Expose Zustand store on window for SearchBar and legacy code access

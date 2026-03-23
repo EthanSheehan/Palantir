@@ -54,24 +54,37 @@
   min-width: 48px;
 }
 
-/* ---- TAB BAR ---- */
-.ws-tab-bar {
-  display: flex;
-  gap: 4px;
+/* ---- TAB BAR (Blueprint Tabs) ---- */
+.ws-tab-bar.bp5-tabs {
+  flex-shrink: 0;
   padding: 6px 8px;
   border-bottom: 1px solid rgba(100, 116, 139, 0.2);
-  flex-shrink: 0;
   background: transparent;
+}
+
+.ws-tab-bar .bp5-tab-list {
+  gap: 4px;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
+  border: none;
 }
 
-.ws-tab-bar::-webkit-scrollbar {
+.ws-tab-bar .bp5-tab-list::-webkit-scrollbar {
   display: none;
 }
 
-.ws-tab-btn {
+/* Hide the default Blueprint tab indicator */
+.ws-tab-bar .bp5-tab-indicator-wrapper {
+  display: none;
+}
+
+/* Hide panels rendered by Tabs — we manage panels ourselves */
+.ws-tab-bar .bp5-tab-panel {
+  display: none !important;
+}
+
+.ws-tab-bar .bp5-tab {
   flex-shrink: 0;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(100, 116, 139, 0.2);
@@ -93,35 +106,40 @@
   gap: 0;
   overflow: hidden;
   white-space: nowrap;
+  line-height: 1;
+  margin: 0;
+  box-shadow: none;
 }
 
-.ws-tab-btn .ws-tab-icon {
+.ws-tab-bar .bp5-tab .ws-tab-icon {
   flex-shrink: 0;
   width: 32px;
   text-align: center;
   font-size: 0.75rem;
 }
 
-.ws-tab-btn .ws-tab-label {
+.ws-tab-bar .bp5-tab .ws-tab-label {
   display: none;
   font-size: 0.6rem;
   padding-right: 10px;
 }
 
-.ws-tab-btn:hover {
+.ws-tab-bar .bp5-tab:hover {
   color: #e2e8f0;
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(100, 116, 139, 0.4);
 }
 
-.ws-tab-btn.ws-active {
+.ws-tab-bar .bp5-tab[aria-selected="true"],
+.ws-tab-bar .bp5-tab.ws-active {
   color: #38bdf8;
   background: rgba(56, 189, 248, 0.1);
   border-color: rgba(56, 189, 248, 0.4);
   width: auto;
 }
 
-.ws-tab-btn.ws-active .ws-tab-label {
+.ws-tab-bar .bp5-tab[aria-selected="true"] .ws-tab-label,
+.ws-tab-bar .bp5-tab.ws-active .ws-tab-label {
   display: inline;
 }
 
@@ -166,17 +184,16 @@
   background-color: rgba(56, 189, 248, 0.4);
 }
 
-/* ---- TOP COMMAND BAR ---- */
-.ws-top-bar {
+/* ---- TOP COMMAND BAR (Blueprint Navbar) ---- */
+.ws-top-bar.bp5-navbar {
   background: rgba(8, 14, 28, 0.55);
   backdrop-filter: blur(8px) saturate(150%);
   -webkit-backdrop-filter: blur(8px) saturate(150%);
   border-bottom: 1px solid rgba(100, 116, 139, 0.2);
-  display: flex;
-  align-items: center;
   padding: 0 16px;
   z-index: 100;
   min-height: 0;
+  height: 48px;
   overflow: hidden;
 }
 
@@ -405,21 +422,7 @@
   letter-spacing: 0.08em;
 }
 
-.ws-right-drawer-close {
-  background: none;
-  border: none;
-  color: #64748b;
-  font-size: 1.1rem;
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 2px;
-  line-height: 1;
-}
-
-.ws-right-drawer-close:hover {
-  color: #e2e8f0;
-  background: rgba(255, 255, 255, 0.08);
-}
+/* Close button uses Blueprint Button - see RightInspectorDrawer.tsx */
 
 .ws-right-drawer-content {
   flex: 1;
