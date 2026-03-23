@@ -1,0 +1,117 @@
+/* ---- Vertical Taskbar ---- */
+.ws-vertical-taskbar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 4px;
+  gap: 0;
+  background: rgba(4, 8, 18, 0.75);
+  backdrop-filter: blur(8px) saturate(150%);
+  -webkit-backdrop-filter: blur(8px) saturate(150%);
+  border-right: 1px solid rgba(148, 163, 184, 0.1);
+  z-index: 100;
+  width: 44px;
+  flex-shrink: 0;
+}
+
+.taskbar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Buttons — extend hover area to edges with equal spacing */
+.taskbar-btn.bp5-button {
+  font-size: 0.6rem;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.03em;
+  color: #94a3b8;
+  padding: 6px 0;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  border-radius: 2px;
+  box-shadow: none !important;
+  text-align: center;
+  justify-content: center;
+}
+
+.taskbar-btn.bp5-button:hover {
+  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.taskbar-btn.bp5-button.bp5-active,
+.taskbar-btn.bp5-button:active {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1) !important;
+}
+
+/* Popover wrapper needs full width so button extends to edges */
+.taskbar-section .bp5-popover-target {
+  display: block;
+  width: 100%;
+}
+
+/* ---- Divider ---- */
+.taskbar-divider.bp5-divider {
+  margin: 6px 4px;
+  border-color: rgba(100, 116, 139, 0.25);
+}
+
+/* ---- Workspace Tabs (below divider) ---- */
+.taskbar-tab.bp5-button {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.taskbar-tab-active.bp5-button {
+  color: #38bdf8 !important;
+  background: rgba(56, 189, 248, 0.1) !important;
+}
+
+/* Portal z-index and offset for taskbar popovers */
+.taskbar-portal {
+  z-index: 200 !important;
+}
+
+.taskbar-portal .bp5-popover {
+  margin-left: -4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+
+.taskbar-portal .bp5-popover .bp5-popover-content {
+  padding: 0;
+}
+
+.taskbar-portal .bp5-popover .bp5-popover-arrow {
+  display: none;
+}
+
+/* Menu styling — compact popover menus */
+.taskbar-menu.bp5-menu {
+  min-width: 100px;
+  padding: 3px;
+}
+
+.taskbar-menu.bp5-menu .bp5-menu-item {
+  font-size: 0.6rem;
+  font-weight: 300;
+  padding: 4px 8px;
+  min-height: 0;
+  line-height: 1.4;
+  align-items: center;
+  gap: 6px;
+}
+
+.taskbar-menu.bp5-menu .bp5-menu-item .bp5-icon {
+  width: 14px;
+  height: 14px;
+  margin-right: 0;
+}
+
+.taskbar-menu.bp5-menu .bp5-menu-divider {
+  margin: 3px 0;
+}

@@ -53,13 +53,13 @@ viewer.scene.fog.density = 0.0001;
 // (OsmBuildings removed for Grid 11 baseline)
 
 viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(24.9668, 41.2, 500000.0), 
+    destination: Cesium.Cartesian3.fromDegrees(25.0, 46.0, 15000000.0),
     orientation: {
         heading: Cesium.Math.toRadians(0),
-        pitch: Cesium.Math.toRadians(-45.0),
+        pitch: Cesium.Math.toRadians(-90.0),
         roll: 0.0
     },
-    duration: 0 
+    duration: 0
 });
 
 // 1b. WorkspaceShell replaced by React layout (see app/layout/WorkspaceLayout.tsx)
@@ -1354,8 +1354,7 @@ function _renderHalos() {
 (function initHaloModeToggle() {
     const btn = document.getElementById('haloModeBtn');
     if (!btn) return;
-    // Default is ground mode: button is dim/off, compass ring entity visible, ground rings built
-    btn.style.opacity = '0.5';
+    // Default is ground mode: button at full opacity, compass ring entity visible, ground rings built
     _updateGroundRings(); // build secondary ground rings for initial selection
     btn.addEventListener('click', () => {
         _haloMode = _haloMode === 'canvas' ? 'ground' : 'canvas';
@@ -1363,7 +1362,8 @@ function _renderHalos() {
         compassRingEntity.polyline.show = !isCanvas;
         _updateGroundRings();
         // ON (bright) = canvas/merge mode; OFF (dim) = ground/terrain mode
-        btn.style.opacity = isCanvas ? '1' : '0.5';
+        btn.style.opacity = '1';
+        btn.dispatchEvent(new CustomEvent('haloToggle', { detail: { isCanvas } }));
         viewer.scene.requestRender();
     });
 })();

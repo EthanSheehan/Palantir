@@ -550,6 +550,13 @@ h3 {
     padding: 0;
 }
 
+.square-btn .bp5-icon-mount {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+}
+
 .square-btn:hover {
     background: rgba(30, 41, 59, 0.9);
     border-color: rgba(148, 163, 184, 0.5);
