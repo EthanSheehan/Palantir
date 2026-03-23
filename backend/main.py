@@ -83,6 +83,8 @@ async def _do_telemetry_batch(tick_count, persist):
                 position=Position(lon=update.lon, lat=update.lat, alt_m=update.alt_m),
                 velocity=Velocity(vx_mps=update.vx_mps, vy_mps=update.vy_mps, vz_mps=update.vz_mps),
                 heading_deg=update.heading_deg,
+                pitch_deg=update.pitch_deg,
+                roll_deg=update.roll_deg,
                 battery_pct=update.battery_pct,
                 link_quality=update.link_quality,
                 persist_to_log=persist,
@@ -130,12 +132,28 @@ async def register_initial_assets():
                 type="quadrotor",
                 status=AssetStatus.idle,
                 mode=AssetMode.simulated,
-                position=Position(lon=uav.x, lat=uav.y, alt_m=1000.0),
+                position=Position(lon=uav.x, lat=uav.y, alt_m=2000.0),
                 home_location=Position(lon=uav.x, lat=uav.y, alt_m=0.0),
                 capabilities=["camera_rgb", "camera_ir"],
             )
             await ctx.asset_service.register_asset(asset)
             logger.info("Registered asset %s", asset_id)
+
+    for launcher in sim.launchers:
+        asset_id = f"launcher_{launcher.id}"
+        if asset_id not in existing_ids:
+            asset = Asset(
+                id=asset_id,
+                name=f"Launcher-{launcher.id:02d}",
+                type="launcher",
+                status=AssetStatus.idle,
+                mode=AssetMode.simulated,
+                position=Position(lon=launcher.x, lat=launcher.y, alt_m=0.0),
+                home_location=Position(lon=launcher.x, lat=launcher.y, alt_m=0.0),
+                capabilities=["missile_launch"],
+            )
+            await ctx.asset_service.register_asset(asset)
+            logger.info("Registered launcher asset %s", asset_id)
 
 
 @app.on_event("startup")
@@ -182,8 +200,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 drone_id = payload.get("drone_id")
                 lon = payload.get("target_lon")
                 lat = payload.get("target_lat")
+                alt = payload.get("target_alt")
                 if drone_id is not None and lon is not None and lat is not None:
-                    sim.command_move(drone_id, lon, lat)
+                    sim.command_move(drone_id, lon, lat, alt)
 
             elif payload.get("action") == "reset":
                 sim.reset_queues()

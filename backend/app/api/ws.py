@@ -84,7 +84,7 @@ async def websocket_events(ws: WebSocket):
                             "destination": {
                                 "lon": msg.get("target_lon", 0),
                                 "lat": msg.get("target_lat", 0),
-                                "alt_m": 1000.0,
+                                "alt_m": msg.get("target_alt", 2000.0),
                             }
                         },
                     )
@@ -93,6 +93,29 @@ async def websocket_events(ws: WebSocket):
                 elif action == "reset":
                     if _ctx.adapter and hasattr(_ctx.adapter, 'sim'):
                         _ctx.adapter.sim.reset_queues()
+
+                elif action == "launch_drone":
+                    from ..dependencies import ctx as _ctx
+                    launcher_id = msg.get("launcher_id", 0)
+                    if _ctx.adapter and hasattr(_ctx.adapter, 'sim'):
+                        uav = _ctx.adapter.sim.launch_drone(launcher_id)
+                        if uav:
+                            # Dynamically register the new drone as an asset
+                            from ..domain.models import Asset, Position
+                            from ..domain.enums import AssetStatus, AssetMode
+                            asset = Asset(
+                                id=f"uav_{uav.id}",
+                                name=f"UAV-{uav.id:02d}",
+                                type="quadrotor",
+                                status=AssetStatus.idle,
+                                mode=AssetMode.simulated,
+                                position=Position(lon=uav.x, lat=uav.y, alt_m=0.0),
+                                home_location=Position(lon=uav.x, lat=uav.y, alt_m=0.0),
+                                capabilities=["camera_rgb", "camera_ir"],
+                            )
+                            import asyncio
+                            asyncio.create_task(ctx.asset_service.register_asset(asset))
+                            logger.info("Launched drone uav_%d from launcher_%d", uav.id, launcher_id)
 
                 elif action == "subscribe":
                     pass  # Future: channel-based subscription

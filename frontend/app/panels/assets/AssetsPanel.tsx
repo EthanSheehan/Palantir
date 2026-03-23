@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Tag, Intent, ProgressBar } from '@blueprintjs/core';
 import { useAppStore } from '../../store/appStore';
 import type { Asset } from '../../store/types';
@@ -10,17 +11,25 @@ import { updateTargetHighlights } from '../targets/TargetsPanel';
 
 const DOMAIN_FILTERS = ['Air', 'Land', 'Space'] as const;
 
-/** Map asset to a domain category. Currently all UAVs are air. */
-function getAssetDomain(_asset: Asset): string {
+/** Map asset to a domain category. */
+function getAssetDomain(asset: Asset): string {
+  if (asset.id.startsWith('launcher_')) return 'land';
   return 'air';
 }
 
-/** Display name: "Fixed - 01" format. */
+/** Display name based on asset type. */
 function getDisplayName(asset: Asset): string {
   const num = asset.id.replace(/\D/g, '');
   const idx = parseInt(num, 10);
   if (isNaN(idx)) return asset.id;
+  if (asset.id.startsWith('launcher_')) return `Launcher - ${String(idx + 1).padStart(2, '0')}`;
   return `Fixed - ${String(idx + 1).padStart(2, '0')}`;
+}
+
+/** Manufacturer/vehicle label based on asset type. */
+function getManufacturerLabel(asset: Asset): string {
+  if (asset.id.startsWith('launcher_')) return 'Ground Vehicle';
+  return 'AMS Fixed';
 }
 
 /** Cruise speed ~2.2 km/s (0.02 deg/s from sim.py). */
@@ -316,7 +325,36 @@ export function AssetsPanel() {
       )}
 
       {subTab === 'create' && (
-        <div className="empty-state">Package creation coming soon</div>
+        <>
+          {sortAnchor && (
+            <div className="sort-anchor-label">
+              Sorted by distance to <strong>{sortAnchor.label}</strong>
+            </div>
+          )}
+          <div className="assets-list">
+            {(() => {
+              const launchers = filtered.filter((a) => a.id.startsWith('launcher_'));
+              if (launchers.length === 0) return <div className="empty-state">No launchers available</div>;
+              return launchers.map((asset) => {
+                const isPrimary = asset.id === primaryId;
+                const isSecondary = !isPrimary && selectedIds.includes(asset.id);
+                const dist = sortAnchor
+                  ? haversineKm(sortAnchor.lon, sortAnchor.lat, asset.position?.lon ?? 0, asset.position?.lat ?? 0)
+                  : null;
+                return (
+                  <AssetCard
+                    key={asset.id}
+                    asset={asset}
+                    isPrimary={isPrimary}
+                    isSecondary={isSecondary}
+                    onClick={handleClick}
+                    distanceKm={dist}
+                  />
+                );
+              });
+            })()}
+          </div>
+        </>
       )}
     </div>
   );
@@ -346,16 +384,52 @@ function AssetCard({
   const linkPct = (asset.link_quality ?? 0) * 100;
   const displayName = getDisplayName(asset);
   const etaSec = distanceKm !== null ? distanceKm / CRUISE_SPEED_KMS : null;
+  const isLauncher = asset.id.startsWith('launcher_');
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
+
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    if (!isLauncher) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setCtxMenu({ x: e.clientX, y: e.clientY });
+  }, [isLauncher]);
+
+  // Close context menu on outside click
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const close = () => setCtxMenu(null);
+    window.addEventListener('click', close);
+    return () => window.removeEventListener('click', close);
+  }, [ctxMenu]);
+
+  const handleLaunch = useCallback(() => {
+    const launcherId = parseInt(asset.id.replace('launcher_', ''), 10);
+    const ws = new WebSocket('ws://localhost:8012/ws/events');
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ action: 'launch_drone', launcher_id: launcherId }));
+      setTimeout(() => ws.close(), 1000);
+    };
+    setCtxMenu(null);
+  }, [asset.id]);
 
   return (
     <div
       className={`asset-card${selClass}${isExpanded ? ' asset-expanded' : ''}`}
       onClick={(e) => onClick(asset.id, e.shiftKey)}
+      onContextMenu={handleContextMenu}
       draggable
       onDragStart={(e) => {
         e.dataTransfer.setData('uavId', asset.id.replace('uav_', ''));
       }}
     >
+      {/* Launcher right-click context menu */}
+      {ctxMenu && createPortal(
+        <div className="target-ctx-menu" style={{ position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 9999 }}
+          onClick={(e) => e.stopPropagation()}>
+          <button className="target-ctx-item" onClick={handleLaunch}>Launch Fixed Asset</button>
+        </div>,
+        document.body
+      )}
       <button className="asset-assign-btn" onClick={(e) => { e.stopPropagation(); }} title="Assign Asset to Target">
         <svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" strokeWidth="2" fill="none"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg>
       </button>
@@ -363,7 +437,7 @@ function AssetCard({
       <div className="asset-card-header">
         <div className="asset-card-name">
           <span className="asset-id">{displayName}</span>
-          <span className="asset-manufacturer">AMS Fixed</span>
+          <span className="asset-manufacturer">{getManufacturerLabel(asset)}</span>
         </div>
         <div className="asset-card-tags">
           {distanceKm !== null && !isExpanded && (
