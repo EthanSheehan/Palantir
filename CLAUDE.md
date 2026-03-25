@@ -26,7 +26,7 @@ DEMO_MODE=true ./venv/bin/python3 src/python/api_main.py  # Backend in demo mode
 ## Tests
 
 ```bash
-# Run all tests (475 tests across 23 test files)
+# Run all tests (1371 tests across 23 test files)
 ./venv/bin/python3 -m pytest src/python/tests/
 
 # Run a single test file
@@ -59,7 +59,9 @@ Environment variables go in a `.env` file (loaded via python-dotenv). Required f
 - `sim_engine.py` — `SimulationModel` manages UAV positions/modes and target movement (SAM, TEL, TRUCK, CP, MANPADS, RADAR, C2_NODE, LOGISTICS, ARTILLERY, APC), plus enemy UAV simulation (RECON/ATTACK/JAMMING/EVADING)
 - `verification_engine.py` — pure-function state machine advancing targets through DETECTED → CLASSIFIED → VERIFIED → NOMINATED with per-target-type thresholds and regression timeouts; DEMO_FAST preset halves times for demo mode
 - `sensor_fusion.py` — complementary fusion across sensor types using `1 - ∏(1-ci)` with max-within-type deduplication; frozen `SensorContribution` and `FusionResult` dataclasses
-- `sensor_model.py` — probabilistic detection model (Pd based on range, RCS, weather, sensor type)
+- `sensor_model.py` — Radar range equation upgrade (Nathanson model) with Pd based on range, RCS, weather, sensor type
+- `kalman_fusion.py` — Kalman filter multi-sensor fusion for track state estimation
+- `jammer_model.py` — Electronic warfare jamming model for enemy countermeasures
 - `swarm_coordinator.py` — greedy UAV-to-target assignment with sensor-gap detection, priority scoring, 120s task expiry, idle-count guard, auto-release on target state transitions
 - `battlespace_assessment.py` — pure-function threat clustering, coverage gap identification, zone threat scoring, and movement corridor detection
 - `isr_priority.py` — ISR priority queue builder ranking targets by urgency (threat weight × verification gap × sensor coverage)
@@ -113,7 +115,7 @@ Agents communicate through Pydantic models defined in `src/python/core/ontology.
 
 The backend sends JSON payloads each tick containing drone positions, target positions, grid zone states, theater bounds, assessment data, ISR queue, enemy UAVs, swarm tasks, and tactical assistant messages. The frontend subscribes and updates Cesium entities in real time. Simulator clients send back video frames (base64 MJPEG) and telemetry.
 
-Key WebSocket actions: `scan_area`, `follow_target`, `paint_target`, `intercept_target`, `intercept_enemy`, `cancel_track`, `move_drone`, `spike`, `approve_nomination`, `reject_nomination`, `retask_nomination`, `authorize_coa`, `reject_coa`, `verify_target`, `retask_sensors`, `set_autonomy_level`, `set_drone_autonomy`, `approve_transition`, `reject_transition`, `request_swarm`, `release_swarm`, `set_coverage_mode`, `subscribe`, `subscribe_sensor_feed`, `reset`, `SET_SCENARIO`.
+Key WebSocket actions: `scan_area`, `follow_target`, `paint_target`, `intercept_target`, `intercept_enemy`, `cancel_track`, `move_drone`, `spike`, `approve_nomination`, `reject_nomination`, `retask_nomination`, `authorize_coa`, `reject_coa`, `verify_target`, `retask_sensors`, `set_autonomy_level`, `set_drone_autonomy`, `approve_transition`, `reject_transition`, `request_swarm`, `release_swarm`, `set_coverage_mode`, `set_roe`, `load_scenario`, `save_checkpoint`, `load_checkpoint`, `set_speed`, `pause`, `resume`, `step`, `set_weather`, `get_report`, `subscribe`, `subscribe_sensor_feed`, `reset`, `SET_SCENARIO`.
 
 ### Key Python Modules (non-agent)
 
@@ -133,6 +135,26 @@ Key WebSocket actions: `scan_area`, `follow_target`, `paint_target`, `intercept_
 | `llm_adapter.py` | Multi-provider LLM fallback (Gemini → Anthropic → heuristic) |
 | `event_logger.py` | Async JSONL event logging with daily rotation |
 | `config.py` | Pydantic-settings env var management |
+| `roe_engine.py` | Rules of Engagement engine with YAML config |
+| `audit_trail.py` | Tamper-evident audit logging of all decisions |
+| `hungarian_swarm.py` | Hungarian algorithm optimal UAV-target assignment |
+| `persistence.py` | SQLite state persistence for mission restart |
+| `auth.py` | WebSocket JWT authentication and token validation |
+| `explainability.py` | AI decision explainability engine for recommendations |
+| `autonomy_matrix.py` | Dynamic autonomy level management (MANUAL/SUPERVISED/AUTONOMOUS) |
+| `confidence_gate.py` | Confidence-based decision gating for safety |
+| `override_capture.py` | Human override recording and analysis |
+| `aar_engine.py` | After Action Review engine for post-mission analysis |
+| `kill_chain_tracker.py` | F2T2EA kill chain state tracker (Find→Fix→Track→Target→Engage→Assess) |
+| `sim_controller.py` | Simulation pause/resume/speed control |
+| `weather_engine.py` | Weather effects on sensor performance (rain, fog, wind) |
+| `uav_logistics.py` | Fuel/ammo/maintenance tracking and constraints |
+| `terrain_model.py` | Terrain elevation and line-of-sight computation |
+| `rbac.py` | Role-based access control with JWT authentication |
+| `llm_sanitizer.py` | LLM prompt injection defense |
+| `report_generator.py` | JSON/CSV report generation |
+| `checkpoint.py` | Mission checkpoint/restore functionality |
+| `scenario_engine.py` | YAML scenario scripting engine |
 
 ## Integrated Agent Workflow (MANDATORY)
 
