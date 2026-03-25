@@ -146,6 +146,12 @@ blob-report/
 !/docs/images/*.jpg
 !/docs/images/*.svg
 
+# LibreOffice lock files
+.~lock.*
+
+# Hypothesis (pytest)
+.hypothesis/
+
 # Misc
 *.sqlite
 *.db
