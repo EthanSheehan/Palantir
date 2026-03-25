@@ -22,8 +22,14 @@ class VisionProcessor:
         self.source = source
         self.connector = DashboardConnector()
 
-        # Mock drone state (would ideally come from MAVLink/Telemetry)
-        self.drone_state = {"lat": 51.4545, "lon": -2.5879, "alt": 100.0, "pitch": -90.0, "yaw": 0.0}
+        # Drone state — updated via update_telemetry() with real MAVLink/sim telemetry
+        self.drone_state = {"lat": 0.0, "lon": 0.0, "alt": 100.0, "pitch": -90.0, "yaw": 0.0}
+
+    def update_telemetry(self, telemetry: dict) -> None:
+        """Update drone state from real telemetry (MAVLink, sim_engine, etc.)."""
+        for key, value in telemetry.items():
+            if key in self.drone_state:
+                self.drone_state[key] = value
 
     async def run(self):
         """Main inference loop."""

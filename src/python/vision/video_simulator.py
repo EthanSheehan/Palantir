@@ -147,9 +147,29 @@ class TrackingScenario(MissionScenario):
 
     def update_drone(self, drone, dt, blocks):
         target = next((b for b in blocks if b["id"] == self.target_id), None)
-        if target:
-            # Simple chase logic
-            pass
+        if not target:
+            return
+
+        target_lat = target["lat"]
+        target_lon = target["lon"]
+
+        bearing_deg = _calculate_bearing_deg(drone["lat"], drone["lon"], target_lat, target_lon)
+        range_m = _calculate_range_m(drone["lat"], drone["lon"], target_lat, target_lon)
+
+        drone["yaw"] = bearing_deg
+
+        speed_ms = drone.get("speed", 15.0)
+        step_m = min(speed_ms * dt, range_m)
+
+        if range_m < 1.0:
+            return
+
+        bearing_rad = math.radians(bearing_deg)
+        d_lat = (step_m / EARTH_RADIUS) * math.cos(bearing_rad)
+        d_lon = (step_m / EARTH_RADIUS) * math.sin(bearing_rad) / math.cos(math.radians(drone["lat"]))
+
+        drone["lat"] = drone["lat"] + math.degrees(d_lat)
+        drone["lon"] = drone["lon"] + math.degrees(d_lon)
 
 
 class PaintingScenario(MissionScenario):
