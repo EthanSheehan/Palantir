@@ -26,7 +26,7 @@ DEMO_MODE=true ./venv/bin/python3 src/python/api_main.py  # Backend in demo mode
 ## Tests
 
 ```bash
-# Run all tests (1371 tests across 23 test files)
+# Run all tests (1788 tests across 35 test files)
 ./venv/bin/python3 -m pytest src/python/tests/
 
 # Run a single test file
@@ -155,6 +155,16 @@ Key WebSocket actions: `scan_area`, `follow_target`, `paint_target`, `intercept_
 | `report_generator.py` | JSON/CSV report generation |
 | `checkpoint.py` | Mission checkpoint/restore functionality |
 | `scenario_engine.py` | YAML scenario scripting engine |
+| `forward_sim.py` | Clone sim + project forward for COA evaluation |
+| `delta_compression.py` | WebSocket delta encoding for bandwidth reduction |
+| `vectorized_detection.py` | NumPy vectorized detection loop (10-50x speedup) |
+| `comms_sim.py` | Communication degradation simulation (FULL/CONTESTED/DENIED) |
+| `cep_model.py` | CEP-based engagement outcomes (Rayleigh miss-distance model) |
+| `dbscan_clustering.py` | DBSCAN clustering with persistent IDs |
+| `sensor_weighting.py` | Dynamic per-sensor fitness based on weather/time/target |
+| `lost_link.py` | Per-drone lost-link behavior (LOITER/RTB/SAFE_LAND/CONTINUE) |
+| `uav_kinematics.py` | 3-DOF point-mass with wind, collision avoidance, PN guidance |
+| `corridor_detection.py` | Douglas-Peucker path simplification + heading consistency |
 
 ## Integrated Agent Workflow (MANDATORY)
 
