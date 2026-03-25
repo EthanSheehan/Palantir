@@ -6,7 +6,9 @@ Dynamic weather front simulation for the Palantir C2 system.
 Implements zone-based weather states that advance through a CLEAR→OVERCAST→RAIN→STORM
 cycle, degrading sensor performance based on sensor type and weather intensity.
 
-All public types are immutable frozen dataclasses. No mutation anywhere.
+WeatherState dataclasses are immutable (frozen). WeatherEngine is a stateful manager
+that holds per-zone state and a seeded RNG; tick() returns a new WeatherEngine instance
+rather than mutating in-place.
 """
 
 from __future__ import annotations
@@ -84,7 +86,7 @@ def get_zone_weather(engine: WeatherEngine, zone_id: str) -> WeatherState:
 
 
 class WeatherEngine:
-    """Immutable weather engine.  tick() returns a new WeatherEngine instance."""
+    """Stateful weather engine.  tick() returns a new WeatherEngine instance with updated states."""
 
     def __init__(
         self,

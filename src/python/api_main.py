@@ -49,6 +49,9 @@ from websocket_handlers import (
     _send_error,
 )
 from websocket_handlers import (
+    _build_sitrep_payload as _ws_build_sitrep_payload,
+)
+from websocket_handlers import (
     handle_payload as _ws_handle_payload,
 )
 
@@ -185,49 +188,6 @@ def _check_rate_limit(client_info: dict) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# SITREP helpers (shared by REST and WS)
-# ---------------------------------------------------------------------------
-
-
-def _build_sitrep_payload(query_text: str = "") -> dict:
-    """Build a SITREP payload dict from current sim state."""
-    state = sim.get_state()
-    targets = state.get("targets", [])
-    strike_board = hitl.get_strike_board()
-    detected = [t for t in targets if t.get("state", "UNDETECTED") != "UNDETECTED"]
-    pending_hitl = [e for e in strike_board if e.get("status") == "PENDING"]
-
-    if detected:
-        threat_lines = [f"{t['type']} at ({t.get('lat', 0):.4f}, {t.get('lon', 0):.4f})" for t in detected[:5]]
-        narrative = (
-            f"SITREP: {len(detected)} active contact(s) detected. "
-            f"Threats: {'; '.join(threat_lines)}. "
-            f"{len(pending_hitl)} target(s) awaiting HITL review."
-        )
-        key_threats = [f"{t['type']} (id={t['id']})" for t in detected[:5]]
-    else:
-        narrative = "SITREP: No active contacts. Battlespace clear."
-        key_threats = []
-
-    recommended_actions: list[str] = []
-    if pending_hitl:
-        recommended_actions.append(f"Review {len(pending_hitl)} pending strike board nomination(s).")
-    if not detected:
-        recommended_actions.append("Continue ISR coverage.")
-
-    payload = {
-        "sitrep_narrative": narrative,
-        "key_threats": key_threats,
-        "recommended_actions": recommended_actions,
-        "data_sources_consulted": ["sim_engine", "hitl_strike_board"],
-        "confidence": 0.7 if detected else 0.9,
-    }
-    if query_text:
-        payload["query"] = query_text
-    return payload
-
-
-# ---------------------------------------------------------------------------
 # Lifespan
 # ---------------------------------------------------------------------------
 
@@ -303,7 +263,7 @@ app.add_middleware(
 @app.post("/api/sitrep")
 async def post_sitrep(body: dict):
     query_text = body.get("query", "Provide current situation report.")
-    return _build_sitrep_payload(query_text)
+    return _ws_build_sitrep_payload(sim, hitl, query_text)
 
 
 @app.post("/api/environment")

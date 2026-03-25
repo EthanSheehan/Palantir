@@ -24,6 +24,9 @@ from rbac import (
     validate_token,
 )
 
+# Use a ≥32-byte secret for all test JWT calls to avoid InsecureKeyLengthWarning
+TEST_JWT_SECRET = "test-secret-that-is-at-least-32-bytes-long!"
+
 # ---------------------------------------------------------------------------
 # Role enum
 # ---------------------------------------------------------------------------
@@ -65,7 +68,7 @@ def test_user_session_fields():
 
 
 def test_create_token_returns_string():
-    token = create_token("user1", Role.OPERATOR, secret="test-secret")
+    token = create_token("user1", Role.OPERATOR, secret=TEST_JWT_SECRET)
     assert isinstance(token, str)
     assert len(token) > 20
 
@@ -79,42 +82,42 @@ def auth_enabled(monkeypatch):
 
 
 def test_validate_token_returns_user_session(auth_enabled):
-    token = create_token("user42", Role.COMMANDER, secret="s3cr3t")
-    session = validate_token(token, secret="s3cr3t")
+    token = create_token("user42", Role.COMMANDER, secret=TEST_JWT_SECRET)
+    session = validate_token(token, secret=TEST_JWT_SECRET)
     assert isinstance(session, UserSession)
     assert session.user_id == "user42"
     assert session.role == Role.COMMANDER
 
 
 def test_validate_token_wrong_secret_raises(auth_enabled):
-    token = create_token("u1", Role.ADMIN, secret="good-secret")
+    token = create_token("u1", Role.ADMIN, secret=TEST_JWT_SECRET)
     with pytest.raises(Exception):
-        validate_token(token, secret="wrong-secret")
+        validate_token(token, secret="wrong-secret-that-is-at-least-32-bytes-!")
 
 
 def test_validate_token_invalid_token_raises(auth_enabled):
     with pytest.raises(Exception):
-        validate_token("not.a.jwt.token", secret="any")
+        validate_token("not.a.jwt.token", secret=TEST_JWT_SECRET)
 
 
 def test_validate_token_expired_raises(auth_enabled):
     # Create a token already expired (exp = 1 second in the past)
-    token = create_token("u1", Role.OPERATOR, secret="s", expires_in_seconds=-10)
+    token = create_token("u1", Role.OPERATOR, secret=TEST_JWT_SECRET, expires_in_seconds=-10)
     with pytest.raises(Exception):
-        validate_token(token, secret="s")
+        validate_token(token, secret=TEST_JWT_SECRET)
 
 
 def test_validate_token_exp_field_set(auth_enabled):
-    token = create_token("u1", Role.OBSERVER, secret="s", expires_in_seconds=3600)
-    session = validate_token(token, secret="s")
+    token = create_token("u1", Role.OBSERVER, secret=TEST_JWT_SECRET, expires_in_seconds=3600)
+    session = validate_token(token, secret=TEST_JWT_SECRET)
     # exp should be in the future
     assert session.token_exp > int(time.time())
 
 
 def test_token_role_round_trip(auth_enabled):
     for role in Role:
-        token = create_token("test", role, secret="sec")
-        session = validate_token(token, secret="sec")
+        token = create_token("test", role, secret=TEST_JWT_SECRET)
+        session = validate_token(token, secret=TEST_JWT_SECRET)
         assert session.role == role
 
 

@@ -3,8 +3,8 @@
 import json
 import os
 import sys
-import tempfile
 import time
+import uuid
 from unittest.mock import MagicMock
 
 import pytest
@@ -12,6 +12,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from checkpoint import (
+    CHECKPOINT_BASE,
     CHECKPOINT_VERSION,
     CheckpointError,
     load_checkpoint,
@@ -275,23 +276,28 @@ class TestRoundTrip:
 # ---------------------------------------------------------------------------
 
 
+def _checkpoint_path(name: str) -> str:
+    """Return an absolute path within CHECKPOINT_BASE for use in tests."""
+    CHECKPOINT_BASE.mkdir(parents=True, exist_ok=True)
+    return str(CHECKPOINT_BASE / name)
+
+
 class TestFileIO:
     def test_save_to_file_creates_file(self):
         sim = _make_sim()
         blob = save_checkpoint(sim)
-        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
-            path = f.name
+        path = _checkpoint_path(f"test_{uuid.uuid4().hex}.json")
         try:
             save_to_file(blob, path)
             assert os.path.exists(path)
         finally:
-            os.unlink(path)
+            if os.path.exists(path):
+                os.unlink(path)
 
     def test_save_to_file_writes_valid_json(self):
         sim = _make_sim()
         blob = save_checkpoint(sim)
-        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
-            path = f.name
+        path = _checkpoint_path(f"test_{uuid.uuid4().hex}.json")
         try:
             save_to_file(blob, path)
             with open(path) as fh:
@@ -299,34 +305,42 @@ class TestFileIO:
             assert "state" in data
             assert "metadata" in data
         finally:
-            os.unlink(path)
+            if os.path.exists(path):
+                os.unlink(path)
 
     def test_load_from_file_restores_checkpoint(self):
         sim = _make_sim(tick_count=33)
         blob = save_checkpoint(sim)
-        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
-            path = f.name
+        path = _checkpoint_path(f"test_{uuid.uuid4().hex}.json")
         try:
             save_to_file(blob, path)
             loaded = load_from_file(path)
             assert loaded["metadata"]["tick_count"] == 33
             assert loaded["state"] == sim.get_state()
         finally:
-            os.unlink(path)
+            if os.path.exists(path):
+                os.unlink(path)
 
     def test_load_from_file_missing_file_raises(self):
+        missing = _checkpoint_path("nonexistent_checkpoint_99999.json")
         with pytest.raises((FileNotFoundError, CheckpointError)):
-            load_from_file("/tmp/nonexistent_checkpoint_99999.json")
+            load_from_file(missing)
+
+    def test_load_from_file_outside_base_raises(self):
+        with pytest.raises(CheckpointError, match="outside the allowed directory"):
+            load_from_file("/tmp/escape_attempt.json")
 
     def test_load_from_file_corrupt_json_raises(self):
-        with tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w") as f:
+        path = _checkpoint_path(f"test_{uuid.uuid4().hex}.json")
+        CHECKPOINT_BASE.mkdir(parents=True, exist_ok=True)
+        with open(path, "w") as f:
             f.write("{not valid json")
-            path = f.name
         try:
             with pytest.raises(CheckpointError):
                 load_from_file(path)
         finally:
-            os.unlink(path)
+            if os.path.exists(path):
+                os.unlink(path)
 
 
 # ---------------------------------------------------------------------------

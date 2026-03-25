@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import json
 import math
+import pathlib
+import re
 import time
 from typing import TYPE_CHECKING, Callable
 
+import rbac
 import structlog
 import yaml
 from event_logger import log_event
 from fastapi import WebSocket, WebSocketDisconnect
+from rbac import check_permission
 from roe_engine import ROEEngine
 from schemas.ontology import (
     Detection,
@@ -29,6 +33,7 @@ logger = structlog.get_logger()
 VALID_COVERAGE_MODES = frozenset({"balanced", "threat_adaptive"})
 VALID_FEED_TYPES = frozenset({"INTEL_FEED", "COMMAND_FEED", "SENSOR_FEED"})
 MAX_SITREP_QUERY_LENGTH = 500
+_OPERATOR_ID_RE = re.compile(r"^[a-zA-Z0-9_\-]{1,64}$")
 
 
 async def _send_error(websocket: WebSocket, message: str, action: str | None = None) -> None:
@@ -266,8 +271,13 @@ async def _handle_cancel_or_scan(payload: dict, websocket: WebSocket, ctx: Handl
 
 async def _handle_approve_nomination(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:
     rationale = payload.get("rationale", "")
+    operator_id = payload.get("operator_id")
+    if operator_id is not None:
+        if not isinstance(operator_id, str) or not _OPERATOR_ID_RE.match(operator_id):
+            await _send_error(websocket, "Field 'operator_id' must match [a-zA-Z0-9_-]{1,64}", "approve_nomination")
+            return
     try:
-        ctx.hitl.approve_nomination(payload["entry_id"], rationale)
+        ctx.hitl.approve_nomination(payload["entry_id"], rationale, operator_id=operator_id)
         await ctx.intel_router.emit(
             "COMMAND_FEED", {"action": "approved", "entry_id": payload["entry_id"], "source": "operator"}
         )
@@ -281,8 +291,13 @@ async def _handle_reject_nomination(payload: dict, websocket: WebSocket, ctx: Ha
     rationale = payload.get("rationale", "")
     reason = payload.get("reason")
     reason_text = payload.get("reason_text")
+    operator_id = payload.get("operator_id")
+    if operator_id is not None:
+        if not isinstance(operator_id, str) or not _OPERATOR_ID_RE.match(operator_id):
+            await _send_error(websocket, "Field 'operator_id' must match [a-zA-Z0-9_-]{1,64}", "reject_nomination")
+            return
     try:
-        ctx.hitl.reject_nomination(payload["entry_id"], rationale)
+        ctx.hitl.reject_nomination(payload["entry_id"], rationale, operator_id=operator_id)
         from audit_log import audit_log
 
         details: dict = {"entry_id": payload["entry_id"], "action": "reject_nomination", "rationale": rationale}
@@ -317,8 +332,13 @@ async def _handle_reject_nomination(payload: dict, websocket: WebSocket, ctx: Ha
 
 async def _handle_retask_nomination(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:
     rationale = payload.get("rationale", "")
+    operator_id = payload.get("operator_id")
+    if operator_id is not None:
+        if not isinstance(operator_id, str) or not _OPERATOR_ID_RE.match(operator_id):
+            await _send_error(websocket, "Field 'operator_id' must match [a-zA-Z0-9_-]{1,64}", "retask_nomination")
+            return
     try:
-        ctx.hitl.retask_nomination(payload["entry_id"], rationale)
+        ctx.hitl.retask_nomination(payload["entry_id"], rationale, operator_id=operator_id)
         response = json.dumps({"type": "HITL_UPDATE", "action": "retasked", "entry": ctx.hitl.get_strike_board()})
         await ctx.broadcast(response, target_type="DASHBOARD")
     except ValueError as exc:
@@ -633,28 +653,41 @@ async def _handle_subscribe(payload: dict, websocket: WebSocket, ctx: HandlerCon
             websocket, f"Unknown feed type(s): {invalid_feeds}. Valid: {sorted(VALID_FEED_TYPES)}", "subscribe"
         )
         return
-    if isinstance(feeds, list):
-        client_info = ctx.clients.get(websocket, {})
-        client_info["subscriptions"] = set(feeds)
-        if "INTEL_FEED" in feeds:
-            history = ctx.intel_router.get_history("INTEL_FEED")
-            if history:
-                await websocket.send_text(json.dumps({"type": "FEED_HISTORY", "feed": "INTEL_FEED", "events": history}))
-        if "COMMAND_FEED" in feeds:
-            history = ctx.intel_router.get_history("COMMAND_FEED")
-            if history:
-                await websocket.send_text(
-                    json.dumps({"type": "FEED_HISTORY", "feed": "COMMAND_FEED", "events": history})
-                )
+    client_info = ctx.clients.get(websocket, {})
+    client_info["subscriptions"] = set(feeds)
+    if "INTEL_FEED" in feeds:
+        history = ctx.intel_router.get_history("INTEL_FEED")
+        if history:
+            await websocket.send_text(json.dumps({"type": "FEED_HISTORY", "feed": "INTEL_FEED", "events": history}))
+    if "COMMAND_FEED" in feeds:
+        history = ctx.intel_router.get_history("COMMAND_FEED")
+        if history:
+            await websocket.send_text(json.dumps({"type": "FEED_HISTORY", "feed": "COMMAND_FEED", "events": history}))
+
+
+_MAX_SENSOR_FEED_UAV_IDS = 50
 
 
 async def _handle_subscribe_sensor_feed(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:
     uav_ids = payload.get("uav_ids", [])
-    if isinstance(uav_ids, list) and len(uav_ids) <= 100:
-        valid_ids = {uid for uid in uav_ids if isinstance(uid, int)}
-        client_info = ctx.clients.get(websocket, {})
-        client_info.setdefault("subscriptions", set()).add("SENSOR_FEED")
-        client_info["sensor_feed_uav_ids"] = valid_ids
+    if not isinstance(uav_ids, list):
+        await _send_error(websocket, "Field 'uav_ids' must be a list", "subscribe_sensor_feed")
+        return
+    if len(uav_ids) > _MAX_SENSOR_FEED_UAV_IDS:
+        await _send_error(
+            websocket,
+            f"Field 'uav_ids' exceeds maximum of {_MAX_SENSOR_FEED_UAV_IDS} items",
+            "subscribe_sensor_feed",
+        )
+        return
+    non_ints = [uid for uid in uav_ids if not isinstance(uid, int)]
+    if non_ints:
+        await _send_error(websocket, "All items in 'uav_ids' must be integers", "subscribe_sensor_feed")
+        return
+    valid_ids = set(uav_ids)
+    client_info = ctx.clients.get(websocket, {})
+    client_info.setdefault("subscriptions", set()).add("SENSOR_FEED")
+    client_info["sensor_feed_uav_ids"] = valid_ids
 
 
 async def _handle_save_checkpoint(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:
@@ -712,10 +745,17 @@ async def _handle_get_roe(payload: dict, websocket: WebSocket, ctx: HandlerConte
         pass
 
 
+_ROE_BASE = (pathlib.Path(__file__).parent.parent.parent / "roe").resolve()
+
+
 async def _handle_set_roe(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:
     path = payload.get("path")
     if not path or not isinstance(path, str):
         await _send_error(websocket, "Field 'path' is required and must be a string", "set_roe")
+        return
+    resolved = pathlib.Path(path).resolve()
+    if not str(resolved).startswith(str(_ROE_BASE)):
+        await _send_error(websocket, "Invalid ROE path: must be within the roe/ directory", "set_roe")
         return
     try:
         new_engine = ROEEngine.load_from_yaml(path)
@@ -783,6 +823,16 @@ async def handle_payload(payload: dict, websocket: WebSocket, raw_data: str, ctx
     """Dispatch incoming WebSocket payloads to the correct handler."""
     action = payload.get("action")
     p_type = payload.get("type")
+
+    # RBAC permission check — skip when AUTH_DISABLED
+    if not rbac.AUTH_DISABLED:
+        # Resolve the action key for the permission matrix (type-based forwards use p_type)
+        _rbac_key = action or p_type
+        session = ctx.clients.get(websocket, {}).get("session")
+        role = session.role if session else rbac.Role.OBSERVER
+        if _rbac_key and not check_permission(role, _rbac_key):
+            await _send_error(websocket, f"Permission denied for action '{_rbac_key}'", action)
+            return
 
     # Validate payload against schema if action has one
     if action in _ACTION_SCHEMAS:

@@ -49,6 +49,10 @@ AUTONOMOUS_TRANSITIONS = {
     ("IDLE", "coverage_gap_detected"): "OVERWATCH",
 }
 
+# Confidence fade constants for untracked targets
+CONFIDENCE_FADE_FACTOR = 0.95
+CONFIDENCE_FADE_THRESHOLD = 0.1
+
 # Minimum idle UAV count to maintain before threat-adaptive dispatch
 MIN_IDLE_COUNT = 3
 
@@ -483,9 +487,9 @@ class SimulationModel:
                 t.detected_by_sensor = best.sensor_type
             else:
                 if t.state in ("DETECTED", "CLASSIFIED", "VERIFIED") and not t.tracked_by_uav_ids:
-                    t.detection_confidence *= 0.95
-                    t.fused_confidence *= 0.95
-                    if t.detection_confidence < 0.1:
+                    t.detection_confidence *= CONFIDENCE_FADE_FACTOR
+                    t.fused_confidence *= CONFIDENCE_FADE_FACTOR
+                    if t.detection_confidence < CONFIDENCE_FADE_THRESHOLD:
                         t.state = "UNDETECTED"
                         t.detection_confidence = 0.0
                         t.fused_confidence = 0.0
@@ -577,8 +581,8 @@ class SimulationModel:
                 e.sensor_contributions = list(fused.contributions)
                 e.detected = True
             else:
-                e.fused_confidence = max(0.0, e.fused_confidence * 0.95)
-                e.detected = e.fused_confidence > 0.1
+                e.fused_confidence = max(0.0, e.fused_confidence * CONFIDENCE_FADE_FACTOR)
+                e.detected = e.fused_confidence > CONFIDENCE_FADE_THRESHOLD
 
         # 11. Swarm coordination
         self._swarm_tick_counter += 1
@@ -604,9 +608,6 @@ class SimulationModel:
             u.vx = 0
             u.vy = 0
             return
-
-        if not hasattr(u, "_intercept_dwell"):
-            u._intercept_dwell = 0.0
 
         dx = enemy.x - u.x
         dy = enemy.y - u.y
@@ -860,9 +861,7 @@ class SimulationModel:
         return None
 
     def _evaluate_autonomy(self, dt_sec: float):
-        import time as _time
-
-        now = _time.monotonic()
+        now = time.monotonic()
 
         for uav_id, pending in list(self.pending_transitions.items()):
             if now >= pending["expires_at"]:

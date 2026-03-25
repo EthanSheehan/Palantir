@@ -173,10 +173,17 @@ def compute_dead_zones(
 
     blocked: list[tuple[float, float]] = []
 
-    lat = min_lat
-    while lat <= max_lat + 1e-9:
-        lon = min_lon
-        while lon <= max_lon + 1e-9:
+    lat_steps = int((max_lat - min_lat) / grid_resolution) + 1
+    lon_steps = int((max_lon - min_lon) / grid_resolution) + 1
+
+    for i in range(lat_steps):
+        lat = min_lat + i * grid_resolution
+        if lat > max_lat + 1e-9:
+            break
+        for j in range(lon_steps):
+            lon = min_lon + j * grid_resolution
+            if lon > max_lon + 1e-9:
+                break
             if not has_line_of_sight(
                 terrain,
                 observer_lat,
@@ -187,8 +194,6 @@ def compute_dead_zones(
                 0.0,
             ):
                 blocked.append((lat, lon))
-            lon += grid_resolution
-        lat += grid_resolution
 
     return blocked
 

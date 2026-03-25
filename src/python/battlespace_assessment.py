@@ -87,7 +87,9 @@ class AssessmentResult:
 
 def _get_xy(t: dict) -> Tuple[float, float]:
     """Extract lon/lat from a target dict, supporting both 'x'/'y' and 'lon'/'lat' keys."""
-    return (t.get("x") or t.get("lon", 0.0), t.get("y") or t.get("lat", 0.0))
+    x = t["x"] if "x" in t else t.get("lon", 0.0)
+    y = t["y"] if "y" in t else t.get("lat", 0.0)
+    return (x, y)
 
 
 class BattlespaceAssessor:

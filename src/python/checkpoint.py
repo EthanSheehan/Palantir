@@ -14,6 +14,7 @@ load_from_file(filepath)        -> dict
 from __future__ import annotations
 
 import json
+import pathlib
 import time
 from typing import TYPE_CHECKING
 
@@ -22,6 +23,9 @@ if TYPE_CHECKING:
 
 # Increment when the schema changes in a backward-incompatible way.
 CHECKPOINT_VERSION: int = 1
+
+# All checkpoint files must reside within this directory.
+CHECKPOINT_BASE: pathlib.Path = pathlib.Path(__file__).resolve().parent.parent.parent / "checkpoints"
 
 # Versions that can be loaded without error.
 _COMPATIBLE_VERSIONS: frozenset[int] = frozenset({1})
@@ -92,6 +96,22 @@ def load_checkpoint(blob: dict) -> dict:
     return blob
 
 
+def _validate_checkpoint_path(filepath: str) -> pathlib.Path:
+    """Resolve filepath and assert it is within CHECKPOINT_BASE.
+
+    Raises
+    ------
+    CheckpointError
+        If the resolved path escapes the checkpoints directory.
+    """
+    resolved = pathlib.Path(filepath).resolve()
+    try:
+        resolved.relative_to(CHECKPOINT_BASE)
+    except ValueError:
+        raise CheckpointError(f"Checkpoint path '{filepath}' is outside the allowed directory '{CHECKPOINT_BASE}'")
+    return resolved
+
+
 def save_to_file(blob: dict, filepath: str) -> None:
     """Write a checkpoint blob to a JSON file.
 
@@ -100,9 +120,11 @@ def save_to_file(blob: dict, filepath: str) -> None:
     blob:
         A dict returned by ``save_checkpoint``.
     filepath:
-        Destination file path (created or overwritten).
+        Destination file path within the checkpoints directory (created or overwritten).
     """
-    with open(filepath, "w", encoding="utf-8") as fh:
+    safe_path = _validate_checkpoint_path(filepath)
+    safe_path.parent.mkdir(parents=True, exist_ok=True)
+    with safe_path.open("w", encoding="utf-8") as fh:
         json.dump(blob, fh)
 
 
@@ -123,9 +145,11 @@ def load_from_file(filepath: str) -> dict:
     FileNotFoundError
         If ``filepath`` does not exist.
     CheckpointError
-        If the file contains invalid JSON or an incompatible checkpoint.
+        If the file is outside the allowed directory, contains invalid JSON,
+        or holds an incompatible checkpoint.
     """
-    with open(filepath, "r", encoding="utf-8") as fh:
+    safe_path = _validate_checkpoint_path(filepath)
+    with safe_path.open("r", encoding="utf-8") as fh:
         try:
             blob = json.load(fh)
         except json.JSONDecodeError as exc:

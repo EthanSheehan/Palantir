@@ -10,6 +10,7 @@ import asyncio
 import glob
 import json
 import os
+import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -17,6 +18,7 @@ LOG_DIR = Path("logs")
 
 _queue: asyncio.Queue[dict] | None = None
 _writer_task_handle: asyncio.Task | None = None
+_dropped_events: int = 0
 
 
 async def _writer_loop() -> None:
@@ -29,7 +31,11 @@ async def _writer_loop() -> None:
     LOG_DIR.mkdir(exist_ok=True)
     current_date = date.today()
     log_path = LOG_DIR / f"events-{current_date.isoformat()}.jsonl"
-    f = open(log_path, "a")
+    try:
+        f = open(log_path, "a")
+    except OSError as exc:
+        print(f"event_logger: failed to open log file {log_path}: {exc}", file=sys.stderr)
+        return
     try:
         while True:
             event = await _queue.get()
@@ -40,7 +46,12 @@ async def _writer_loop() -> None:
                 f.close()
                 current_date = today
                 log_path = LOG_DIR / f"events-{current_date.isoformat()}.jsonl"
-                f = open(log_path, "a")
+                try:
+                    f = open(log_path, "a")
+                except OSError as exc:
+                    print(f"event_logger: failed to rotate log file {log_path}: {exc}", file=sys.stderr)
+                    _queue.task_done()
+                    continue
             f.write(json.dumps(event, default=str) + "\n")
             f.flush()
             _queue.task_done()
@@ -50,6 +61,7 @@ async def _writer_loop() -> None:
 
 def log_event(event_type: str, data: dict) -> None:
     """Non-blocking enqueue.  Safe to call from sync or async contexts."""
+    global _dropped_events
     if _queue is None:
         return  # logger not started yet — silently drop
     event = {
@@ -60,7 +72,7 @@ def log_event(event_type: str, data: dict) -> None:
     try:
         _queue.put_nowait(event)
     except asyncio.QueueFull:
-        pass  # drop rather than block the sim loop
+        _dropped_events += 1  # track drops; caller can inspect if needed
 
 
 async def start_logger(maxsize: int = 10_000) -> None:

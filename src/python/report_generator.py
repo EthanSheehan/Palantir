@@ -16,6 +16,9 @@ from typing import Any
 
 _SUPPORTED_FORMATS = frozenset({"json", "csv"})
 
+# Characters that trigger formula execution in spreadsheet applications
+_CSV_FORMULA_PREFIXES = frozenset({"=", "+", "-", "@", "|", "%"})
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -29,7 +32,10 @@ def _validate_format(fmt: str) -> None:
 def _to_str(value: Any) -> str:
     if value is None:
         return ""
-    return str(value)
+    s = str(value)
+    if s and s[0] in _CSV_FORMULA_PREFIXES:
+        return "'" + s
+    return s
 
 
 class ReportGenerator:

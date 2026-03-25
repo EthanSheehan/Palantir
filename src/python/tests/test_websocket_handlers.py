@@ -331,7 +331,7 @@ class TestApproveNomination:
         await handle_payload(
             {"action": "approve_nomination", "entry_id": "E-1", "rationale": "threat confirmed"}, ws, "{}", ctx
         )
-        hitl.approve_nomination.assert_called_once_with("E-1", "threat confirmed")
+        hitl.approve_nomination.assert_called_once_with("E-1", "threat confirmed", operator_id=None)
         ctx.broadcast.assert_awaited_once()
 
     @pytest.mark.asyncio
@@ -593,12 +593,16 @@ class TestSubscribeSensorFeed:
         assert clients[ws]["sensor_feed_uav_ids"] == {1, 2, 3}
 
     @pytest.mark.asyncio
-    async def test_sensor_feed_filters_non_int(self):
+    async def test_sensor_feed_rejects_non_int(self):
         ws = _make_ws()
         clients = {ws: {}}
         ctx = _make_ctx(clients=clients)
         await handle_payload({"action": "subscribe_sensor_feed", "uav_ids": [1, "bad", 3]}, ws, "{}", ctx)
-        assert clients[ws]["sensor_feed_uav_ids"] == {1, 3}
+        # Non-integer items should produce an error, not silently filter
+        ws.send_text.assert_awaited_once()
+        sent = json.loads(ws.send_text.call_args[0][0])
+        assert sent["type"] == "ERROR"
+        assert "uav_ids" in sent["message"]
 
 
 class TestSitrepQuery:

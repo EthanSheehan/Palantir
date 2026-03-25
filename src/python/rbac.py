@@ -20,10 +20,18 @@ from enum import Enum
 import jwt
 
 # ---------------------------------------------------------------------------
-# Module-level flag — read from environment; tests can monkeypatch
+# Module-level flag — read from environment; tests can monkeypatch.
+# NOTE: These are intentionally read once at import time. Changing the env
+# vars after process start has no effect; a restart is required.
+# JWT_SECRET validation is intentionally lazy (checked in validate_token)
+# so that importing this module never raises, even during tests.
 # ---------------------------------------------------------------------------
-AUTH_DISABLED: bool = os.environ.get("AUTH_DISABLED", "true").lower() in ("true", "1", "yes")
-JWT_SECRET: str = os.environ.get("JWT_SECRET", "palantir-dev-secret")
+AUTH_DISABLED: bool = os.environ.get("AUTH_DISABLED", "false").lower() in ("true", "1", "yes")
+
+_raw_secret: str | None = os.environ.get("JWT_SECRET")
+# Dev/test mode: allow short or missing secret (fallback to dev placeholder).
+# When AUTH_DISABLED is False the secret is validated lazily in validate_token().
+JWT_SECRET: str = _raw_secret if _raw_secret else "palantir-dev-secret"
 
 _DEFAULT_EXPIRY = 86400  # 24 hours
 
@@ -150,10 +158,19 @@ def validate_token(token: str, secret: str) -> UserSession:
             token_exp=int(time.time()) + _DEFAULT_EXPIRY,
         )
 
+    if len(secret) < 32:
+        raise RuntimeError(
+            "JWT_SECRET must be at least 32 characters when AUTH_DISABLED is false. "
+            "Set AUTH_DISABLED=true for local development."
+        )
+
     payload = jwt.decode(token, secret, algorithms=["HS256"])
+    sub = payload.get("sub")
+    if not sub or not isinstance(sub, str) or len(sub) > 128:
+        raise jwt.InvalidTokenError("JWT 'sub' field must be a non-empty string of at most 128 characters")
     role = Role(payload["role"])
     return UserSession(
-        user_id=payload["sub"],
+        user_id=sub,
         role=role,
         token_exp=int(payload["exp"]),
     )

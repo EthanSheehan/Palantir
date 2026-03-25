@@ -22,8 +22,10 @@ the index of the next un-fired event internally.
 
 from __future__ import annotations
 
+import pathlib
+import types
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 
 import structlog
 import yaml
@@ -62,7 +64,7 @@ class ScenarioError(Exception):
 class ScenarioEvent:
     time_offset_s: float
     event_type: str
-    params: Dict
+    params: types.MappingProxyType
 
 
 # ---------------------------------------------------------------------------
@@ -83,13 +85,31 @@ class Scenario:
 # ---------------------------------------------------------------------------
 
 
+def _validate_scenario_path(yaml_path: str) -> pathlib.Path:
+    """Validate that the path does not contain path traversal sequences.
+
+    Rejects paths with '..' components to prevent directory traversal attacks.
+    Returns the resolved absolute Path on success; raises ScenarioError on failure.
+    """
+    raw = pathlib.Path(yaml_path)
+    if ".." in raw.parts:
+        raise ScenarioError(f"Scenario path {yaml_path!r} contains illegal '..' traversal")
+    return raw.resolve()
+
+
+_SCENARIOS_DIR = pathlib.Path(__file__).parent / "scenarios"
+
+
 def load_scenario(yaml_path: str) -> Scenario:
     """Parse a YAML scenario file and return an immutable Scenario.
 
     Raises ScenarioError on any parse or validation failure.
+    Rejects paths containing '..' traversal components.
     """
+    resolved = _validate_scenario_path(yaml_path)
+
     try:
-        with open(yaml_path, "r") as fh:
+        with open(resolved, "r") as fh:
             raw = yaml.safe_load(fh)
     except FileNotFoundError:
         raise ScenarioError(f"Scenario file not found: {yaml_path!r}")
@@ -124,7 +144,7 @@ def load_scenario(yaml_path: str) -> Scenario:
             raise ScenarioError(
                 f"Event at index {i} has unknown event_type {event_type!r}. Valid types: {sorted(VALID_EVENT_TYPES)}"
             )
-        params = dict(item.get("params") or {})
+        params = types.MappingProxyType(dict(item.get("params") or {}))
         parsed.append(
             ScenarioEvent(
                 time_offset_s=float(item["time_offset_s"]),

@@ -87,6 +87,7 @@ class UAV:
         self.bda_timer: float = 0.0
         self.overwatch_waypoints: list = []
         self.overwatch_wp_idx: int = 0
+        self._intercept_dwell: float = 0.0
 
     @property
     def tracked_target_id(self) -> Optional[int]:

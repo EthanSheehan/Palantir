@@ -42,7 +42,7 @@ def _serialize_assessment(result) -> dict:
                 "zone_y": g.zone_y,
                 "lon": round(g.lon, 4),
                 "lat": round(g.lat, 4),
-                "threat_score": round(g.threat_score, 3) if hasattr(g, "threat_score") else 0.0,
+                "threat_score": round(result.zone_threat_scores.get((g.zone_x, g.zone_y), 0.0), 3),
             }
             for g in result.coverage_gaps
         ],
@@ -100,7 +100,10 @@ async def simulation_loop(
             loop_state.last_assessment_time = now
             try:
                 targets_with_history = []
-                for td, t_obj in zip(state["targets"], sim.targets.values()):
+                for td in state["targets"]:
+                    t_obj = sim.targets.get(td["id"])
+                    if t_obj is None:
+                        continue
                     td_copy = dict(td)
                     td_copy["position_history"] = list(t_obj.position_history)
                     targets_with_history.append(td_copy)

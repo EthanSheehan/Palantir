@@ -48,6 +48,8 @@ _INJECTION_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\boverride\s+(all\s+)?(previous|prior|your)\s*(instructions|rules|constraints)", re.IGNORECASE),
 ]
 
+MAX_PROMPT_INPUT = 4096
+
 # Control characters to strip (keep printable ASCII + unicode letters/numbers/punctuation)
 _CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
@@ -66,10 +68,11 @@ def sanitize_prompt_input(text: Any) -> str:
 
     Steps:
     1. Coerce None/non-string to empty string
-    2. Normalize unicode (NFC)
-    3. Strip control characters
-    4. Collapse newlines to spaces
-    5. Detect and raise on injection patterns
+    2. Enforce MAX_PROMPT_INPUT length cap (raises InjectionDetected if exceeded)
+    3. Normalize unicode (NFKC — resists homoglyph bypasses)
+    4. Strip control characters
+    5. Collapse newlines to spaces
+    6. Detect and raise on injection patterns
 
     Returns a cleaned string safe for inclusion in an LLM prompt.
     Raises InjectionDetected if an injection attack pattern is found.
@@ -80,8 +83,11 @@ def sanitize_prompt_input(text: Any) -> str:
     if not isinstance(text, str):
         text = str(text)
 
-    # Normalize unicode to NFC (preserves accents, special chars)
-    normalized = unicodedata.normalize("NFC", text)
+    if len(text) > MAX_PROMPT_INPUT:
+        raise InjectionDetected(f"Input length {len(text)} exceeds maximum allowed {MAX_PROMPT_INPUT} characters")
+
+    # Normalize unicode to NFKC (resists homoglyph-based bypasses)
+    normalized = unicodedata.normalize("NFKC", text)
 
     # Strip control characters (keep tabs as space equivalent)
     without_ctrl = _CONTROL_CHAR_RE.sub("", normalized)
