@@ -1,32 +1,19 @@
 # Autopilot Checkpoint
-- **Status**: Wave 6A+6B complete, review fixes pending
-- **Team**: autopilot-swarm
-- **Current wave**: Wave 6 (Phase 4 execution)
-- **Completed**: Waves 1-5B (50 features) + Wave 6A (6) + Wave 6B (6) = 62 features
-- **Tests**: 1788 passing (deterministic), 1-2 flaky with random ordering
-- **Focus**: Autonomous backend development from brainstorm consensus
-
-## Wave 6A features (committed fd8d268)
-- forward_sim.py, delta_compression.py, vectorized_detection.py, comms_sim.py, cep_model.py, dbscan_clustering.py
-
-## Wave 6B features (committed 20a7a57)
-- sensor_weighting.py, lost_link.py, uav_kinematics.py, corridor_detection.py, vision fixes, config.py settings
-
-## Review status
-- Wave 6A: reviewed (0 CRITICAL, 3 HIGH, 9 MEDIUM) — findings in .autopilot/reviews/wave6a_*.md
-- Wave 6B: NOT reviewed yet
-- Review fixes NOT applied yet
-
-## What's next
-1. Fix Wave 6A review findings (3 HIGH — forward_sim parallelism cap, COA differentiation, double projection)
-2. Review Wave 6B modules
-3. Fix Wave 6B findings
-4. Wave 6C: remaining CONSENSUS features (CoT bridge, hierarchical AI, etc.)
-5. Phase 7: Final docs update
-6. Phase 8: Final commit + cleanup
-
-## Commits this session
-- 3bd4422 fix: disable RBAC in test environment via conftest autouse fixture
-- fd8d268 feat: autopilot wave 6A — forward sim, delta compression, vectorized detection, comms sim, CEP model, DBSCAN clustering
-- 20a7a57 feat: autopilot wave 6B — sensor weighting, lost-link, 3-DOF kinematics, corridor detection, vision fixes, settings
-- 4186674 docs: update CLAUDE.md with Wave 6 modules and 1788 test count
+- **Status**: Phase 6 (Beta fixes) complete, Phase 7/8 next
+- **Team**: autopilot-Palantir-8310
+- **Completed features**: 76/96 (79%)
+- **Test status**: 1811/1811 passing
+- **Commits this session**:
+  - 8118f7e fix: address Wave 6C-Alpha review findings — 4 HIGH, 8 MEDIUM issues
+  - 425dafe feat: autopilot wave 6C-Beta — global alert center, floating strike board, AsyncAPI spec
+  - 757f5d3 docs: update CLAUDE.md test count to 1811
+  - 14f92dd fix: address Wave 6C-Beta review findings — 4 MEDIUM issues
+- **All reviews complete**:
+  - wave6c_beta_code_review.md: 0 HIGH, 4 MEDIUM (all fixed in 14f92dd), 6 LOW
+  - wave6c_beta_security_review.md: 0 HIGH, 2 MEDIUM (deferred — defense-in-depth), 3 LOW
+- **Next steps**:
+  1. Fix 2 MEDIUM security findings (server string sanitization + UUID validation) — optional defense-in-depth
+  2. Update CLAUDE.md architecture section with: GlobalAlertCenter, FloatingStrikeBoard, asyncapi.yaml, websocket_protocol.md
+  3. Final commit + Phase 8 cleanup
+- **Remaining**: 20 features deferred (Tier 2 — XL effort, hardware-dependent, research)
+- **Focus**: autopilot resume → final docs + commit

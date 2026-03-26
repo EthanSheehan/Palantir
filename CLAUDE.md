@@ -79,7 +79,7 @@ Environment variables go in a `.env` file (loaded via python-dotenv). Required f
 - MISSION tab: Theater selector, Tactical AIP Assistant, Intel Feed, Command Log, ISR Queue, Strike Board, Grid Controls, Autonomy Toggle, Coverage Mode Toggle
 - ASSETS tab: Drone cards with mode buttons, autonomy overrides, transition approval toasts
 - ENEMIES tab: Target cards with VerificationStepper, FusionBar, SensorBadge, SwarmPanel; EnemyUAV cards
-- ASSESS tab: ThreatClusterCard, CoverageGapAlert, ZoneThreatHeatmap
+- ASSESS tab: ThreatClusterCard, CoverageGapAlert, ZoneThreatHeatmap, EngagementHistory
 - 6 map modes (OPERATIONAL, COVERAGE, THREAT, FUSION, SWARM, TERRAIN) with keyboard shortcuts 1-6
 - 5 Cesium layer overlays: coverage, threat, fusion, swarm, terrain (`cesium/layers/`)
 - Multi-layout drone camera PIP (SINGLE/PIP/SPLIT/QUAD) with 4 sensor modes (EO/IR, SAR, SIGINT, FUSION)
@@ -87,6 +87,16 @@ Environment variables go in a `.env` file (loaded via python-dotenv). Required f
 - Cesium globe with all entity hooks: drones, targets, zones, flow lines, compass, range rings, lock indicators, assessment overlays, enemy UAVs, swarm lines
 - Custom event bridge (`palantir:send`, `palantir:placeWaypoint`, `palantir:openDetailMap`) for Cesium→React WebSocket communication
 - LayerPanel for per-layer visibility toggles, MapModeBar for mode switching
+- **Wave 6C Overlays & Components:**
+  - `GlobalAlertCenter` — floating overlay (bottom-right, z-index 8900) showing unread alerts (NOMINATION, ENGAGEMENT, TRANSITION, CONNECTION, CRITICAL) with action buttons; auto-dismisses non-critical alerts after 10s; toggled via G key
+  - `FloatingStrikeBoard` — detachable overlay (top-right, z-index 8800) displaying PENDING strike nominations with 5-minute countdown timers; color-coded timer (green/yellow/red); APPROVE/REJECT/RETASK buttons
+  - `KillChainRibbon` — persistent ribbon below DemoBanner showing 6 F2T2EA phases (Find/Fix/Track/Target/Engage/Assess) with per-phase target counts; color-coded by threat (gray/green/yellow/red)
+  - `ConnectionStatus` — header-area indicator showing connection state with running latency average (ms)
+  - `MapLegend` — L key toggles overlay showing entity shapes and symbols; positioned bottom-right of map
+  - `EngagementHistory` — ASSESS tab panel showing chronological engagement records with time, target, weapon, BDA confidence, outcome
+  - `AutonomyBriefingDialog` — modal dialog shown before AUTONOMOUS activation with checklist of autonomous actions and approval-required actions; requires "I understand" confirmation
+- **Keyboard Shortcuts:** N (NVIS mode), Ctrl+Shift+A (colorblind mode), L (map legend), G (alert center), B (floating strike board)
+- **Accessibility Features:** NVIS mode (green-dominant phosphor), colorblind mode (blue/orange replacement), shape redundancy icons
 - Legacy vanilla JS frontend remains in `src/frontend/` for reference
 
 **4. AI Agent Layer (`src/python/agents/`)**
@@ -114,6 +124,8 @@ Agents communicate through Pydantic models defined in `src/python/core/ontology.
 ### WebSocket Protocol
 
 The backend sends JSON payloads each tick containing drone positions, target positions, grid zone states, theater bounds, assessment data, ISR queue, enemy UAVs, swarm tasks, and tactical assistant messages. The frontend subscribes and updates Cesium entities in real time. Simulator clients send back video frames (base64 MJPEG) and telemetry.
+
+**AsyncAPI Specification:** Full WebSocket protocol documented in `docs/asyncapi.yaml` (AsyncAPI 2.6.0) and `docs/websocket_protocol.md` (human-readable guide). Coverage includes 36 client→server messages, 12 server→client messages, all payload schemas with examples, authentication handshake, close codes, Intel feed subscriptions, and error handling.
 
 Key WebSocket actions: `scan_area`, `follow_target`, `paint_target`, `intercept_target`, `intercept_enemy`, `cancel_track`, `move_drone`, `spike`, `approve_nomination`, `reject_nomination`, `retask_nomination`, `authorize_coa`, `reject_coa`, `verify_target`, `retask_sensors`, `set_autonomy_level`, `set_drone_autonomy`, `approve_transition`, `reject_transition`, `request_swarm`, `release_swarm`, `set_coverage_mode`, `set_roe`, `load_scenario`, `save_checkpoint`, `load_checkpoint`, `set_speed`, `pause`, `resume`, `step`, `set_weather`, `get_report`, `subscribe`, `subscribe_sensor_feed`, `reset`, `SET_SCENARIO`.
 
@@ -165,6 +177,8 @@ Key WebSocket actions: `scan_area`, `follow_target`, `paint_target`, `intercept_
 | `lost_link.py` | Per-drone lost-link behavior (LOITER/RTB/SAFE_LAND/CONTINUE) |
 | `uav_kinematics.py` | 3-DOF point-mass with wind, collision avoidance, PN guidance |
 | `corridor_detection.py` | Douglas-Peucker path simplification + heading consistency |
+| `metrics.py` | Prometheus text format metrics endpoint (`/metrics`); histograms, gauges, counters for tick duration, clients, detections, HITL, targets, drones, autonomy level |
+| `tls_support.py` | TLS/SSL certificate configuration and origin validation for WebSocket; localhost bypass + allowlist for remote origins |
 
 ## Integrated Agent Workflow (MANDATORY)
 

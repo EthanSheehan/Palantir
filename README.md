@@ -19,11 +19,13 @@
 - **Enemy UAV Tracking** — adversary drone detection with RECON/ATTACK/JAMMING/EVADING modes
 - **Intel Feed System** — subscription-filtered event streams (INTEL, COMMAND, SENSOR feeds)
 - **Multi-layout Drone Camera** — SINGLE, PIP, SPLIT, QUAD layouts with EO/IR, SAR, SIGINT, and FUSION sensor modes
+- **Prometheus metrics endpoint** (`/metrics`) for monitoring tick duration, connected clients, detection events, and HITL decisions
+- **TLS/SSL support** for secure WebSocket connections with configurable certificates
 - **Physics-based simulation** with 10 enemy unit types, 11 UAV flight modes, and fuel/endurance modeling
 - **3 Theater configurations** (Romania, South China Sea, Baltic) with YAML scenario definition
 - **Real-time Cesium 3D globe** with WebSocket-driven 10 Hz updates, entity labels, range rings, lock indicators, and 5 map layer overlays
 - **React + Vite frontend** with Blueprint dark theme, resizable sidebar, and 4 sidebar tabs
-- **475 pytest tests** across 23 test files
+- **1811 pytest tests** across 35 test files
 
 ---
 
@@ -703,6 +705,8 @@ Backend broadcasts full simulation state as JSON at 10 Hz. All messages include 
 | `reset` | — | Reset simulation state |
 | `SET_SCENARIO` | `theater` | Switch active theater |
 
+For complete AsyncAPI schema and WebSocket protocol documentation, see `asyncapi.yaml` and `websocket_protocol.md`.
+
 ---
 
 ## API Endpoints
@@ -710,6 +714,7 @@ Backend broadcasts full simulation state as JSON at 10 Hz. All messages include 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | WS | `/ws` | WebSocket — 10 Hz sim state + bidirectional commands |
+| GET | `/metrics` | Prometheus text-format metrics (tick duration, clients, events) |
 | POST | `/api/sitrep` | Generate situation report |
 | POST | `/api/environment` | Set weather / time conditions |
 | GET | `/api/theaters` | List available theaters |
@@ -734,6 +739,10 @@ The system runs fully in heuristic mode without any API keys. Keys unlock LLM-ba
 | `DEMO_MODE` | `false` | Enable demo auto-pilot (or use `--demo` flag) |
 | `LOG_LEVEL` | `INFO` | Logging verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 | `WS_BACKEND_URL` | `ws://localhost:8000/ws` | WebSocket URL for simulator clients |
+| `SSL_ENABLED` | `false` | Enable TLS/SSL for WebSocket connections |
+| `SSL_CERTFILE` | (empty) | Path to PEM certificate file (required if `SSL_ENABLED=true`) |
+| `SSL_KEYFILE` | (empty) | Path to PEM private key file (required if `SSL_ENABLED=true`) |
+| `ALLOWED_ORIGINS` | `http://localhost:3000,http://localhost:8000` | Comma-separated WebSocket origin allowlist |
 
 ---
 
