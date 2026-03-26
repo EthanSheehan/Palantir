@@ -96,6 +96,8 @@ def set_link_preset(state: CommsState, drone_id: str, preset: CommsPreset) -> Co
 
 
 def degrade_all_links(state: CommsState, factor: float) -> CommsState:
+    if factor <= 0:
+        raise ValueError(f"factor must be > 0, got {factor}")
     new_links = {}
     for drone_id, link in state.links.items():
         new_latency = link.latency_ms * factor
@@ -117,11 +119,19 @@ def degrade_all_links(state: CommsState, factor: float) -> CommsState:
 # ---------------------------------------------------------------------------
 
 
-def attempt_delivery(link: CommsLink, message: dict) -> tuple[bool, float]:
-    """Return (delivered, delay_ms). Uses random sampling for packet loss."""
+def attempt_delivery(
+    link: CommsLink,
+    message: dict,
+    rng: Optional[random.Random] = None,
+) -> tuple[bool, float]:
+    """Return (delivered, delay_ms). Uses random sampling for packet loss.
+
+    rng: optional Random instance for deterministic testing; defaults to module-level random.
+    """
     if not link.is_connected or link.packet_loss_rate >= 1.0:
         return False, 0.0
-    if link.packet_loss_rate > 0.0 and random.random() < link.packet_loss_rate:
+    roll = rng.random() if rng is not None else random.random()
+    if link.packet_loss_rate > 0.0 and roll < link.packet_loss_rate:
         return False, 0.0
     return True, link.latency_ms
 

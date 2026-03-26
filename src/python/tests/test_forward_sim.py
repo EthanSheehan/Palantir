@@ -4,7 +4,7 @@ Tests for forward_sim.py — written FIRST (TDD RED phase).
 Tests cover:
   - clone_simulation: deep copy produces independent SimulationModel
   - score_state: scoring function returns a float in expected range
-  - project_forward: runs N ticks on a clone, returns a score float
+  - project_forward: runs N ticks on a clone, returns {score, completed} dict
   - evaluate_coas: async parallel COA evaluation returns ranked COA list
 """
 
@@ -13,6 +13,8 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 import forward_sim
 from forward_sim import (
@@ -158,10 +160,35 @@ class TestScoreState:
 
 
 class TestProjectForward:
-    def test_returns_float(self):
+    def test_returns_dict_with_score_and_completed(self):
         model = _make_model()
         result = project_forward(model, ticks=5)
-        assert isinstance(result, float)
+        assert isinstance(result, dict)
+        assert "score" in result
+        assert "completed" in result
+
+    def test_score_is_float(self):
+        model = _make_model()
+        result = project_forward(model, ticks=5)
+        assert isinstance(result["score"], float)
+
+    def test_completed_true_on_clean_run(self):
+        model = _make_model()
+        result = project_forward(model, ticks=5)
+        assert result["completed"] is True
+
+    def test_completed_false_when_tick_raises(self):
+        model = _make_model()
+        model.tick.side_effect = RuntimeError("sim error")
+        # Clone will also have tick raise since MagicMock deepcopy shares side_effect config
+        # patch clone_simulation to return a model whose tick raises
+        bad_clone = MagicMock()
+        bad_clone.targets = model.targets
+        bad_clone.uavs = model.uavs
+        bad_clone.tick = MagicMock(side_effect=RuntimeError("sim error"))
+        with patch.object(forward_sim, "clone_simulation", return_value=bad_clone):
+            result = project_forward(model, ticks=5)
+        assert result["completed"] is False
 
     def test_calls_tick_n_times(self):
         model = _make_model()
@@ -185,9 +212,11 @@ class TestProjectForward:
         model = _make_model()
         tick_count = []
 
+        original_pf = forward_sim.project_forward
+
         def _patched_project_forward(m, ticks=50):
             tick_count.append(ticks)
-            return 0.0
+            return {"score": 0.0, "completed": True}
 
         with patch.object(forward_sim, "project_forward", side_effect=_patched_project_forward):
             forward_sim.project_forward(model)
@@ -196,7 +225,14 @@ class TestProjectForward:
     def test_score_is_non_negative(self):
         model = _make_model()
         result = project_forward(model, ticks=3)
-        assert result >= 0.0
+        assert result["score"] >= 0.0
+
+    def test_ticks_clamped_to_max(self):
+        """Ticks above _MAX_TICKS (500) are silently clamped."""
+        model = _make_model()
+        # Should not raise; just runs with clamped ticks
+        result = project_forward(model, ticks=9999)
+        assert isinstance(result["score"], float)
 
 
 # ---------------------------------------------------------------------------
@@ -213,25 +249,7 @@ class TestEvaluateCoas:
             {"id": "COA-3", "type": "LOWEST_COST"},
         ]
 
-        scores = {"COA-1": 3.0, "COA-2": 7.5, "COA-3": 1.0}
-
-        def _mock_project_forward(m, ticks=50):
-            # Distinguish by inspecting COA ID stored on model mock
-            return scores.get(getattr(m, "_coa_id", "?"), 0.0)
-
-        with patch.object(forward_sim, "project_forward", side_effect=_mock_project_forward):
-            # Patch clone so we can set _coa_id for identification
-            original_clone = forward_sim.clone_simulation
-
-            def _clone_with_id(m):
-                c = MagicMock()
-                c.targets = {}
-                c.uavs = {}
-                c.tick = MagicMock()
-                return c
-
-            with patch.object(forward_sim, "clone_simulation", side_effect=_clone_with_id):
-                result = asyncio.run(evaluate_coas(model, coas, ticks=5))
+        result = asyncio.run(evaluate_coas(model, coas, ticks=2))
 
         assert len(result) == 3
         scores_out = [c["projected_score"] for c in result]
@@ -283,3 +301,40 @@ class TestEvaluateCoas:
 
         asyncio.run(evaluate_coas(real_model, coas, ticks=3))
         assert len(real_model.targets) == original_target_count
+
+    def test_too_many_coas_raises_value_error(self):
+        """H3: COA lists > 64 raise ValueError immediately."""
+        model = _make_model()
+        coas = [{"id": f"COA-{i}"} for i in range(65)]
+        with pytest.raises(ValueError, match="Too many COAs"):
+            asyncio.run(evaluate_coas(model, coas, ticks=1))
+
+    def test_exactly_64_coas_allowed(self):
+        """H3: Exactly _MAX_COAS COAs should not raise."""
+        model = _make_model()
+        coas = [{"id": f"COA-{i}"} for i in range(64)]
+        result = asyncio.run(evaluate_coas(model, coas, ticks=1))
+        assert len(result) == 64
+
+    def test_coa_types_receive_different_scores(self):
+        """H1: Different COA types should receive differentiated projected scores via bonuses."""
+        # Use a model with no NOMINATED/VERIFIED targets so STRIKE won't destroy anything,
+        # leaving the type bonus as the sole differentiator.
+        model = _make_model(num_targets=3, verified_count=0)
+        coas = [
+            {"id": "COA-STRIKE", "type": "STRIKE"},
+            {"id": "COA-LOWEST_COST", "type": "LOWEST_COST"},
+            {"id": "COA-RECON", "type": "RECON"},
+        ]
+        result = asyncio.run(evaluate_coas(model, coas, ticks=1))
+        scores_by_id = {c["id"]: c["projected_score"] for c in result}
+        # STRIKE bonus (+2.0) > LOWEST_COST (0.0) > RECON (-0.5, clamped to >= 0)
+        assert scores_by_id["COA-STRIKE"] > scores_by_id["COA-LOWEST_COST"]
+        assert scores_by_id["COA-LOWEST_COST"] >= scores_by_id["COA-RECON"]
+
+    def test_summary_has_completed_field(self):
+        """M4: projected_state_summary includes completed status."""
+        model = _make_model()
+        coas = [{"id": "COA-1"}]
+        result = asyncio.run(evaluate_coas(model, coas, ticks=2))
+        assert "completed" in result[0]["projected_state_summary"]

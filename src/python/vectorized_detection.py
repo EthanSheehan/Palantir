@@ -17,7 +17,7 @@ from typing import Any
 
 import numpy as np
 from sensor_model import (
-    _FALLBACK_RCS_M2,
+    FALLBACK_RCS_M2,
     RCS_TABLE,
     SENSOR_CONFIGS,
     EnvironmentConditions,
@@ -105,6 +105,8 @@ def vectorized_detection_probability(
     -------
     np.ndarray of shape (M, N), dtype float64 — Pd in [0, 1] for each pair.
     """
+    if sensor_type not in SENSOR_CONFIGS:
+        raise ValueError(f"Unknown sensor_type {sensor_type!r}. Valid types: {list(SENSOR_CONFIGS)}")
     sensor_cfg = SENSOR_CONFIGS[sensor_type]
     max_range_m = sensor_cfg.max_range_m
     ref_rcs = sensor_cfg.reference_rcs_m2
@@ -162,9 +164,16 @@ def detect_all(
     tgt_pos = positions_to_array(targets)
 
     rcs = np.array(
-        [RCS_TABLE.get(t.get("type", ""), _FALLBACK_RCS_M2) for t in targets],
+        [RCS_TABLE.get(t.get("type", ""), FALLBACK_RCS_M2) for t in targets],
         dtype=np.float64,
     )
+
+    if not np.all(np.isfinite(uav_pos)):
+        raise ValueError("UAV position array contains NaN or inf values")
+    if not np.all(np.isfinite(tgt_pos)):
+        raise ValueError("Target position array contains NaN or inf values")
+    if not np.all(np.isfinite(rcs)):
+        raise ValueError("Target RCS array contains NaN or inf values")
 
     distances = pairwise_distances_km(uav_pos, tgt_pos)  # (M, N)
     pd_matrix = vectorized_detection_probability(distances, rcs, weather_factor, sensor_type)  # (M, N)

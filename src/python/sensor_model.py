@@ -70,7 +70,9 @@ RCS_TABLE: dict[str, float] = {
     "ENEMY_UAV": 2.0,
 }
 
-_FALLBACK_RCS_M2 = 3.0
+FALLBACK_RCS_M2 = 3.0
+# Backwards-compatible alias (private name kept for any external references)
+_FALLBACK_RCS_M2 = FALLBACK_RCS_M2
 
 SENSOR_CONFIGS: dict[str, SensorConfig] = {
     "EO_IR": SensorConfig(

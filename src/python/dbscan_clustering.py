@@ -55,6 +55,10 @@ def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 # DBSCAN (scratch implementation)
 # ---------------------------------------------------------------------------
 
+# Safety cap: DBSCAN is O(n²) in neighbors computation; cap inputs to bound
+# worst-case runtime. 500 targets covers all realistic simulation scenarios.
+MAX_TARGETS = 500
+
 
 def _neighbors(points: list, idx: int, eps_km: float) -> list:
     """Return indices of all points within eps_km of points[idx]."""
@@ -70,7 +74,12 @@ def _expand_cluster(
     eps_km: float,
     min_samples: int,
 ) -> None:
-    """Expand cluster from seed point idx (BFS over density-reachable points)."""
+    """Expand cluster from seed point idx (BFS over density-reachable points).
+
+    Intentionally mutates `labels` in-place: this is a private helper called
+    only from run_dbscan, which owns the labels list and expects mutation as
+    part of the standard DBSCAN algorithm.
+    """
     queue = list(_neighbors(points, idx, eps_km))
     labels[idx] = cluster_label
 
@@ -105,11 +114,30 @@ def run_dbscan(
     member_ids: sorted tuple of target IDs
     threat_score: mean fused_confidence of cluster members
     """
+    # Cap inputs to bound O(n²) runtime.
+    targets = targets[:MAX_TARGETS]
+
     detected = [t for t in targets if t.get("state", "UNDETECTED") != "UNDETECTED"]
     if not detected:
         return []
 
-    points = [(t["lat"], t["lon"]) for t in detected]
+    # Extract lat/lon, skipping any malformed target dicts.
+    valid_detected = []
+    valid_points = []
+    for t in detected:
+        try:
+            lat = float(t["lat"])
+            lon = float(t["lon"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        valid_detected.append(t)
+        valid_points.append((lat, lon))
+
+    detected = valid_detected
+    if not detected:
+        return []
+
+    points = valid_points
     n = len(points)
     labels = [-1] * n  # -1 = unvisited/noise
     cluster_label = 0
@@ -157,6 +185,10 @@ def match_clusters(
     otherwise assigns a new ID from the running counter.
 
     Returns: (matched_results: list[ClusterResult], next_id: int)
+
+    Complexity: O(N²) in the number of clusters — acceptable because cluster
+    counts are bounded by MAX_TARGETS (≤500) and are typically very small
+    (< 20 clusters) in practice.
     """
     # Determine next_id as max existing numeric id + 1 (or 0)
     used_ids = set()

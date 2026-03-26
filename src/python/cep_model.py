@@ -12,6 +12,7 @@ Uses only stdlib (math, random) — no numpy dependency.
 from __future__ import annotations
 
 import math
+import os
 import random
 from dataclasses import dataclass
 from enum import Enum
@@ -63,6 +64,11 @@ _DEFAULT_HARDNESS = 0.3
 
 # Kill threshold: damage above this value counts as a kill
 KILL_THRESHOLD = 0.5
+
+# Validate weapon profiles at module load to catch bad config early
+for _weapon, (_cep, _lethal_radius, _max_range) in WEAPON_PROFILES.items():
+    if _lethal_radius <= 0:
+        raise ValueError(f"WEAPON_PROFILES[{_weapon}]: lethal_radius must be > 0, got {_lethal_radius}")
 
 
 # ---------------------------------------------------------------------------
@@ -148,13 +154,33 @@ def estimate_pk(
     weapon: WeaponType,
     target_type: str,
     n_samples: int = 1000,
+    seed: Optional[int] = None,
 ) -> float:
     """Monte Carlo estimate of probability of kill (Pk).
 
-    Runs n_samples engagements with sequential seeds and returns
+    Runs n_samples engagements using independent random draws and returns
     the fraction that result in is_kill == True.
+
+    seed: explicit integer seed for reproducibility; defaults to None (cryptographically
+    random via os.urandom) for true Monte Carlo behavior.
     """
-    kills = sum(
-        1 for i in range(n_samples) if simulate_engagement(weapon=weapon, target_type=target_type, seed=i).is_kill
-    )
+    if seed is None:
+        seed = int.from_bytes(os.urandom(4), "big")
+    rng = random.Random(seed)
+    cep, lethal_radius, _ = WEAPON_PROFILES[weapon]
+    hardness = TARGET_HARDNESS.get(target_type, _DEFAULT_HARDNESS)
+    sigma = cep / math.sqrt(math.log(4.0))
+
+    kills = 0
+    for _ in range(n_samples):
+        x = rng.gauss(0.0, sigma)
+        y = rng.gauss(0.0, sigma)
+        miss_distance = math.hypot(x, y)
+        damage = compute_damage(
+            miss_distance=miss_distance,
+            lethal_radius=lethal_radius,
+            target_hardness=hardness,
+        )
+        if damage > KILL_THRESHOLD:
+            kills += 1
     return kills / n_samples

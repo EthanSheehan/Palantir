@@ -10,10 +10,16 @@ import copy
 import gzip
 import json
 
+# Sentinel string used in serialized delta output (JSON-safe, human-readable).
+# Keep as string for wire-format compatibility; comparisons use `is _DELETED_SENTINEL`
+# internally to avoid false positives when real data contains this string.
 _DELETED = "__deleted__"
+_DELETED_SENTINEL = object()  # identity sentinel — never equal to real data values
+
+_MAX_DEPTH = 50
 
 
-def compute_delta(prev_state: dict, curr_state: dict) -> dict:
+def compute_delta(prev_state: dict, curr_state: dict, _depth: int = 0) -> dict:
     """Compute a recursive diff between prev_state and curr_state.
 
     Only changed or new fields are included in the returned dict.
@@ -21,7 +27,12 @@ def compute_delta(prev_state: dict, curr_state: dict) -> dict:
     Lists containing dicts with an "id" field are diffed by ID.
     Lists without "id" fields are replaced wholesale.
     Inputs are never mutated.
+
+    Raises ValueError if nesting exceeds 50 levels deep.
     """
+    if _depth > _MAX_DEPTH:
+        raise ValueError("State nesting too deep")
+
     delta: dict = {}
 
     all_keys = set(prev_state) | set(curr_state)
@@ -37,11 +48,11 @@ def compute_delta(prev_state: dict, curr_state: dict) -> dict:
         curr_val = curr_state[key]
 
         if isinstance(prev_val, dict) and isinstance(curr_val, dict):
-            nested = compute_delta(prev_val, curr_val)
+            nested = compute_delta(prev_val, curr_val, _depth=_depth + 1)
             if nested:
                 delta[key] = nested
         elif isinstance(prev_val, list) and isinstance(curr_val, list):
-            list_delta = _diff_list(prev_val, curr_val)
+            list_delta = _diff_list(prev_val, curr_val, _depth=_depth)
             if list_delta is not None:
                 delta[key] = list_delta
         else:
@@ -51,7 +62,7 @@ def compute_delta(prev_state: dict, curr_state: dict) -> dict:
     return delta
 
 
-def _diff_list(prev_list: list, curr_list: list) -> list | None:
+def _diff_list(prev_list: list, curr_list: list, _depth: int = 0) -> list | None:
     """Diff two lists. Returns None if unchanged.
 
     If items are dicts with an "id" field, diffs by ID.
@@ -70,7 +81,7 @@ def _diff_list(prev_list: list, curr_list: list) -> list | None:
         if item_id not in prev_by_id:
             changes.append(curr_item)
         else:
-            item_delta = compute_delta(prev_by_id[item_id], curr_item)
+            item_delta = compute_delta(prev_by_id[item_id], curr_item, _depth=_depth + 1)
             if item_delta:
                 item_delta["id"] = item_id
                 changes.append(item_delta)
@@ -83,16 +94,28 @@ def _diff_list(prev_list: list, curr_list: list) -> list | None:
 
 
 def _list_has_ids(lst: list) -> bool:
-    return bool(lst) and isinstance(lst[0], dict) and "id" in lst[0]
+    """Return True if the list appears to contain ID-keyed dicts.
+
+    Checks up to the first 3 items to avoid false positives from mixed lists.
+    """
+    if not lst:
+        return False
+    check_count = min(3, len(lst))
+    return all(isinstance(lst[i], dict) and "id" in lst[i] for i in range(check_count))
 
 
-def apply_delta(base_state: dict, delta: dict) -> dict:
+def apply_delta(base_state: dict, delta: dict, _depth: int = 0) -> dict:
     """Apply a delta to base_state and return a new reconstructed state dict.
 
     Never mutates base_state. Uses "__deleted__" sentinel to remove keys.
     Lists with "id" fields are updated by ID.
+
+    Raises ValueError if nesting exceeds 50 levels deep.
     """
-    result = dict(base_state)
+    if _depth > _MAX_DEPTH:
+        raise ValueError("State nesting too deep")
+
+    result = copy.deepcopy(base_state)
 
     for key, val in delta.items():
         if val == _DELETED:
@@ -106,7 +129,7 @@ def apply_delta(base_state: dict, delta: dict) -> dict:
         base_val = result[key]
 
         if isinstance(base_val, dict) and isinstance(val, dict):
-            result[key] = apply_delta(base_val, val)
+            result[key] = apply_delta(base_val, val, _depth=_depth + 1)
         elif isinstance(base_val, list) and isinstance(val, list):
             result[key] = _apply_list_delta(base_val, val)
         else:
@@ -120,7 +143,7 @@ def _apply_list_delta(base_list: list, delta_list: list) -> list:
     if not _list_has_ids(delta_list) and not _list_has_ids(base_list):
         return list(delta_list)
 
-    result_by_id = {item["id"]: copy.copy(item) for item in base_list if isinstance(item, dict) and "id" in item}
+    result_by_id = {item["id"]: copy.deepcopy(item) for item in base_list if isinstance(item, dict) and "id" in item}
 
     for entry in delta_list:
         if not isinstance(entry, dict) or "id" not in entry:
