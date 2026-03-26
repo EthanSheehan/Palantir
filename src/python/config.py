@@ -5,7 +5,9 @@ Uses pydantic-settings to validate all required env vars at startup.
 Import ``settings`` anywhere to access validated config values.
 """
 
-from pydantic import Field
+import os
+
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -105,6 +107,24 @@ class PalantirSettings(BaseSettings):
         description="Minimum number of idle UAVs to maintain before threat-adaptive swarm dispatch",
     )
 
+    # -- TLS / SSL --
+    ssl_enabled: bool = Field(
+        default=False,
+        description="Enable TLS/SSL for the uvicorn server",
+    )
+    ssl_certfile: str | None = Field(
+        default=None,
+        description="Path to SSL certificate file (PEM format)",
+    )
+    ssl_keyfile: str | None = Field(
+        default=None,
+        description="Path to SSL private key file (PEM format)",
+    )
+    allowed_origins: list[str] = Field(
+        default=["http://localhost:3000", "http://localhost:8000"],
+        description="Allowed WebSocket connection origins; localhost always allowed in dev",
+    )
+
     # -- Auth (W3-006) --
     auth_enabled: bool = Field(
         default=False,
@@ -126,6 +146,19 @@ class PalantirSettings(BaseSettings):
         default="",
         description="Comma-separated ADMIN-tier API keys",
     )
+
+    @model_validator(mode="after")
+    def _validate_ssl(self) -> "PalantirSettings":
+        if self.ssl_enabled:
+            if not self.ssl_certfile:
+                raise ValueError("ssl_certfile must be set when ssl_enabled is True")
+            if not self.ssl_keyfile:
+                raise ValueError("ssl_keyfile must be set when ssl_enabled is True")
+            if not os.path.isfile(self.ssl_certfile):
+                raise ValueError(f"ssl_certfile does not exist: {self.ssl_certfile}")
+            if not os.path.isfile(self.ssl_keyfile):
+                raise ValueError(f"ssl_keyfile does not exist: {self.ssl_keyfile}")
+        return self
 
     model_config = {
         "env_file": ".env",

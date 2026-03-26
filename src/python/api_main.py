@@ -33,7 +33,7 @@ from config import load_settings
 from event_logger import rotate_logs
 from event_logger import start_logger as start_event_logger
 from event_logger import stop_logger as stop_event_logger
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from hitl_manager import HITLManager
 from intel_feed import IntelFeedRouter, _client_subscribed
@@ -54,6 +54,8 @@ from websocket_handlers import (
 from websocket_handlers import (
     handle_payload as _ws_handle_payload,
 )
+import metrics as _metrics
+from fastapi.responses import PlainTextResponse
 
 configure_logging()
 logger = structlog.get_logger()
@@ -82,6 +84,7 @@ auth_manager = AuthManager(
 # ---------------------------------------------------------------------------
 # WebSocket hardening constants
 # ---------------------------------------------------------------------------
+_LOCALHOST_HOSTS = {"localhost", "127.0.0.1", "::1"}
 MAX_WS_CONNECTIONS = 20
 RATE_LIMIT_MAX_MESSAGES = 30  # per second
 RATE_LIMIT_WINDOW = 1.0  # seconds
@@ -188,6 +191,38 @@ def _check_rate_limit(client_info: dict) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Origin checking
+# ---------------------------------------------------------------------------
+
+
+def _is_origin_allowed(origin: str | None) -> bool:
+    """Return True if the WebSocket Origin header is permitted.
+
+    Localhost origins are always allowed (development mode).
+    Non-localhost origins must appear in settings.allowed_origins.
+    Missing origin header is treated as allowed (non-browser clients).
+    """
+    if origin is None:
+        return True
+    # Strip scheme to extract authority (host[:port])
+    authority = origin
+    for scheme in ("https://", "http://", "wss://", "ws://"):
+        if authority.startswith(scheme):
+            authority = authority[len(scheme):]
+            break
+    # Remove any path component
+    authority = authority.split("/")[0]
+    # IPv6 bracket notation: [::1]:port or [::1]
+    if authority.startswith("["):
+        host = authority[1:].split("]")[0]
+    else:
+        host = authority.split(":")[0]
+    if host in _LOCALHOST_HOSTS:
+        return True
+    return origin in settings.allowed_origins
+
+
+# ---------------------------------------------------------------------------
 # Lifespan
 # ---------------------------------------------------------------------------
 
@@ -286,6 +321,21 @@ async def health():
 @app.get("/ready")
 async def ready():
     return {"status": "ready", "sim_initialized": sim is not None}
+
+
+@app.get("/metrics")
+async def get_metrics(request: Request):
+    """Prometheus text exposition endpoint (format 0.0.4).
+
+    Restricted to localhost to avoid leaking operational telemetry.
+    """
+    client_host = request.client.host if request.client else "127.0.0.1"
+    if client_host not in ("127.0.0.1", "::1", "localhost", "testclient"):
+        raise HTTPException(status_code=403, detail="Metrics endpoint restricted to localhost")
+    return PlainTextResponse(
+        content=_metrics.generate_metrics_text(),
+        media_type="text/plain; version=0.0.4; charset=utf-8",
+    )
 
 
 @app.get("/api/audit")
@@ -471,6 +521,12 @@ async def websocket_endpoint(websocket: WebSocket):
         logger.warning("ws_connection_rejected", reason="max_connections", current=len(clients))
         return
 
+    origin = websocket.headers.get("origin")
+    if not _is_origin_allowed(origin):
+        await websocket.close(code=4003, reason="Origin not allowed")
+        logger.warning("ws_origin_rejected", origin=origin)
+        return
+
     await websocket.accept()
 
     try:
@@ -574,4 +630,8 @@ async def handle_payload(payload: dict, websocket: WebSocket, raw_data: str, ctx
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host=settings.host, port=settings.port)
+    ssl_kwargs = {}
+    if settings.ssl_enabled:
+        ssl_kwargs["ssl_certfile"] = settings.ssl_certfile
+        ssl_kwargs["ssl_keyfile"] = settings.ssl_keyfile
+    uvicorn.run(app, host=settings.host, port=settings.port, **ssl_kwargs)

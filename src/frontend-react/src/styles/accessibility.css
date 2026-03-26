@@ -1,0 +1,108 @@
+/* Color-Blind Accessibility Mode — toggle with Ctrl+Shift+A */
+/* Adds .colorblind-mode to <body> */
+/* Uses blue/orange palette (deuteranopia/protanopia safe) */
+/* WCAG AA compliant contrast ratios */
+
+body.colorblind-mode {
+  /* Blue/orange palette replaces red/green */
+  --cb-success: #1d6fa4;      /* blue — replaces green */
+  --cb-danger:  #d45f00;      /* orange — replaces red */
+  --cb-warning: #b88a00;      /* amber — same */
+  --cb-info:    #5c7cfa;      /* periwinkle */
+  --cb-neutral: #94a3b8;
+}
+
+/* Intent overrides for Blueprint components */
+body.colorblind-mode .bp5-intent-success {
+  background-color: var(--cb-success) !important;
+}
+
+body.colorblind-mode .bp5-intent-danger {
+  background-color: var(--cb-danger) !important;
+}
+
+body.colorblind-mode .bp5-button.bp5-intent-success {
+  background: var(--cb-success) !important;
+}
+
+body.colorblind-mode .bp5-button.bp5-intent-danger {
+  background: var(--cb-danger) !important;
+}
+
+body.colorblind-mode .bp5-tag.bp5-intent-success {
+  background: var(--cb-success) !important;
+}
+
+body.colorblind-mode .bp5-tag.bp5-intent-danger {
+  background: var(--cb-danger) !important;
+}
+
+/* Status dot — add shape redundancy via outline */
+body.colorblind-mode [data-status="connected"],
+body.colorblind-mode [data-status="ok"] {
+  outline: 2px solid var(--cb-success);
+  outline-offset: 1px;
+}
+
+body.colorblind-mode [data-status="disconnected"],
+body.colorblind-mode [data-status="error"] {
+  outline: 2px dashed var(--cb-danger);
+  outline-offset: 1px;
+}
+
+/* Strike board status colors */
+body.colorblind-mode [data-strike-status="APPROVED"] {
+  border-left-color: var(--cb-success) !important;
+}
+
+body.colorblind-mode [data-strike-status="REJECTED"] {
+  border-left-color: var(--cb-danger) !important;
+}
+
+body.colorblind-mode [data-strike-status="PENDING"] {
+  border-left-color: var(--cb-warning) !important;
+}
+
+/* Progress/confidence bars */
+body.colorblind-mode [data-bar="high"] {
+  background: var(--cb-success) !important;
+}
+
+body.colorblind-mode [data-bar="low"] {
+  background: var(--cb-danger) !important;
+}
+
+/* Shapes alongside color for critical indicators */
+body.colorblind-mode .cb-icon-success::before {
+  content: '▲ ';
+  color: var(--cb-success);
+}
+
+body.colorblind-mode .cb-icon-danger::before {
+  content: '■ ';
+  color: var(--cb-danger);
+}
+
+body.colorblind-mode .cb-icon-warning::before {
+  content: '◆ ';
+  color: var(--cb-warning);
+}
+
+/* Accessibility indicator badge */
+body.colorblind-mode::after {
+  content: 'A11Y';
+  position: fixed;
+  bottom: 8px;
+  left: 8px;
+  background: rgba(29, 111, 164, 0.15);
+  color: #1d6fa4;
+  font-family: monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 2px 6px;
+  border: 1px solid rgba(29, 111, 164, 0.4);
+  border-radius: 2px;
+  z-index: 99999;
+  pointer-events: none;
+}

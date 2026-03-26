@@ -3,6 +3,7 @@ import { useSimStore } from '../../store/SimulationStore';
 import { ThreatClusterCard } from './ThreatClusterCard';
 import { CoverageGapAlert } from './CoverageGapAlert';
 import { ZoneThreatHeatmap } from './ZoneThreatHeatmap';
+import { EngagementHistory } from './EngagementHistory';
 
 const SECTION_HEADING: React.CSSProperties = {
   fontSize: '0.7rem',
@@ -62,6 +63,12 @@ export function AssessmentTab() {
         <div style={{ color: '#64748b', fontSize: '0.65rem', marginTop: 4 }}>
           Corridors are visualized on the Cesium globe.
         </div>
+      </div>
+
+      {/* Engagement History */}
+      <div>
+        <div style={SECTION_HEADING}>Engagement History</div>
+        <EngagementHistory />
       </div>
 
     </div>

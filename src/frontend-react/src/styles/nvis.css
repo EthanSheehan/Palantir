@@ -1,0 +1,110 @@
+/* NVIS Night Vision Mode — toggle with N key */
+/* Adds .nvis-mode to <body> */
+
+body.nvis-mode {
+  --nvis-bg: #000d00;
+  --nvis-surface: #001400;
+  --nvis-border: #003300;
+  --nvis-text-primary: #00cc00;
+  --nvis-text-secondary: #007700;
+  --nvis-text-muted: #004400;
+  --nvis-accent: #00ff44;
+  --nvis-accent-dim: #00aa22;
+  --nvis-warning: #88cc00;
+  --nvis-danger: #ccaa00;
+
+  filter: none;
+}
+
+body.nvis-mode *:not(canvas):not(#cesiumContainer):not(.cesium-viewer):not(.cesium-viewer *) {
+  color: var(--nvis-text-primary) !important;
+  border-color: var(--nvis-border) !important;
+}
+
+body.nvis-mode .bp5-card,
+body.nvis-mode .bp5-panel-stack-view,
+body.nvis-mode [class*="Card"],
+body.nvis-mode [class*="card"] {
+  background: var(--nvis-surface) !important;
+  border-color: var(--nvis-border) !important;
+}
+
+body.nvis-mode [style*="background: #"],
+body.nvis-mode [style*="background:#"] {
+  background: var(--nvis-surface) !important;
+}
+
+body.nvis-mode .bp5-tag {
+  background: var(--nvis-surface) !important;
+  color: var(--nvis-accent) !important;
+  border: 1px solid var(--nvis-border) !important;
+}
+
+body.nvis-mode .bp5-button {
+  background: var(--nvis-surface) !important;
+  color: var(--nvis-text-primary) !important;
+  border-color: var(--nvis-border) !important;
+}
+
+body.nvis-mode .bp5-button:hover {
+  background: var(--nvis-accent-dim) !important;
+  color: #000 !important;
+}
+
+body.nvis-mode .bp5-button.bp5-intent-success {
+  background: var(--nvis-accent-dim) !important;
+  color: #000 !important;
+}
+
+body.nvis-mode .bp5-button.bp5-intent-danger {
+  background: var(--nvis-danger) !important;
+  color: #000 !important;
+}
+
+body.nvis-mode .bp5-button.bp5-intent-warning {
+  background: var(--nvis-warning) !important;
+  color: #000 !important;
+}
+
+body.nvis-mode input,
+body.nvis-mode select,
+body.nvis-mode textarea {
+  background: var(--nvis-bg) !important;
+  color: var(--nvis-text-primary) !important;
+  border-color: var(--nvis-border) !important;
+}
+
+/* Scrollbars */
+body.nvis-mode ::-webkit-scrollbar-track {
+  background: var(--nvis-bg);
+}
+
+body.nvis-mode ::-webkit-scrollbar-thumb {
+  background: var(--nvis-border);
+}
+
+/* Phosphor glow effect for text */
+body.nvis-mode span,
+body.nvis-mode div,
+body.nvis-mode p {
+  text-shadow: 0 0 4px rgba(0, 204, 0, 0.25);
+}
+
+/* NVIS indicator badge */
+body.nvis-mode::after {
+  content: 'NVIS';
+  position: fixed;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(0, 51, 0, 0.9);
+  color: #00cc00;
+  font-family: monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 2px 6px;
+  border: 1px solid #003300;
+  border-radius: 2px;
+  z-index: 99999;
+  pointer-events: none;
+}
