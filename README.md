@@ -44,8 +44,11 @@
 git clone <repo-url> && cd Palantir
 
 # Python dependencies
-python3 -m venv venv
-./venv/bin/pip install -r requirements.txt
+python -m venv venv
+# Activate venv:
+#   Windows: .\venv\Scripts\activate
+#   macOS/Linux: source venv/bin/activate
+pip install -r requirements.txt
 
 # Node dependencies (React dashboard)
 cd src/frontend-react && npm install && cd ../..
@@ -104,16 +107,16 @@ If you want to start services separately (useful for development):
 
 ```bash
 # Backend API server on :8000
-./venv/bin/python3 src/python/api_main.py
+python src/python/api_main.py
 
 # Backend with demo auto-pilot enabled
-DEMO_MODE=true ./venv/bin/python3 src/python/api_main.py
+DEMO_MODE=true python src/python/api_main.py
 
 # React dashboard (Vite dev server on :3000)
 cd src/frontend-react && npm run dev -- --port 3000
 
 # Drone video simulator (requires OpenCV)
-./venv/bin/python3 src/python/vision/video_simulator.py
+python src/python/vision/video_simulator.py
 
 # Build the React dashboard for production
 cd src/frontend-react && npm run build
@@ -123,13 +126,13 @@ cd src/frontend-react && npm run build
 
 ```bash
 # All Python tests
-./venv/bin/python3 -m pytest src/python/tests/
+python -m pytest src/python/tests/
 
 # Single test file
-./venv/bin/python3 -m pytest src/python/tests/test_sim_integration.py
+python -m pytest src/python/tests/test_sim_integration.py
 
-# With output (475 tests across 23 test files)
-./venv/bin/python3 -m pytest src/python/tests/ -v
+# With output (1811 tests across 35 test files)
+python -m pytest src/python/tests/ -v
 ```
 
 ---
@@ -526,7 +529,7 @@ src/
       vision_processor.py    # Video frame analysis
       coordinate_transformer.py # Geo ↔ pixel coordinate transform
       dashboard_connector.py # Vision pipeline → dashboard bridge
-    tests/                   # 475 pytest tests (23 test files)
+    tests/                   # 1811 pytest tests (35 test files)
   frontend-react/            # React + Vite dashboard (primary)
     src/
       App.tsx                # Root layout — sidebar + globe + overlays
@@ -749,7 +752,7 @@ The system runs fully in heuristic mode without any API keys. Keys unlock LLM-ba
 ## Contributing
 
 1. Create a feature branch: `git checkout -b feat/my-feature`
-2. Write tests first: `./venv/bin/python3 -m pytest src/python/tests/`
+2. Write tests first: `python -m pytest src/python/tests/`
 3. Commit: `git commit -m "feat: description"`
 4. Open a PR
 
