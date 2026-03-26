@@ -17,27 +17,27 @@ Palantir is a decision-centric AI-assisted Command & Control (C2) system that au
 ./palantir.sh --demo --no-sim    # without drone video simulator
 
 # Or run components individually:
-./venv/bin/python3 src/python/api_main.py              # FastAPI backend on :8000
+./venv/Scripts/python src/python/api_main.py              # FastAPI backend on :8000
 cd src/frontend-react && npm run dev -- --port 3000    # React dashboard on :3000 (Vite)
-./venv/bin/python3 src/python/vision/video_simulator.py  # Drone simulator
-DEMO_MODE=true ./venv/bin/python3 src/python/api_main.py  # Backend in demo mode
+./venv/Scripts/python src/python/vision/video_simulator.py  # Drone simulator
+DEMO_MODE=true ./venv/Scripts/python src/python/api_main.py  # Backend in demo mode
 ```
 
 ## Tests
 
 ```bash
-# Run all tests (1788 tests across 35 test files)
-./venv/bin/python3 -m pytest src/python/tests/
+# Run all tests (1811 tests across 35 test files)
+./venv/Scripts/python -m pytest src/python/tests/
 
 # Run a single test file
-./venv/bin/python3 -m pytest src/python/tests/test_pattern_analyzer.py
+./venv/Scripts/python -m pytest src/python/tests/test_pattern_analyzer.py
 ```
 
 ## Dependencies
 
 ```bash
 # Install Python dependencies into the existing venv
-./venv/bin/pip install -r requirements.txt
+./venv/Scripts/pip install -r requirements.txt
 ```
 
 Environment variables go in a `.env` file (loaded via python-dotenv). Required for LangChain/OpenAI agent features (e.g. `OPENAI_API_KEY`).
