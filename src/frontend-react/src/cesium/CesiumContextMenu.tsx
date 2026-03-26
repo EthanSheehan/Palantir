@@ -88,6 +88,7 @@ export function CesiumContextMenu({ position, entityType, entityId, onClose }: C
             text="Nominate"
             intent="warning"
             onClick={() => {
+              if (!window.confirm(`Confirm nomination for target ${numericId}?`)) return;
               sendMessage({ action: 'approve_nomination', target_id: numericId });
               onClose();
             }}

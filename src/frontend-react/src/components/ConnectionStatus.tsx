@@ -54,6 +54,7 @@ export function ConnectionStatus() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
       <div
+        data-status={connected ? 'connected' : 'disconnected'}
         style={{
           width: 7,
           height: 7,

@@ -64,7 +64,9 @@ export function EngagementHistory() {
         targetType: entry?.target_type || 'UNKNOWN',
         weapon: ev.coa_id ? `COA-${ev.coa_id.slice(-6)}` : 'UNKNOWN',
         bdaConfidence: entry?.detection_confidence ?? 0.5,
-        outcome: ev.action === 'engagement_result' ? 'DESTROYED' : 'PENDING',
+        outcome: ev.action === 'engagement_result'
+          ? (((ev as Record<string, unknown>).outcome as EngagementRecord['outcome']) || 'DESTROYED')
+          : 'PENDING',
       });
     }
 

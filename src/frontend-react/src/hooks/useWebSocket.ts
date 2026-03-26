@@ -18,7 +18,8 @@ export function useWebSocket() {
 
     function connect() {
       if (!isMounted) return;
-      const ws = new WebSocket(`ws://${window.location.hostname}:8000/ws`);
+      const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      const ws = new WebSocket(`${scheme}://${window.location.hostname}:8000/ws`);
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -35,7 +36,13 @@ export function useWebSocket() {
       };
 
       ws.onmessage = (event) => {
-        const payload = JSON.parse(event.data);
+        let payload: any;
+        try {
+          payload = JSON.parse(event.data);
+        } catch (err) {
+          console.error('WebSocket: malformed message', err);
+          return;
+        }
 
         if (payload.type === 'ASSISTANT_MESSAGE') {
           const msg: AssistantMessage = {

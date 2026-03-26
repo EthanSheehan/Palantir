@@ -98,7 +98,7 @@ def update_gauges(
         _state.connected_clients = client_count
         _state.targets_active = target_count
         _state.drones_active = drone_count
-        _state.autonomy_level = autonomy_level
+        _state.autonomy_level = autonomy_level if autonomy_level in ("MANUAL", "SUPERVISED", "AUTONOMOUS") else "MANUAL"
 
 
 def get_snapshot() -> MetricsSnapshot:
@@ -147,18 +147,17 @@ def generate_metrics_text() -> str:
         lines.append(f"{name}{label_str} {_fmt(value)}")
 
     def _counter(name: str, help_text: str, value: float) -> None:
-        lines.append(f"# HELP {name} {help_text}")
-        lines.append(f"# TYPE {name} counter")
-        lines.append(f"{name}_total {_fmt(value)}")
+        full_name = f"{name}_total"
+        lines.append(f"# HELP {full_name} {help_text}")
+        lines.append(f"# TYPE {full_name} counter")
+        lines.append(f"{full_name} {_fmt(value)}")
 
     def _histogram(name: str, help_text: str, count: int, total: float, p50: float) -> None:
         lines.append(f"# HELP {name} {help_text}")
         lines.append(f"# TYPE {name} histogram")
-        # Emit a single quantile as a summary-style gauge for simplicity
-        lines.append(f'{name}_bucket{{le="0.1"}} {count}')
         lines.append(f'{name}_bucket{{le="+Inf"}} {count}')
-        lines.append(f"{name}_sum {_fmt(total)}")
         lines.append(f"{name}_count {count}")
+        lines.append(f"{name}_sum {_fmt(total)}")
 
     _histogram(
         "palantir_tick_duration_seconds",

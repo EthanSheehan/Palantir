@@ -194,7 +194,7 @@ def test_generate_metrics_text_has_help_lines():
     text = metrics.generate_metrics_text()
     assert "# HELP palantir_tick_duration_seconds" in text
     assert "# HELP palantir_connected_clients" in text
-    assert "# HELP palantir_detection_events" in text
+    assert "# HELP palantir_detection_events_total" in text
 
 
 def test_generate_metrics_text_has_type_lines():

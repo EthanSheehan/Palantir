@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { SegmentedControl } from '@blueprintjs/core';
 import { useSimStore } from '../../store/SimulationStore';
 import { useSendMessage } from '../../App';
@@ -37,6 +37,15 @@ export function AutonomyToggle() {
   const handleBriefingCancel = () => {
     setBriefingOpen(false);
   };
+
+  // Allow CommandPalette (and other callers) to open the briefing via a custom event
+  useEffect(() => {
+    function onOpenBriefing() {
+      setBriefingOpen(true);
+    }
+    window.addEventListener('palantir:openAutonomyBriefing', onOpenBriefing);
+    return () => window.removeEventListener('palantir:openAutonomyBriefing', onOpenBriefing);
+  }, []);
 
   return (
     <div>

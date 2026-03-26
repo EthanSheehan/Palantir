@@ -86,12 +86,10 @@ export function CommandPalette({ isOpen, onClose }: Props) {
     },
     {
       id: 'autonomy-autonomous',
-      label: 'Set Autonomy: AUTONOMOUS (use sidebar toggle)',
+      label: 'Set Autonomy: AUTONOMOUS',
       category: 'System',
       action: () => {
-        // AUTONOMOUS requires the briefing dialog confirmation — close palette
-        // so the operator uses the AutonomyToggle which enforces the safety gate
-        onClose();
+        window.dispatchEvent(new CustomEvent('palantir:openAutonomyBriefing'));
       },
     },
     {

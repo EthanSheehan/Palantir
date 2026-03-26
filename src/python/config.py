@@ -160,6 +160,18 @@ class PalantirSettings(BaseSettings):
                 raise ValueError(f"ssl_keyfile does not exist: {self.ssl_keyfile}")
         return self
 
+    @model_validator(mode="after")
+    def _validate_demo_token(self) -> "PalantirSettings":
+        if self.auth_enabled and self.demo_token == "dev":
+            import warnings
+            warnings.warn(
+                "auth_enabled=True but demo_token is still 'dev' — "
+                "rotate demo_token for production",
+                UserWarning,
+                stacklevel=2,
+            )
+        return self
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",

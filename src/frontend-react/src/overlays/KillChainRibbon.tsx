@@ -29,8 +29,9 @@ export function KillChainRibbon() {
   const counts = useMemo(() => {
     const result: Record<string, number> = {};
     for (const phase of PHASES) {
+      const stateSet = new Set(phase.states);
       result[phase.key] = targets.filter(t =>
-        phase.states.some(s => t.state?.toUpperCase().includes(s))
+        stateSet.has(t.state?.toUpperCase() ?? '')
       ).length;
     }
     return result;
