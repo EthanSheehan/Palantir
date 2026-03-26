@@ -1,0 +1,1685 @@
+asyncapi: "2.6.0"
+
+info:
+  title: Palantir C2 WebSocket API
+  version: "2.0.0"
+  description: |
+    AsyncAPI specification for the Palantir Command & Control system WebSocket protocol.
+    The backend runs a 10Hz simulation loop and broadcasts full simulation state to
+    all connected DASHBOARD clients each tick. Clients send action commands to control
+    drones, approve HITL nominations, and configure the system.
+  contact:
+    name: Palantir C2 Team
+
+servers:
+  development:
+    url: ws://localhost:8000/ws
+    protocol: ws
+    description: Local development server (no TLS, no auth by default)
+  production:
+    url: wss://{host}:{port}/ws
+    protocol: wss
+    description: Production server (TLS + JWT auth required)
+    variables:
+      host:
+        description: Server hostname
+        default: localhost
+      port:
+        description: Server port
+        default: "8000"
+
+defaultContentType: application/json
+
+channels:
+  /ws:
+    description: |
+      Single bidirectional WebSocket channel.
+      Clients send command messages; the server broadcasts simulation state at 10Hz
+      and pushes event messages in response to specific commands.
+
+    subscribe:
+      summary: Messages sent FROM the server TO connected DASHBOARD clients
+      operationId: serverToClient
+      message:
+        oneOf:
+          - $ref: "#/components/messages/SimulationState"
+          - $ref: "#/components/messages/HitlUpdate"
+          - $ref: "#/components/messages/SitrepResponse"
+          - $ref: "#/components/messages/RetaskResponse"
+          - $ref: "#/components/messages/CheckpointSaved"
+          - $ref: "#/components/messages/MissionLoaded"
+          - $ref: "#/components/messages/RoeRules"
+          - $ref: "#/components/messages/RoeUpdated"
+          - $ref: "#/components/messages/FeedHistory"
+          - $ref: "#/components/messages/FeedEvent"
+          - $ref: "#/components/messages/TacticalAssistantMessage"
+          - $ref: "#/components/messages/ErrorMessage"
+
+    publish:
+      summary: Messages sent FROM the client TO the server
+      operationId: clientToServer
+      message:
+        oneOf:
+          - $ref: "#/components/messages/IdentifyMessage"
+          # Drone control
+          - $ref: "#/components/messages/ScanArea"
+          - $ref: "#/components/messages/FollowTarget"
+          - $ref: "#/components/messages/PaintTarget"
+          - $ref: "#/components/messages/InterceptTarget"
+          - $ref: "#/components/messages/InterceptEnemy"
+          - $ref: "#/components/messages/CancelTrack"
+          - $ref: "#/components/messages/MoveDrone"
+          - $ref: "#/components/messages/Spike"
+          # HITL approvals
+          - $ref: "#/components/messages/ApproveNomination"
+          - $ref: "#/components/messages/RejectNomination"
+          - $ref: "#/components/messages/RetaskNomination"
+          - $ref: "#/components/messages/AuthorizeCoa"
+          - $ref: "#/components/messages/RejectCoa"
+          - $ref: "#/components/messages/VerifyTarget"
+          # Swarm
+          - $ref: "#/components/messages/RequestSwarm"
+          - $ref: "#/components/messages/ReleaseSwarm"
+          # Autonomy control
+          - $ref: "#/components/messages/SetAutonomyLevel"
+          - $ref: "#/components/messages/SetActionAutonomy"
+          - $ref: "#/components/messages/ForceManual"
+          - $ref: "#/components/messages/SetDroneAutonomy"
+          - $ref: "#/components/messages/ApproveTransition"
+          - $ref: "#/components/messages/RejectTransition"
+          # Configuration
+          - $ref: "#/components/messages/SetCoverageMode"
+          - $ref: "#/components/messages/SetRoe"
+          - $ref: "#/components/messages/GetRoe"
+          - $ref: "#/components/messages/SetScenario"
+          # Intel feeds
+          - $ref: "#/components/messages/Subscribe"
+          - $ref: "#/components/messages/SubscribeSensorFeed"
+          # Queries
+          - $ref: "#/components/messages/SitrepQuery"
+          - $ref: "#/components/messages/RetaskSensors"
+          # Persistence
+          - $ref: "#/components/messages/SaveCheckpoint"
+          - $ref: "#/components/messages/LoadMission"
+          # Simulation control
+          - $ref: "#/components/messages/Reset"
+
+components:
+  messages:
+    # -------------------------------------------------------------------------
+    # Connection handshake
+    # -------------------------------------------------------------------------
+    IdentifyMessage:
+      name: IDENTIFY
+      title: Client Identification
+      summary: First message sent after WebSocket connection is established.
+      description: |
+        Must be sent within 2 seconds of connection. Identifies the client type and
+        provides an authentication token when auth is enabled. If omitted, the client
+        is treated as a DASHBOARD client and the first message is processed as a command.
+      payload:
+        $ref: "#/components/schemas/IdentifyPayload"
+      examples:
+        - name: dashboard-auth
+          summary: Authenticated dashboard client
+          payload:
+            type: IDENTIFY
+            client_type: DASHBOARD
+            token: "tok_dashboard_abc123"
+        - name: simulator
+          summary: Drone simulator client (no auth required in dev)
+          payload:
+            type: IDENTIFY
+            client_type: SIMULATOR
+
+    # -------------------------------------------------------------------------
+    # Drone control messages (client → server)
+    # -------------------------------------------------------------------------
+    ScanArea:
+      name: scan_area
+      title: Scan Area
+      summary: Release a drone from tracking and switch it to autonomous search mode.
+      payload:
+        $ref: "#/components/schemas/ScanAreaPayload"
+      examples:
+        - name: scan
+          payload:
+            action: scan_area
+            drone_id: 1
+
+    FollowTarget:
+      name: follow_target
+      title: Follow Target
+      summary: Command a drone to follow (track) a specific target.
+      payload:
+        $ref: "#/components/schemas/DroneTargetPayload"
+      examples:
+        - name: follow
+          payload:
+            action: follow_target
+            drone_id: 2
+            target_id: 5
+
+    PaintTarget:
+      name: paint_target
+      title: Paint Target
+      summary: Command a drone to laser-designate (paint) a target for engagement.
+      payload:
+        $ref: "#/components/schemas/DroneTargetPayload"
+      examples:
+        - name: paint
+          payload:
+            action: paint_target
+            drone_id: 3
+            target_id: 7
+
+    InterceptTarget:
+      name: intercept_target
+      title: Intercept Ground Target
+      summary: Command a drone to intercept (engage) a ground target.
+      payload:
+        $ref: "#/components/schemas/DroneTargetPayload"
+      examples:
+        - name: intercept
+          payload:
+            action: intercept_target
+            drone_id: 1
+            target_id: 4
+
+    InterceptEnemy:
+      name: intercept_enemy
+      title: Intercept Enemy UAV
+      summary: Command a friendly UAV to intercept a hostile enemy UAV.
+      payload:
+        $ref: "#/components/schemas/InterceptEnemyPayload"
+      examples:
+        - name: intercept-enemy
+          payload:
+            action: intercept_enemy
+            uav_id: 2
+            enemy_uav_id: 10
+
+    CancelTrack:
+      name: cancel_track
+      title: Cancel Tracking
+      summary: Release a drone from its current tracking assignment and return it to idle.
+      payload:
+        $ref: "#/components/schemas/DroneIdPayload"
+      examples:
+        - name: cancel
+          payload:
+            action: cancel_track
+            drone_id: 3
+
+    MoveDrone:
+      name: move_drone
+      title: Move Drone to Waypoint
+      summary: Command a drone to fly to a specific geographic coordinate.
+      payload:
+        $ref: "#/components/schemas/MoveDronePayload"
+      examples:
+        - name: move
+          payload:
+            action: move_drone
+            drone_id: 1
+            target_lon: 28.5
+            target_lat: 44.3
+
+    Spike:
+      name: spike
+      title: Demand Spike
+      summary: Trigger a demand spike at a geographic location (for testing/simulation).
+      payload:
+        $ref: "#/components/schemas/SpikePayload"
+      examples:
+        - name: spike
+          payload:
+            action: spike
+            lon: 28.5
+            lat: 44.2
+
+    # -------------------------------------------------------------------------
+    # HITL approval messages (client → server)
+    # -------------------------------------------------------------------------
+    ApproveNomination:
+      name: approve_nomination
+      title: Approve Strike Nomination
+      summary: Operator approves a target nomination on the HITL strike board.
+      payload:
+        $ref: "#/components/schemas/NominationActionPayload"
+      examples:
+        - name: approve
+          payload:
+            action: approve_nomination
+            entry_id: "nom-001"
+            rationale: "Target confirmed, ROE satisfied"
+            operator_id: "op_alpha"
+
+    RejectNomination:
+      name: reject_nomination
+      title: Reject Strike Nomination
+      summary: Operator rejects a target nomination. Logs an operator override in the audit trail.
+      payload:
+        $ref: "#/components/schemas/RejectNominationPayload"
+      examples:
+        - name: reject
+          payload:
+            action: reject_nomination
+            entry_id: "nom-002"
+            rationale: "Insufficient confidence"
+            reason: "LOW_CONFIDENCE"
+            reason_text: "Sensor fusion below threshold"
+            operator_id: "op_bravo"
+
+    RetaskNomination:
+      name: retask_nomination
+      title: Retask Nomination for More ISR
+      summary: Return a nomination to active ISR collection instead of approving or rejecting it.
+      payload:
+        $ref: "#/components/schemas/NominationActionPayload"
+      examples:
+        - name: retask
+          payload:
+            action: retask_nomination
+            entry_id: "nom-003"
+            rationale: "Need additional SIGINT confirmation"
+
+    AuthorizeCoa:
+      name: authorize_coa
+      title: Authorize Course of Action
+      summary: Operator authorizes a specific COA (Course of Action) for a strike board entry.
+      payload:
+        $ref: "#/components/schemas/AuthorizeCoaPayload"
+      examples:
+        - name: authorize
+          payload:
+            action: authorize_coa
+            entry_id: "nom-001"
+            coa_id: "coa-a"
+            rationale: "Minimal collateral, high confidence"
+
+    RejectCoa:
+      name: reject_coa
+      title: Reject All COAs
+      summary: Operator rejects all proposed COAs for a strike board entry.
+      payload:
+        $ref: "#/components/schemas/RejectCoaPayload"
+      examples:
+        - name: reject-coa
+          payload:
+            action: reject_coa
+            entry_id: "nom-001"
+            rationale: "Collateral risk too high"
+            reason: "COLLATERAL_RISK"
+
+    VerifyTarget:
+      name: verify_target
+      title: Manually Verify Target
+      summary: Operator manually advances a CLASSIFIED target to VERIFIED state.
+      description: Only valid when the target is in CLASSIFIED state and has sufficient confidence.
+      payload:
+        $ref: "#/components/schemas/TargetIdPayload"
+      examples:
+        - name: verify
+          payload:
+            action: verify_target
+            target_id: 5
+
+    # -------------------------------------------------------------------------
+    # Swarm messages (client → server)
+    # -------------------------------------------------------------------------
+    RequestSwarm:
+      name: request_swarm
+      title: Request Drone Swarm
+      summary: Request a coordinated drone swarm assignment to cover a target.
+      payload:
+        $ref: "#/components/schemas/TargetIdPayload"
+      examples:
+        - name: swarm
+          payload:
+            action: request_swarm
+            target_id: 3
+
+    ReleaseSwarm:
+      name: release_swarm
+      title: Release Drone Swarm
+      summary: Release the swarm currently assigned to a target, returning drones to idle.
+      payload:
+        $ref: "#/components/schemas/TargetIdPayload"
+      examples:
+        - name: release
+          payload:
+            action: release_swarm
+            target_id: 3
+
+    # -------------------------------------------------------------------------
+    # Autonomy control messages (client → server)
+    # -------------------------------------------------------------------------
+    SetAutonomyLevel:
+      name: set_autonomy_level
+      title: Set Global Autonomy Level
+      summary: Change the global autonomy level for the entire system.
+      payload:
+        $ref: "#/components/schemas/SetAutonomyLevelPayload"
+      examples:
+        - name: supervised
+          payload:
+            action: set_autonomy_level
+            level: SUPERVISED
+
+    SetActionAutonomy:
+      name: set_action_autonomy
+      title: Set Per-Action Autonomy Level
+      summary: Override the autonomy level for a specific action type, optionally time-limited.
+      payload:
+        $ref: "#/components/schemas/SetActionAutonomyPayload"
+      examples:
+        - name: temporary-override
+          payload:
+            action: set_action_autonomy
+            action: ENGAGE
+            level: MANUAL
+            duration_seconds: 300
+
+    ForceManual:
+      name: force_manual
+      title: Force Manual Mode
+      summary: Immediately override all autonomy to MANUAL, clearing all autonomy grants.
+      payload:
+        $ref: "#/components/schemas/ActionOnlyPayload"
+      examples:
+        - name: force-manual
+          payload:
+            action: force_manual
+
+    SetDroneAutonomy:
+      name: set_drone_autonomy
+      title: Set Per-Drone Autonomy Override
+      summary: Set or clear an autonomy level override for a specific drone.
+      description: |
+        Pass `level` to set an override (MANUAL/SUPERVISED/AUTONOMOUS), or omit `level`
+        (or pass null) to clear the per-drone override and revert to the global setting.
+      payload:
+        $ref: "#/components/schemas/SetDroneAutonomyPayload"
+      examples:
+        - name: set-override
+          payload:
+            action: set_drone_autonomy
+            drone_id: 2
+            level: MANUAL
+        - name: clear-override
+          payload:
+            action: set_drone_autonomy
+            drone_id: 2
+
+    ApproveTransition:
+      name: approve_transition
+      title: Approve Mode Transition
+      summary: Approve a pending mode transition for a drone in SUPERVISED mode.
+      payload:
+        $ref: "#/components/schemas/DroneIdPayload"
+      examples:
+        - name: approve
+          payload:
+            action: approve_transition
+            drone_id: 1
+
+    RejectTransition:
+      name: reject_transition
+      title: Reject Mode Transition
+      summary: Reject a pending mode transition for a drone, keeping it in its current mode.
+      payload:
+        $ref: "#/components/schemas/DroneIdPayload"
+      examples:
+        - name: reject
+          payload:
+            action: reject_transition
+            drone_id: 1
+
+    # -------------------------------------------------------------------------
+    # Configuration messages (client → server)
+    # -------------------------------------------------------------------------
+    SetCoverageMode:
+      name: set_coverage_mode
+      title: Set Coverage Mode
+      summary: Switch the swarm coverage algorithm between balanced and threat-adaptive modes.
+      payload:
+        $ref: "#/components/schemas/SetCoverageModePayload"
+      examples:
+        - name: threat-adaptive
+          payload:
+            action: set_coverage_mode
+            mode: threat_adaptive
+
+    SetRoe:
+      name: set_roe
+      title: Load ROE Rules
+      summary: Load Rules of Engagement from a YAML file within the roe/ directory.
+      payload:
+        $ref: "#/components/schemas/SetRoePayload"
+      examples:
+        - name: load
+          payload:
+            action: set_roe
+            path: roe/default.yaml
+
+    GetRoe:
+      name: get_roe
+      title: Get Current ROE Rules
+      summary: Request the currently loaded Rules of Engagement. Server responds with ROE_RULES.
+      payload:
+        $ref: "#/components/schemas/ActionOnlyPayload"
+      examples:
+        - name: get
+          payload:
+            action: get_roe
+
+    SetScenario:
+      name: SET_SCENARIO
+      title: Set Theater/Scenario
+      summary: Load a theater scenario on the drone simulator. Forwarded to SIMULATOR clients.
+      payload:
+        $ref: "#/components/schemas/SetScenarioPayload"
+      examples:
+        - name: load-romania
+          payload:
+            action: SET_SCENARIO
+            scenario: romania
+
+    # -------------------------------------------------------------------------
+    # Feed subscription messages (client → server)
+    # -------------------------------------------------------------------------
+    Subscribe:
+      name: subscribe
+      title: Subscribe to Intel Feeds
+      summary: Subscribe to one or more named event feeds. Returns recent history on first subscription.
+      description: |
+        Valid feeds: INTEL_FEED (target state transitions), COMMAND_FEED (operator actions),
+        SENSOR_FEED (per-UAV detection snapshots at 2Hz — use subscribe_sensor_feed instead).
+      payload:
+        $ref: "#/components/schemas/SubscribePayload"
+      examples:
+        - name: subscribe-intel
+          payload:
+            action: subscribe
+            feeds:
+              - INTEL_FEED
+              - COMMAND_FEED
+
+    SubscribeSensorFeed:
+      name: subscribe_sensor_feed
+      title: Subscribe to Sensor Feed for Specific UAVs
+      summary: Subscribe to the 2Hz SENSOR_FEED for specified UAV IDs only.
+      payload:
+        $ref: "#/components/schemas/SubscribeSensorFeedPayload"
+      examples:
+        - name: subscribe-sensor
+          payload:
+            action: subscribe_sensor_feed
+            uav_ids:
+              - 1
+              - 2
+              - 3
+
+    # -------------------------------------------------------------------------
+    # Query messages (client → server)
+    # -------------------------------------------------------------------------
+    SitrepQuery:
+      name: sitrep_query
+      title: Situation Report Query
+      summary: Request a natural-language situation report. Server responds with SITREP_RESPONSE.
+      description: Also dispatched via action "generate_sitrep" or type "SITREP_QUERY".
+      payload:
+        $ref: "#/components/schemas/SitrepQueryPayload"
+      examples:
+        - name: query
+          payload:
+            action: sitrep_query
+            query: What is the current threat posture in the eastern sector?
+
+    RetaskSensors:
+      name: retask_sensors
+      title: Request AI Sensor Retasking
+      summary: Request AI-driven sensor retasking for a given detection. Server responds with RETASK_RESPONSE.
+      payload:
+        $ref: "#/components/schemas/RetaskSensorsPayload"
+      examples:
+        - name: retask
+          payload:
+            action: retask_sensors
+            lat: 44.3
+            lon: 28.5
+            confidence: 0.6
+            target_type: SAM
+
+    # -------------------------------------------------------------------------
+    # Persistence messages (client → server)
+    # -------------------------------------------------------------------------
+    SaveCheckpoint:
+      name: save_checkpoint
+      title: Save Mission Checkpoint
+      summary: Save the current simulation state as a checkpoint for a mission.
+      payload:
+        $ref: "#/components/schemas/MissionIdPayload"
+      examples:
+        - name: save
+          payload:
+            action: save_checkpoint
+            mission_id: 42
+
+    LoadMission:
+      name: load_mission
+      title: Load Mission Checkpoint
+      summary: Load a previously saved mission checkpoint. Server responds with MISSION_LOADED.
+      payload:
+        $ref: "#/components/schemas/MissionIdPayload"
+      examples:
+        - name: load
+          payload:
+            action: load_mission
+            mission_id: 42
+
+    # -------------------------------------------------------------------------
+    # Simulation control messages (client → server)
+    # -------------------------------------------------------------------------
+    Reset:
+      name: reset
+      title: Reset Grid Queues
+      summary: Reset demand queues in the simulation grid.
+      payload:
+        $ref: "#/components/schemas/ActionOnlyPayload"
+      examples:
+        - name: reset
+          payload:
+            action: reset
+
+    # -------------------------------------------------------------------------
+    # Server → Client messages
+    # -------------------------------------------------------------------------
+    SimulationState:
+      name: state
+      title: Simulation State Broadcast
+      summary: Full simulation state broadcast at 10Hz to all DASHBOARD clients.
+      description: |
+        The primary broadcast message. Contains drone positions, target states, zone data,
+        strike board, assessment results, ISR queue, kill chain progress, and environment.
+        Sent at the configured simulation tick rate (default 10Hz).
+      payload:
+        $ref: "#/components/schemas/SimulationStatePayload"
+
+    HitlUpdate:
+      name: HITL_UPDATE
+      title: HITL Strike Board Update
+      summary: Broadcast to all DASHBOARD clients when the strike board changes.
+      payload:
+        $ref: "#/components/schemas/HitlUpdatePayload"
+      examples:
+        - name: approved
+          payload:
+            type: HITL_UPDATE
+            action: approved
+            entry:
+              - entry_id: nom-001
+                status: APPROVED
+                target_id: 5
+
+    SitrepResponse:
+      name: SITREP_RESPONSE
+      title: Situation Report Response
+      summary: Response to a sitrep_query command, sent only to the requesting client.
+      payload:
+        $ref: "#/components/schemas/SitrepResponsePayload"
+      examples:
+        - name: response
+          payload:
+            type: SITREP_RESPONSE
+            sitrep_narrative: "SITREP: 2 active contacts detected. Threats: SAM at (44.3, 28.5)."
+            key_threats:
+              - "SAM (id=3)"
+            recommended_actions:
+              - "Review 1 pending strike board nomination(s)."
+            data_sources_consulted:
+              - sim_engine
+              - hitl_strike_board
+            confidence: 0.7
+
+    RetaskResponse:
+      name: RETASK_RESPONSE
+      title: Sensor Retask Response
+      summary: Response to a retask_sensors command, sent only to the requesting client.
+      payload:
+        $ref: "#/components/schemas/RetaskResponsePayload"
+
+    CheckpointSaved:
+      name: CHECKPOINT_SAVED
+      title: Checkpoint Saved Confirmation
+      summary: Confirmation that a mission checkpoint was saved.
+      payload:
+        $ref: "#/components/schemas/CheckpointSavedPayload"
+      examples:
+        - name: saved
+          payload:
+            type: CHECKPOINT_SAVED
+            mission_id: 42
+
+    MissionLoaded:
+      name: MISSION_LOADED
+      title: Mission Loaded
+      summary: Response to load_mission — contains the restored simulation state.
+      payload:
+        $ref: "#/components/schemas/MissionLoadedPayload"
+
+    RoeRules:
+      name: ROE_RULES
+      title: ROE Rules Response
+      summary: Response to get_roe — lists all currently loaded Rules of Engagement.
+      payload:
+        $ref: "#/components/schemas/RoeRulesPayload"
+
+    RoeUpdated:
+      name: ROE_UPDATED
+      title: ROE Updated Confirmation
+      summary: Confirmation that new ROE rules were loaded via set_roe.
+      payload:
+        $ref: "#/components/schemas/RoeUpdatedPayload"
+
+    FeedHistory:
+      name: FEED_HISTORY
+      title: Feed History Replay
+      summary: Sent after a subscribe command — delivers the last 200 events for the subscribed feed.
+      payload:
+        $ref: "#/components/schemas/FeedHistoryPayload"
+
+    FeedEvent:
+      name: FEED_EVENT
+      title: Live Feed Event
+      summary: Real-time event published to subscribers of INTEL_FEED, COMMAND_FEED, or SENSOR_FEED.
+      payload:
+        $ref: "#/components/schemas/FeedEventPayload"
+
+    TacticalAssistantMessage:
+      name: TACTICAL_ASSISTANT
+      title: Tactical AI Assistant Message
+      summary: AI-generated tactical recommendation broadcast when a new target is detected.
+      payload:
+        $ref: "#/components/schemas/TacticalAssistantPayload"
+
+    ErrorMessage:
+      name: ERROR
+      title: Error Response
+      summary: Sent to the requesting client when a command fails validation or processing.
+      payload:
+        $ref: "#/components/schemas/ErrorPayload"
+      examples:
+        - name: validation-error
+          payload:
+            type: ERROR
+            message: "Missing required field: 'drone_id'"
+            action: follow_target
+
+  schemas:
+    # -------------------------------------------------------------------------
+    # Client → Server payload schemas
+    # -------------------------------------------------------------------------
+    IdentifyPayload:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: [IDENTIFY]
+        client_type:
+          type: string
+          enum: [DASHBOARD, SIMULATOR]
+          default: DASHBOARD
+          description: Client role. SIMULATOR clients forward video frames; DASHBOARD clients send commands.
+        token:
+          type: string
+          description: Authentication token. Required when AUTH_ENABLED=true on the server.
+
+    ActionOnlyPayload:
+      type: object
+      required:
+        - action
+      properties:
+        action:
+          type: string
+
+    DroneIdPayload:
+      type: object
+      required:
+        - action
+        - drone_id
+      properties:
+        action:
+          type: string
+        drone_id:
+          type: integer
+          description: ID of the UAV to command.
+
+    DroneTargetPayload:
+      type: object
+      required:
+        - action
+        - drone_id
+        - target_id
+      properties:
+        action:
+          type: string
+        drone_id:
+          type: integer
+        target_id:
+          type: integer
+
+    InterceptEnemyPayload:
+      type: object
+      required:
+        - action
+        - uav_id
+        - enemy_uav_id
+      properties:
+        action:
+          type: string
+          enum: [intercept_enemy]
+        uav_id:
+          type: integer
+          description: ID of the friendly UAV.
+        enemy_uav_id:
+          type: integer
+          description: ID of the enemy UAV to intercept.
+
+    ScanAreaPayload:
+      type: object
+      required:
+        - action
+        - drone_id
+      properties:
+        action:
+          type: string
+          enum: [scan_area]
+        drone_id:
+          type: integer
+
+    MoveDronePayload:
+      type: object
+      required:
+        - action
+        - drone_id
+        - target_lon
+        - target_lat
+      properties:
+        action:
+          type: string
+          enum: [move_drone]
+        drone_id:
+          type: integer
+        target_lon:
+          type: number
+          format: float
+          minimum: -180
+          maximum: 180
+          description: Target longitude in decimal degrees.
+        target_lat:
+          type: number
+          format: float
+          minimum: -90
+          maximum: 90
+          description: Target latitude in decimal degrees.
+
+    SpikePayload:
+      type: object
+      required:
+        - action
+        - lon
+        - lat
+      properties:
+        action:
+          type: string
+          enum: [spike]
+        lon:
+          type: number
+          format: float
+        lat:
+          type: number
+          format: float
+
+    TargetIdPayload:
+      type: object
+      required:
+        - action
+        - target_id
+      properties:
+        action:
+          type: string
+        target_id:
+          type: integer
+
+    NominationActionPayload:
+      type: object
+      required:
+        - action
+        - entry_id
+      properties:
+        action:
+          type: string
+        entry_id:
+          type: string
+          description: Strike board entry ID.
+        rationale:
+          type: string
+          description: Operator-provided reason (optional, logged in audit trail).
+        operator_id:
+          type: string
+          pattern: "^[a-zA-Z0-9_\\-]{1,64}$"
+          description: Operator identifier for audit logging (optional).
+
+    RejectNominationPayload:
+      allOf:
+        - $ref: "#/components/schemas/NominationActionPayload"
+        - type: object
+          properties:
+            reason:
+              type: string
+              description: Structured rejection reason code (e.g. LOW_CONFIDENCE, ROE_VIOLATION).
+            reason_text:
+              type: string
+              description: Free-text reason supplement.
+
+    AuthorizeCoaPayload:
+      type: object
+      required:
+        - action
+        - entry_id
+        - coa_id
+      properties:
+        action:
+          type: string
+          enum: [authorize_coa]
+        entry_id:
+          type: string
+        coa_id:
+          type: string
+          description: ID of the specific COA to authorize.
+        rationale:
+          type: string
+
+    RejectCoaPayload:
+      type: object
+      required:
+        - action
+        - entry_id
+      properties:
+        action:
+          type: string
+          enum: [reject_coa]
+        entry_id:
+          type: string
+        rationale:
+          type: string
+        reason:
+          type: string
+        reason_text:
+          type: string
+
+    SetAutonomyLevelPayload:
+      type: object
+      required:
+        - action
+        - level
+      properties:
+        action:
+          type: string
+          enum: [set_autonomy_level]
+        level:
+          type: string
+          enum: [MANUAL, SUPERVISED, AUTONOMOUS]
+          description: |
+            MANUAL: all actions require explicit operator commands.
+            SUPERVISED: AI proposes, operator approves (HITL gates).
+            AUTONOMOUS: AI executes without operator approval.
+
+    SetActionAutonomyPayload:
+      type: object
+      required:
+        - action
+        - level
+      properties:
+        action:
+          type: string
+          enum: [set_action_autonomy]
+        action:
+          type: string
+          description: The action type to override (e.g. ENGAGE, FOLLOW, PAINT).
+        level:
+          type: string
+          enum: [MANUAL, SUPERVISED, AUTONOMOUS]
+        duration_seconds:
+          type: number
+          description: Optional. If set, the override reverts to global level after this many seconds.
+
+    SetDroneAutonomyPayload:
+      type: object
+      required:
+        - action
+        - drone_id
+      properties:
+        action:
+          type: string
+          enum: [set_drone_autonomy]
+        drone_id:
+          type: integer
+        level:
+          type: string
+          enum: [MANUAL, SUPERVISED, AUTONOMOUS]
+          description: Omit or pass null to clear the per-drone override.
+          nullable: true
+
+    SetCoverageModePayload:
+      type: object
+      required:
+        - action
+        - mode
+      properties:
+        action:
+          type: string
+          enum: [set_coverage_mode]
+        mode:
+          type: string
+          enum: [balanced, threat_adaptive]
+          description: |
+            balanced: drones distributed evenly across zones.
+            threat_adaptive: drones concentrated on high-threat zones.
+
+    SetRoePayload:
+      type: object
+      required:
+        - action
+        - path
+      properties:
+        action:
+          type: string
+          enum: [set_roe]
+        path:
+          type: string
+          description: Path to a YAML file within the roe/ directory. Path traversal is rejected.
+
+    SetScenarioPayload:
+      type: object
+      required:
+        - action
+      properties:
+        action:
+          type: string
+          enum: [SET_SCENARIO]
+        scenario:
+          type: string
+          description: Theater name (e.g. romania, south_china_sea, baltic). Forwarded to SIMULATOR clients.
+        theater:
+          type: string
+          description: Alias for scenario.
+
+    SubscribePayload:
+      type: object
+      required:
+        - action
+        - feeds
+      properties:
+        action:
+          type: string
+          enum: [subscribe]
+        feeds:
+          type: array
+          items:
+            type: string
+            enum: [INTEL_FEED, COMMAND_FEED, SENSOR_FEED]
+          description: List of feed names to subscribe to.
+
+    SubscribeSensorFeedPayload:
+      type: object
+      required:
+        - action
+        - uav_ids
+      properties:
+        action:
+          type: string
+          enum: [subscribe_sensor_feed]
+        uav_ids:
+          type: array
+          items:
+            type: integer
+          maxItems: 50
+          description: List of UAV IDs to receive sensor detections for.
+
+    SitrepQueryPayload:
+      type: object
+      required:
+        - action
+      properties:
+        action:
+          type: string
+          enum: [sitrep_query, generate_sitrep]
+        query:
+          type: string
+          maxLength: 500
+          default: "Provide current situation report."
+          description: Natural-language query for the tactical AI assistant.
+
+    RetaskSensorsPayload:
+      type: object
+      required:
+        - action
+      properties:
+        action:
+          type: string
+          enum: [retask_sensors]
+        lat:
+          type: number
+          format: float
+        lon:
+          type: number
+          format: float
+        confidence:
+          type: number
+          format: float
+          minimum: 0.0
+          maximum: 1.0
+        target_type:
+          type: string
+          description: Target classification hint (e.g. SAM, TEL, TRUCK).
+
+    MissionIdPayload:
+      type: object
+      required:
+        - action
+        - mission_id
+      properties:
+        action:
+          type: string
+        mission_id:
+          type: integer
+
+    # -------------------------------------------------------------------------
+    # Server → Client payload schemas
+    # -------------------------------------------------------------------------
+    SimulationStatePayload:
+      type: object
+      description: Full simulation state, broadcast at 10Hz to DASHBOARD clients.
+      properties:
+        type:
+          type: string
+          enum: [state]
+        data:
+          type: object
+          properties:
+            autonomy_level:
+              type: string
+              enum: [MANUAL, SUPERVISED, AUTONOMOUS]
+            coverage_mode:
+              type: string
+              enum: [balanced, threat_adaptive]
+            demo_mode:
+              type: boolean
+            uavs:
+              type: array
+              items:
+                $ref: "#/components/schemas/UavState"
+            targets:
+              type: array
+              items:
+                $ref: "#/components/schemas/TargetState"
+            enemy_uavs:
+              type: array
+              items:
+                $ref: "#/components/schemas/EnemyUavState"
+            zones:
+              type: array
+              items:
+                $ref: "#/components/schemas/ZoneState"
+            flows:
+              type: array
+              description: Active demand flow lines between zones.
+            strike_board:
+              type: array
+              description: HITL nomination queue.
+              items:
+                $ref: "#/components/schemas/StrikeBoardEntry"
+            assessment:
+              $ref: "#/components/schemas/AssessmentResult"
+            isr_queue:
+              type: array
+              description: ISR priority queue — top 10 targets needing sensor coverage.
+              items:
+                $ref: "#/components/schemas/IsrQueueEntry"
+            swarm_tasks:
+              type: array
+              items:
+                $ref: "#/components/schemas/SwarmTask"
+            kill_chain:
+              $ref: "#/components/schemas/KillChainState"
+            environment:
+              $ref: "#/components/schemas/EnvironmentState"
+            theater:
+              $ref: "#/components/schemas/TheaterState"
+
+    UavState:
+      type: object
+      properties:
+        id:
+          type: integer
+        lon:
+          type: number
+        lat:
+          type: number
+        mode:
+          type: string
+          enum: [IDLE, SEARCH, FOLLOW, PAINT, INTERCEPT, SUPPORT, VERIFY, OVERWATCH, BDA, REPOSITIONING, RTB]
+        altitude_m:
+          type: number
+        sensor_type:
+          type: string
+        sensors:
+          type: array
+          items:
+            type: string
+        heading_deg:
+          type: number
+        tracked_target_id:
+          type: integer
+          nullable: true
+        tracked_target_ids:
+          type: array
+          items:
+            type: integer
+        primary_target_id:
+          type: integer
+          nullable: true
+        fuel_hours:
+          type: number
+        autonomy_override:
+          type: string
+          nullable: true
+          enum: [MANUAL, SUPERVISED, AUTONOMOUS, null]
+        mode_source:
+          type: string
+          description: What caused the current mode (operator, auto, etc.)
+        tasking_source:
+          type: string
+          nullable: true
+        pending_transition:
+          type: object
+          nullable: true
+          description: Pending mode transition awaiting operator approval (SUPERVISED mode).
+        fov_targets:
+          type: array
+          description: Target IDs currently in this UAV's field of view.
+          items:
+            type: integer
+        sensor_quality:
+          type: number
+          format: float
+          description: Current sensor effectiveness (0.0 – 1.0) based on UAV mode.
+
+    TargetState:
+      type: object
+      properties:
+        id:
+          type: integer
+        lon:
+          type: number
+        lat:
+          type: number
+        type:
+          type: string
+          enum: [SAM, TEL, TRUCK, CP, MANPADS, RADAR, C2_NODE, LOGISTICS, ARTILLERY, APC]
+        detected:
+          type: boolean
+        state:
+          type: string
+          enum: [UNDETECTED, DETECTED, CLASSIFIED, VERIFIED, NOMINATED]
+        detection_confidence:
+          type: number
+          format: float
+        fused_confidence:
+          type: number
+          format: float
+          description: Multi-sensor fused confidence score (0.0 – 1.0).
+        sensor_count:
+          type: integer
+        sensor_contributions:
+          type: array
+          description: Top-10 sensor contributions by confidence.
+          items:
+            $ref: "#/components/schemas/SensorContribution"
+        detected_by_sensor:
+          type: string
+          nullable: true
+        is_emitting:
+          type: boolean
+        heading_deg:
+          type: number
+        tracked_by_uav_id:
+          type: integer
+          nullable: true
+        tracked_by_uav_ids:
+          type: array
+          items:
+            type: integer
+        threat_range_km:
+          type: number
+        detection_range_km:
+          type: number
+        time_in_state_sec:
+          type: number
+          description: Seconds elapsed in the current state.
+        next_threshold:
+          type: number
+          nullable: true
+          description: Confidence threshold required to advance to the next state.
+        concealed:
+          type: boolean
+
+    SensorContribution:
+      type: object
+      properties:
+        uav_id:
+          type: integer
+        sensor_type:
+          type: string
+        confidence:
+          type: number
+          format: float
+
+    EnemyUavState:
+      type: object
+      properties:
+        id:
+          type: integer
+        lon:
+          type: number
+        lat:
+          type: number
+        mode:
+          type: string
+        behavior:
+          type: string
+          enum: [RECON, ATTACK, JAMMING, EVADING]
+        heading_deg:
+          type: number
+        detected:
+          type: boolean
+        fused_confidence:
+          type: number
+        sensor_count:
+          type: integer
+        is_jamming:
+          type: boolean
+
+    ZoneState:
+      type: object
+      properties:
+        x_idx:
+          type: integer
+        y_idx:
+          type: integer
+        lon:
+          type: number
+        lat:
+          type: number
+        width:
+          type: number
+        height:
+          type: number
+        queue:
+          type: number
+          description: Current demand score for this zone.
+        uav_count:
+          type: integer
+        imbalance:
+          type: number
+          description: Demand surplus not covered by current UAV assignment.
+
+    StrikeBoardEntry:
+      type: object
+      description: HITL nomination entry on the strike board.
+      properties:
+        entry_id:
+          type: string
+        target_id:
+          type: integer
+        target_type:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED, RETASKED, COA_PENDING, COA_AUTHORIZED, COA_REJECTED]
+        created_at:
+          type: number
+          description: Unix timestamp.
+        coas:
+          type: array
+          description: Generated Courses of Action for this target.
+
+    AssessmentResult:
+      type: object
+      description: Battlespace assessment computed every 5 seconds.
+      properties:
+        clusters:
+          type: array
+          items:
+            $ref: "#/components/schemas/ThreatCluster"
+        coverage_gaps:
+          type: array
+          items:
+            $ref: "#/components/schemas/CoverageGap"
+        zone_threat_scores:
+          type: array
+          description: Array of [x_idx, y_idx, score] triples.
+          items:
+            type: array
+        movement_corridors:
+          type: array
+          items:
+            $ref: "#/components/schemas/MovementCorridor"
+
+    ThreatCluster:
+      type: object
+      properties:
+        cluster_id:
+          type: integer
+        cluster_type:
+          type: string
+        member_target_ids:
+          type: array
+          items:
+            type: integer
+        centroid_lon:
+          type: number
+        centroid_lat:
+          type: number
+        threat_score:
+          type: number
+        hull_points:
+          type: array
+          items:
+            type: array
+
+    CoverageGap:
+      type: object
+      properties:
+        zone_x:
+          type: integer
+        zone_y:
+          type: integer
+        lon:
+          type: number
+        lat:
+          type: number
+        threat_score:
+          type: number
+
+    MovementCorridor:
+      type: object
+      properties:
+        target_id:
+          type: integer
+        waypoints:
+          type: array
+          items:
+            type: array
+
+    IsrQueueEntry:
+      type: object
+      properties:
+        target_id:
+          type: integer
+        target_type:
+          type: string
+        urgency_score:
+          type: number
+        verification_gap:
+          type: number
+        missing_sensor_types:
+          type: array
+          items:
+            type: string
+        recommended_uav_ids:
+          type: array
+          items:
+            type: integer
+
+    SwarmTask:
+      type: object
+      properties:
+        target_id:
+          type: integer
+        assigned_uav_ids:
+          type: array
+          items:
+            type: integer
+        sensor_coverage:
+          type: array
+          items:
+            type: string
+        formation_type:
+          type: string
+
+    KillChainState:
+      type: object
+      description: F2T2EA kill chain phase progress across all active targets.
+      properties:
+        find:
+          type: integer
+          description: Count of targets in FIND phase.
+        fix:
+          type: integer
+        track:
+          type: integer
+        target:
+          type: integer
+        engage:
+          type: integer
+        assess:
+          type: integer
+
+    EnvironmentState:
+      type: object
+      properties:
+        time_of_day:
+          type: number
+          description: Hour of day (0–24).
+        cloud_cover:
+          type: number
+          format: float
+          description: Cloud cover fraction (0.0 – 1.0).
+        precipitation:
+          type: number
+          format: float
+          description: Precipitation intensity (0.0 – 1.0).
+
+    TheaterState:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Active theater name (e.g. romania, south_china_sea, baltic).
+        bounds:
+          type: object
+          description: Geographic bounding box for the theater.
+
+    HitlUpdatePayload:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [HITL_UPDATE]
+        action:
+          type: string
+          enum: [approved, rejected, retasked, coa_authorized, coas_rejected]
+        entry:
+          type: array
+          description: Updated strike board (all entries).
+        entry_id:
+          type: string
+          description: Present for COA actions.
+        coas:
+          type: array
+          description: Present for COA actions.
+
+    SitrepResponsePayload:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [SITREP_RESPONSE]
+        sitrep_narrative:
+          type: string
+        key_threats:
+          type: array
+          items:
+            type: string
+        recommended_actions:
+          type: array
+          items:
+            type: string
+        data_sources_consulted:
+          type: array
+          items:
+            type: string
+        confidence:
+          type: number
+          format: float
+        query:
+          type: string
+          description: Echo of the query, if one was provided.
+
+    RetaskResponsePayload:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [RETASK_RESPONSE]
+        tasking_orders:
+          type: array
+          description: List of AI-generated sensor tasking orders.
+        confidence_gap:
+          type: number
+        reasoning:
+          type: string
+        error:
+          type: string
+          description: Present if retasking failed.
+
+    CheckpointSavedPayload:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [CHECKPOINT_SAVED]
+        mission_id:
+          type: integer
+
+    MissionLoadedPayload:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [MISSION_LOADED]
+        mission_id:
+          type: integer
+        state:
+          type: object
+          description: Full simulation state snapshot at checkpoint time.
+
+    RoeRulesPayload:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [ROE_RULES]
+        rules:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              target_type:
+                type: string
+              zone_id:
+                type: string
+                nullable: true
+              min_autonomy_level:
+                type: string
+              max_collateral_radius_m:
+                type: number
+              decision:
+                type: string
+                enum: [ENGAGE, HOLD, ESCALATE]
+
+    RoeUpdatedPayload:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [ROE_UPDATED]
+        rule_count:
+          type: integer
+        path:
+          type: string
+
+    FeedHistoryPayload:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [FEED_HISTORY]
+        feed:
+          type: string
+          enum: [INTEL_FEED, COMMAND_FEED]
+        events:
+          type: array
+          maxItems: 200
+          description: Up to 200 recent events for the subscribed feed.
+
+    FeedEventPayload:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [FEED_EVENT]
+        feed:
+          type: string
+          enum: [INTEL_FEED, COMMAND_FEED, SENSOR_FEED]
+        event:
+          type: object
+          description: Feed-specific event payload (varies by feed type).
+
+    TacticalAssistantPayload:
+      type: object
+      description: AI-generated tactical recommendation emitted on new target detections.
+      properties:
+        type:
+          type: string
+          enum: [TACTICAL_ASSISTANT]
+        message:
+          type: string
+        priority:
+          type: string
+          enum: [INFO, WARNING, CRITICAL]
+        target_id:
+          type: integer
+          nullable: true
+
+    ErrorPayload:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [ERROR]
+        message:
+          type: string
+          description: Human-readable error description.
+        action:
+          type: string
+          nullable: true
+          description: The action that triggered the error, if applicable.
