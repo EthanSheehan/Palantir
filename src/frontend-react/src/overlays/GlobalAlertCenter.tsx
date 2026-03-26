@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Tag } from '@blueprintjs/core';
 import { useSimStore } from '../store/SimulationStore';
 
@@ -53,13 +53,14 @@ export function GlobalAlertCenter({ visible, onToggle }: Props) {
   const setActiveTab = useSimStore(s => s.setActiveTab);
 
   const prevConnected = useRef(connected);
-  const prevPendingCount = useRef(0);
   const prevCommandCount = useRef(0);
+  const seenNominationIds = useRef<Set<string>>(new Set());
+  const seenTransitionDroneIds = useRef<Set<string>>(new Set());
 
-  function addAlert(alert: Omit<Alert, 'id' | 'timestamp'>) {
+  const addAlert = useCallback((alert: Omit<Alert, 'id' | 'timestamp'>) => {
     const newAlert: Alert = { ...alert, id: makeId(), timestamp: Date.now() };
     setAlerts(prev => [newAlert, ...prev].slice(0, 20));
-  }
+  }, []);
 
   function dismiss(id: string) {
     setAlerts(prev => prev.filter(a => a.id !== id));
@@ -73,23 +74,25 @@ export function GlobalAlertCenter({ visible, onToggle }: Props) {
       addAlert({ type: 'CONNECTION', message: 'WebSocket connection restored', autoDismiss: true });
     }
     prevConnected.current = connected;
-  }, [connected]);
+  }, [connected, addAlert]);
 
-  // Pending nomination alerts
+  // Pending nomination alerts — deduplicate by entry ID
   useEffect(() => {
     const pending = strikeBoard.filter(e => e.status === 'PENDING');
-    if (pending.length > prevPendingCount.current) {
-      const newest = pending[pending.length - 1];
-      addAlert({
-        type: 'NOMINATION',
-        message: `New nomination: ${newest.target_type} (conf ${Math.round(newest.detection_confidence * 100)}%)`,
-        autoDismiss: false,
-        actionLabel: 'Review',
-        actionTab: 'mission',
-      });
+    for (const entry of pending) {
+      const entryId = entry.entry_id ?? entry.target_id;
+      if (entryId && !seenNominationIds.current.has(entryId)) {
+        seenNominationIds.current.add(entryId);
+        addAlert({
+          type: 'NOMINATION',
+          message: `New nomination: ${entry.target_type} (conf ${Math.round(entry.detection_confidence * 100)}%)`,
+          autoDismiss: false,
+          actionLabel: 'Review',
+          actionTab: 'mission',
+        });
+      }
     }
-    prevPendingCount.current = pending.length;
-  }, [strikeBoard]);
+  }, [strikeBoard, addAlert]);
 
   // Engagement result alerts from command events
   useEffect(() => {
@@ -108,33 +111,40 @@ export function GlobalAlertCenter({ visible, onToggle }: Props) {
       }
       prevCommandCount.current = commandEvents.length;
     }
-  }, [commandEvents]);
+  }, [commandEvents, addAlert]);
 
-  // Autonomy transition alerts
+  // Autonomy transition alerts — deduplicate by drone ID
   useEffect(() => {
-    const count = Object.keys(pendingTransitions).length;
-    if (count > 0) {
-      const entries = Object.entries(pendingTransitions);
-      const [droneId, trans] = entries[entries.length - 1];
-      addAlert({
-        type: 'TRANSITION',
-        message: `UAV ${droneId} awaiting transition to ${trans.mode}: ${trans.reason}`,
-        autoDismiss: false,
-        actionLabel: 'Assets',
-        actionTab: 'assets',
-      });
+    const currentDroneIds = new Set(Object.keys(pendingTransitions));
+    for (const [droneId, trans] of Object.entries(pendingTransitions)) {
+      if (!seenTransitionDroneIds.current.has(droneId)) {
+        seenTransitionDroneIds.current.add(droneId);
+        addAlert({
+          type: 'TRANSITION',
+          message: `UAV ${droneId} awaiting transition to ${trans.mode}: ${trans.reason}`,
+          autoDismiss: false,
+          actionLabel: 'Assets',
+          actionTab: 'assets',
+        });
+      }
     }
-  }, [pendingTransitions]);
+    // Clear seen IDs for drones that are no longer pending
+    for (const id of seenTransitionDroneIds.current) {
+      if (!currentDroneIds.has(id)) seenTransitionDroneIds.current.delete(id);
+    }
+  }, [pendingTransitions, addAlert]);
 
-  // Auto-dismiss non-critical alerts after 10s
+  // Auto-dismiss non-critical alerts after 10s — single long-lived interval
   useEffect(() => {
-    if (alerts.length === 0) return;
     const timer = setInterval(() => {
       const now = Date.now();
-      setAlerts(prev => prev.filter(a => !a.autoDismiss || now - a.timestamp < 10_000));
+      setAlerts(prev => {
+        const filtered = prev.filter(a => !a.autoDismiss || now - a.timestamp < 10_000);
+        return filtered.length === prev.length ? prev : filtered;
+      });
     }, 1000);
     return () => clearInterval(timer);
-  }, [alerts.length]);
+  }, []);
 
   const unread = alerts.length;
 
