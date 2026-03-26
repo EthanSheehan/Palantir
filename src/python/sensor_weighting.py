@@ -12,6 +12,7 @@ All types are immutable frozen dataclasses. No state, no side effects.
 
 from __future__ import annotations
 
+import logging
 import math
 from dataclasses import dataclass, replace
 from typing import List
@@ -58,6 +59,9 @@ def _clamp(value: float, lo: float = 0.0, hi: float = 1.0) -> float:
 def _eo_ir_weather_weight(weather: dict) -> float:
     """EO/IR degrades strongly in rain/fog/storm."""
     intensity = float(weather.get("intensity", 0.0))
+    if not math.isfinite(intensity):
+        intensity = 0.0
+    intensity = max(0.0, min(1.0, intensity))
     state = weather.get("state", "CLEAR")
     base = 1.0 - 0.85 * intensity
     # Extra penalty for storm (heavy rain, cloud)
@@ -91,6 +95,9 @@ def _eo_ir_target_weight(target_type: str) -> float:
 def _sar_weather_weight(weather: dict) -> float:
     """SAR is largely weather-immune — minimal degradation."""
     intensity = float(weather.get("intensity", 0.0))
+    if not math.isfinite(intensity):
+        intensity = 0.0
+    intensity = max(0.0, min(1.0, intensity))
     # SAR degrades only slightly — max 15% penalty in full storm
     return _clamp(1.0 - 0.15 * intensity)
 
@@ -157,6 +164,9 @@ def compute_sensor_fitness(
     -------
     SensorFitness — frozen dataclass with per-axis weights and combined weight.
     """
+    if not math.isfinite(time_of_day) or not (0.0 <= time_of_day < 24.0):
+        raise ValueError(f"time_of_day must be in [0, 24); got {time_of_day!r}")
+
     if sensor_type == "EO_IR":
         w = _eo_ir_weather_weight(weather)
         t = _eo_ir_time_weight(time_of_day)
@@ -171,6 +181,7 @@ def compute_sensor_fitness(
         tgt = _sigint_target_weight(target_type)
     else:
         # Unknown sensor — neutral weights
+        logging.warning("Unknown sensor type %r — using neutral fitness 0.5", sensor_type)
         w = t = tgt = 0.5
 
     return SensorFitness(
@@ -186,6 +197,7 @@ def weight_fusion_contributions(
     contributions: List[SensorContribution],
     weather: dict,
     time_of_day: float = 12.0,
+    target_type: str = "TRUCK",
 ) -> List[SensorContribution]:
     """Return a new list of SensorContributions with confidence adjusted by fitness.
 
@@ -197,6 +209,7 @@ def weight_fusion_contributions(
     contributions : Existing sensor contributions (immutable).
     weather       : Current weather dict with "state" and "intensity".
     time_of_day   : Hour of day in [0, 24) — default noon.
+    target_type   : Target type string for sensor fitness lookup — default "TRUCK".
 
     Returns
     -------
@@ -207,8 +220,7 @@ def weight_fusion_contributions(
 
     result = []
     for c in contributions:
-        # We need target_type for full fitness; fall back to neutral if unknown
-        fitness = compute_sensor_fitness(c.sensor_type, weather, time_of_day, "TRUCK")
+        fitness = compute_sensor_fitness(c.sensor_type, weather, time_of_day, target_type)
         adjusted = _clamp(c.confidence * fitness.combined_weight)
         result.append(replace(c, confidence=adjusted))
     return result

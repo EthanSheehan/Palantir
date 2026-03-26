@@ -51,8 +51,8 @@ class LinkStatus:
 
 @dataclass(frozen=True)
 class LinkState:
-    configs: dict  # drone_id -> LinkConfig
-    statuses: dict  # drone_id -> LinkStatus
+    configs: dict[str, LinkConfig]  # drone_id -> LinkConfig
+    statuses: dict[str, LinkStatus]  # drone_id -> LinkStatus
 
 
 # ---------------------------------------------------------------------------
@@ -89,6 +89,8 @@ def configure_drone(
     behavior: LostLinkBehavior,
     timeout_ticks: int = 30,
 ) -> LinkState:
+    if timeout_ticks < 1:
+        raise ValueError(f"timeout_ticks must be >= 1; got {timeout_ticks}")
     new_config = LinkConfig(drone_id=drone_id, behavior=behavior, timeout_ticks=timeout_ticks)
     new_configs = {**state.configs, drone_id: new_config}
     # Also update behavior in the status so they stay in sync
@@ -137,7 +139,7 @@ def check_link_status(state: LinkState, drone_id: str, current_tick: int) -> Lin
             is_link_lost=False,
         ),
     )
-    ticks_since = current_tick - existing.last_contact_tick
+    ticks_since = max(0, current_tick - existing.last_contact_tick)
     is_lost = ticks_since >= config.timeout_ticks
     return LinkStatus(
         drone_id=drone_id,
@@ -151,7 +153,7 @@ def check_link_status(state: LinkState, drone_id: str, current_tick: int) -> Lin
 _BEHAVIOR_MODE_MAP: dict[LostLinkBehavior, Optional[str]] = {
     LostLinkBehavior.LOITER: "SEARCH",
     LostLinkBehavior.RTB: "RTB",
-    LostLinkBehavior.SAFE_LAND: "RTB",
+    LostLinkBehavior.SAFE_LAND: "RTB",  # SAFE_LAND: sim has no dedicated land-in-place mode; RTB is the safest available behavior
     LostLinkBehavior.CONTINUE: None,
 }
 

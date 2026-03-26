@@ -81,6 +81,10 @@ DEFAULT_CONSTRAINTS = UAVConstraints(
 )
 
 
+# Maximum number of positions accepted by check_separation to prevent O(n²) blowup
+_MAX_POSITIONS = 200
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -104,6 +108,79 @@ def _heading_delta(current: float, target: float) -> float:
     """Signed shortest angular difference from current to target heading, degrees."""
     diff = (target - current + 180.0) % 360.0 - 180.0
     return diff
+
+
+def _validate_state(state: KinematicState) -> None:
+    """Raise ValueError if any critical state field is non-finite."""
+    fields = {
+        "lat": state.lat,
+        "lon": state.lon,
+        "alt_m": state.alt_m,
+        "speed_mps": state.speed_mps,
+        "heading_deg": state.heading_deg,
+    }
+    for name, value in fields.items():
+        if not math.isfinite(value):
+            raise ValueError(f"KinematicState.{name} is non-finite: {value}")
+
+
+def _update_heading(
+    state: KinematicState,
+    target_heading: float,
+    dt: float,
+    constraints: UAVConstraints,
+) -> float:
+    """Return rate-limited new heading."""
+    delta = _heading_delta(state.heading_deg, target_heading)
+    max_delta = constraints.max_turn_rate_dps * dt
+    clamped_delta = max(min(delta, max_delta), -max_delta)
+    return _normalize_heading(state.heading_deg + clamped_delta)
+
+
+def _update_altitude(
+    state: KinematicState,
+    target_alt: float,
+    dt: float,
+    constraints: UAVConstraints,
+) -> tuple[float, float]:
+    """Return (new_alt_m, new_climb_rate_mps) after rate-limited altitude change."""
+    alt_error = target_alt - state.alt_m
+    max_alt_change = constraints.max_climb_rate_mps * dt
+    clamped_alt_change = max(min(alt_error, max_alt_change), -max_alt_change)
+    new_alt = state.alt_m + clamped_alt_change
+    new_alt = max(constraints.min_altitude_m, min(constraints.max_altitude_m, new_alt))
+    new_climb_rate = clamped_alt_change / dt
+    return new_alt, new_climb_rate
+
+
+def _update_position(
+    lat: float,
+    lon: float,
+    speed: float,
+    heading: float,
+    dt: float,
+    wind: Optional[WindVector],
+) -> tuple[float, float]:
+    """Return (new_lat, new_lon) after advancing position by dt seconds."""
+    if wind is not None:
+        tmp = KinematicState(
+            lat=lat, lon=lon, alt_m=0.0, speed_mps=speed, heading_deg=heading, climb_rate_mps=0.0
+        )
+        ground_speed, track_deg = apply_wind(tmp, wind)
+    else:
+        ground_speed = speed
+        track_deg = heading
+
+    track_rad = math.radians(track_deg)
+    mid_lat_rad = math.radians(lat)
+    lon_m_per_deg = _LAT_M_PER_DEG * math.cos(mid_lat_rad)
+
+    d_north_m = ground_speed * math.cos(track_rad) * dt
+    d_east_m = ground_speed * math.sin(track_rad) * dt
+
+    new_lat = lat + d_north_m / _LAT_M_PER_DEG
+    new_lon = lon + d_east_m / (lon_m_per_deg if lon_m_per_deg > 1e-9 else 1.0)
+    return new_lat, new_lon
 
 
 # ---------------------------------------------------------------------------
@@ -179,49 +256,14 @@ def step_kinematics(
     constraints    : UAV flight-envelope limits.
     wind           : Optional wind vector (None = calm).
     """
-    # --- Heading update (rate-limited) ---
-    delta = _heading_delta(state.heading_deg, target_heading)
-    max_delta = constraints.max_turn_rate_dps * dt
-    clamped_delta = max(min(delta, max_delta), -max_delta)
-    new_heading = _normalize_heading(state.heading_deg + clamped_delta)
+    if dt <= 0.0:
+        raise ValueError(f"dt must be positive; got {dt}")
+    _validate_state(state)
 
-    # --- Speed update (instantaneous for simplicity; rate-limit can be added) ---
+    new_heading = _update_heading(state, target_heading, dt, constraints)
     new_speed = max(constraints.min_speed_mps, min(constraints.max_speed_mps, target_speed))
-
-    # --- Altitude update (rate-limited climb/descent) ---
-    alt_error = target_alt - state.alt_m
-    max_alt_change = constraints.max_climb_rate_mps * dt
-    clamped_alt_change = max(min(alt_error, max_alt_change), -max_alt_change)
-    new_alt = state.alt_m + clamped_alt_change
-    new_alt = max(constraints.min_altitude_m, min(constraints.max_altitude_m, new_alt))
-    new_climb_rate = clamped_alt_change / dt if dt > 1e-9 else 0.0
-
-    # --- Position update (use ground speed/track from wind) ---
-    if wind is not None:
-        tmp = KinematicState(
-            lat=state.lat,
-            lon=state.lon,
-            alt_m=state.alt_m,
-            speed_mps=new_speed,
-            heading_deg=new_heading,
-            climb_rate_mps=new_climb_rate,
-        )
-        ground_speed, track_deg = apply_wind(tmp, wind)
-    else:
-        ground_speed = new_speed
-        track_deg = new_heading
-
-    # Convert ground speed from m/s to degrees/second for lat/lon update
-    track_rad = math.radians(track_deg)
-    mid_lat_rad = math.radians(state.lat)
-    lon_m_per_deg = _LAT_M_PER_DEG * math.cos(mid_lat_rad)
-
-    # Displacement in metres
-    d_north_m = ground_speed * math.cos(track_rad) * dt
-    d_east_m = ground_speed * math.sin(track_rad) * dt
-
-    new_lat = state.lat + d_north_m / _LAT_M_PER_DEG
-    new_lon = state.lon + d_east_m / (lon_m_per_deg if lon_m_per_deg > 1e-9 else 1.0)
+    new_alt, new_climb_rate = _update_altitude(state, target_alt, dt, constraints)
+    new_lat, new_lon = _update_position(state.lat, state.lon, new_speed, new_heading, dt, wind)
 
     return KinematicState(
         lat=new_lat,
@@ -246,8 +288,14 @@ def check_separation(
 
     Only returns pairs where i < j. Altitude is ignored (horizontal only).
     """
-    violations: list[tuple[int, int]] = []
     n = len(positions)
+    if n > _MAX_POSITIONS:
+        raise ValueError(f"check_separation: positions length {n} exceeds _MAX_POSITIONS={_MAX_POSITIONS}")
+
+    for state in positions:
+        _validate_state(state)
+
+    violations: list[tuple[int, int]] = []
     for i in range(n):
         for j in range(i + 1, n):
             dist = _horiz_dist_m(
@@ -360,6 +408,10 @@ def proportional_navigation(
     -------
     Commanded heading in degrees [0, 360).
     """
+    if nav_gain <= 0:
+        raise ValueError(f"nav_gain must be positive; got {nav_gain}")
+    _validate_state(pursuer)
+
     # Current LOS bearing (pursuer → target)
     d_lat = target_lat - pursuer.lat
     d_lon = target_lon - pursuer.lon
@@ -399,9 +451,9 @@ def proportional_navigation(
     perp_vy = rel_vy - closing_speed * los_ny
     perp_speed = math.hypot(perp_vx, perp_vy)
 
-    # Sign of LOS rotation (positive = LOS rotating clockwise)
+    # Sign of LOS rotation (cross >= 0 means CCW rotation → positive omega_los)
     cross = los_nx * perp_vy - los_ny * perp_vx
-    omega_los = (-perp_speed / los_dist_m) if cross >= 0 else (perp_speed / los_dist_m)
+    omega_los = (perp_speed / los_dist_m) if cross >= 0 else (-perp_speed / los_dist_m)
 
     # PN commanded lateral acceleration (m/s²) — repurposed as heading rate (deg/s)
     # Use closing speed magnitude; fall back to pursuer speed if closing_speed ~ 0

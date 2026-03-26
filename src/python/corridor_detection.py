@@ -8,6 +8,7 @@ corridor detection. Pure functions, no mutation, math stdlib only.
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
@@ -16,6 +17,8 @@ from typing import Dict, List, Optional, Tuple
 # ---------------------------------------------------------------------------
 
 _KM_PER_DEG = 111.0  # approx km per degree lat/lon
+_MAX_TARGETS = 200
+_MAX_HISTORY_POINTS = 500
 
 
 # ---------------------------------------------------------------------------
@@ -101,10 +104,13 @@ def douglas_peucker(
 
 
 def _heading_deg(p1: Tuple[float, float], p2: Tuple[float, float]) -> float:
-    """Bearing in degrees [0, 360) from p1 to p2."""
-    dx = p2[0] - p1[0]
-    dy = p2[1] - p1[1]
-    angle = math.degrees(math.atan2(dy, dx)) % 360.0
+    """Compass bearing in degrees [0, 360) from p1 to p2.
+
+    Points are (lon, lat). For geographic bearing: atan2(east, north) = atan2(dx, dy).
+    """
+    dx = p2[0] - p1[0]  # east component (longitude delta)
+    dy = p2[1] - p1[1]  # north component (latitude delta)
+    angle = math.degrees(math.atan2(dx, dy)) % 360.0  # atan2(east, north) = compass bearing
     return angle
 
 
@@ -184,6 +190,54 @@ def _compute_speed_kmh(
 # ---------------------------------------------------------------------------
 
 
+def _process_target(
+    target_id: str,
+    history: List[dict],
+    epsilon_deg: float,
+    min_consistency: float,
+) -> Optional[Corridor]:
+    """Process a single target history into a Corridor, or None if not eligible."""
+    points = _extract_points(history)
+    timestamps = _extract_timestamps(history)
+
+    # Cap history before recursion to bound douglas_peucker stack depth
+    points = points[:_MAX_HISTORY_POINTS]
+    if timestamps:
+        timestamps = timestamps[:_MAX_HISTORY_POINTS]
+
+    simplified = douglas_peucker(points, epsilon_deg)
+    if len(simplified) < 2:
+        return None
+
+    consistency = compute_heading_consistency(simplified)
+    if consistency < min_consistency:
+        return None
+
+    start_pt = simplified[0]
+    end_pt = simplified[-1]
+    heading = _heading_deg(start_pt, end_pt)
+
+    t_start = timestamps[0] if timestamps else None
+    t_end = timestamps[-1] if timestamps else None
+
+    speed = _compute_speed_kmh(simplified, timestamps) if timestamps else 0.0
+
+    corridor_id = f"COR-{re.sub(r'[^A-Za-z0-9_-]', '_', str(target_id))}"
+
+    return Corridor(
+        corridor_id=corridor_id,
+        start_point=start_pt,
+        end_point=end_pt,
+        waypoints=tuple(simplified),
+        target_ids=(target_id,),
+        heading_deg=heading,
+        speed_avg=speed,
+        time_start=t_start,
+        time_end=t_end,
+        confidence=consistency,
+    )
+
+
 def detect_corridors(
     target_histories: Dict[str, List[dict]],
     min_points: int = 5,
@@ -212,46 +266,16 @@ def detect_corridors(
     epsilon_deg = epsilon_km / _KM_PER_DEG
     corridors: List[Corridor] = []
 
-    for target_id, history in target_histories.items():
+    # Cap number of targets to prevent unbounded memory growth
+    items = list(target_histories.items())[:_MAX_TARGETS]
+
+    for target_id, history in items:
         if len(history) < min_points:
             continue
 
-        points = _extract_points(history)
-        timestamps = _extract_timestamps(history)
-
-        simplified = douglas_peucker(points, epsilon_deg)
-        if len(simplified) < 2:
-            continue
-
-        consistency = compute_heading_consistency(simplified)
-        if consistency < min_consistency:
-            continue
-
-        start_pt = simplified[0]
-        end_pt = simplified[-1]
-        heading = _heading_deg(start_pt, end_pt)
-
-        t_start = timestamps[0] if timestamps else None
-        t_end = timestamps[-1] if timestamps else None
-
-        speed = _compute_speed_kmh(simplified, timestamps) if timestamps else 0.0
-
-        corridor_id = f"COR-{target_id}"
-
-        corridors.append(
-            Corridor(
-                corridor_id=corridor_id,
-                start_point=start_pt,
-                end_point=end_pt,
-                waypoints=tuple(simplified),
-                target_ids=(target_id,),
-                heading_deg=heading,
-                speed_avg=speed,
-                time_start=t_start,
-                time_end=t_end,
-                confidence=consistency,
-            )
-        )
+        corridor = _process_target(target_id, history, epsilon_deg, min_consistency)
+        if corridor is not None:
+            corridors.append(corridor)
 
     return corridors
 
@@ -293,9 +317,14 @@ def attribute_corridor(
 def _extract_points(history: List[dict]) -> List[Tuple[float, float]]:
     pts = []
     for entry in history:
-        lon = entry.get("lon", entry.get("x", 0.0))
-        lat = entry.get("lat", entry.get("y", 0.0))
-        pts.append((float(lon), float(lat)))
+        try:
+            lon = float(entry.get("lon", entry.get("x")))
+            lat = float(entry.get("lat", entry.get("y")))
+            if not math.isfinite(lon) or not math.isfinite(lat):
+                continue
+        except (TypeError, ValueError):
+            continue
+        pts.append((lon, lat))
     return pts
 
 
