@@ -106,21 +106,26 @@ Starts the FastAPI backend (`:8000`), React dashboard (`:3000`), optional drone 
 If you want to start services separately (useful for development):
 
 ```bash
-# Backend API server on :8000
-python src/python/api_main.py
+# Terminal 1: Backend API server on :8000
+.\venv\Scripts\python src/python/api_main.py          # Windows
+# ./venv/bin/python src/python/api_main.py             # macOS/Linux
 
-# Backend with demo auto-pilot enabled
-DEMO_MODE=true python src/python/api_main.py
+# Terminal 1 (demo mode):
+$env:DEMO_MODE="true"; .\venv\Scripts\python src/python/api_main.py   # PowerShell
+# DEMO_MODE=true ./venv/bin/python src/python/api_main.py              # bash
 
-# React dashboard (Vite dev server on :3000)
-cd src/frontend-react && npm run dev -- --port 3000
+# Terminal 2: React dashboard (Vite dev server on :3000)
+cd src/frontend-react && npm run dev
+# Port 3000 is configured in vite.config.ts — no extra flags needed
 
-# Drone video simulator (requires OpenCV)
-python src/python/vision/video_simulator.py
+# Terminal 3 (optional): Drone video simulator (requires OpenCV)
+.\venv\Scripts\python src/python/vision/video_simulator.py
 
 # Build the React dashboard for production
 cd src/frontend-react && npm run build
 ```
+
+Then open **http://localhost:3000** in your browser. No API keys needed — all agents run in heuristic mode by default.
 
 ### Run Tests
 
