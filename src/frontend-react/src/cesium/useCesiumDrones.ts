@@ -6,6 +6,8 @@ import { UAV } from '../store/types';
 
 const svgCache: Record<string, string> = {};
 
+const TRAIL_MAX_POINTS = 300;
+
 function getDronePin(statusColor: string): string {
   if (svgCache[statusColor]) return svgCache[statusColor];
   const svg = `<svg fill="none" height="78" width="70" viewBox="-15 -15 70 78" xmlns="http://www.w3.org/2000/svg"><rect x="-15" y="-15" width="70" height="78" fill="rgba(255,255,255,0.01)"/><rect x="6" y="6" width="28" height="28" stroke="#3b82f6" stroke-width="2"/><circle cx="20" cy="20" r="4" fill="#3b82f6"/><rect x="6" y="40" width="28" height="6" fill="${statusColor}"/></svg>`;
@@ -21,9 +23,16 @@ interface DroneEntity extends Cesium.Entity {
   _lastHeading?: number;
   _lastTargetTime?: Cesium.JulianDate;
   _tether?: Cesium.Entity;
+  _trail?: Cesium.Entity;
 }
 
-function updateDrones(uavs: UAV[], viewer: Cesium.Viewer, entities: Record<number, DroneEntity>, selectedDroneId: number | null) {
+function updateDrones(
+  uavs: UAV[],
+  viewer: Cesium.Viewer,
+  entities: Record<number, DroneEntity>,
+  selectedDroneId: number | null,
+  trailHistories: Map<number, Cesium.Cartesian3[]>
+) {
   const currentIds = new Set<number>();
 
   uavs.forEach((uav) => {
@@ -127,6 +136,27 @@ function updateDrones(uavs: UAV[], viewer: Cesium.Viewer, entities: Record<numbe
         },
       });
       marker._tether = tether;
+
+      trailHistories.set(uav.id, []);
+      const trailEntity = viewer.entities.add({
+        polyline: {
+          positions: new Cesium.CallbackProperty(() => {
+            const hist = trailHistories.get(uav.id);
+            if (!hist || hist.length < 2) return [];
+            const livePos = (marker.position as Cesium.SampledPositionProperty).getValue(viewer.clock.currentTime);
+            if (livePos) return [...hist, livePos];
+            return hist;
+          }, false),
+          width: 3,
+          material: new Cesium.PolylineGlowMaterialProperty({
+            glowPower: 0.15,
+            color: Cesium.Color.fromCssColorString('#3b82f6').withAlpha(0.7),
+          }),
+          clampToGround: false,
+        },
+      });
+      marker._trail = trailEntity;
+
       marker._lastLon = uav.lon;
       marker._lastLat = uav.lat;
       marker._lastMode = colorStr;
@@ -137,6 +167,14 @@ function updateDrones(uavs: UAV[], viewer: Cesium.Viewer, entities: Record<numbe
       const targetTime = Cesium.JulianDate.addSeconds(now, 0.15, new Cesium.JulianDate());
       marker._lastTargetTime = targetTime;
       (marker.position as Cesium.SampledPositionProperty).addSample(targetTime, position);
+
+      const hist = trailHistories.get(uav.id);
+      if (hist !== undefined) {
+        hist.push(Cesium.Cartesian3.clone(position));
+        if (hist.length > TRAIL_MAX_POINTS) {
+          hist.shift();
+        }
+      }
 
       const dx = uav.lon - (marker._lastLon || 0);
       const dy = uav.lat - (marker._lastLat || 0);
@@ -198,7 +236,9 @@ function updateDrones(uavs: UAV[], viewer: Cesium.Viewer, entities: Record<numbe
     if (!currentIds.has(id)) {
       const marker = entities[id];
       if (marker._tether) viewer.entities.remove(marker._tether);
+      if (marker._trail) viewer.entities.remove(marker._trail);
       viewer.entities.remove(marker);
+      trailHistories.delete(id);
       delete entities[id];
     }
   });
@@ -206,12 +246,13 @@ function updateDrones(uavs: UAV[], viewer: Cesium.Viewer, entities: Record<numbe
 
 export function useCesiumDrones(viewerRef: React.RefObject<Cesium.Viewer | null>) {
   const entitiesRef = useRef<Record<number, DroneEntity>>({});
+  const trailHistoriesRef = useRef<Map<number, Cesium.Cartesian3[]>>(new Map());
 
   useEffect(() => {
     const unsub = useSimStore.subscribe((state) => {
       const viewer = viewerRef.current;
       if (!viewer || viewer.isDestroyed()) return;
-      updateDrones(state.uavs, viewer, entitiesRef.current, state.selectedDroneId);
+      updateDrones(state.uavs, viewer, entitiesRef.current, state.selectedDroneId, trailHistoriesRef.current);
       const dronesVisible = state.layerVisibility?.['drones'] ?? true;
       Object.values(entitiesRef.current).forEach((e) => { e.show = dronesVisible; });
     });
