@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button, ButtonGroup, Intent } from '@blueprintjs/core';
 import { useSimStore } from '../store/SimulationStore';
 import type { MapMode } from '../store/types';
@@ -15,6 +15,7 @@ const MODES: { key: MapMode; label: string; shortcut: string }[] = [
 export function MapModeBar() {
   const mapMode = useSimStore((s) => s.mapMode);
   const setMapMode = useSimStore((s) => s.setMapMode);
+  const [satLensActive, setSatLensActive] = useState(false);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -25,6 +26,7 @@ export function MapModeBar() {
       };
       const mode = modeMap[e.key];
       if (mode) setMapMode(mode);
+      if (e.key === 's' || e.key === 'S') setSatLensActive((v) => !v);
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -40,6 +42,8 @@ export function MapModeBar() {
       borderRadius: 4,
       padding: 4,
       border: '1px solid rgba(255,255,255,0.15)',
+      display: 'flex',
+      alignItems: 'center',
     }}>
       <ButtonGroup>
         {MODES.map((m) => (
@@ -55,6 +59,19 @@ export function MapModeBar() {
           </Button>
         ))}
       </ButtonGroup>
+      <Button
+        small
+        active={satLensActive}
+        intent={satLensActive ? Intent.SUCCESS : Intent.NONE}
+        onClick={() => {
+          window.dispatchEvent(new CustomEvent('palantir:toggleSatLens'));
+          setSatLensActive((v) => !v);
+        }}
+        title="Satellite Lens (S)"
+        style={{ marginLeft: 8 }}
+      >
+        SAT
+      </Button>
     </div>
   );
 }

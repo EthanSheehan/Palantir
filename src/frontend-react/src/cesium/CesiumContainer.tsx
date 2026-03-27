@@ -14,6 +14,7 @@ import { useCesiumWaypoints } from './useCesiumWaypoints';
 import { useCesiumLockIndicators } from './useCesiumLockIndicators';
 import { useCesiumEnemyUAVs } from './useCesiumEnemyUAVs';
 import { useCesiumAssessment } from './useCesiumAssessment';
+import { useSatelliteLens } from './useSatelliteLens';
 import { useCoverageLayer } from './layers/useCoverageLayer';
 import { useThreatLayer } from './layers/useThreatLayer';
 import { useFusionLayer } from './layers/useFusionLayer';
@@ -59,6 +60,7 @@ export function CesiumContainer({ children }: { children?: React.ReactNode }) {
   useCesiumRangeRings(viewerRef);
   useCesiumWaypoints(viewerRef);
   useCesiumLockIndicators(viewerRef, targetEntitiesRef);
+  useSatelliteLens(viewerRef);
 
   // Bridge palantir:flyTo events from SearchBar to Cesium camera
   useEffect(() => {

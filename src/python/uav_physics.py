@@ -80,6 +80,12 @@ class UAV:
         self.fuel_hours: float = 24.0
         self.fuel_rate: float = 1.0
 
+        # Launch phase: climb from ground to operating altitude
+        self.launch_phase: bool = True
+        self.launch_start_alt: float = 50.0
+        self.launch_climb_rate: float = 15.0
+        self.target_altitude_m: float = 3000.0
+
         # Phase 3: autonomy and new mode fields
         self.autonomy_override: Optional[str] = None
         self.mode_source: str = "HUMAN"

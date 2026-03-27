@@ -171,13 +171,14 @@ class SimulationModel:
             uy = z.lat + random.uniform(-z.height_deg / 3, z.height_deg / 3)
             uav = UAV(i, ux, uy, (zx, zy))
             if self.theater:
-                uav.altitude_m = float(self.theater.blue_force.uavs.default_altitude_m)
+                uav.target_altitude_m = float(self.theater.blue_force.uavs.default_altitude_m)
                 uav.sensor_type = self.theater.blue_force.uavs.sensor_type
                 uav.fuel_hours = float(self.theater.blue_force.uavs.endurance_hours)
                 uav.home_position = (
                     self.theater.blue_force.uavs.base_lon,
                     self.theater.blue_force.uavs.base_lat,
                 )
+            uav.altitude_m = uav.launch_start_alt
             self.uavs[uav.id] = uav
 
         target_pool = self._build_target_pool()
@@ -411,6 +412,14 @@ class SimulationModel:
 
         # 6b. Evaluate autonomy transitions
         self._evaluate_autonomy(dt_sec)
+
+        # 6c. Launch phase: climb to operating altitude
+        for u in self.uavs.values():
+            if u.launch_phase:
+                u.altitude_m += u.launch_climb_rate * dt_sec
+                if u.altitude_m >= u.target_altitude_m:
+                    u.altitude_m = u.target_altitude_m
+                    u.launch_phase = False
 
         # 7. Update Kinematics (handles IDLE, SEARCH, REPOSITIONING, RTB)
         for u in self.uavs.values():
@@ -990,6 +999,7 @@ class SimulationModel:
                     "lat": u.y,
                     "mode": u.mode,
                     "altitude_m": u.altitude_m,
+                    "launch_phase": u.launch_phase,
                     "sensor_type": u.sensor_type,
                     "sensors": u.sensors,
                     "heading_deg": round(u.heading_deg, 1),
