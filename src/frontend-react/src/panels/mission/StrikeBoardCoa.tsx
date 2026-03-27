@@ -43,7 +43,7 @@ export function StrikeBoardCoa({ entryId, coa }: { entryId: string; coa: COA }) 
             intent={Intent.DANGER}
             small
             minimal
-            text="REJECT"
+            text="Reject Entry"
             onClick={() => sendMessage({ action: 'reject_coa', entry_id: entryId, rationale: 'COA rejected' })}
           />
         </div>

@@ -9,6 +9,9 @@ interface DroneActionButtonsProps {
 export function DroneActionButtons({ uav }: DroneActionButtonsProps) {
   const isSettingWaypoint = useSimStore(s => s.isSettingWaypoint);
   const setIsSettingWaypoint = useSimStore(s => s.setIsSettingWaypoint);
+  const rangeRingDroneIds = useSimStore(s => s.rangeRingDroneIds);
+  const toggleRangeRing = useSimStore(s => s.toggleRangeRing);
+  const rangeActive = rangeRingDroneIds.includes(uav.id);
 
   const handleWaypointClick = () => {
     setIsSettingWaypoint(!isSettingWaypoint);
@@ -34,14 +37,14 @@ export function DroneActionButtons({ uav }: DroneActionButtonsProps) {
       </button>
 
       <button
-        onClick={() => {}}
+        onClick={() => toggleRangeRing(uav.id)}
         style={{
           flex: 1,
           padding: '3px 6px',
-          border: '1px solid rgba(255,255,255,0.15)',
+          border: `1px solid ${rangeActive ? 'rgba(251, 191, 36, 0.5)' : 'rgba(255,255,255,0.15)'}`,
           borderRadius: 3,
-          background: 'transparent',
-          color: '#64748b',
+          background: rangeActive ? 'rgba(251, 191, 36, 0.2)' : 'transparent',
+          color: rangeActive ? '#fbbf24' : '#64748b',
           fontSize: '0.65rem',
           cursor: 'pointer',
         }}

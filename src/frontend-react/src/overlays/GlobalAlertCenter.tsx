@@ -80,7 +80,7 @@ export function GlobalAlertCenter({ visible, onToggle }: Props) {
   useEffect(() => {
     const pending = strikeBoard.filter(e => e.status === 'PENDING');
     for (const entry of pending) {
-      const entryId = entry.entry_id ?? entry.target_id;
+      const entryId = entry.id;
       if (entryId && !seenNominationIds.current.has(entryId)) {
         seenNominationIds.current.add(entryId);
         addAlert({

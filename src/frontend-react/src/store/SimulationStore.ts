@@ -57,6 +57,7 @@ interface SimState {
   showAllWaypoints: boolean;
   droneCamVisible: boolean;
   isSettingWaypoint: boolean;
+  rangeRingDroneIds: number[];
 
   // Actions
   setSimData: (data: {
@@ -96,6 +97,8 @@ interface SimState {
   setMapMode: (mode: MapMode) => void;
   toggleLayer: (layer: string) => void;
   setCamLayout: (layout: CamLayout) => void;
+  setCoverageMode: (mode: string) => void;
+  toggleRangeRing: (droneId: number) => void;
 }
 
 export const useSimStore = create<SimState>((set, get) => ({
@@ -120,6 +123,7 @@ export const useSimStore = create<SimState>((set, get) => ({
   showAllWaypoints: false,
   droneCamVisible: false,
   isSettingWaypoint: false,
+  rangeRingDroneIds: [],
   enemyUavs: [],
   swarmTasks: [],
   autonomyLevel: 'MANUAL',
@@ -254,4 +258,12 @@ export const useSimStore = create<SimState>((set, get) => ({
   })),
 
   setCamLayout: (layout) => set({ camLayout: layout }),
+
+  setCoverageMode: (mode) => set({ coverageMode: mode as 'balanced' | 'threat_adaptive' }),
+
+  toggleRangeRing: (droneId) => set((state) => ({
+    rangeRingDroneIds: state.rangeRingDroneIds.includes(droneId)
+      ? state.rangeRingDroneIds.filter(id => id !== droneId)
+      : [...state.rangeRingDroneIds, droneId],
+  })),
 }));

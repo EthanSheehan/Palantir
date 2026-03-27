@@ -10,6 +10,7 @@ const COVERAGE_OPTIONS = [
 
 export function CoverageModeToggle() {
   const coverageMode = useSimStore(s => s.coverageMode);
+  const setCoverageMode = useSimStore(s => s.setCoverageMode);
   const sendMessage = useSendMessage();
 
   return (
@@ -18,7 +19,10 @@ export function CoverageModeToggle() {
       <SegmentedControl
         options={COVERAGE_OPTIONS}
         value={coverageMode}
-        onValueChange={(val) => sendMessage({ action: 'set_coverage_mode', mode: val })}
+        onValueChange={(val) => {
+          setCoverageMode(val);
+          sendMessage({ action: 'set_coverage_mode', mode: val });
+        }}
         small
       />
     </div>
