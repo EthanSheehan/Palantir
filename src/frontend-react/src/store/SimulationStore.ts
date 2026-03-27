@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { UAV, Target, Zone, FlowLine, StrikeEntry, COA, TheaterInfo, AssistantMessage, HitlUpdate, EnemyUAV, SwarmTask, IntelEvent, CommandEvent, AssessmentPayload, ISRRequirement, MapMode, MAP_MODE_DEFAULTS, CamLayout } from './types';
+import { UAV, Target, Zone, FlowLine, StrikeEntry, COA, TheaterInfo, AssistantMessage, HitlUpdate, EnemyUAV, SwarmTask, IntelEvent, CommandEvent, AssessmentPayload, ISRRequirement, MapMode, MAP_MODE_DEFAULTS, CamLayout, WorkspaceMode } from './types';
 import { MAX_ASSISTANT_MESSAGES, MAX_INTEL_EVENTS, MAX_COMMAND_EVENTS } from '../shared/constants';
 
 interface SimState {
@@ -49,6 +49,7 @@ interface SimState {
 
   // UI state
   selectedDroneId: number | null;
+  selectedDroneIds: number[];
   selectedTargetId: number | null;
   selectedEnemyUavId: number | null;
   trackedDroneId: number | null;
@@ -58,6 +59,7 @@ interface SimState {
   droneCamVisible: boolean;
   isSettingWaypoint: boolean;
   rangeRingDroneIds: number[];
+  workspaceMode: WorkspaceMode;
 
   // Actions
   setSimData: (data: {
@@ -85,6 +87,7 @@ interface SimState {
   setCommandEvents: (events: CommandEvent[]) => void;
   setCachedCoas: (entryId: string, coas: COA[]) => void;
   selectDrone: (id: number | null) => void;
+  selectDroneAdditive: (id: number) => void;
   selectTarget: (id: number | null) => void;
   selectEnemyUav: (id: number | null) => void;
   setActiveTab: (tab: string) => void;
@@ -99,6 +102,7 @@ interface SimState {
   setCamLayout: (layout: CamLayout) => void;
   setCoverageMode: (mode: string) => void;
   toggleRangeRing: (droneId: number) => void;
+  setWorkspaceMode: (mode: WorkspaceMode) => void;
 }
 
 export const useSimStore = create<SimState>((set, get) => ({
@@ -115,6 +119,7 @@ export const useSimStore = create<SimState>((set, get) => ({
   commandEvents: [],
   cachedCoas: {},
   selectedDroneId: null,
+  selectedDroneIds: [],
   selectedTargetId: null,
   selectedEnemyUavId: null,
   trackedDroneId: null,
@@ -124,6 +129,7 @@ export const useSimStore = create<SimState>((set, get) => ({
   droneCamVisible: false,
   isSettingWaypoint: false,
   rangeRingDroneIds: [],
+  workspaceMode: 'isr' as WorkspaceMode,
   enemyUavs: [],
   swarmTasks: [],
   autonomyLevel: 'MANUAL',
@@ -228,7 +234,13 @@ export const useSimStore = create<SimState>((set, get) => ({
     cachedCoas: { ...state.cachedCoas, [entryId]: coas },
   })),
 
-  selectDrone: (id) => set({ selectedDroneId: id }),
+  selectDrone: (id) => set({ selectedDroneId: id, selectedDroneIds: id !== null ? [id] : [] }),
+  selectDroneAdditive: (id) => set((state) => ({
+    selectedDroneIds: state.selectedDroneIds.includes(id)
+      ? state.selectedDroneIds.filter(d => d !== id)
+      : [...state.selectedDroneIds, id],
+    selectedDroneId: id,
+  })),
   setActiveTab: (tab) => set({ activeTab: tab }),
 
   selectTarget: (id) => set({ selectedTargetId: id }),
@@ -266,4 +278,41 @@ export const useSimStore = create<SimState>((set, get) => ({
       ? state.rangeRingDroneIds.filter(id => id !== droneId)
       : [...state.rangeRingDroneIds, droneId],
   })),
+
+  setWorkspaceMode: (mode) => set({ workspaceMode: mode }),
 }));
+
+// Layout persistence — save UI state to localStorage
+const LAYOUT_KEY = 'palantir_layout';
+
+function loadPersistedLayout(): Partial<SimState> {
+  try {
+    const raw = localStorage.getItem(LAYOUT_KEY);
+    if (!raw) return {};
+    const data = JSON.parse(raw);
+    return {
+      mapMode: data.mapMode || 'OPERATIONAL',
+      camLayout: data.camLayout || 'SINGLE',
+      workspaceMode: data.workspaceMode || 'isr',
+      gridVisState: data.gridVisState ?? 2,
+    };
+  } catch {
+    return {};
+  }
+}
+
+const persisted = loadPersistedLayout();
+if (Object.keys(persisted).length > 0) {
+  useSimStore.setState(persisted);
+}
+
+useSimStore.subscribe((state) => {
+  try {
+    localStorage.setItem(LAYOUT_KEY, JSON.stringify({
+      mapMode: state.mapMode,
+      camLayout: state.camLayout,
+      workspaceMode: state.workspaceMode,
+      gridVisState: state.gridVisState,
+    }));
+  } catch { /* ignore quota errors */ }
+});

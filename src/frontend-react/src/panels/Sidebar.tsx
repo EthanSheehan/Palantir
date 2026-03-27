@@ -1,13 +1,16 @@
 import React from 'react';
-import { Card, Elevation } from '@blueprintjs/core';
+import { Card, Elevation, Button, ButtonGroup, Intent } from '@blueprintjs/core';
 import { useResizable } from '../hooks/useResizable';
 import { useViewerRef } from '../cesium/CesiumContainer';
 import { SidebarTabs } from './SidebarTabs';
 import { SearchBar } from '../components/SearchBar';
+import { useSimStore } from '../store/SimulationStore';
 
 export function Sidebar() {
   const { width, onMouseDown, setOnResize } = useResizable(300, 280, 800);
   const viewerRef = useViewerRef();
+  const workspaceMode = useSimStore(s => s.workspaceMode);
+  const setWorkspaceMode = useSimStore(s => s.setWorkspaceMode);
 
   React.useEffect(() => {
     setOnResize(() => {
@@ -31,6 +34,24 @@ export function Sidebar() {
         }}
       >
         <div style={{ padding: '10px 12px 8px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <ButtonGroup minimal style={{ marginBottom: 2 }}>
+            <Button
+              small
+              active={workspaceMode === 'isr'}
+              intent={workspaceMode === 'isr' ? Intent.PRIMARY : Intent.NONE}
+              onClick={() => setWorkspaceMode('isr')}
+            >
+              ISR
+            </Button>
+            <Button
+              small
+              active={workspaceMode === 'plan'}
+              intent={workspaceMode === 'plan' ? Intent.PRIMARY : Intent.NONE}
+              onClick={() => setWorkspaceMode('plan')}
+            >
+              PLAN
+            </Button>
+          </ButtonGroup>
           <span style={{ fontSize: 16, fontWeight: 600 }}>System Dashboard</span>
           <SearchBar />
         </div>

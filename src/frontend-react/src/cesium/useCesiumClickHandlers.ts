@@ -21,6 +21,12 @@ export function useCesiumClickHandlers(
     if (!viewer || viewer.isDestroyed()) return;
 
     let mapClickTimer: ReturnType<typeof setTimeout> | null = null;
+    let lastShiftState = false;
+
+    function onKeyDown(e: KeyboardEvent) { lastShiftState = e.shiftKey; }
+    function onKeyUp(e: KeyboardEvent) { lastShiftState = e.shiftKey; }
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
 
     function pickId(pickedObject: unknown): string | null {
       if (!Cesium.defined(pickedObject)) return null;
@@ -111,9 +117,17 @@ export function useCesiumClickHandlers(
 
           if (id.startsWith('uav_')) {
             if (mapClickTimer) clearTimeout(mapClickTimer);
+            const droneId = parseInt(id.replace('uav_', ''));
+            const shiftAtClick = lastShiftState;
             mapClickTimer = setTimeout(() => {
               const entity = v.entities.getById(id);
-              if (entity) selectDrone(entity, 'macro');
+              if (entity) {
+                if (shiftAtClick) {
+                  useSimStore.getState().selectDroneAdditive(droneId);
+                } else {
+                  selectDrone(entity, 'macro');
+                }
+              }
             }, 250);
             return;
           }
@@ -195,6 +209,8 @@ export function useCesiumClickHandlers(
 
     return () => {
       if (mapClickTimer) clearTimeout(mapClickTimer);
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
     };
   }, [viewerRef, droneEntitiesRef, targetEntitiesRef]);
 }

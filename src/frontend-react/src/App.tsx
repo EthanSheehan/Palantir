@@ -96,6 +96,12 @@ export default function App() {
         setStrikeBoardVisible(v => !v);
         return;
       }
+
+      if (e.key === 'i' || e.key === 'I') {
+        const store = useSimStore.getState();
+        store.setWorkspaceMode(store.workspaceMode === 'isr' ? 'plan' : 'isr');
+        return;
+      }
     }
 
     window.addEventListener('keydown', onKey);
