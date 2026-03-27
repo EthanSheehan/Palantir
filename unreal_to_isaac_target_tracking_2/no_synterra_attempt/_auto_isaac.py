@@ -10,7 +10,7 @@ import time
 import json
 from pxr import Usd, UsdGeom, UsdShade, Sdf, Gf
 
-BASE = r"C:\\Users\\victo\\Downloads\\unreal_to_isaac_target_tracking_2\\no_synterra_attempt"
+BASE = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR = os.path.join(BASE, "output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 

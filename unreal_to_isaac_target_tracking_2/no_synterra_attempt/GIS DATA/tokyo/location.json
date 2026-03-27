@@ -8,7 +8,7 @@
     139.84,
     35.7
   ],
-  "dem": "C:\\Users\\victo\\Downloads\\unreal_to_isaac_target_tracking_2\\no_synterra_attempt\\GIS DATA\\tokyo\\dem.tif",
-  "satellite": "C:\\Users\\victo\\Downloads\\unreal_to_isaac_target_tracking_2\\no_synterra_attempt\\GIS DATA\\tokyo\\satellite.tif",
+  "dem": "dem.tif",
+  "satellite": "satellite.tif",
   "desc": "Dense urban + coastline (~12km x 11km)"
 }

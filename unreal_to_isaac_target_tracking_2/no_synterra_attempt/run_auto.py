@@ -14,7 +14,7 @@ This script:
   7. Writes frames for WSL2 GPU YOLO watcher
 
 Run WSL2 watcher separately:
-  cd /mnt/c/Users/victo/Downloads/unreal_to_isaac_target_tracking_2/no_synterra_attempt
+  cd to the script directory (auto-detected at runtime)
   python3 WSL2_yolo_gpu_inference.py
 
 Run live viewer separately:
@@ -30,14 +30,14 @@ import argparse
 # CLI ARGUMENTS
 # ============================================================
 parser = argparse.ArgumentParser(description="Automated terrain → Isaac Sim terminal dive pipeline")
-parser.add_argument("--dem", default=r"C:\Users\victo\Downloads\unreal_to_isaac_target_tracking_2\GIS\rasters_COP30\output_hh.tif", help="Path to DEM GeoTIFF")
-parser.add_argument("--sat", default=r"C:\Users\victo\Downloads\unreal_to_isaac_target_tracking_2\GIS\iasi_esri_clipped.tif", help="Path to satellite GeoTIFF")
+BASE = os.path.dirname(os.path.abspath(__file__))
+_PROJECT_DIR = os.path.dirname(BASE)
+parser.add_argument("--dem", default=os.path.join(_PROJECT_DIR, "GIS", "rasters_COP30", "output_hh.tif"), help="Path to DEM GeoTIFF")
+parser.add_argument("--sat", default=os.path.join(_PROJECT_DIR, "GIS", "iasi_esri_clipped.tif"), help="Path to satellite GeoTIFF")
 parser.add_argument("--lat", type=float, default=47.21724592886579, help="POI latitude")
 parser.add_argument("--lon", type=float, default=27.614609502715126, help="POI longitude")
 parser.add_argument("--max-vertices", type=int, default=15000, help="Max terrain vertices")
 args = parser.parse_args()
-
-BASE = r"C:\Users\victo\Downloads\unreal_to_isaac_target_tracking_2\no_synterra_attempt"
 OUTPUT_DIR = os.path.join(BASE, "output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -100,7 +100,7 @@ wsl_script = os.path.join(BASE, "WSL2_yolo_gpu_inference.py").replace("C:\\", "/
 print(f"Starting WSL2 GPU YOLO: {wsl_script}", flush=True)
 wsl_proc = subprocess.Popen(
     ["wsl.exe", "-d", "Ubuntu-22.04", "--", "bash", "-c",
-     f"source /opt/ros/humble/setup.bash && cd /mnt/c/Users/victo/Downloads/unreal_to_isaac_target_tracking_2/no_synterra_attempt && python3 WSL2_yolo_gpu_inference.py"],
+     f"source /opt/ros/humble/setup.bash && cd {BASE.replace(chr(92), '/').replace('C:/', '/mnt/c/')} && python3 WSL2_yolo_gpu_inference.py"],
 )
 
 print("Starting Windows live viewer...", flush=True)

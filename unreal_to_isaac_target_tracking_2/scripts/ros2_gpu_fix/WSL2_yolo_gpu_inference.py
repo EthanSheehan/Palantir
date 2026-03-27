@@ -7,7 +7,7 @@ GREEN = Ground Truth (from Isaac Sim)
 RED = GPU YOLO detections (~21ms on RTX 5070)
 
 Usage (in WSL2 terminal):
-    cd /mnt/c/Users/victo/Downloads/unreal_to_isaac_target_tracking_2/scripts/ros2_gpu_fix
+    cd to the script directory
     python3 yolo_gpu_watcher.py
 """
 import torch
@@ -18,7 +18,7 @@ import time
 import os
 import hashlib
 
-BASE = "/mnt/c/Users/victo/Downloads/unreal_to_isaac_target_tracking_2/output"
+BASE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output")
 RAW_PATH = os.path.join(BASE, "_tmp.png")
 GT_PATH = os.path.join(BASE, "latest_annotated.png")
 OUTPUT_PATH = os.path.join(BASE, "latest_gpu_yolo.png")

@@ -18,7 +18,7 @@ import sys
 import time
 import json
 
-BASE = r"C:\Users\victo\Downloads\unreal_to_isaac_target_tracking_2\no_synterra_attempt"
+BASE = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR = os.path.join(BASE, "output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -74,7 +74,7 @@ import time
 import json
 from pxr import Usd, UsdGeom, UsdShade, Sdf, Gf
 
-BASE = r"''' + BASE.replace('\\', '\\\\') + r'''"
+BASE = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR = os.path.join(BASE, "output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -377,7 +377,7 @@ async def _auto_start():
     for _ in range(120):
         await omni.kit.app.get_app().next_update_async()
     print("[STARTUP] Isaac Sim ready, loading auto pipeline...")
-    exec(open(r"{isaac_script}").read())
+    import os as _os; _p = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "_auto_isaac.py"); exec(open(_p).read())
 
 asyncio.ensure_future(_auto_start())
 ''')

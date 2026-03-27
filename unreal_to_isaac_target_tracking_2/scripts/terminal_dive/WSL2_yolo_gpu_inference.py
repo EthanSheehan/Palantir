@@ -7,7 +7,7 @@ Reads raw frame (_tmp.png) from Isaac Sim, runs GPU YOLO, reads GT bbox data
 from a sidecar JSON file, and draws everything itself.
 
 Usage (in WSL2 terminal):
-    cd /mnt/c/Users/victo/Downloads/unreal_to_isaac_target_tracking_2/scripts/terminal_dive
+    cd to the script directory
     python3 WSL2_yolo_gpu_inference.py
 """
 import torch
@@ -19,7 +19,7 @@ import os
 import json
 import hashlib
 
-BASE = "/mnt/c/Users/victo/Downloads/unreal_to_isaac_target_tracking_2/output_terminal_dive"
+BASE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output_terminal_dive")
 RAW_PATH = os.path.join(BASE, "_tmp.png")
 GT_JSON_PATH = os.path.join(BASE, "gt_data.json")
 OUTPUT_PATH = os.path.join(BASE, "latest_gpu_yolo.png")

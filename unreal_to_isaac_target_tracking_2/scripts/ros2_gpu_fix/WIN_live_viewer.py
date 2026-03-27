@@ -3,7 +3,7 @@ Live OpenCV Viewer — Combined GT + GPU YOLO feed.
 Watches for latest_gpu_yolo.png and displays it.
 
 Run from Windows terminal:
-    cd C:\Users\victo\Downloads\unreal_to_isaac_target_tracking_2\scripts\ros2_gpu_fix
+    cd to the script directory
     python live_viewer.py
 
 Press Q to quit.
@@ -11,7 +11,7 @@ Press Q to quit.
 import cv2
 import os
 
-INPUT = r"C:\Users\victo\Downloads\unreal_to_isaac_target_tracking_2\output\latest_gpu_yolo.png"
+INPUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output", "latest_gpu_yolo.png")
 
 cv2.namedWindow("GT + GPU YOLO", cv2.WINDOW_NORMAL)
 cv2.resizeWindow("GT + GPU YOLO", 1280, 720)

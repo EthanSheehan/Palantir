@@ -10,7 +10,7 @@ import os
 import argparse
 import numpy as np
 
-OUTPUT_BASE = r"C:\Users\victo\Downloads\unreal_to_isaac_target_tracking_2\no_synterra_attempt\GIS DATA"
+OUTPUT_BASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "GIS DATA")
 
 LOCATIONS = {
     "san_francisco": {
@@ -177,8 +177,8 @@ for loc_key in args.locations:
         "lat": loc["lat"],
         "lon": loc["lon"],
         "bbox": loc["bbox"],
-        "dem": dem_path,
-        "satellite": sat_path,
+        "dem": os.path.basename(dem_path) if dem_path else None,
+        "satellite": os.path.basename(sat_path) if sat_path else None,
         "desc": loc["desc"],
     }
     meta_path = os.path.join(out_dir, "location.json")

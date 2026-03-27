@@ -21,7 +21,7 @@ import os
 import time
 from pxr import UsdGeom, Gf, Sdf, Usd
 
-OUTPUT_DIR = r"C:\Users\victo\Downloads\unreal_to_isaac_target_tracking_2\output"
+OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 stage = omni.usd.get_context().get_stage()

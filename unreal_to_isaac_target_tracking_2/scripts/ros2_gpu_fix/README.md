@@ -77,7 +77,7 @@ Paste `ISAACSIM_drone_flyover.py` in Script Editor and run.
 
 ### 6. Launch GPU YOLO Watcher (WSL2)
 ```bash
-cd /mnt/c/Users/victo/Downloads/unreal_to_isaac_target_tracking_2/scripts/ros2_gpu_fix
+cd /mnt/c/<path-to-project>/unreal_to_isaac_target_tracking_2/scripts/ros2_gpu_fix
 python3 WSL2_yolo_gpu_inference.py
 ```
 

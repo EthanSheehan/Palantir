@@ -8,7 +8,7 @@
     55.34,
     25.25
   ],
-  "dem": "C:\\Users\\victo\\Downloads\\unreal_to_isaac_target_tracking_2\\no_synterra_attempt\\GIS DATA\\dubai\\dem.tif",
-  "satellite": "C:\\Users\\victo\\Downloads\\unreal_to_isaac_target_tracking_2\\no_synterra_attempt\\GIS DATA\\dubai\\satellite.tif",
+  "dem": "dem.tif",
+  "satellite": "satellite.tif",
   "desc": "Flat desert + coast (~14km x 11km)"
 }

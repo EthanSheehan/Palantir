@@ -5,7 +5,7 @@ Press Q to quit.
 import cv2
 import os
 
-INPUT = r"C:\Users\victo\Downloads\unreal_to_isaac_target_tracking_2\output_terminal_dive\latest_gpu_yolo.png"
+INPUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output_terminal_dive", "latest_gpu_yolo.png")
 
 cv2.namedWindow("Terminal Dive + GPU YOLO", cv2.WINDOW_NORMAL)
 cv2.resizeWindow("Terminal Dive + GPU YOLO", 1280, 720)

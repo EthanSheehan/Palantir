@@ -20,11 +20,13 @@ import argparse
 # CLI ARGUMENTS
 # ============================================================
 parser = argparse.ArgumentParser(description="Build terrain mesh from DEM + satellite GeoTIFFs")
-parser.add_argument("--dem", default=r"C:\Users\victo\Downloads\unreal_to_isaac_target_tracking_2\GIS\rasters_COP30\output_hh.tif", help="Path to DEM GeoTIFF (EPSG:4326)")
-parser.add_argument("--sat", default=r"C:\Users\victo\Downloads\unreal_to_isaac_target_tracking_2\GIS\iasi_esri_clipped.tif", help="Path to satellite imagery GeoTIFF (EPSG:4326, RGB)")
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_PROJECT_DIR = os.path.dirname(_SCRIPT_DIR)
+parser.add_argument("--dem", default=os.path.join(_PROJECT_DIR, "GIS", "rasters_COP30", "output_hh.tif"), help="Path to DEM GeoTIFF (EPSG:4326)")
+parser.add_argument("--sat", default=os.path.join(_PROJECT_DIR, "GIS", "iasi_esri_clipped.tif"), help="Path to satellite imagery GeoTIFF (EPSG:4326, RGB)")
 parser.add_argument("--lat", type=float, default=47.21724592886579, help="POI latitude (center of scene, where target is placed)")
 parser.add_argument("--lon", type=float, default=27.614609502715126, help="POI longitude")
-parser.add_argument("--output", default=r"C:\Users\victo\Downloads\unreal_to_isaac_target_tracking_2\no_synterra_attempt", help="Output directory")
+parser.add_argument("--output", default=_SCRIPT_DIR, help="Output directory")
 parser.add_argument("--max-vertices", type=int, default=15000, help="Max terrain vertices (auto-calculates subsample)")
 args = parser.parse_args()
 

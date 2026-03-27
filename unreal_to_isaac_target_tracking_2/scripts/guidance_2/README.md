@@ -88,7 +88,7 @@ C:\isaac-sim\isaac-sim.bat
 ### 4. Start GPU YOLO (WSL2)
 ```bash
 source /opt/ros/humble/setup.bash
-cd /mnt/c/Users/victo/Downloads/unreal_to_isaac_target_tracking_2/scripts/guidance_2
+cd /mnt/c/<path-to-project>/unreal_to_isaac_target_tracking_2/scripts/guidance_2
 python3 WSL2_yolo_gpu_inference.py
 ```
 
