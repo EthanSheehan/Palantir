@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { UAV, Target, Zone, FlowLine, StrikeEntry, COA, TheaterInfo, AssistantMessage, HitlUpdate, EnemyUAV, SwarmTask, IntelEvent, CommandEvent, AssessmentPayload, ISRRequirement, MapMode, MAP_MODE_DEFAULTS, CamLayout, WorkspaceMode } from './types';
+import { UAV, Target, Zone, FlowLine, StrikeEntry, COA, TheaterInfo, AssistantMessage, HitlUpdate, EnemyUAV, SwarmTask, IntelEvent, CommandEvent, AssessmentPayload, ISRRequirement, MapMode, MAP_MODE_DEFAULTS, CamLayout, WorkspaceMode, Launcher } from './types';
 import { MAX_ASSISTANT_MESSAGES, MAX_INTEL_EVENTS, MAX_COMMAND_EVENTS } from '../shared/constants';
 
 interface SimState {
@@ -41,6 +41,9 @@ interface SimState {
 
   // Planned targets
   plannedTargets: any[];
+
+  // Launchers
+  launchers: Launcher[];
 
   // ISR state
   isrQueue: ISRRequirement[];
@@ -86,6 +89,7 @@ interface SimState {
     coverage_mode?: 'balanced' | 'threat_adaptive';
     ops_alerts?: any[];
     planned_targets?: any[];
+    launchers?: Launcher[];
   }) => void;
   setConnected: (connected: boolean) => void;
   addAssistantMessage: (msg: AssistantMessage) => void;
@@ -145,6 +149,7 @@ export const useSimStore = create<SimState>((set, get) => ({
   assessment: null,
   opsAlerts: [],
   plannedTargets: [],
+  launchers: [],
   isrQueue: [],
   coverageMode: 'balanced',
   mapMode: 'OPERATIONAL' as MapMode,
@@ -198,6 +203,10 @@ export const useSimStore = create<SimState>((set, get) => ({
       opsAlerts: data.ops_alerts || [],
       plannedTargets: data.planned_targets || [],
     });
+
+    if (data.launchers) {
+      set({ launchers: data.launchers });
+    }
 
     if (data.autonomy_level) {
       set({ autonomyLevel: data.autonomy_level });

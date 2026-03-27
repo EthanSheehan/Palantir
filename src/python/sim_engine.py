@@ -156,6 +156,19 @@ class SimulationModel:
         self.swarm_coordinator = SwarmCoordinator(min_idle_count=2)
         self._swarm_tick_counter = 0
 
+        # Launchers — mutable dicts so available count can be decremented
+        self.launchers: list[dict] = []
+        if self.theater:
+            for lc in self.theater.blue_force.launchers:
+                self.launchers.append({
+                    "name": lc.name,
+                    "lon": lc.lon,
+                    "lat": lc.lat,
+                    "type": lc.type,
+                    "capacity": lc.capacity,
+                    "available": lc.capacity,
+                })
+
         self.initialize()
 
     def _build_target_pool(self) -> list:
@@ -963,6 +976,27 @@ class SimulationModel:
                 target.vy = 0.0
             logger.info("target_state_set", target_id=target_id, new_state=new_state)
 
+    MAX_UAV_COUNT = 50
+
+    def add_uav_at(self, lon: float, lat: float) -> Optional[int]:
+        if len(self.uavs) >= self.MAX_UAV_COUNT:
+            return None
+        new_id = max(self.uavs.keys(), default=-1) + 1
+        uav = UAV(new_id, lon, lat, zone_id=(0, 0))
+        if self.theater:
+            uav.target_altitude_m = float(self.theater.blue_force.uavs.default_altitude_m)
+            uav.sensor_type = self.theater.blue_force.uavs.sensor_type
+            uav.fuel_hours = float(self.theater.blue_force.uavs.endurance_hours)
+            uav.home_position = (
+                self.theater.blue_force.uavs.base_lon,
+                self.theater.blue_force.uavs.base_lat,
+            )
+        uav.altitude_m = uav.launch_start_alt
+        uav.launch_phase = True
+        self.uavs[new_id] = uav
+        logger.info("uav_launched", uav_id=new_id, lon=lon, lat=lat)
+        return new_id
+
     def reset_queues(self):
         for z in self.grid.zones.values():
             z.queue = 0
@@ -1102,4 +1136,15 @@ class SimulationModel:
                 for task in self.swarm_coordinator.get_active_tasks().values()
             ],
             "ops_alerts": self.ops_alert_manager.get_active_alerts(),
+            "launchers": [
+                {
+                    "name": l["name"],
+                    "lon": l["lon"],
+                    "lat": l["lat"],
+                    "type": l["type"],
+                    "capacity": l["capacity"],
+                    "available": l["available"],
+                }
+                for l in self.launchers
+            ],
         }

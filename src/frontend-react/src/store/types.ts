@@ -218,6 +218,15 @@ export interface SimStatePayload {
   coverage_mode?: 'balanced' | 'threat_adaptive';
 }
 
+export interface Launcher {
+  name: string;
+  lon: number;
+  lat: number;
+  type: string;
+  capacity: number;
+  available: number;
+}
+
 export type CamLayout = 'SINGLE' | 'PIP' | 'SPLIT' | 'QUAD';
 export type SensorMode = 'EO_IR' | 'SAR' | 'SIGINT' | 'FUSION';
 export type WorkspaceMode = 'isr' | 'plan';

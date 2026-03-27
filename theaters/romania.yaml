@@ -17,6 +17,22 @@ blue_force:
     default_altitude_m: 3000
     sensor_type: EO_IR
     endurance_hours: 24
+  launchers:
+    - name: "Otopeni AFB"
+      lon: 26.085
+      lat: 44.572
+      type: "runway"
+      capacity: 10
+    - name: "Mihail Kogalniceanu"
+      lon: 28.488
+      lat: 44.362
+      type: "runway"
+      capacity: 8
+    - name: "Campia Turzii"
+      lon: 23.886
+      lat: 46.503
+      type: "runway"
+      capacity: 6
 red_force:
   units:
     - type: SAM

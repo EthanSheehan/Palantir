@@ -11,6 +11,8 @@ logger = structlog.get_logger(__name__)
 
 THEATERS_DIR = pathlib.Path(__file__).resolve().parent.parent.parent / "theaters"
 
+VALID_LAUNCHER_TYPES = {"runway", "mobile", "ship", "fixed"}
+
 
 # ---------------------------------------------------------------------------
 # Immutable config dataclasses
@@ -47,6 +49,7 @@ class LauncherConfig:
     name: str
     lat: float
     lon: float
+    type: str = "runway"
     capacity: int = 4
 
 
@@ -238,7 +241,19 @@ def load_theater(theater_name: str) -> TheaterConfig:
     blue_raw = dict(_require_key(data, "blue_force", "root"))
     uav_config = _parse_uav(dict(_require_key(blue_raw, "uavs", "blue_force")))
     _validate_positive(uav_config.count, "count", "blue_force.uavs")
-    blue_force = BlueForce(uavs=uav_config)
+    launchers_raw = blue_raw.get("launchers", [])
+    launchers = tuple(
+        LauncherConfig(
+            name=str(l["name"]),
+            lat=float(l["lat"]),
+            lon=float(l["lon"]),
+            type=str(l.get("type", "runway")) if str(l.get("type", "runway")) in VALID_LAUNCHER_TYPES else "runway",
+            capacity=int(l.get("capacity", 4)),
+        )
+        for l in (launchers_raw or [])
+        if isinstance(l, dict)
+    )
+    blue_force = BlueForce(uavs=uav_config, launchers=launchers)
 
     red_force = _parse_red_force(dict(_require_key(data, "red_force", "root")))
     for unit in red_force.units:

@@ -98,6 +98,7 @@ PERMISSION_MATRIX: dict[str, Role] = {
     "request_swarm": Role.OPERATOR,
     "release_swarm": Role.OPERATOR,
     "set_coverage_mode": Role.OPERATOR,
+    "launch_drone": Role.OPERATOR,
     # HITL / strike authorization — COMMANDER and above
     "approve_nomination": Role.COMMANDER,
     "reject_nomination": Role.COMMANDER,

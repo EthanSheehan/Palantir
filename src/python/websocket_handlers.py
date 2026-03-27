@@ -748,6 +748,35 @@ async def _handle_get_roe(payload: dict, websocket: WebSocket, ctx: HandlerConte
 _ROE_BASE = (pathlib.Path(__file__).parent.parent.parent / "roe").resolve()
 
 
+async def _handle_launch_drone(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:
+    launcher_name = payload.get("launcher_name")
+    if not launcher_name or not isinstance(launcher_name, str):
+        await _send_error(websocket, "Field 'launcher_name' is required and must be a string", "launch_drone")
+        return
+    if len(launcher_name) > 128:
+        await _send_error(websocket, "Launcher name too long", "launch_drone")
+        return
+    launcher = next((l for l in ctx.sim.launchers if l["name"] == launcher_name), None)
+    if launcher is None:
+        await _send_error(websocket, f"Launcher '{launcher_name}' not found", "launch_drone")
+        return
+    if launcher["available"] <= 0:
+        await _send_error(websocket, f"Launcher '{launcher_name}' has no available capacity", "launch_drone")
+        return
+    launcher["available"] = max(0, launcher["available"] - 1)
+    new_id = ctx.sim.add_uav_at(launcher["lon"], launcher["lat"])
+    if new_id is None:
+        launcher["available"] += 1
+        await _send_error(websocket, "UAV limit reached", "launch_drone")
+        return
+    try:
+        await websocket.send_text(
+            json.dumps({"type": "DRONE_LAUNCHED", "uav_id": new_id, "launcher_name": launcher_name})
+        )
+    except (WebSocketDisconnect, ConnectionError, OSError):
+        pass
+
+
 async def _handle_set_roe(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:
     path = payload.get("path")
     if not path or not isinstance(path, str):
@@ -813,6 +842,7 @@ _DISPATCH_TABLE: dict[str, Callable] = {
     "set_roe": _handle_set_roe,
     "save_checkpoint": _handle_save_checkpoint,
     "load_mission": _handle_load_mission,
+    "launch_drone": _handle_launch_drone,
 }
 
 # Type-based dispatch for forwarding messages
