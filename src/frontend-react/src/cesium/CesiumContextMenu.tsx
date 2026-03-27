@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Menu, MenuItem, MenuDivider } from '@blueprintjs/core';
 import { useSendMessage } from '../App';
+import { useSimStore } from '../store/SimulationStore';
 
 interface ContextMenuPosition {
   x: number;
@@ -62,7 +63,12 @@ export function CesiumContextMenu({ position, entityType, entityId, onClose }: C
             icon="locate"
             text="Follow"
             onClick={() => {
-              sendMessage({ action: 'scan_area', target_id: numericId });
+              const droneId = useSimStore.getState().trackedDroneId ?? useSimStore.getState().selectedDroneId;
+              if (droneId === null) {
+                console.warn('CesiumContextMenu Follow: no drone selected');
+                return;
+              }
+              sendMessage({ action: 'follow_target', drone_id: droneId, target_id: numericId });
               onClose();
             }}
           />
@@ -70,7 +76,12 @@ export function CesiumContextMenu({ position, entityType, entityId, onClose }: C
             icon="eye-open"
             text="Paint"
             onClick={() => {
-              sendMessage({ action: 'paint_target', target_id: numericId });
+              const droneId = useSimStore.getState().trackedDroneId ?? useSimStore.getState().selectedDroneId;
+              if (droneId === null) {
+                console.warn('CesiumContextMenu Paint: no drone selected');
+                return;
+              }
+              sendMessage({ action: 'paint_target', drone_id: droneId, target_id: numericId });
               onClose();
             }}
           />
@@ -85,11 +96,10 @@ export function CesiumContextMenu({ position, entityType, entityId, onClose }: C
           <MenuDivider />
           <MenuItem
             icon="flag"
-            text="Nominate"
+            text="Review Nomination"
             intent="warning"
             onClick={() => {
-              if (!window.confirm(`Confirm nomination for target ${numericId}?`)) return;
-              sendMessage({ action: 'approve_nomination', target_id: numericId });
+              useSimStore.getState().setActiveTab('mission');
               onClose();
             }}
           />
@@ -125,7 +135,15 @@ export function CesiumContextMenu({ position, entityType, entityId, onClose }: C
             text="RTB"
             intent="danger"
             onClick={() => {
-              sendMessage({ action: 'move_drone', drone_id: numericId, rtb: true });
+              const theater = useSimStore.getState().theater;
+              if (!theater) {
+                console.warn('CesiumContextMenu RTB: no theater loaded');
+                return;
+              }
+              const { bounds } = theater;
+              const baseLon = (bounds.min_lon + bounds.max_lon) / 2;
+              const baseLat = bounds.min_lat + (bounds.max_lat - bounds.min_lat) * 0.1;
+              sendMessage({ action: 'move_drone', drone_id: numericId, target_lon: baseLon, target_lat: baseLat });
               onClose();
             }}
           />

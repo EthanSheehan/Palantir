@@ -9,11 +9,13 @@ interface DroneActionButtonsProps {
 export function DroneActionButtons({ uav }: DroneActionButtonsProps) {
   const isSettingWaypoint = useSimStore(s => s.isSettingWaypoint);
   const setIsSettingWaypoint = useSimStore(s => s.setIsSettingWaypoint);
+  const setTrackedDrone = useSimStore(s => s.setTrackedDrone);
   const rangeRingDroneIds = useSimStore(s => s.rangeRingDroneIds);
   const toggleRangeRing = useSimStore(s => s.toggleRangeRing);
   const rangeActive = rangeRingDroneIds.includes(uav.id);
 
   const handleWaypointClick = () => {
+    setTrackedDrone(uav.id);
     setIsSettingWaypoint(!isSettingWaypoint);
   };
 
@@ -53,7 +55,7 @@ export function DroneActionButtons({ uav }: DroneActionButtonsProps) {
       </button>
 
       <button
-        onClick={() => {}}
+        onClick={() => window.dispatchEvent(new CustomEvent('palantir:openDetailMap', { detail: { droneId: uav.id, lon: uav.lon, lat: uav.lat } }))}
         style={{
           width: 28,
           padding: '3px',

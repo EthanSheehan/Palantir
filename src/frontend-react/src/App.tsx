@@ -10,6 +10,7 @@ import { MapLegend } from './overlays/MapLegend';
 import { CommandPalette } from './overlays/CommandPalette';
 import { GlobalAlertCenter } from './overlays/GlobalAlertCenter';
 import { FloatingStrikeBoard } from './overlays/FloatingStrikeBoard';
+import { useSimStore } from './store/SimulationStore';
 import './styles/nvis.css';
 import './styles/accessibility.css';
 
@@ -35,7 +36,7 @@ export default function App() {
     const ALLOWED_ACTIONS = new Set([
       'move_drone', 'scan_area', 'follow_target', 'paint_target',
       'intercept_target', 'intercept_enemy', 'cancel_track',
-      'request_swarm', 'release_swarm', 'verify_target',
+      'request_swarm', 'release_swarm', 'verify_target', 'spike',
     ]);
     function onSend(e: Event) {
       const detail = (e as CustomEvent).detail;
@@ -46,6 +47,17 @@ export default function App() {
     window.addEventListener('palantir:send', onSend);
     return () => window.removeEventListener('palantir:send', onSend);
   }, [sendMessage]);
+
+  // Handle drone target assignment: select the drone and switch to ENEMIES tab
+  useEffect(() => {
+    function onAssignTarget(e: Event) {
+      const { droneId } = (e as CustomEvent<{ droneId: number }>).detail;
+      useSimStore.getState().selectDrone(droneId);
+      useSimStore.getState().setActiveTab('enemies');
+    }
+    window.addEventListener('palantir:assignTarget', onAssignTarget);
+    return () => window.removeEventListener('palantir:assignTarget', onAssignTarget);
+  }, []);
 
   // Keyboard shortcuts: N = NVIS, Ctrl+Shift+A = accessibility, L = legend
   useEffect(() => {

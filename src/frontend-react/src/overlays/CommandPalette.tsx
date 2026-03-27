@@ -35,7 +35,7 @@ interface Props {
 export function CommandPalette({ isOpen, onClose }: Props) {
   const sendMessage = useSendMessage();
   const uavs = useSimStore((s) => s.uavs);
-  const targets = useSimStore((s) => s.targets);
+  const strikeBoard = useSimStore((s) => s.strikeBoard);
   const autonomyLevel = useSimStore((s) => s.autonomyLevel);
   const setMapMode = useSimStore((s) => s.setMapMode);
 
@@ -49,19 +49,19 @@ export function CommandPalette({ isOpen, onClose }: Props) {
   const commands: Command[] = [
     // UAV commands
     ...uavs.map((uav) => ({
-      id: `follow-uav-${uav.id}`,
-      label: `Follow UAV ${uav.id} (${uav.mode})`,
+      id: `scan-uav-${uav.id}`,
+      label: `Set SEARCH Mode: UAV ${uav.id} (${uav.mode})`,
       category: 'UAV' as const,
-      action: () => sendMessage({ action: 'follow_target', drone_id: uav.id }),
+      action: () => sendMessage({ action: 'scan_area', drone_id: uav.id }),
     })),
     // Target approval commands
-    ...targets
-      .filter((t) => t.status === 'NOMINATED')
-      .map((t) => ({
-        id: `approve-${t.id}`,
-        label: `Approve Nomination: ${t.target_type} #${t.id}`,
+    ...strikeBoard
+      .filter((entry) => entry.status === 'PENDING')
+      .map((entry) => ({
+        id: `approve-${entry.id}`,
+        label: `Approve Nomination: ${entry.target_type} (${Math.round(entry.detection_confidence * 100)}%)`,
         category: 'Targets' as const,
-        action: () => sendMessage({ action: 'approve_nomination', target_id: t.id }),
+        action: () => sendMessage({ action: 'approve_nomination', entry_id: entry.id }),
       })),
     // Map mode commands
     ...MAP_MODES.map((mode) => ({
