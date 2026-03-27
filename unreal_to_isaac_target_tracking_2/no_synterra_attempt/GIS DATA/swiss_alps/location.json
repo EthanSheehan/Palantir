@@ -1,0 +1,14 @@
+{
+  "name": "Swiss Alps (Zermatt / Matterhorn)",
+  "lat": 46.02,
+  "lon": 7.75,
+  "bbox": [
+    7.65,
+    45.97,
+    7.85,
+    46.07
+  ],
+  "dem": "C:\\Users\\victo\\Downloads\\unreal_to_isaac_target_tracking_2\\no_synterra_attempt\\GIS DATA\\swiss_alps\\dem.tif",
+  "satellite": "C:\\Users\\victo\\Downloads\\unreal_to_isaac_target_tracking_2\\no_synterra_attempt\\GIS DATA\\swiss_alps\\satellite.tif",
+  "desc": "Steep mountain terrain (~15km x 11km)"
+}

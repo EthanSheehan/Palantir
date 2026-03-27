@@ -1,0 +1,21 @@
+{
+  "poi_lat": 46.02,
+  "poi_lon": 7.75,
+  "poi_elevation_m": 1659.4837646484375,
+  "poi_local_x_cm": 0.0,
+  "poi_local_y_cm": 165948.37646484375,
+  "poi_local_z_cm": 0.0,
+  "dem_bounds": {
+    "left": 7.65,
+    "bottom": 45.969722222222224,
+    "right": 7.850277777777778,
+    "top": 46.07
+  },
+  "mesh_vertices": 16471,
+  "mesh_triangles": 32400,
+  "subsample": 4,
+  "terrain_extent_m": {
+    "x": 15481.755209795043,
+    "y": 11162.922222222089
+  }
+}

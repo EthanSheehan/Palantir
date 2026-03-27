@@ -1,0 +1,31 @@
+# Binary assets — kept locally, not tracked in git
+# Move back to main manually when integration happens
+
+# 3D scene files
+*.usd
+*.usdc
+*.blend
+
+# Images & textures
+*.png
+*.PNG
+*.tif
+*.exr
+*.jpg
+
+# Models & meshes
+*.stl
+*.obj
+*.mtl
+
+# ML weights
+*.pt
+
+# Archives
+*.gz
+
+# GIS project files
+*.qgz
+
+# Asset directories
+Assets/

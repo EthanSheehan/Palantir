@@ -1,0 +1,1 @@
+{"boxes": [{"x_min": 317, "y_min": 344, "x_max": 322, "y_max": 350, "label": "truck", "occ": 0.0}], "meta": {"phase": "CRUISE", "pitch": 0.0, "error_y": 0.0, "state": "TRK", "altitude_m": 100.0, "dist_to_target_m": 297.8148861758709, "offset_m": -297.8148861758709, "direction": "FWD", "pass_num": 57, "start_offset": 30000.0, "overshoot": 0}}

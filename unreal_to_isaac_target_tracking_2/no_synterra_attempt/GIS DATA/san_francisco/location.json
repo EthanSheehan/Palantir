@@ -1,0 +1,14 @@
+{
+  "name": "San Francisco",
+  "lat": 37.78,
+  "lon": -122.42,
+  "bbox": [
+    -122.48,
+    37.72,
+    -122.36,
+    37.82
+  ],
+  "dem": "C:\\Users\\victo\\Downloads\\unreal_to_isaac_target_tracking_2\\no_synterra_attempt\\GIS DATA\\san_francisco\\dem.tif",
+  "satellite": "C:\\Users\\victo\\Downloads\\unreal_to_isaac_target_tracking_2\\no_synterra_attempt\\GIS DATA\\san_francisco\\satellite.tif",
+  "desc": "Urban + water + hills (~13km x 11km)"
+}
