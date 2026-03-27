@@ -1,4 +1,4 @@
-import React, { useRef, useState, createContext, useContext, RefObject, useCallback } from 'react';
+import React, { useRef, useState, useEffect, createContext, useContext, RefObject, useCallback } from 'react';
 import * as Cesium from 'cesium';
 import { useCesiumViewer } from '../hooks/useCesiumViewer';
 import { useCesiumDrones } from './useCesiumDrones';
@@ -59,6 +59,21 @@ export function CesiumContainer({ children }: { children?: React.ReactNode }) {
   useCesiumRangeRings(viewerRef);
   useCesiumWaypoints(viewerRef);
   useCesiumLockIndicators(viewerRef, targetEntitiesRef);
+
+  // Bridge palantir:flyTo events from SearchBar to Cesium camera
+  useEffect(() => {
+    function onFlyTo(e: Event) {
+      const viewer = viewerRef.current;
+      if (!viewer || viewer.isDestroyed()) return;
+      const { lon, lat, altitude } = (e as CustomEvent<{ lon: number; lat: number; altitude: number }>).detail;
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(lon, lat, altitude || 15000),
+        duration: 1.5,
+      });
+    }
+    window.addEventListener('palantir:flyTo', onFlyTo);
+    return () => window.removeEventListener('palantir:flyTo', onFlyTo);
+  }, [viewerRef]);
 
   return (
     <ViewerContext.Provider value={viewerRef}>

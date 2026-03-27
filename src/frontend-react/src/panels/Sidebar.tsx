@@ -3,6 +3,7 @@ import { Card, Elevation } from '@blueprintjs/core';
 import { useResizable } from '../hooks/useResizable';
 import { useViewerRef } from '../cesium/CesiumContainer';
 import { SidebarTabs } from './SidebarTabs';
+import { SearchBar } from '../components/SearchBar';
 
 export function Sidebar() {
   const { width, onMouseDown, setOnResize } = useResizable(300, 280, 800);
@@ -29,8 +30,9 @@ export function Sidebar() {
           padding: 0,
         }}
       >
-        <div style={{ padding: '12px 16px 8px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+        <div style={{ padding: '10px 12px 8px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', gap: 6 }}>
           <span style={{ fontSize: 16, fontWeight: 600 }}>System Dashboard</span>
+          <SearchBar />
         </div>
         <SidebarTabs />
       </Card>
