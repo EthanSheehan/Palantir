@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pathlib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 
 import structlog
@@ -43,8 +43,17 @@ class UAVConfig:
 
 
 @dataclass(frozen=True)
+class LauncherConfig:
+    name: str
+    lat: float
+    lon: float
+    capacity: int = 4
+
+
+@dataclass(frozen=True)
 class BlueForce:
     uavs: UAVConfig
+    launchers: tuple = field(default_factory=tuple)
 
 
 @dataclass(frozen=True)

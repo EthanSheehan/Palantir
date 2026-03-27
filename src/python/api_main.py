@@ -40,6 +40,7 @@ from hitl_manager import HITLManager
 from intel_feed import IntelFeedRouter, _client_subscribed
 from llm_adapter import LLMAdapter
 from logging_config import configure_logging
+from history_store import HistoryStore
 from mission_store import MissionStore
 from roe_engine import ROEEngine
 from target_store import Aimpoint, PlannedTarget, TargetStore
@@ -109,6 +110,7 @@ synthesis_query = SynthesisQueryAgent(llm_client=None)
 sim = SimulationModel(theater_name=settings.default_theater)
 sim.demo_fast = settings.demo_mode
 hitl = HITLManager()
+history_store = HistoryStore()
 clients: dict = {}  # websocket -> info dict
 assistant = TacticalAssistant()
 mission_store = MissionStore()
@@ -247,6 +249,7 @@ async def lifespan(app: FastAPI):
             settings=settings,
             loop_state=_loop_state,
             target_store=target_store,
+            history_store=history_store,
         )
     )
     sensor_task = asyncio.create_task(sensor_feed_loop(sim=sim, intel_router=intel_router, clients=clients))
@@ -340,6 +343,19 @@ async def get_metrics(request: Request):
         content=_metrics.generate_metrics_text(),
         media_type="text/plain; version=0.0.4; charset=utf-8",
     )
+
+
+@app.get("/api/history/range")
+async def get_history_range():
+    return history_store.get_time_range()
+
+
+@app.get("/api/history/state")
+async def get_history_state(at: float):
+    state = history_store.get_state_at(at)
+    if state is None:
+        return {"error": "No snapshot found"}
+    return {"timestamp": at, "state": state}
 
 
 @app.get("/api/audit")

@@ -10,6 +10,7 @@ import { MapLegend } from './overlays/MapLegend';
 import { CommandPalette } from './overlays/CommandPalette';
 import { GlobalAlertCenter } from './overlays/GlobalAlertCenter';
 import { FloatingStrikeBoard } from './overlays/FloatingStrikeBoard';
+import { BottomTimelineDock } from './overlays/BottomTimelineDock';
 import { useSimStore } from './store/SimulationStore';
 import './styles/nvis.css';
 import './styles/accessibility.css';
@@ -29,6 +30,7 @@ export default function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [alertCenterVisible, setAlertCenterVisible] = useState(false);
   const [strikeBoardVisible, setStrikeBoardVisible] = useState(false);
+  const [timelineVisible, setTimelineVisible] = useState(false);
 
   // Bridge window events from Cesium hooks to WebSocket
   // Only allowlisted actions may be dispatched via the event bridge
@@ -94,6 +96,11 @@ export default function App() {
 
       if (e.key === 'b' || e.key === 'B') {
         setStrikeBoardVisible(v => !v);
+        return;
+      }
+
+      if (e.key === 't' || e.key === 'T') {
+        setTimelineVisible(v => !v);
         return;
       }
 

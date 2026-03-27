@@ -81,6 +81,7 @@ async def simulation_loop(
     settings,
     loop_state: SimulationLoopState | None = None,
     target_store: "TargetStore | None" = None,
+    history_store=None,
 ) -> None:
     """Main 10Hz simulation tick loop."""
     tick_interval = 1.0 / settings.simulation_hz
@@ -98,6 +99,9 @@ async def simulation_loop(
 
         # Cache get_state() once per tick
         state = sim.get_state()
+
+        if history_store is not None:
+            history_store.maybe_capture(state)
 
         now = time.monotonic()
         if now - loop_state.last_assessment_time >= 5.0:
