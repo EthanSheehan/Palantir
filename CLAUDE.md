@@ -84,7 +84,7 @@ Environment variables go in a `.env` file (loaded via python-dotenv). Required f
 - 5 Cesium layer overlays: coverage, threat, fusion, swarm, terrain (`cesium/layers/`)
 - Multi-layout drone camera PIP (SINGLE/PIP/SPLIT/QUAD) with 4 sensor modes (EO/IR, SAR, SIGINT, FUSION)
 - SensorHUD, SigintDisplay (RF spectrum waterfall), CameraPresets (OVERVIEW/TOP DOWN/OBLIQUE/FREE)
-- Cesium globe with all entity hooks: drones, targets, zones, flow lines, compass, range rings, lock indicators, assessment overlays, enemy UAVs, swarm lines
+- Cesium globe with all entity hooks: drones, targets, zones, flow lines, compass, range rings, lock indicators, assessment overlays, enemy UAVs, swarm lines, launchers
 - Custom event bridge (`palantir:send`, `palantir:placeWaypoint`, `palantir:openDetailMap`) for Cesium→React WebSocket communication
 - LayerPanel for per-layer visibility toggles, MapModeBar for mode switching
 - **Wave 6C Overlays & Components:**
@@ -95,7 +95,14 @@ Environment variables go in a `.env` file (loaded via python-dotenv). Required f
   - `MapLegend` — L key toggles overlay showing entity shapes and symbols; positioned bottom-right of map
   - `EngagementHistory` — ASSESS tab panel showing chronological engagement records with time, target, weapon, BDA confidence, outcome
   - `AutonomyBriefingDialog` — modal dialog shown before AUTONOMOUS activation with checklist of autonomous actions and approval-required actions; requires "I understand" confirmation
-- **Keyboard Shortcuts:** N (NVIS mode), Ctrl+Shift+A (colorblind mode), L (map legend), G (alert center), B (floating strike board)
+- **AMS Integration Features:**
+  - `useCesiumLaunchers` — launcher site entities (Otopeni AFB, Mihail Kogălniceanu, Câmpia Turzii) with click-to-launch, capacity/availability labels
+  - `BottomTimelineDock` — collapsible timeline scrub with historical playback (T key toggle)
+  - `SatelliteLensInset` — satellite imagery inset viewer
+  - `OpsAlertsPanel` — operational alerts with REST API
+  - `PlannedTargetsPanel` — aimpoint management with REST API
+  - Multi-UAV Shift-Click selection, workspace modes (ISR/STRIKE/RECON), layout persistence
+- **Keyboard Shortcuts:** N (NVIS mode), Ctrl+Shift+A (colorblind mode), L (map legend), G (alert center), B (floating strike board), T (timeline dock)
 - **Accessibility Features:** NVIS mode (green-dominant phosphor), colorblind mode (blue/orange replacement), shape redundancy icons
 - Legacy vanilla JS frontend remains in `src/frontend/` for reference
 
@@ -127,7 +134,7 @@ The backend sends JSON payloads each tick containing drone positions, target pos
 
 **AsyncAPI Specification:** Full WebSocket protocol documented in `docs/asyncapi.yaml` (AsyncAPI 2.6.0) and `docs/websocket_protocol.md` (human-readable guide). Coverage includes 36 client→server messages, 12 server→client messages, all payload schemas with examples, authentication handshake, close codes, Intel feed subscriptions, and error handling.
 
-Key WebSocket actions: `scan_area`, `follow_target`, `paint_target`, `intercept_target`, `intercept_enemy`, `cancel_track`, `move_drone`, `spike`, `approve_nomination`, `reject_nomination`, `retask_nomination`, `authorize_coa`, `reject_coa`, `verify_target`, `retask_sensors`, `set_autonomy_level`, `set_drone_autonomy`, `approve_transition`, `reject_transition`, `request_swarm`, `release_swarm`, `set_coverage_mode`, `set_roe`, `load_scenario`, `save_checkpoint`, `load_checkpoint`, `set_speed`, `pause`, `resume`, `step`, `set_weather`, `get_report`, `subscribe`, `subscribe_sensor_feed`, `reset`, `SET_SCENARIO`.
+Key WebSocket actions: `scan_area`, `follow_target`, `paint_target`, `intercept_target`, `intercept_enemy`, `cancel_track`, `move_drone`, `spike`, `approve_nomination`, `reject_nomination`, `retask_nomination`, `authorize_coa`, `reject_coa`, `verify_target`, `retask_sensors`, `set_autonomy_level`, `set_drone_autonomy`, `approve_transition`, `reject_transition`, `request_swarm`, `release_swarm`, `set_coverage_mode`, `set_roe`, `load_scenario`, `save_checkpoint`, `load_checkpoint`, `set_speed`, `pause`, `resume`, `step`, `set_weather`, `get_report`, `subscribe`, `subscribe_sensor_feed`, `reset`, `SET_SCENARIO`, `launch_drone`.
 
 ### Key Python Modules (non-agent)
 
