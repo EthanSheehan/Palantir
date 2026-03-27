@@ -14,6 +14,7 @@ import collections
 import json
 import logging
 import time
+import uuid
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -41,6 +42,7 @@ from llm_adapter import LLMAdapter
 from logging_config import configure_logging
 from mission_store import MissionStore
 from roe_engine import ROEEngine
+from target_store import Aimpoint, PlannedTarget, TargetStore
 from sim_engine import SimulationModel
 from simulation_loop import SimulationLoopState, sensor_feed_loop, simulation_loop
 from tactical_assistant import TacticalAssistant
@@ -111,6 +113,7 @@ clients: dict = {}  # websocket -> info dict
 assistant = TacticalAssistant()
 mission_store = MissionStore()
 aar_engine = AAREngine(mission_store, audit_log)
+target_store = TargetStore()
 
 # ROE engine — load theater-specific rules if available
 import pathlib as _pathlib
@@ -243,6 +246,7 @@ async def lifespan(app: FastAPI):
             clients=clients,
             settings=settings,
             loop_state=_loop_state,
+            target_store=target_store,
         )
     )
     sensor_task = asyncio.create_task(sensor_feed_loop(sim=sim, intel_router=intel_router, clients=clients))
@@ -506,6 +510,80 @@ async def get_aar_replay(
             for s in snapshots
         ]
     }
+
+
+# ---------------------------------------------------------------------------
+# Planned targets endpoints
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/planned-targets")
+async def get_planned_targets():
+    return {"targets": target_store.to_dict_list()}
+
+
+@app.post("/api/planned-targets")
+async def create_planned_target(body: dict):
+    name = body.get("name")
+    lat = body.get("lat")
+    lon = body.get("lon")
+    if not name or lat is None or lon is None:
+        raise HTTPException(status_code=422, detail="Missing required fields: name, lat, lon")
+    if not isinstance(lat, (int, float)) or not isinstance(lon, (int, float)):
+        raise HTTPException(status_code=422, detail="lat and lon must be numeric")
+    target_id = body.get("id") or str(uuid.uuid4())[:8]
+    aimpoints = []
+    for ap in body.get("aimpoints", []):
+        ap_name = ap.get("name")
+        ap_lat = ap.get("lat")
+        ap_lon = ap.get("lon")
+        if not ap_name or ap_lat is None or ap_lon is None:
+            raise HTTPException(status_code=422, detail="Each aimpoint requires name, lat, lon")
+        aimpoints.append(
+            Aimpoint(
+                id=ap.get("id") or str(uuid.uuid4())[:8],
+                name=ap_name,
+                lat=float(ap_lat),
+                lon=float(ap_lon),
+                target_id=target_id,
+                description=ap.get("description", ""),
+            )
+        )
+    target = PlannedTarget(
+        id=target_id,
+        name=str(name),
+        lat=float(lat),
+        lon=float(lon),
+        target_type=body.get("target_type", "CUSTOM"),
+        priority=int(body.get("priority", 3)),
+        notes=body.get("notes", ""),
+        aimpoints=aimpoints,
+    )
+    saved = target_store.add_target(target)
+    return {
+        "status": "created",
+        "target": {
+            "id": saved.id,
+            "name": saved.name,
+            "lat": saved.lat,
+            "lon": saved.lon,
+            "target_type": saved.target_type,
+            "priority": saved.priority,
+            "notes": saved.notes,
+            "created_at": saved.created_at,
+            "aimpoints": [
+                {"id": a.id, "name": a.name, "lat": a.lat, "lon": a.lon, "description": a.description}
+                for a in saved.aimpoints
+            ],
+        },
+    }
+
+
+@app.delete("/api/planned-targets/{target_id}")
+async def delete_planned_target(target_id: str):
+    if target_store.delete_target(target_id):
+        return {"status": "deleted"}
+    raise HTTPException(status_code=404, detail="Target not found")
 
 
 # ---------------------------------------------------------------------------

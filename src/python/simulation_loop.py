@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from hitl_manager import HITLManager
     from sim_engine import SimulationModel
     from tactical_assistant import TacticalAssistant
+    from target_store import TargetStore
 
 logger = structlog.get_logger()
 
@@ -64,6 +65,8 @@ class SimulationLoopState:
         self.cached_isr_queue: list | None = None
         self.kill_chain_tracker: KillChainTracker = KillChainTracker()
         self.cached_kill_chain: dict | None = None
+        self.last_planned_targets_time: float = 0.0
+        self.cached_planned_targets: list | None = None
 
 
 async def simulation_loop(
@@ -77,6 +80,7 @@ async def simulation_loop(
     clients: dict,
     settings,
     loop_state: SimulationLoopState | None = None,
+    target_store: "TargetStore | None" = None,
 ) -> None:
     """Main 10Hz simulation tick loop."""
     tick_interval = 1.0 / settings.simulation_hz
@@ -192,6 +196,14 @@ async def simulation_loop(
             )
             loop_state.cached_kill_chain = loop_state.kill_chain_tracker.to_dict(kc_statuses)
             state["kill_chain"] = loop_state.cached_kill_chain
+
+            # Refresh planned targets every 5 seconds
+            if target_store is not None:
+                if now - loop_state.last_planned_targets_time >= 5.0:
+                    loop_state.last_planned_targets_time = now
+                    loop_state.cached_planned_targets = target_store.to_dict_list()
+                if loop_state.cached_planned_targets is not None:
+                    state["planned_targets"] = loop_state.cached_planned_targets
 
             state_json = json.dumps({"type": "state", "data": state})
             await broadcast_fn(state_json, target_type="DASHBOARD")

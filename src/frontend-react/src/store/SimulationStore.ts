@@ -36,6 +36,12 @@ interface SimState {
   // Assessment data
   assessment: AssessmentPayload | null;
 
+  // Ops alerts
+  opsAlerts: any[];
+
+  // Planned targets
+  plannedTargets: any[];
+
   // ISR state
   isrQueue: ISRRequirement[];
   coverageMode: 'balanced' | 'threat_adaptive';
@@ -78,6 +84,8 @@ interface SimState {
     assessment?: AssessmentPayload;
     isr_queue?: ISRRequirement[];
     coverage_mode?: 'balanced' | 'threat_adaptive';
+    ops_alerts?: any[];
+    planned_targets?: any[];
   }) => void;
   setConnected: (connected: boolean) => void;
   addAssistantMessage: (msg: AssistantMessage) => void;
@@ -135,6 +143,8 @@ export const useSimStore = create<SimState>((set, get) => ({
   autonomyLevel: 'MANUAL',
   pendingTransitions: {},
   assessment: null,
+  opsAlerts: [],
+  plannedTargets: [],
   isrQueue: [],
   coverageMode: 'balanced',
   mapMode: 'OPERATIONAL' as MapMode,
@@ -185,6 +195,8 @@ export const useSimStore = create<SimState>((set, get) => ({
       assistantMessages: trimmed,
       enemyUavs: data.enemy_uavs || [],
       swarmTasks: data.swarm_tasks || [],
+      opsAlerts: data.ops_alerts || [],
+      plannedTargets: data.planned_targets || [],
     });
 
     if (data.autonomy_level) {

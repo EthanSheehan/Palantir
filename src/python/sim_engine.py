@@ -20,6 +20,7 @@ from enemy_uav_engine import ENEMY_UAV_MODES, EnemyUAV
 from romania_grid import RomaniaMacroGrid
 from sensor_fusion import SensorContribution, fuse_detections
 from sensor_model import EnvironmentConditions, evaluate_detection
+from ops_alerts import OpsAlertManager
 from swarm_coordinator import SwarmCoordinator, TaskingOrder
 from target_behavior import (
     EMITTING_TYPES,
@@ -147,6 +148,9 @@ class SimulationModel:
         self.enemy_uavs: Dict[int, EnemyUAV] = {}
         self.NUM_TARGETS = sum(c for _, c in self._build_target_pool())
         self.demo_fast: bool = False
+
+        # Ops alert management
+        self.ops_alert_manager = OpsAlertManager()
 
         # Phase 5: swarm coordination
         self.swarm_coordinator = SwarmCoordinator(min_idle_count=2)
@@ -607,6 +611,10 @@ class SimulationModel:
                 uav = self._find_uav(order.uav_id)
                 if uav and not (uav.mode == "SUPPORT" and order.target_id in uav.tracked_target_ids):
                     self._assign_target(order.uav_id, order.target_id, "SUPPORT", "DETECTED")
+
+        # 12. Ops alert evaluation
+        for u in self.uavs.values():
+            self.ops_alert_manager.evaluate_drone(u.id, u.fuel_hours, u.mode)
 
     def _update_enemy_intercept(self, u: UAV, dt_sec: float):
         speed = self.SPEED_DEG_PER_SEC
@@ -1093,4 +1101,5 @@ class SimulationModel:
                 }
                 for task in self.swarm_coordinator.get_active_tasks().values()
             ],
+            "ops_alerts": self.ops_alert_manager.get_active_alerts(),
         }

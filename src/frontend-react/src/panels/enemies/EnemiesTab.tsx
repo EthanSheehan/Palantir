@@ -5,12 +5,14 @@ import { ThreatSummary } from './ThreatSummary';
 import { EnemyCard } from './EnemyCard';
 import { EnemyUAVCard } from './EnemyUAVCard';
 import { SwarmPanel } from './SwarmPanel';
+import { PlannedTargetsCard } from './PlannedTargetsCard';
 
 export function EnemiesTab() {
   const targets = useSimStore(s => s.targets);
   const uavs = useSimStore(s => s.uavs);
   const enemyUavs = useSimStore(s => s.enemyUavs);
   const swarmTasks = useSimStore(s => s.swarmTasks);
+  const plannedTargets = useSimStore(s => s.plannedTargets);
 
   // Track which target IDs have been seen — once visible, keep showing
   // (prevents flicker when confidence briefly dips below threshold)
@@ -75,6 +77,7 @@ export function EnemiesTab() {
               ))}
             </>
           )}
+          <PlannedTargetsCard targets={plannedTargets} />
         </div>
       )}
     </div>
