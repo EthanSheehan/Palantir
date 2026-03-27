@@ -148,6 +148,7 @@ export default function App() {
       <CommandPalette isOpen={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <GlobalAlertCenter visible={alertCenterVisible} onToggle={() => setAlertCenterVisible(v => !v)} />
       <FloatingStrikeBoard visible={strikeBoardVisible} onToggle={() => setStrikeBoardVisible(v => !v)} />
+      <BottomTimelineDock visible={timelineVisible} onToggle={() => setTimelineVisible(v => !v)} />
     </WebSocketContext.Provider>
   );
 }
