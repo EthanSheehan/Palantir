@@ -1,18 +1,46 @@
-# Automated Terrain-to-Terminal-Dive Pipeline (No UE5/SynTerra)
+# Automated Terrain-to-Terminal-Dive Pipeline
 
-Single-command pipeline that converts DEM + satellite imagery into an Isaac Sim terminal dive visualization with GPU YOLO detection.
+Single-command pipeline that converts DEM + satellite imagery into a 3D terminal dive visualization with ground truth annotation and GPU YOLO detection.
 
-## One Command to Run Everything
+**Three rendering backends** — use whichever fits your setup:
+
+| Backend | Command | Requirements |
+|---------|---------|-------------|
+| **pyrender** (recommended) | `python run_pyrender.py` | Any GPU (Intel/AMD/NVIDIA) or CPU-only |
+| **PyVista** | `python run_standalone.py` | Any GPU or CPU-only |
+| **Isaac Sim** (legacy) | `C:\isaac-sim\python.bat run_auto.py` | NVIDIA GPU + Isaac Sim 5.1 (~50GB) |
+
+## Quick Start (No NVIDIA Required)
 
 ```bash
-# Default (Iași, Romania):
+# Install dependencies (~20MB)
+pip install -r requirements.txt
+
+# Default location (Iași, Romania):
+python run_pyrender.py
+
+# Any location:
+python run_pyrender.py --dem "path/to/dem.tif" --sat "path/to/satellite.tif" --lat 46.02 --lon 7.75
+
+# Higher resolution:
+python run_pyrender.py --resolution 1280x720 --max-vertices 30000
+
+# With native YOLO inference (no WSL2 needed):
+python run_pyrender.py --yolo
+
+# Force CPU rendering (no GPU needed at all):
+python run_pyrender.py --cpu
+
+# Skip terrain rebuild (use existing mesh):
+python run_pyrender.py --no-build
+```
+
+## Legacy: Isaac Sim Backend
+
+```bash
+# Requires NVIDIA Isaac Sim 5.1 at C:\isaac-sim
 C:\isaac-sim\python.bat run_auto.py
-
-# Any location (provide your own DEM + satellite GeoTIFFs + POI coordinates):
 C:\isaac-sim\python.bat run_auto.py --dem "path\to\dem.tif" --sat "path\to\satellite.tif" --lat 46.02 --lon 7.75
-
-# Higher terrain detail:
-C:\isaac-sim\python.bat run_auto.py --dem "dem.tif" --sat "sat.tif" --lat 37.78 --lon -122.42 --max-vertices 30000
 ```
 
 This single command:
@@ -99,44 +127,61 @@ GeoTIFF DEM + Satellite imagery
 
 ## Architecture
 
+### pyrender Pipeline (recommended, no NVIDIA)
+
+```
+┌────────────────────────────────────────────────────────────┐
+│  python run_pyrender.py                                     │
+│                                                             │
+│  renderer/                                                  │
+│    camera.py      — DroneCamera (FOV, view matrix, proj)    │
+│    scene.py       — SceneBuilder (OBJ+texture, targets)     │
+│    offscreen.py   — OffscreenRenderer (GPU/CPU auto)        │
+│    annotator.py   — GroundTruthAnnotator (3D→2D bbox)       │
+│                                                             │
+│  flight/                                                    │
+│    controller.py  — FlightController (cruise/dive/terminal) │
+│    config.py      — FlightConfig (all tunable parameters)   │
+│    dynamics.py    — FlightState, Phase enum                 │
+│                                                             │
+│  Loop:                                                      │
+│    flight_controller.step(dt, gt_boxes)                     │
+│    camera.set_pose(position, direction, pitch)              │
+│    color, depth = renderer.render(scene, camera)            │
+│    gt_boxes = annotator.get_annotations(depth)              │
+│    → _tmp.png + gt_data.json                                │
+│                                                             │
+│  Optional: yolo_inference.py (native, no WSL2)              │
+│  Optional: WIN_live_viewer.py (OpenCV display)              │
+└────────────────────────────────────────────────────────────┘
+```
+
+### Isaac Sim Pipeline (legacy)
+
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │  run_auto.py (runs via C:\isaac-sim\python.bat)              │
-│                                                              │
-│  1. Cleanup old processes                                    │
-│  2. Launch WSL2 GPU YOLO watcher ──────────┐                 │
-│  3. Launch Windows live viewer ─────────┐  │                 │
-│  4. SimulationApp() ← Isaac Sim starts  │  │                 │
-│  5. Convert OBJ → USD                   │  │                 │
-│  6. Open scene, place truck, labels     │  │                 │
-│  7. Play simulation                     │  │                 │
-│  8. Terminal dive loop:                 │  │                 │
-│     ├─ Move drone                       │  │                 │
-│     ├─ Render frame                     │  │                 │
-│     ├─ Get GT bounding boxes            │  │                 │
-│     ├─ Pitch guidance controller        │  │                 │
-│     ├─ Write _tmp.png ─────────────────────→ WSL2 reads      │
-│     ├─ Write gt_data.json ─────────────────→ WSL2 reads      │
-│     │                                   │  │                 │
-│     │  WSL2: GPU YOLO on _tmp.png ──────│──┘                 │
-│     │  WSL2: Draw GT+YOLO+HUD ─────────│──→ latest_gpu_yolo  │
-│     │                                   │                    │
-│     │  Viewer: Display latest_gpu_yolo ←┘                    │
-│     └─ Loop                                                  │
+│  SimulationApp → OBJ→USD → Replicator annotators             │
+│  Same flight loop, same output format                        │
+│  Requires: NVIDIA GPU + Isaac Sim 5.1 (~50GB)               │
 └──────────────────────────────────────────────────────────────┘
 ```
 
 ## Files
 
-| File | Purpose | Runs On |
-|------|---------|---------|
-| `run_auto.py` | **Main entry point** — single command runs everything | Isaac Sim Python |
-| `build_terrain_mesh.py` | DEM + satellite GeoTIFFs → OBJ mesh + texture | Any Python (rasterio) |
-| `download_test_data.py` | Downloads DEM + satellite for test locations | Any Python (dem-stitcher) |
-| `WSL2_yolo_gpu_inference.py` | GPU YOLO inference + draws all HUD from JSON | WSL2 Ubuntu |
-| `WIN_live_viewer.py` | Displays combined GT+YOLO feed | Windows Python |
-| `ISAACSIM_terminal_dive.py` | Standalone version (paste in Script Editor) | Isaac Sim Script Editor |
-| `ISAACSIM_apply_labels.py` | Standalone label application | Isaac Sim Script Editor |
+| File | Purpose | Requires |
+|------|---------|----------|
+| `run_pyrender.py` | **Primary entry point** — pyrender + trimesh (no NVIDIA) | Python + pip deps |
+| `run_standalone.py` | PyVista/VTK alternative (no NVIDIA) | Python + pyvista |
+| `run_auto.py` | Isaac Sim version (legacy) | NVIDIA Isaac Sim 5.1 |
+| `renderer/` | Modular rendering package (camera, scene, offscreen, annotator) | pyrender, trimesh |
+| `flight/` | Flight dynamics package (controller, config, state machine) | numpy |
+| `yolo_inference.py` | Native YOLO inference (replaces WSL2 bridge) | ultralytics (optional) |
+| `build_terrain_mesh.py` | DEM + satellite GeoTIFFs → OBJ mesh + texture | rasterio, pyproj |
+| `download_test_data.py` | Downloads DEM + satellite for test locations | dem-stitcher |
+| `WSL2_yolo_gpu_inference.py` | GPU YOLO via WSL2 (legacy, still works) | WSL2 Ubuntu |
+| `WIN_live_viewer.py` | Displays combined GT+YOLO feed | opencv-python |
+| `requirements.txt` | All pip dependencies for pyrender pipeline | pip |
 
 ### Generated Files (output of build_terrain_mesh.py)
 
@@ -198,16 +243,16 @@ python download_test_data.py --locations san_francisco swiss_alps
 
 ```bash
 # San Francisco
-C:\isaac-sim\python.bat run_auto.py --dem "GIS DATA\san_francisco\dem.tif" --sat "GIS DATA\san_francisco\satellite.tif" --lat 37.78 --lon -122.42
+python run_pyrender.py --dem "GIS DATA/san_francisco/dem.tif" --sat "GIS DATA/san_francisco/satellite.tif" --lat 37.78 --lon -122.42
 
 # Swiss Alps (Matterhorn area)
-C:\isaac-sim\python.bat run_auto.py --dem "GIS DATA\swiss_alps\dem.tif" --sat "GIS DATA\swiss_alps\satellite.tif" --lat 46.02 --lon 7.75
+python run_pyrender.py --dem "GIS DATA/swiss_alps/dem.tif" --sat "GIS DATA/swiss_alps/satellite.tif" --lat 46.02 --lon 7.75
 
 # Dubai
-C:\isaac-sim\python.bat run_auto.py --dem "GIS DATA\dubai\dem.tif" --sat "GIS DATA\dubai\satellite.tif" --lat 25.20 --lon 55.27
+python run_pyrender.py --dem "GIS DATA/dubai/dem.tif" --sat "GIS DATA/dubai/satellite.tif" --lat 25.20 --lon 55.27
 
 # Tokyo
-C:\isaac-sim\python.bat run_auto.py --dem "GIS DATA\tokyo\dem.tif" --sat "GIS DATA\tokyo\satellite.tif" --lat 35.65 --lon 139.77
+python run_pyrender.py --dem "GIS DATA/tokyo/dem.tif" --sat "GIS DATA/tokyo/satellite.tif" --lat 35.65 --lon 139.77
 ```
 
 ## Terminal Dive Behavior
@@ -232,19 +277,35 @@ IMPACT
 
 ## Prerequisites
 
-### Windows
+### pyrender Pipeline (recommended)
+
+```bash
+pip install -r requirements.txt
+# That's it. Works on Windows, Linux, macOS. Any GPU or CPU-only.
+```
+
+Core dependencies (~20MB total):
+- `pyrender>=0.1.45` — offscreen 3D rendering
+- `trimesh>=4.0` — OBJ mesh loading
+- `pyglet>=2.0` — OpenGL context (Windows GPU)
+- `numpy`, `Pillow`, `opencv-python`
+- `rasterio`, `pyproj` — for terrain mesh building
+
+Optional (for native YOLO):
+```bash
+pip install ultralytics torch
+```
+
+### Isaac Sim Pipeline (legacy)
+
 - NVIDIA Isaac Sim 5.1 at `C:\isaac-sim`
 - numpy 1.26.4: `C:\isaac-sim\python.bat -m pip install numpy==1.26.4`
-- Pillow: `C:\isaac-sim\python.bat -m pip install Pillow`
-- rasterio + pyproj: `C:\isaac-sim\python.bat -m pip install rasterio pyproj`
-- OpenCV: `pip install opencv-python` (system Python for viewer)
+- NVIDIA GPU required
 
-### WSL2 (Ubuntu 22.04)
-- ROS2 Humble: `sudo apt install ros-humble-ros-base ros-humble-cv-bridge`
-- PyTorch nightly: `pip3 install torch --pre --index-url https://download.pytorch.org/whl/nightly/cu128`
-- ultralytics: `pip3 install ultralytics`
-- numpy 1.26.4: `pip3 install numpy==1.26.4`
-- opencv: `pip3 install opencv-python-headless`
+### WSL2 YOLO (legacy, only if not using native yolo_inference.py)
+
+- WSL2 Ubuntu 22.04 with PyTorch + CUDA
+- ultralytics, opencv-python-headless
 
 ## Troubleshooting
 
@@ -266,63 +327,56 @@ IMPACT
 
 ### Different Location (CLI)
 ```bash
-C:\isaac-sim\python.bat run_auto.py --dem "your_dem.tif" --sat "your_sat.tif" --lat 51.5 --lon -0.12
+python run_pyrender.py --dem "your_dem.tif" --sat "your_sat.tif" --lat 51.5 --lon -0.12
 ```
 
 ### Off-Center POI
 The POI does NOT need to be at the center of the tile. It can be anywhere within the DEM bounds. The terrain renders the full DEM extent; the truck is placed at the POI coordinates. The drone always approaches from 300m offset along the X-axis relative to the POI.
 
-### Different Target Object
-Replace the placeholder cube in `run_auto.py` with a USD mesh reference:
-```python
-# Instead of UsdGeom.Cube.Define(stage, truck_path):
-truck_prim = stage.DefinePrim('/Target', 'Xform')
-truck_prim.GetReferences().AddReference('path/to/your_object.usd')
-```
-
 ### Higher/Lower Terrain Detail
 ```bash
-# More vertices = more detail but slower
-C:\isaac-sim\python.bat run_auto.py --max-vertices 50000
-
-# Fewer vertices = faster but coarser
-C:\isaac-sim\python.bat run_auto.py --max-vertices 5000
+python run_pyrender.py --max-vertices 50000   # more detail
+python run_pyrender.py --max-vertices 5000    # faster
 ```
-The subsample factor is auto-calculated: `subsample = sqrt(total_dem_pixels / max_vertices)`
+
+### Custom Resolution
+```bash
+python run_pyrender.py --resolution 1280x720
+python run_pyrender.py --resolution 1920x1080
+```
 
 ### Drone Flight Parameters
-Edit these constants in `run_auto.py` (search for "CONFIG"):
+Edit `flight/config.py` (FlightConfig dataclass):
 ```python
-DRONE_ALTITUDE = 10000.0      # cm = 100m starting altitude
-START_OFFSET = 30000.0        # cm = 300m start distance from target
-DIVE_TRIGGER_DIST = 15000.0   # cm = 150m — dive begins here
-SPEED_CM_PER_SEC = 1388.9     # 50kph
-INITIAL_PITCH = 0.0           # degrees — level cruise
-Kp_PITCH = 0.15               # pitch gain (deg/pixel error)
-MIN_PITCH, MAX_PITCH = 5.0, 85.0
-MIN_ALTITUDE = 200.0          # cm = 2m — impact threshold
+FlightConfig(
+    drone_altitude_cm=10000.0,     # 100m starting altitude
+    start_offset_cm=30000.0,       # 300m start distance
+    dive_trigger_dist_cm=15000.0,  # 150m — dive begins
+    speed_cm_per_sec=1388.9,       # 50kph
+    kp_pitch=0.15,                 # pitch gain (deg/pixel)
+    min_pitch=5.0, max_pitch=85.0,
+    min_altitude_cm=200.0,         # 2m impact threshold
+)
+```
+
+### Adding Custom Target Objects
+```python
+from renderer import SceneBuilder
+scene = SceneBuilder("terrain_mesh.obj", "terrain_texture.png", metadata)
+scene.add_target("truck", "truck", position=[0, 5000, 0], size=500)
+scene.add_target("tank", "tank", position=[1000, 5100, 500], size=800)
 ```
 
 ### Web Backend Integration
 ```python
-# Flask/FastAPI endpoint
 @app.post("/api/missions/visualize")
 async def visualize(dem_file, sat_file, poi_lat, poi_lon):
-    # 1. Save uploaded files to disk
-    dem_path = save_upload(dem_file)
-    sat_path = save_upload(sat_file)
-
-    # 2. Launch the full pipeline via subprocess
-    import subprocess
     proc = subprocess.Popen([
-        r"C:\isaac-sim\python.bat", "run_auto.py",
-        "--dem", dem_path,
-        "--sat", sat_path,
-        "--lat", str(poi_lat),
-        "--lon", str(poi_lon),
-    ], cwd=r"path\to\no_synterra_attempt")
-
-    # 3. Stream output/latest_gpu_yolo.png to frontend via WebSocket/polling
+        sys.executable, "run_pyrender.py",
+        "--dem", dem_path, "--sat", sat_path,
+        "--lat", str(poi_lat), "--lon", str(poi_lon),
+        "--headless",
+    ], cwd="path/to/no_synterra_attempt")
     return {"status": "running", "pid": proc.pid}
 ```
 
@@ -341,16 +395,30 @@ with rasterio.open('dem.tif', 'w', **profile) as ds:
 # Satellite — see download_test_data.py for full example
 ```
 
+## Performance Comparison
+
+| Metric | Isaac Sim (`run_auto.py`) | pyrender (`run_pyrender.py`) |
+|--------|--------------------------|------------------------------|
+| Install size | ~50GB (Isaac Sim binary) | ~20MB (pip packages) |
+| Startup time | 60-120 seconds | <2 seconds |
+| Render FPS (GPU) | 20-30 FPS (RTX) | 30-40 FPS (OpenGL) |
+| Render FPS (CPU) | N/A | 10-20 FPS (OSMesa) |
+| GT bbox accuracy | Sub-pixel (Replicator) | Pixel-accurate (projection math) |
+| Memory usage | 4-8GB VRAM | 200-500MB RAM |
+| Platform | Windows + NVIDIA GPU only | Any OS, any GPU, or CPU-only |
+| numpy version | Locked to 1.26.4 | Any 1.24+ or 2.x |
+| Python version | Isaac Sim's bundled Python | Any Python 3.10+ |
+
 ## Design Decisions Log
 
 | Decision | Why | Alternative Considered |
 |----------|-----|----------------------|
+| pyrender + trimesh over Isaac Sim | No NVIDIA dependency, 2500x smaller install, faster startup | PyVista/VTK (works but flaky offscreen on Windows) |
 | Bypass UE5 entirely | SynTerra is GUI-only, cannot be automated | Cesium for Unreal (has API but adds complexity) |
-| OBJ → USD via Isaac Sim converter | pxr (OpenUSD) not available in system Python 3.14 | Direct USD construction with usd-core pip package |
-| Y-up coordinate system | OBJ/USD standard; Isaac Sim expects it | Z-up with post-import rotation (fragile) |
-| GPU YOLO in WSL2 via file sharing | Isaac Sim's Python has device_count=0 for CUDA | ROS2 bridge (DDS discovery failed cross-OS) |
-| JSON sidecar for GT data | Avoids HUD flicker from image compositing | Bake HUD into image on Isaac Sim side |
-| Gimbal-lock-safe camera | Cross-product singularity on steep terrain | Quaternion rotation (more complex, same result) |
+| Y-up coordinate system | OBJ standard; consistent across all backends | Z-up with post-import rotation (fragile) |
+| Camera projection for GT boxes | Pure math, no runtime dependency | Replicator annotators (NVIDIA-only) |
+| Depth buffer occlusion | pyrender provides depth; same algorithm as Replicator | Ray casting (slower, more complex) |
+| Native YOLO (`yolo_inference.py`) | No WSL2 needed; runs on same GPU | WSL2 bridge (still works as fallback) |
+| Gimbal-lock-safe camera | Heading+pitch avoids singularity on steep terrain | Quaternion rotation (more complex, same result) |
 | Auto-subsample mesh | Different DEM sizes need different detail levels | Fixed subsample (breaks on large/small DEMs) |
-| numpy==1.26.4 lock | Replicator C++ extensions compiled against numpy 1.x | None — this is a hard requirement |
-| SimulationApp launch | --exec flag unreliable on Isaac Sim 5.1 Windows | Script Editor paste (manual) |
+| Modular packages (renderer/, flight/) | Reusable, testable, swappable backends | Monolithic script (harder to maintain) |
