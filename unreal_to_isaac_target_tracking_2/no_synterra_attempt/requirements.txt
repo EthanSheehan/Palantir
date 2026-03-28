@@ -1,0 +1,18 @@
+# Core rendering (no NVIDIA required)
+pyrender>=0.1.45
+trimesh>=4.0
+pyglet>=2.0
+PyOpenGL>=3.1.0
+
+# Image processing
+numpy>=1.24
+Pillow>=9.0
+opencv-python>=4.8
+
+# Terrain mesh building
+rasterio
+pyproj
+
+# Optional: native YOLO inference (replaces WSL2 bridge)
+# ultralytics
+# torch
