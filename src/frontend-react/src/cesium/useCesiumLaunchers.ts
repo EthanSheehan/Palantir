@@ -21,7 +21,7 @@ function getLauncherPin(available: number, capacity: number): string {
 
 function dispatchLaunch(launcherName: string): void {
   window.dispatchEvent(
-    new CustomEvent('palantir:send', {
+    new CustomEvent('amc-grid:send', {
       detail: { action: 'launch_drone', launcher_name: launcherName },
     })
   );

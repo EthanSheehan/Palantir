@@ -9,22 +9,22 @@ import { test, expect } from './fixtures/base';
 
 test.describe('Tactical AIP Assistant', () => {
   test('assistant widget is visible on MISSION tab', async ({
-    palantirPage,
+    amcGridPage,
   }) => {
-    await expect(palantirPage.assistantLog).toBeVisible();
+    await expect(amcGridPage.assistantLog).toBeVisible();
   });
 
   test('shows system initialization message on load', async ({
-    palantirPage,
+    amcGridPage,
   }) => {
     // The HTML pre-populates "AIP System Initialized..."
     await expect(
-      palantirPage.assistantLog.locator('.assistant-msg.system')
+      amcGridPage.assistantLog.locator('.assistant-msg.system')
     ).toContainText('AIP System Initialized');
   });
 
   test('ASSISTANT_MESSAGE from WebSocket appears in log', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
@@ -33,11 +33,11 @@ test.describe('Tactical AIP Assistant', () => {
       'NEW CONTACT: SAM localized at 26.1234, 44.5678'
     );
 
-    await palantirPage.assertAssistantMessageVisible('NEW CONTACT: SAM');
+    await amcGridPage.assertAssistantMessageVisible('NEW CONTACT: SAM');
   });
 
   test('multiple assistant messages accumulate in log', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
@@ -46,13 +46,13 @@ test.describe('Tactical AIP Assistant', () => {
     await wsMock.sendAssistantMessage('Contact Bravo detected');
     await wsMock.sendAssistantMessage('Contact Charlie detected');
 
-    await palantirPage.assertAssistantMessageVisible('Contact Alpha detected');
-    await palantirPage.assertAssistantMessageVisible('Contact Bravo detected');
-    await palantirPage.assertAssistantMessageVisible('Contact Charlie detected');
+    await amcGridPage.assertAssistantMessageVisible('Contact Alpha detected');
+    await amcGridPage.assertAssistantMessageVisible('Contact Bravo detected');
+    await amcGridPage.assertAssistantMessageVisible('Contact Charlie detected');
   });
 
   test('assistant messages render with correct CSS class', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
@@ -60,14 +60,14 @@ test.describe('Tactical AIP Assistant', () => {
     await wsMock.sendAssistantMessage('Test operational message');
 
     // New messages should use 'assistant-msg' class
-    const newMsg = palantirPage.assistantLog.locator(
+    const newMsg = amcGridPage.assistantLog.locator(
       '.assistant-msg:has-text("Test operational message")'
     );
     await expect(newMsg).toBeVisible({ timeout: 5000 });
   });
 
   test('assistant log messages include timestamp text', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
@@ -77,33 +77,33 @@ test.describe('Tactical AIP Assistant', () => {
 
     // The app.js template includes the timestamp in message text:
     // `[${msg.timestamp}] ${msg.text}`
-    const logEl = palantirPage.assistantLog;
+    const logEl = amcGridPage.assistantLog;
     await expect(logEl).toContainText(ts, { timeout: 5000 });
   });
 
   test('assistant widget header shows correct title', async ({
-    palantirPage,
+    amcGridPage,
   }) => {
     await expect(
-      palantirPage.page.locator('.widget-header')
+      amcGridPage.page.locator('.widget-header')
     ).toContainText('TACTICAL AIP ASSISTANT');
   });
 
   test('assistant messages remain after tab switch', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
 
     await wsMock.sendAssistantMessage('Persistent message test');
 
-    await palantirPage.assertAssistantMessageVisible('Persistent message test');
+    await amcGridPage.assertAssistantMessageVisible('Persistent message test');
 
     // Switch away and back
-    await palantirPage.switchToAssetsTab();
-    await palantirPage.switchToMissionTab();
+    await amcGridPage.switchToAssetsTab();
+    await amcGridPage.switchToMissionTab();
 
     // Message should still be there
-    await palantirPage.assertAssistantMessageVisible('Persistent message test');
+    await amcGridPage.assertAssistantMessageVisible('Persistent message test');
   });
 });

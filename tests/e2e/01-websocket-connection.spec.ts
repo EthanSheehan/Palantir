@@ -14,7 +14,7 @@ import { buildState, mockUav, mockZone } from './helpers/ws-mock';
 
 test.describe('WebSocket Connection', () => {
   test('sends IDENTIFY handshake immediately after connecting', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     const identPayload = await wsMock.waitForIdentify();
@@ -24,13 +24,13 @@ test.describe('WebSocket Connection', () => {
   });
 
   test('shows "Uplink Active" status once WebSocket opens', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     // Wait for the handshake — this also confirms the WS opened successfully
     await wsMock.waitForIdentify();
 
-    await palantirPage.assertConnected();
+    await amcGridPage.assertConnected();
   });
 
   test('status is offline/disconnected before connection opens', async ({
@@ -44,22 +44,22 @@ test.describe('WebSocket Connection', () => {
   });
 
   test('shows "Signal Lost" when WebSocket closes', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
-    await palantirPage.assertConnected();
+    await amcGridPage.assertConnected();
 
     await wsMock.closeConnection();
 
-    await expect(palantirPage.connStatus).toHaveText('Signal Lost', {
+    await expect(amcGridPage.connStatus).toHaveText('Signal Lost', {
       timeout: 5000,
     });
-    await expect(palantirPage.connStatus).toHaveClass(/disconnected/);
+    await expect(amcGridPage.connStatus).toHaveClass(/disconnected/);
   });
 
   test('updates UAV and zone counters from state payload', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
@@ -77,12 +77,12 @@ test.describe('WebSocket Connection', () => {
 
     await wsMock.sendState(state);
 
-    await expect(palantirPage.uavCount).toHaveText('3', { timeout: 5000 });
-    await expect(palantirPage.zoneCount).toHaveText('5', { timeout: 5000 });
+    await expect(amcGridPage.uavCount).toHaveText('3', { timeout: 5000 });
+    await expect(amcGridPage.zoneCount).toHaveText('5', { timeout: 5000 });
   });
 
   test('ignores malformed/unknown message types gracefully', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
     page,
   }) => {
@@ -104,7 +104,7 @@ test.describe('WebSocket Connection', () => {
     });
 
     // Status should still be connected (no crash)
-    await palantirPage.assertConnected();
+    await amcGridPage.assertConnected();
 
     // No uncaught errors from the unknown payload
     expect(

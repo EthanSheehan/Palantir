@@ -13,7 +13,7 @@ logger = structlog.get_logger()
 
 class DashboardConnector:
     """
-    WebSocket client to transmit tracking data and MJPEG frames to the Palantir C2 backend.
+    WebSocket client to transmit tracking data and MJPEG frames to the AMC-Grid C2 backend.
     """
 
     def __init__(self, backend_url: str = "ws://localhost:8000/ws"):
@@ -54,7 +54,7 @@ class DashboardConnector:
 
     async def send_telemetry(self, track_data: Dict[str, Any], drone_id: str = "Drone-01"):
         """
-        Send tracking metadata formatted as a Palantir C2 Object.
+        Send tracking metadata formatted as a AMC-Grid C2 Object.
         """
         await self.send_telemetry_batch([track_data], drone_id)
 

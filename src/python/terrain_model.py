@@ -1,7 +1,7 @@
 """
 terrain_model.py
 ================
-Terrain and line-of-sight analysis for the Palantir C2 system.
+Terrain and line-of-sight analysis for the AMC-Grid C2 system.
 
 Provides a geometric terrain model using simplified TerrainFeature obstacles
 (hills/mountains defined by center point, radius, and peak elevation). Supports:

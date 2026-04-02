@@ -1,7 +1,7 @@
 """
 isr_priority.py
 ===============
-Pure-function ISR priority queue builder for Palantir C2.
+Pure-function ISR priority queue builder for AMC-Grid C2.
 
 Converts battlespace assessment output and sim state into a ranked list of
 ISRRequirement objects. No instance state, no side effects.

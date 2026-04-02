@@ -10,42 +10,42 @@ import { test, expect } from './fixtures/base';
 
 test.describe('Waypoint Toggle', () => {
   test('waypoint toggle button exists on MISSION tab', async ({
-    palantirPage,
+    amcGridPage,
   }) => {
-    await expect(palantirPage.toggleWaypointsBtn).toBeVisible();
+    await expect(amcGridPage.toggleWaypointsBtn).toBeVisible();
   });
 
-  test('initial state is "All Waypoints: OFF"', async ({ palantirPage }) => {
-    await palantirPage.assertWaypointsState('OFF');
+  test('initial state is "All Waypoints: OFF"', async ({ amcGridPage }) => {
+    await amcGridPage.assertWaypointsState('OFF');
   });
 
   test('first click enables "All Waypoints: ON"', async ({
-    palantirPage,
+    amcGridPage,
   }) => {
-    await palantirPage.toggleWaypoints();
-    await palantirPage.assertWaypointsState('ON');
+    await amcGridPage.toggleWaypoints();
+    await amcGridPage.assertWaypointsState('ON');
   });
 
   test('second click toggles back to "All Waypoints: OFF"', async ({
-    palantirPage,
+    amcGridPage,
   }) => {
-    await palantirPage.toggleWaypoints(); // OFF -> ON
-    await palantirPage.toggleWaypoints(); // ON -> OFF
-    await palantirPage.assertWaypointsState('OFF');
+    await amcGridPage.toggleWaypoints(); // OFF -> ON
+    await amcGridPage.toggleWaypoints(); // ON -> OFF
+    await amcGridPage.assertWaypointsState('OFF');
   });
 
   test('toggle cycles ON/OFF correctly across multiple clicks', async ({
-    palantirPage,
+    amcGridPage,
   }) => {
     for (let i = 0; i < 5; i++) {
       const expectedState = i % 2 === 0 ? 'ON' : 'OFF';
-      await palantirPage.toggleWaypoints();
-      await palantirPage.assertWaypointsState(expectedState);
+      await amcGridPage.toggleWaypoints();
+      await amcGridPage.assertWaypointsState(expectedState);
     }
   });
 
   test('button color changes when waypoints are enabled', async ({
-    palantirPage,
+    amcGridPage,
     page,
   }) => {
     const getColor = () =>
@@ -54,7 +54,7 @@ test.describe('Waypoint Toggle', () => {
         .evaluate((el) => (el as HTMLElement).style.color);
 
     const offColor = await getColor();
-    await palantirPage.toggleWaypoints();
+    await amcGridPage.toggleWaypoints();
     const onColor = await getColor();
 
     // Colors should differ between ON and OFF states

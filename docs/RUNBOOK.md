@@ -1,18 +1,18 @@
-# Palantir C2 Operations Runbook
+# AMC-Grid C2 Operations Runbook
 
 **Last Updated: 2026-03-19**
 
-This guide covers deployment, health checks, monitoring, common issues, and rollback procedures for Palantir C2.
+This guide covers deployment, health checks, monitoring, common issues, and rollback procedures for AMC-Grid C2.
 
 ## System Overview
 
-Palantir is a three-component system:
+AMC-Grid is a three-component system:
 
 1. **FastAPI Backend** (`:8000`) — WebSocket server, simulation engine, AI agents
 2. **Cesium Frontend** (`:3000`) — 3D tactical visualization
 3. **Drone Simulator** — Optional UAV telemetry generator
 
-All three launch with `./palantir.sh` but can run independently for testing.
+All three launch with `./amc-grid.sh` but can run independently for testing.
 
 ## Pre-Deployment Checklist
 
@@ -36,7 +36,7 @@ ls -la venv/bin/python3
 cat .env | grep -E "OPENAI|ANTHROPIC|GEMINI"  # Check API keys
 
 # Launch all systems
-./palantir.sh
+./amc-grid.sh
 
 # System ready when you see:
 # ================================================
@@ -84,20 +84,20 @@ CMD ["python", "-m", "uvicorn", "src.python.api_main:app", "--host", "0.0.0.0", 
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: palantir-backend
+  name: amc-grid-backend
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: palantir
+      app: amc-grid
   template:
     metadata:
       labels:
-        app: palantir
+        app: amc-grid
     spec:
       containers:
       - name: backend
-        image: palantir:latest
+        image: amc-grid:latest
         ports:
         - containerPort: 8000
         env:
@@ -108,7 +108,7 @@ spec:
         - name: OPENAI_API_KEY
           valueFrom:
             secretKeyRef:
-              name: palantir-secrets
+              name: amc-grid-secrets
               key: openai-key
         livenessProbe:
           httpGet:
@@ -176,14 +176,14 @@ wscat -c ws://localhost:8000/ws
 
 ```bash
 # Tail real-time logs
-tail -f /tmp/palantir.log
+tail -f /tmp/amc-grid.log
 
 # Filter by severity
-grep "ERROR" /tmp/palantir.log
-grep "WARNING" /tmp/palantir.log
+grep "ERROR" /tmp/amc-grid.log
+grep "WARNING" /tmp/amc-grid.log
 
 # Check structlog output
-cat /tmp/palantir.log | jq .  # Pretty-print JSON logs
+cat /tmp/amc-grid.log | jq .  # Pretty-print JSON logs
 ```
 
 ### Key Log Messages
@@ -218,7 +218,7 @@ Monitor these key metrics:
 ERROR: Address already in use: ('0.0.0.0', 8000)
 ```
 
-**Note:** `palantir.sh` automatically kills stale processes on ports 8000 and 3000 before starting. This issue only occurs when running components manually.
+**Note:** `amc-grid.sh` automatically kills stale processes on ports 8000 and 3000 before starting. This issue only occurs when running components manually.
 
 **Fix:**
 ```bash
@@ -232,7 +232,7 @@ kill -9 <PID>
 echo "PORT=8001" >> .env
 
 # Restart
-./palantir.sh
+./amc-grid.sh
 ```
 
 ### Issue: WebSocket connection timeout
@@ -335,7 +335,7 @@ find . -type d -name __pycache__ -exec rm -r {} +
 # Use serve.py (not python3 -m http.server)
 python3 src/frontend/serve.py 3000
 
-# palantir.sh already uses serve.py automatically
+# amc-grid.sh already uses serve.py automatically
 ```
 
 **Nuclear option:** If stale code persists even with `serve.py`:
@@ -371,7 +371,7 @@ python3 src/frontend/serve.py 3000
 
 **Problem:** Port 8000 or 3000 already in use from a previous run.
 
-**Note:** `palantir.sh` now auto-kills stale processes on ports 8000 and 3000 before launching, so this only applies when running components manually.
+**Note:** `amc-grid.sh` now auto-kills stale processes on ports 8000 and 3000 before launching, so this only applies when running components manually.
 
 **Fix:**
 ```bash
@@ -411,10 +411,10 @@ Demo mode runs the full F2T2EA kill chain autonomously with no human input requi
 
 ```bash
 # Full demo with drone video simulator
-./palantir.sh --demo
+./amc-grid.sh --demo
 
 # Lightweight demo (skips drone video simulator)
-./palantir.sh --demo --no-sim
+./amc-grid.sh --demo --no-sim
 
 # Or set the environment variable directly
 DEMO_MODE=true ./venv/bin/python3 src/python/api_main.py
@@ -457,12 +457,12 @@ git checkout <good-commit-hash>
 ./venv/bin/pip install -r requirements.txt
 
 # Restart
-./palantir.sh
+./amc-grid.sh
 ```
 
 ### Rollback Database/Configuration
 
-Palantir doesn't use a database (simulation is in-memory), but scenarios can be reset:
+AMC-Grid doesn't use a database (simulation is in-memory), but scenarios can be reset:
 
 ```bash
 # Reload default theater configuration
@@ -487,7 +487,7 @@ HITL_ENABLED=false
 AGENT_MODE=heuristic  # Use heuristics only, no LLM
 
 # Restart
-./palantir.sh
+./amc-grid.sh
 ```
 
 ## Scaling Considerations
@@ -538,13 +538,13 @@ redis_client.set('sim:state', json.dumps(simulation_state))
 
 ### Daily
 
-- [ ] Check logs for ERRORs: `grep ERROR /tmp/palantir.log`
+- [ ] Check logs for ERRORs: `grep ERROR /tmp/amc-grid.log`
 - [ ] Verify health: `curl http://localhost:8000/api/theaters`
 - [ ] Monitor memory: `ps aux | grep api_main | grep -v grep`
 
 ### Weekly
 
-- [ ] Rotate logs: `mv /tmp/palantir.log /tmp/palantir.log.$(date +%Y%m%d)`
+- [ ] Rotate logs: `mv /tmp/amc-grid.log /tmp/amc-grid.log.$(date +%Y%m%d)`
 - [ ] Review agent fallbacks: Check how often heuristics are used vs LLM
 - [ ] Backup configurations: `tar czf theaters.backup.tar.gz theaters/`
 
@@ -590,7 +590,7 @@ git push origin main
 # 2. Clone fresh copy
 cd ~/
 git clone <repo-url>
-cd Palantir
+cd AMC-Grid
 
 # 3. Recreate environment
 python3 -m venv venv
@@ -604,12 +604,12 @@ cp .env.example .env
 cp /backup/theaters/*.yaml theaters/
 
 # 6. Start fresh
-./palantir.sh
+./amc-grid.sh
 ```
 
 ### Data Reconstruction
 
-Palantir doesn't store persistent data (simulation is ephemeral), but scenarios can be reconstructed:
+AMC-Grid doesn't store persistent data (simulation is ephemeral), but scenarios can be reconstructed:
 
 ```bash
 # All theater configurations are in source control
@@ -621,7 +621,7 @@ git checkout <commit-hash> -- theaters/romania.yaml
 
 ## Support Resources
 
-- **Code Issues**: Check [GitHub Issues](https://github.com/EthanSheehan/Palantir/issues)
+- **Code Issues**: Check [GitHub Issues](https://github.com/EthanSheehan/AMC-Grid/issues)
 - **Architecture**: Read [CLAUDE.md](../CLAUDE.md)
 - **API Docs**: Visit `http://localhost:8000/docs` (when running)
 - **Contributing**: See [CONTRIBUTING.md](CONTRIBUTING.md)
@@ -629,4 +629,4 @@ git checkout <commit-hash> -- theaters/romania.yaml
 ## Contacts
 
 - **Project Lead**: Ethan Sheehan
-- **Incident Channel**: [#palantir-incidents](https://example.com) (Slack)
+- **Incident Channel**: [#amc-grid-incidents](https://example.com) (Slack)

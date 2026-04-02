@@ -1,4 +1,4 @@
-# Palantir Simulation Engine -- Technical Reference
+# AMC-Grid Simulation Engine -- Technical Reference
 
 **Date:** 2026-03-19
 **Source files:** `src/python/sim_engine.py`, `src/python/sensor_model.py`, `src/python/sensor_fusion.py`, `src/python/verification_engine.py`, `theaters/*.yaml`
@@ -28,7 +28,7 @@
 
 ## Overview
 
-The Palantir simulation engine (`SimulationModel`) is a 10 Hz real-time tactical simulator that models UAV surveillance operations against heterogeneous ground threats. It runs inside the FastAPI backend's WebSocket loop and broadcasts full simulation state to all connected clients each tick.
+The AMC-Grid simulation engine (`SimulationModel`) is a 10 Hz real-time tactical simulator that models UAV surveillance operations against heterogeneous ground threats. It runs inside the FastAPI backend's WebSocket loop and broadcasts full simulation state to all connected clients each tick.
 
 The engine handles:
 

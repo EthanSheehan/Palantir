@@ -12,7 +12,7 @@ import { buildState, mockTarget } from './helpers/ws-mock';
 
 test.describe('Target Selection', () => {
   test('enemy cards are clickable elements', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
@@ -21,18 +21,18 @@ test.describe('Target Selection', () => {
       buildState({ targets: [mockTarget(1, { detected: true })] })
     );
 
-    await palantirPage.switchToEnemiesTab();
-    await palantirPage.assertEnemyCardVisible(1);
+    await amcGridPage.switchToEnemiesTab();
+    await amcGridPage.assertEnemyCardVisible(1);
 
     // Verify the card is interactive (no error thrown on click)
-    await palantirPage.enemyCard(1).click();
+    await amcGridPage.enemyCard(1).click();
 
     // Card should still be visible after click
-    await palantirPage.assertEnemyCardVisible(1);
+    await amcGridPage.assertEnemyCardVisible(1);
   });
 
   test('clicking enemy card does not cause JS errors', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
     page,
   }) => {
@@ -50,15 +50,15 @@ test.describe('Target Selection', () => {
       buildState({ targets: [mockTarget(3, { detected: true })] })
     );
 
-    await palantirPage.switchToEnemiesTab();
-    await palantirPage.enemyCard(3).click();
+    await amcGridPage.switchToEnemiesTab();
+    await amcGridPage.enemyCard(3).click();
 
     // No non-Cesium JS errors after clicking
     expect(errors).toHaveLength(0);
   });
 
   test('enemy card contains all required data fields', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
@@ -76,9 +76,9 @@ test.describe('Target Selection', () => {
       })
     );
 
-    await palantirPage.switchToEnemiesTab();
+    await amcGridPage.switchToEnemiesTab();
 
-    const card = palantirPage.enemyCard(99);
+    const card = amcGridPage.enemyCard(99);
     await expect(card).toContainText('TARGET-99');
     await expect(card).toContainText('TEL');
     await expect(card).toContainText('45.1234');
@@ -86,7 +86,7 @@ test.describe('Target Selection', () => {
   });
 
   test('multiple enemy cards are independently clickable', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
@@ -101,13 +101,13 @@ test.describe('Target Selection', () => {
       })
     );
 
-    await palantirPage.switchToEnemiesTab();
-    await palantirPage.assertEnemyCount(3);
+    await amcGridPage.switchToEnemiesTab();
+    await amcGridPage.assertEnemyCount(3);
 
     // Click each card without errors
     for (const id of [1, 2, 3]) {
-      await palantirPage.enemyCard(id).click();
-      await palantirPage.assertEnemyCardVisible(id);
+      await amcGridPage.enemyCard(id).click();
+      await amcGridPage.assertEnemyCardVisible(id);
     }
   });
 });

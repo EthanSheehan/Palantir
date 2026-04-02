@@ -1,8 +1,8 @@
-# Contributing to Palantir C2
+# Contributing to AMC-Grid C2
 
 **Last Updated: 2026-03-19**
 
-This guide covers development setup, testing, code style, and the PR process for Palantir.
+This guide covers development setup, testing, code style, and the PR process for AMC-Grid.
 
 ## Development Setup
 
@@ -16,8 +16,8 @@ This guide covers development setup, testing, code style, and the PR process for
 
 ```bash
 # Clone the repository
-git clone https://github.com/EthanSheehan/Palantir.git
-cd Palantir
+git clone https://github.com/EthanSheehan/AMC-Grid.git
+cd AMC-Grid
 
 # Create virtual environment
 python3 -m venv venv
@@ -49,9 +49,9 @@ cp .env.example .env
 
 | Command | Purpose | Runs |
 |---------|---------|------|
-| `./palantir.sh` | Launch complete system (backend + frontend + simulator) | FastAPI (:8000) + HTTP Server (:3000) + Simulator |
-| `./palantir.sh --demo` | Launch in demo auto-pilot mode (full F2T2EA kill chain) | All components + auto-approvals |
-| `./palantir.sh --demo --no-sim` | Demo mode without drone video simulator | Backend + frontend only |
+| `./amc-grid.sh` | Launch complete system (backend + frontend + simulator) | FastAPI (:8000) + HTTP Server (:3000) + Simulator |
+| `./amc-grid.sh --demo` | Launch in demo auto-pilot mode (full F2T2EA kill chain) | All components + auto-approvals |
+| `./amc-grid.sh --demo --no-sim` | Demo mode without drone video simulator | Backend + frontend only |
 | `./venv/bin/python3 src/python/api_main.py` | Run FastAPI backend only | WebSocket server on :8000 |
 | `cd src/frontend && python3 serve.py 3000` | Run dashboard frontend only (no-cache) | Dev HTTP server on :3000 |
 | `./venv/bin/python3 src/python/vision/video_simulator.py` | Run drone simulator only | Connects to :8000/ws |
@@ -67,7 +67,7 @@ cp .env.example .env
 
 **Run the full system:**
 ```bash
-./palantir.sh
+./amc-grid.sh
 # Opens browser at http://localhost:3000
 # API docs available at http://localhost:8000/docs
 ```
@@ -90,7 +90,7 @@ cp .env.example .env
 **Run E2E tests (requires running backend):**
 ```bash
 # In one terminal
-./palantir.sh
+./amc-grid.sh
 
 # In another terminal
 npm run test:e2e:headed
@@ -584,9 +584,9 @@ npm run test:e2e -- --workers=1
 
 - **Architecture**: See [CLAUDE.md](../CLAUDE.md)
 - **API Docs**: `http://localhost:8000/docs` (when running)
-- **Coding Standards**: [Coding Style Rules](https://github.com/EthanSheehan/Palantir/blob/main/.claude/rules/coding-style.md)
-- **Testing Guide**: [Testing Requirements](https://github.com/EthanSheehan/Palantir/blob/main/.claude/rules/testing.md)
-- **Git Workflow**: [Git Workflow](https://github.com/EthanSheehan/Palantir/blob/main/.claude/rules/git-workflow.md)
+- **Coding Standards**: [Coding Style Rules](https://github.com/EthanSheehan/AMC-Grid/blob/main/.claude/rules/coding-style.md)
+- **Testing Guide**: [Testing Requirements](https://github.com/EthanSheehan/AMC-Grid/blob/main/.claude/rules/testing.md)
+- **Git Workflow**: [Git Workflow](https://github.com/EthanSheehan/AMC-Grid/blob/main/.claude/rules/git-workflow.md)
 
 ## Questions?
 

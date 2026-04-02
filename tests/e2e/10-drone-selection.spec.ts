@@ -11,20 +11,20 @@ import { buildState, mockUav } from './helpers/ws-mock';
 
 test.describe('Drone Selection', () => {
   test('clicking a drone card expands drone details', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
 
     await wsMock.sendState(buildState({ uavs: [mockUav(1), mockUav(2)] }));
-    await palantirPage.switchToAssetsTab();
-    await palantirPage.assertDroneCardVisible(1);
+    await amcGridPage.switchToAssetsTab();
+    await amcGridPage.assertDroneCardVisible(1);
 
     // Click the drone card
-    await palantirPage.droneCard(1).click();
+    await amcGridPage.droneCard(1).click();
 
     // Wait for re-render — the app uses a 250ms click debounce
-    await palantirPage.page.waitForTimeout(400);
+    await amcGridPage.page.waitForTimeout(400);
 
     // After selection, the card should contain expanded drone details
     // (triggered by triggerDroneSelection called via click -> tracked state update)
@@ -32,11 +32,11 @@ test.describe('Drone Selection', () => {
     await wsMock.sendState(buildState({ uavs: [mockUav(1), mockUav(2)] }));
 
     // Card should still be visible and contain UAV ID
-    await expect(palantirPage.droneCard(1)).toContainText('UAV-1');
+    await expect(amcGridPage.droneCard(1)).toContainText('UAV-1');
   });
 
   test('selected drone card shows altitude and coordinates when tracked', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
     page,
   }) => {
@@ -45,7 +45,7 @@ test.describe('Drone Selection', () => {
     await wsMock.sendState(
       buildState({ uavs: [mockUav(5, { lon: 25.1234, lat: 44.5678 })] })
     );
-    await palantirPage.switchToAssetsTab();
+    await amcGridPage.switchToAssetsTab();
 
     // Inject tracking state directly to simulate what triggerDroneSelection does
     await page.evaluate(() => {
@@ -64,21 +64,21 @@ test.describe('Drone Selection', () => {
       buildState({ uavs: [mockUav(5, { lon: 25.1234, lat: 44.5678 })] })
     );
 
-    await expect(palantirPage.droneCard(5)).toContainText('UAV-5');
+    await expect(amcGridPage.droneCard(5)).toContainText('UAV-5');
   });
 
   test('camera controls appear when a drone is tracked', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
     page,
   }) => {
     await wsMock.waitForIdentify();
 
     await wsMock.sendState(buildState({ uavs: [mockUav(1)] }));
-    await palantirPage.switchToAssetsTab();
+    await amcGridPage.switchToAssetsTab();
 
     // Camera controls are hidden by default (display:none in HTML)
-    await expect(palantirPage.cameraControls).not.toBeVisible();
+    await expect(amcGridPage.cameraControls).not.toBeVisible();
 
     // Simulate tracking being activated via JS (since we can't do Cesium entity click)
     await page.evaluate(() => {
@@ -86,17 +86,17 @@ test.describe('Drone Selection', () => {
       if (controls) controls.style.display = 'flex';
     });
 
-    await expect(palantirPage.cameraControls).toBeVisible();
-    await expect(palantirPage.returnGlobalBtn).toBeVisible();
-    await expect(palantirPage.decoupleCameraBtn).toBeVisible();
+    await expect(amcGridPage.cameraControls).toBeVisible();
+    await expect(amcGridPage.returnGlobalBtn).toBeVisible();
+    await expect(amcGridPage.decoupleCameraBtn).toBeVisible();
   });
 
   test('drone list updates correctly with multiple rapid state changes', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
-    await palantirPage.switchToAssetsTab();
+    await amcGridPage.switchToAssetsTab();
 
     // Rapid state updates
     for (let i = 1; i <= 5; i++) {
@@ -106,6 +106,6 @@ test.describe('Drone Selection', () => {
     }
 
     // Final state should have 5 drones
-    await palantirPage.assertDroneCount(5);
+    await amcGridPage.assertDroneCount(5);
   });
 });

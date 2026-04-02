@@ -1,5 +1,5 @@
 {
-  "name": "palantir",
+  "name": "amc-grid",
   "version": "1.0.0",
   "description": "![Project Status](https://img.shields.io/badge/status-active-success.svg) ![License](https://img.shields.io/badge/license-MIT-blue.svg)",
   "main": "index.js",
@@ -14,21 +14,21 @@
     "test:e2e:debug": "npx playwright test --debug",
     "test:e2e:report": "npx playwright show-report",
     "test:e2e:trace": "npx playwright test --trace on",
-    "test:e2e:live": "PALANTIR_LIVE=1 npx playwright test --grep @live",
+    "test:e2e:live": "AMC_GRID_LIVE=1 npx playwright test --grep @live",
     "test:e2e:critical": "npx playwright test tests/e2e/01-websocket-connection.spec.ts tests/e2e/02-tab-navigation.spec.ts tests/e2e/03-drone-list.spec.ts tests/e2e/04-enemy-list.spec.ts tests/e2e/05-mission-status.spec.ts tests/e2e/06-tactical-assistant.spec.ts"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/EthanSheehan/Palantir.git"
+    "url": "git+https://github.com/EthanSheehan/AMC-Grid.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/EthanSheehan/Palantir/issues"
+    "url": "https://github.com/EthanSheehan/AMC-Grid/issues"
   },
-  "homepage": "https://github.com/EthanSheehan/Palantir#readme",
+  "homepage": "https://github.com/EthanSheehan/AMC-Grid#readme",
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "@types/node": "^25.5.0",

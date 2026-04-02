@@ -2,11 +2,11 @@
 
 **Last Updated: 2026-03-17**
 
-Complete reference for all Palantir environment variables, grouped by category.
+Complete reference for all AMC-Grid environment variables, grouped by category.
 
 ## Overview
 
-Palantir uses environment variables for configuration via `.env` files (loaded by `python-dotenv`). The system has sensible defaults and works without any API keys (heuristic mode).
+AMC-Grid uses environment variables for configuration via `.env` files (loaded by `python-dotenv`). The system has sensible defaults and works without any API keys (heuristic mode).
 
 ## Setup
 
@@ -45,7 +45,7 @@ These enable LLM-backed agent reasoning. Without them, agents use built-in heuri
 # No code changes required
 
 # Test LLM fallback (check logs)
-./palantir.sh 2>&1 | grep -i "inference\|provider"
+./amc-grid.sh 2>&1 | grep -i "inference\|provider"
 ```
 
 ### Server Configuration
@@ -66,7 +66,7 @@ Control how the FastAPI backend runs.
 PORT=8001 ./venv/bin/python3 src/python/api_main.py
 
 # Enable debug logging
-LOG_LEVEL=DEBUG ./palantir.sh
+LOG_LEVEL=DEBUG ./amc-grid.sh
 
 # Check if port is available before starting
 lsof -i :8000  # Should show nothing if port is free
@@ -85,10 +85,10 @@ Control simulation behavior and speed.
 
 ```bash
 # Run faster simulation (higher CPU usage)
-SIMULATION_HZ=20 ./palantir.sh
+SIMULATION_HZ=20 ./amc-grid.sh
 
 # Start with different theater
-DEFAULT_THEATER=south_china_sea ./palantir.sh
+DEFAULT_THEATER=south_china_sea ./amc-grid.sh
 
 # Available theaters (see theaters/ directory)
 ls theaters/*.yaml
@@ -105,10 +105,10 @@ Control client connectivity and backend URL.
 **Usage**:
 ```bash
 # Change if backend is on different host
-WS_BACKEND_URL=ws://192.168.1.100:8000/ws ./palantir.sh
+WS_BACKEND_URL=ws://192.168.1.100:8000/ws ./amc-grid.sh
 
 # Or if using HTTPS
-WS_BACKEND_URL=wss://api.example.com/ws ./palantir.sh
+WS_BACKEND_URL=wss://api.example.com/ws ./amc-grid.sh
 ```
 
 ### Optional: Performance Tuning
@@ -128,7 +128,7 @@ RATE_LIMIT_MAX_MESSAGES = 30  # Line ~44
 
 ## Environment Validation
 
-Palantir validates configuration on startup:
+AMC-Grid validates configuration on startup:
 
 ```bash
 # Check if .env is valid
@@ -214,7 +214,7 @@ Run with:
 docker run -e OPENAI_API_KEY=sk-... \
            -e GEMINI_API_KEY=AIza... \
            -p 8000:8000 \
-           palantir:latest
+           amc-grid:latest
 ```
 
 ### Kubernetes Deployment
@@ -223,7 +223,7 @@ docker run -e OPENAI_API_KEY=sk-... \
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: palantir-config
+  name: amc-grid-config
 data:
   HOST: "0.0.0.0"
   PORT: "8000"
@@ -234,7 +234,7 @@ data:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: palantir-secrets
+  name: amc-grid-secrets
 type: Opaque
 stringData:
   OPENAI_API_KEY: "sk-..."
@@ -257,7 +257,7 @@ echo "OPENAI_API_KEY=sk-your-key-here" >> .env
 
 # Or set directly
 export OPENAI_API_KEY=sk-...
-./palantir.sh
+./amc-grid.sh
 
 # Verify
 grep OPENAI .env
@@ -278,7 +278,7 @@ grep "^HOST=" .env
 sed -i '' 's/HOST=.*/HOST=0.0.0.0/' .env
 
 # Restart
-./palantir.sh
+./amc-grid.sh
 ```
 
 ### "Port already in use"
@@ -295,7 +295,7 @@ kill -9 <PID>
 
 # Or use different port
 echo "PORT=8001" >> .env
-./palantir.sh  # Now runs on :8001
+./amc-grid.sh  # Now runs on :8001
 ```
 
 ### Frontend can't connect to backend
@@ -324,14 +324,14 @@ echo "WS_BACKEND_URL=ws://192.168.1.100:8000/ws" >> .env
 ./venv/bin/python3 -m pytest src/python/tests/
 
 # E2E tests with live backend
-PALANTIR_LIVE=1 npm run test:e2e:live
+AMC_GRID_LIVE=1 npm run test:e2e:live
 ```
 
 ### For Debugging
 
 ```bash
 # Maximum logging
-LOG_LEVEL=DEBUG ./palantir.sh
+LOG_LEVEL=DEBUG ./amc-grid.sh
 
 # Check config loaded correctly
 ./venv/bin/python3 -c "
@@ -347,7 +347,7 @@ for k, v in os.environ.items():
 
 ```bash
 # Faster simulation for load testing
-SIMULATION_HZ=60 ./palantir.sh
+SIMULATION_HZ=60 ./amc-grid.sh
 
 # Monitor resource usage
 watch -n 0.1 'ps aux | grep api_main | grep -v grep'
@@ -365,7 +365,7 @@ Ctrl+C
 nano .env
 
 # 3. Restart
-./palantir.sh
+./amc-grid.sh
 ```
 
 For theater changes without restart:

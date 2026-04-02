@@ -26,40 +26,40 @@ test.describe('Mission Status Panel', () => {
   });
 
   test('uplink status shows "Uplink Active" after WebSocket connects', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
-    await palantirPage.assertConnected();
+    await amcGridPage.assertConnected();
   });
 
   test('uplink status has "connected" CSS class when connected', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
 
-    await expect(palantirPage.connStatus).toHaveClass(/connected/);
+    await expect(amcGridPage.connStatus).toHaveClass(/connected/);
   });
 
   test('UAV counter starts at 0 before state arrives', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
-    await expect(palantirPage.uavCount).toHaveText('0');
+    await expect(amcGridPage.uavCount).toHaveText('0');
   });
 
   test('zone counter starts at 0 before state arrives', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
-    await expect(palantirPage.zoneCount).toHaveText('0');
+    await expect(amcGridPage.zoneCount).toHaveText('0');
   });
 
   test('UAV counter updates to match state UAV count', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
@@ -68,11 +68,11 @@ test.describe('Mission Status Panel', () => {
       buildState({ uavs: [mockUav(1), mockUav(2), mockUav(3), mockUav(4)] })
     );
 
-    await expect(palantirPage.uavCount).toHaveText('4', { timeout: 5000 });
+    await expect(amcGridPage.uavCount).toHaveText('4', { timeout: 5000 });
   });
 
   test('zone counter updates to match state zone count', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
@@ -87,18 +87,18 @@ test.describe('Mission Status Panel', () => {
       })
     );
 
-    await expect(palantirPage.zoneCount).toHaveText('3', { timeout: 5000 });
+    await expect(amcGridPage.zoneCount).toHaveText('3', { timeout: 5000 });
   });
 
   test('counters update across multiple state messages', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
 
     // First state: 2 UAVs
     await wsMock.sendState(buildState({ uavs: [mockUav(1), mockUav(2)] }));
-    await expect(palantirPage.uavCount).toHaveText('2', { timeout: 5000 });
+    await expect(amcGridPage.uavCount).toHaveText('2', { timeout: 5000 });
 
     // Second state: 5 UAVs
     await wsMock.sendState(
@@ -106,23 +106,23 @@ test.describe('Mission Status Panel', () => {
         uavs: [mockUav(1), mockUav(2), mockUav(3), mockUav(4), mockUav(5)],
       })
     );
-    await expect(palantirPage.uavCount).toHaveText('5', { timeout: 5000 });
+    await expect(amcGridPage.uavCount).toHaveText('5', { timeout: 5000 });
 
     // Third state: back to 1 UAV
     await wsMock.sendState(buildState({ uavs: [mockUav(1)] }));
-    await expect(palantirPage.uavCount).toHaveText('1', { timeout: 5000 });
+    await expect(amcGridPage.uavCount).toHaveText('1', { timeout: 5000 });
   });
 
   test('mission tab is visible and contains all required widgets', async ({
-    palantirPage,
+    amcGridPage,
   }) => {
     // Verify all mission tab widgets are present
-    await expect(palantirPage.connStatus).toBeVisible();
-    await expect(palantirPage.uavCount).toBeVisible();
-    await expect(palantirPage.zoneCount).toBeVisible();
-    await expect(palantirPage.assistantLog).toBeVisible();
-    await expect(palantirPage.toggleGridBtn).toBeVisible();
-    await expect(palantirPage.toggleWaypointsBtn).toBeVisible();
-    await expect(palantirPage.resetQueueBtn).toBeVisible();
+    await expect(amcGridPage.connStatus).toBeVisible();
+    await expect(amcGridPage.uavCount).toBeVisible();
+    await expect(amcGridPage.zoneCount).toBeVisible();
+    await expect(amcGridPage.assistantLog).toBeVisible();
+    await expect(amcGridPage.toggleGridBtn).toBeVisible();
+    await expect(amcGridPage.toggleWaypointsBtn).toBeVisible();
+    await expect(amcGridPage.resetQueueBtn).toBeVisible();
   });
 });

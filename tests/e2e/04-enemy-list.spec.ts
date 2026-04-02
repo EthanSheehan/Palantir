@@ -10,7 +10,7 @@ import { buildState, mockTarget } from './helpers/ws-mock';
 
 test.describe('Enemy List Population', () => {
   test('shows empty state message when no targets detected', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
@@ -18,19 +18,19 @@ test.describe('Enemy List Population', () => {
     // No targets in state
     await wsMock.sendState(buildState({ targets: [] }));
 
-    await palantirPage.switchToEnemiesTab();
-    await palantirPage.assertEmptyEnemyState();
+    await amcGridPage.switchToEnemiesTab();
+    await amcGridPage.assertEmptyEnemyState();
   });
 
   test('shows empty state before any WebSocket message', async ({
-    palantirPage,
+    amcGridPage,
   }) => {
-    await palantirPage.switchToEnemiesTab();
-    await palantirPage.assertEmptyEnemyState();
+    await amcGridPage.switchToEnemiesTab();
+    await amcGridPage.assertEmptyEnemyState();
   });
 
   test('enemy cards appear for detected targets', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
@@ -44,14 +44,14 @@ test.describe('Enemy List Population', () => {
       })
     );
 
-    await palantirPage.switchToEnemiesTab();
-    await palantirPage.assertEnemyCount(2);
-    await palantirPage.assertEnemyCardVisible(1);
-    await palantirPage.assertEnemyCardVisible(2);
+    await amcGridPage.switchToEnemiesTab();
+    await amcGridPage.assertEnemyCount(2);
+    await amcGridPage.assertEnemyCardVisible(1);
+    await amcGridPage.assertEnemyCardVisible(2);
   });
 
   test('undetected targets do NOT appear in enemy list', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
@@ -66,27 +66,27 @@ test.describe('Enemy List Population', () => {
       })
     );
 
-    await palantirPage.switchToEnemiesTab();
+    await amcGridPage.switchToEnemiesTab();
 
     // Only detected target should appear
-    await palantirPage.assertEnemyCount(1);
-    await palantirPage.assertEnemyCardVisible(1);
-    await expect(palantirPage.enemyCard(2)).not.toBeVisible();
-    await expect(palantirPage.enemyCard(3)).not.toBeVisible();
+    await amcGridPage.assertEnemyCount(1);
+    await amcGridPage.assertEnemyCardVisible(1);
+    await expect(amcGridPage.enemyCard(2)).not.toBeVisible();
+    await expect(amcGridPage.enemyCard(3)).not.toBeVisible();
   });
 
-  test('enemy card displays target ID', async ({ palantirPage, wsMock }) => {
+  test('enemy card displays target ID', async ({ amcGridPage, wsMock }) => {
     await wsMock.waitForIdentify();
 
     await wsMock.sendState(
       buildState({ targets: [mockTarget(42, { detected: true })] })
     );
 
-    await palantirPage.switchToEnemiesTab();
-    await expect(palantirPage.enemyCard(42)).toContainText('TARGET-42');
+    await amcGridPage.switchToEnemiesTab();
+    await expect(amcGridPage.enemyCard(42)).toContainText('TARGET-42');
   });
 
-  test('enemy card displays target type', async ({ palantirPage, wsMock }) => {
+  test('enemy card displays target type', async ({ amcGridPage, wsMock }) => {
     await wsMock.waitForIdentify();
 
     await wsMock.sendState(
@@ -100,16 +100,16 @@ test.describe('Enemy List Population', () => {
       })
     );
 
-    await palantirPage.switchToEnemiesTab();
+    await amcGridPage.switchToEnemiesTab();
 
-    await expect(palantirPage.enemyCard(1)).toContainText('SAM');
-    await expect(palantirPage.enemyCard(2)).toContainText('TEL');
-    await expect(palantirPage.enemyCard(3)).toContainText('TRUCK');
-    await expect(palantirPage.enemyCard(4)).toContainText('CP');
+    await expect(amcGridPage.enemyCard(1)).toContainText('SAM');
+    await expect(amcGridPage.enemyCard(2)).toContainText('TEL');
+    await expect(amcGridPage.enemyCard(3)).toContainText('TRUCK');
+    await expect(amcGridPage.enemyCard(4)).toContainText('CP');
   });
 
   test('enemy card displays lat/lon coordinates', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
@@ -126,15 +126,15 @@ test.describe('Enemy List Population', () => {
       })
     );
 
-    await palantirPage.switchToEnemiesTab();
+    await amcGridPage.switchToEnemiesTab();
 
     // The card shows "latStr, lonStr" — check for the lat value
-    await expect(palantirPage.enemyCard(5)).toContainText('44.5678');
-    await expect(palantirPage.enemyCard(5)).toContainText('26.1234');
+    await expect(amcGridPage.enemyCard(5)).toContainText('44.5678');
+    await expect(amcGridPage.enemyCard(5)).toContainText('26.1234');
   });
 
   test('enemy card disappears when target goes undetected', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
@@ -144,28 +144,28 @@ test.describe('Enemy List Population', () => {
       buildState({ targets: [mockTarget(10, { detected: true })] })
     );
 
-    await palantirPage.switchToEnemiesTab();
-    await palantirPage.assertEnemyCardVisible(10);
+    await amcGridPage.switchToEnemiesTab();
+    await amcGridPage.assertEnemyCardVisible(10);
 
     // Target loses detection
     await wsMock.sendState(
       buildState({ targets: [mockTarget(10, { detected: false })] })
     );
 
-    await expect(palantirPage.enemyCard(10)).not.toBeVisible({ timeout: 5000 });
-    await palantirPage.assertEmptyEnemyState();
+    await expect(amcGridPage.enemyCard(10)).not.toBeVisible({ timeout: 5000 });
+    await amcGridPage.assertEmptyEnemyState();
   });
 
   test('empty state is removed when first target is detected', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
 
     // Start with no targets
     await wsMock.sendState(buildState({ targets: [] }));
-    await palantirPage.switchToEnemiesTab();
-    await palantirPage.assertEmptyEnemyState();
+    await amcGridPage.switchToEnemiesTab();
+    await amcGridPage.assertEmptyEnemyState();
 
     // Target becomes detected
     await wsMock.sendState(
@@ -173,8 +173,8 @@ test.describe('Enemy List Population', () => {
     );
 
     await expect(
-      palantirPage.enemyListContainer.locator('.empty-state')
+      amcGridPage.enemyListContainer.locator('.empty-state')
     ).not.toBeVisible({ timeout: 5000 });
-    await palantirPage.assertEnemyCount(1);
+    await amcGridPage.assertEnemyCount(1);
   });
 });

@@ -11,8 +11,8 @@ from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
 
-class PalantirSettings(BaseSettings):
-    """All environment variables consumed by the Palantir C2 system."""
+class AMCGridSettings(BaseSettings):
+    """All environment variables consumed by the AMC-Grid C2 system."""
 
     # -- Required for LangChain / OpenAI agent features --
     openai_api_key: str = Field(
@@ -148,7 +148,7 @@ class PalantirSettings(BaseSettings):
     )
 
     @model_validator(mode="after")
-    def _validate_ssl(self) -> "PalantirSettings":
+    def _validate_ssl(self) -> "AMCGridSettings":
         if self.ssl_enabled:
             if not self.ssl_certfile:
                 raise ValueError("ssl_certfile must be set when ssl_enabled is True")
@@ -161,7 +161,7 @@ class PalantirSettings(BaseSettings):
         return self
 
     @model_validator(mode="after")
-    def _validate_demo_token(self) -> "PalantirSettings":
+    def _validate_demo_token(self) -> "AMCGridSettings":
         if self.auth_enabled and self.demo_token == "dev":
             import warnings
             warnings.warn(
@@ -179,6 +179,6 @@ class PalantirSettings(BaseSettings):
     }
 
 
-def load_settings() -> PalantirSettings:
+def load_settings() -> AMCGridSettings:
     """Load and validate settings. Raises ``ValidationError`` on missing required vars."""
-    return PalantirSettings()
+    return AMCGridSettings()

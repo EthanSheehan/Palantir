@@ -1,7 +1,7 @@
 """
 dbscan_clustering.py
 ====================
-Density-based clustering with persistent cluster IDs for Palantir C2.
+Density-based clustering with persistent cluster IDs for AMC-Grid C2.
 
 Implements DBSCAN from scratch (no scikit-learn dependency) to avoid adding
 a large dependency for ~30 lines of algorithm.

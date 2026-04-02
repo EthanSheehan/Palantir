@@ -64,7 +64,7 @@ export function CesiumContainer({ children }: { children?: React.ReactNode }) {
   useSatelliteLens(viewerRef);
   useCesiumLaunchers(viewerRef);
 
-  // Bridge palantir:flyTo events from SearchBar to Cesium camera
+  // Bridge amc-grid:flyTo events from SearchBar to Cesium camera
   useEffect(() => {
     function onFlyTo(e: Event) {
       const viewer = viewerRef.current;
@@ -75,8 +75,8 @@ export function CesiumContainer({ children }: { children?: React.ReactNode }) {
         duration: 1.5,
       });
     }
-    window.addEventListener('palantir:flyTo', onFlyTo);
-    return () => window.removeEventListener('palantir:flyTo', onFlyTo);
+    window.addEventListener('amc-grid:flyTo', onFlyTo);
+    return () => window.removeEventListener('amc-grid:flyTo', onFlyTo);
   }, [viewerRef]);
 
   return (

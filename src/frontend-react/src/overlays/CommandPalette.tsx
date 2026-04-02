@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSimStore } from '../store/SimulationStore';
 import { useSendMessage } from '../App';
 
-const HISTORY_KEY = 'palantir:cmd_history';
+const HISTORY_KEY = 'amc-grid:cmd_history';
 const MAX_HISTORY = 5;
 const MAP_MODES = ['OPERATIONAL', 'COVERAGE', 'THREAT', 'FUSION', 'SWARM', 'TERRAIN'] as const;
 
@@ -89,7 +89,7 @@ export function CommandPalette({ isOpen, onClose }: Props) {
       label: 'Set Autonomy: AUTONOMOUS',
       category: 'System',
       action: () => {
-        window.dispatchEvent(new CustomEvent('palantir:openAutonomyBriefing'));
+        window.dispatchEvent(new CustomEvent('amc-grid:openAutonomyBriefing'));
       },
     },
     {

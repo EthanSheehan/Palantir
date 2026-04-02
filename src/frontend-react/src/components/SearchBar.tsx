@@ -84,7 +84,7 @@ export function SearchBar() {
 
   const flyTo = useCallback((result: SearchResult) => {
     window.dispatchEvent(
-      new CustomEvent('palantir:flyTo', {
+      new CustomEvent('amc-grid:flyTo', {
         detail: { lon: result.lon, lat: result.lat, altitude: 15000 },
       })
     );

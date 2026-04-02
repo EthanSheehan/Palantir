@@ -28,13 +28,13 @@ function SwarmPanelInner({ target, swarmTask }: SwarmPanelProps) {
   const hasSwarm = swarmTask && swarmTask.assigned_uav_ids.length > 0;
 
   const handleRequest = () => {
-    window.dispatchEvent(new CustomEvent('palantir:send', {
+    window.dispatchEvent(new CustomEvent('amc-grid:send', {
       detail: { action: 'request_swarm', target_id: target.id }
     }));
   };
 
   const handleRelease = () => {
-    window.dispatchEvent(new CustomEvent('palantir:send', {
+    window.dispatchEvent(new CustomEvent('amc-grid:send', {
       detail: { action: 'release_swarm', target_id: target.id }
     }));
   };

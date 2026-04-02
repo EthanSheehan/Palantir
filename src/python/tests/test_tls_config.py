@@ -12,7 +12,7 @@ from pydantic import ValidationError
 
 
 def _make_settings(**overrides):
-    """Create a PalantirSettings instance with env vars cleared to defaults."""
+    """Create a AMCGridSettings instance with env vars cleared to defaults."""
     import os
     from unittest.mock import patch
 
@@ -22,8 +22,8 @@ def _make_settings(**overrides):
     }
     clean_env.update({k.upper(): str(v) for k, v in overrides.items()})
     with patch.dict(os.environ, clean_env, clear=True):
-        from config import PalantirSettings
-        return PalantirSettings()
+        from config import AMCGridSettings
+        return AMCGridSettings()
 
 
 def test_ssl_disabled_by_default():
@@ -114,7 +114,7 @@ def _get_origin_checker():
 
     # We can't cleanly import api_main without its full dependency chain,
     # so we extract and test the logic directly.
-    from config import PalantirSettings
+    from config import AMCGridSettings
 
     _LOCALHOST_HOSTS = {"localhost", "127.0.0.1", "::1"}
 

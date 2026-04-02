@@ -43,8 +43,8 @@ export function AutonomyToggle() {
     function onOpenBriefing() {
       setBriefingOpen(true);
     }
-    window.addEventListener('palantir:openAutonomyBriefing', onOpenBriefing);
-    return () => window.removeEventListener('palantir:openAutonomyBriefing', onOpenBriefing);
+    window.addEventListener('amc-grid:openAutonomyBriefing', onOpenBriefing);
+    return () => window.removeEventListener('amc-grid:openAutonomyBriefing', onOpenBriefing);
   }, []);
 
   return (

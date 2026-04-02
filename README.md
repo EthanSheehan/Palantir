@@ -1,4 +1,4 @@
-# Palantir C2 — Multi-Agent Decision-Centric Command & Control
+# AMC-Grid C2 — Multi-Agent Decision-Centric Command & Control
 
 ![Project Status](https://img.shields.io/badge/status-active-success.svg)
 ![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
@@ -6,7 +6,7 @@
 
 ## Overview
 
-**Palantir C2** is a high-fidelity Command and Control system that automates the **F2T2EA kill chain** (Find, Fix, Track, Target, Engage, Assess) using multi-agent AI orchestration, coordinated drone swarm operations, a physics-based tactical simulator, and a Cesium 3D geospatial frontend.
+**AMC-Grid C2** is a high-fidelity Command and Control system that automates the **F2T2EA kill chain** (Find, Fix, Track, Target, Engage, Assess) using multi-agent AI orchestration, coordinated drone swarm operations, a physics-based tactical simulator, and a Cesium 3D geospatial frontend.
 
 - **9 AI Agents** orchestrating the full kill chain with heuristic + LLM fallback
 - **Human-in-the-Loop (HITL)** two-gate approval system for strike authorization
@@ -41,7 +41,7 @@
 
 ```bash
 # Clone and enter project
-git clone <repo-url> && cd Palantir
+git clone <repo-url> && cd AMC-Grid
 
 # Python dependencies
 python -m venv venv
@@ -64,7 +64,7 @@ cp .env.example .env
 ### Recommended: Unified Launcher
 
 ```bash
-./palantir.sh
+./amc-grid.sh
 ```
 
 Starts the FastAPI backend (`:8000`), React dashboard (`:3000`), optional drone simulator, and opens your browser.
@@ -72,7 +72,7 @@ Starts the FastAPI backend (`:8000`), React dashboard (`:3000`), optional drone 
 #### All Launcher Flags
 
 ```bash
-./palantir.sh [--demo] [--no-sim] [--no-browser]
+./amc-grid.sh [--demo] [--no-sim] [--no-browser]
 ```
 
 | Flag | Description |
@@ -86,19 +86,19 @@ Starts the FastAPI backend (`:8000`), React dashboard (`:3000`), optional drone 
 
 ```bash
 # Normal operation — manual HITL approval
-./palantir.sh
+./amc-grid.sh
 
 # Watch the full kill chain run on its own
-./palantir.sh --demo
+./amc-grid.sh --demo
 
 # Demo without the video simulator (lighter)
-./palantir.sh --demo --no-sim
+./amc-grid.sh --demo --no-sim
 
 # Headless (CI / server) — no browser pop
-./palantir.sh --no-browser
+./amc-grid.sh --no-browser
 
 # Fastest startup — no sim, no browser
-./palantir.sh --no-sim --no-browser
+./amc-grid.sh --no-sim --no-browser
 ```
 
 ### Run Components Individually
@@ -147,7 +147,7 @@ python -m pytest src/python/tests/ -v
 Run the full F2T2EA kill chain entirely on auto-pilot:
 
 ```bash
-./palantir.sh --demo
+./amc-grid.sh --demo
 ```
 
 What the auto-pilot does:
@@ -623,7 +623,7 @@ src/
         geo.ts               # Haversine distance, bearing helpers
         api.ts               # WebSocket message builder
       theme/
-        palantir.ts          # ECharts Palantir dark theme
+        amc-grid.ts          # ECharts AMC-Grid dark theme
   frontend/                  # Legacy vanilla JS frontend (reference only)
 theaters/
   romania.yaml               # Default theater — Black Sea / Romania
@@ -751,6 +751,44 @@ The system runs fully in heuristic mode without any API keys. Keys unlock LLM-ba
 | `SSL_CERTFILE` | (empty) | Path to PEM certificate file (required if `SSL_ENABLED=true`) |
 | `SSL_KEYFILE` | (empty) | Path to PEM private key file (required if `SSL_ENABLED=true`) |
 | `ALLOWED_ORIGINS` | `http://localhost:3000,http://localhost:8000` | Comma-separated WebSocket origin allowlist |
+
+---
+
+## GENIE — AI Worker Fleet
+
+**GENIE** (Generative Engine for Networked Intelligent Execution) is the multi-agent orchestration system that powers AMC-Grid's development pipeline. **GENIE** dispatches named worker agents to separate terminal sessions for parallel task execution.
+
+| Worker | Acronym | Model | Color | Specialty |
+|--------|---------|-------|-------|-----------|
+| **FRIDAY** | Fast Reactive Integrated Development & Automation sYstem | Sonnet | `#1E90FF` Dodger Blue | General-purpose coding |
+| **EDITH** | Enhanced Deployment Integration & Task Handler | Sonnet | `#32CD32` Lime Green | DevOps, CI/CD, deployment |
+| **VERONICA** | Versatile Engineering Reconnaissance & Operations Network Intelligence Architecture | Opus | `#FF4500` Orange Red | Multi-project coordination |
+| **AURORA** | Autonomous Universal Research & Operational Resource Agent | Sonnet | `#9370DB` Medium Purple | Research, analysis, docs |
+| **NOVA** | Neural Operations & Versatile Automation | Sonnet | `#FFD700` Gold | Fast prototyping, experimental features |
+| **PEPPER** | Precision Engineering, Planning & Performance Evaluation Resource | Opus | `#00CED1` Dark Turquoise | Architecture, system design |
+
+**Specialist Workers**
+
+| Worker | Acronym | Model | Color | Specialty |
+|--------|---------|-------|-------|-----------|
+| **DIANA** | Design Intelligence & Artistic Notation Architect | Sonnet | `#DA70D6` Orchid | UI/UX design systems, theming, visual quality |
+| **SELENE** | Systematic Engine for Live Environment Navigation & Extraction | Sonnet | `#40E0D0` Turquoise | Browser automation, E2E testing, scraping |
+
+**Heavy-Lift Workers**
+
+| Worker | Acronym | Model | Color | Specialty |
+|--------|---------|-------|-------|-----------|
+| **MINERVA** | Modular Intelligent Network for Engineering Reasoning & Versatile Analysis | Opus | `#DC143C` Crimson | Sustained complex implementation |
+| **CLEO** | Coordinated Logic Engine for Orchestration | Opus | `#FF8C00` Dark Orange | Multi-worker coordination, cross-system integration |
+
+**Utility Workers**
+
+| Worker | Acronym | Model | Color | Specialty |
+|--------|---------|-------|-------|-----------|
+| **IRIS** | Intelligent Rapid Information Scout | Sonnet | `#00FA9A` Spring Green | Fast codebase exploration, scouting |
+| **LUNA** | Lightweight Utility for Networked Automation | Sonnet | `#7EB6FF` Cornflower | Diagnostics, health checks, message routing |
+
+Workers communicate through a file-based dispatch system (`~/.claude/dispatch/`) with inbox/outbox messaging, heartbeat monitoring, and persistent memory across sessions.
 
 ---
 

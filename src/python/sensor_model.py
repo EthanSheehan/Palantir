@@ -1,7 +1,7 @@
 """
 sensor_model.py
 ===============
-Physics-informed probabilistic sensor model for the Palantir C2 system.
+Physics-informed probabilistic sensor model for the AMC-Grid C2 system.
 
 Replaces the hard 0.5° proximity check in sim_engine.py with a Pd (probability
 of detection) model based on:

@@ -64,7 +64,7 @@ export function MapModeBar() {
         active={satLensActive}
         intent={satLensActive ? Intent.SUCCESS : Intent.NONE}
         onClick={() => {
-          window.dispatchEvent(new CustomEvent('palantir:toggleSatLens'));
+          window.dispatchEvent(new CustomEvent('amc-grid:toggleSatLens'));
           setSatLensActive((v) => !v);
         }}
         title="Satellite Lens (S)"

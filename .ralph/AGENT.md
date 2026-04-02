@@ -18,7 +18,7 @@
 
 ```bash
 # Launch everything (backend + frontend + drone simulator)
-./palantir.sh
+./amc-grid.sh
 
 # Or run components individually:
 ./venv/bin/python3 src/python/api_main.py          # FastAPI backend on :8000

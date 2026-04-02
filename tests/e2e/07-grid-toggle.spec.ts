@@ -10,52 +10,52 @@ import { test, expect } from './fixtures/base';
 
 test.describe('Grid Visibility Toggle', () => {
   test('grid toggle button exists on MISSION tab', async ({
-    palantirPage,
+    amcGridPage,
   }) => {
-    await expect(palantirPage.toggleGridBtn).toBeVisible();
+    await expect(amcGridPage.toggleGridBtn).toBeVisible();
   });
 
-  test('initial state is "Grid Visibility: ON"', async ({ palantirPage }) => {
-    await palantirPage.assertGridState('ON');
+  test('initial state is "Grid Visibility: ON"', async ({ amcGridPage }) => {
+    await amcGridPage.assertGridState('ON');
   });
 
   test('first click changes grid to SQUARES ONLY', async ({
-    palantirPage,
+    amcGridPage,
   }) => {
-    await palantirPage.cycleGrid();
-    await palantirPage.assertGridState('SQUARES ONLY');
+    await amcGridPage.cycleGrid();
+    await amcGridPage.assertGridState('SQUARES ONLY');
   });
 
-  test('second click changes grid to OFF', async ({ palantirPage }) => {
-    await palantirPage.cycleGrid(); // ON -> SQUARES ONLY
-    await palantirPage.cycleGrid(); // SQUARES ONLY -> OFF
-    await palantirPage.assertGridState('OFF');
+  test('second click changes grid to OFF', async ({ amcGridPage }) => {
+    await amcGridPage.cycleGrid(); // ON -> SQUARES ONLY
+    await amcGridPage.cycleGrid(); // SQUARES ONLY -> OFF
+    await amcGridPage.assertGridState('OFF');
   });
 
-  test('third click wraps back to ON', async ({ palantirPage }) => {
-    await palantirPage.cycleGrid(); // ON -> SQUARES ONLY
-    await palantirPage.cycleGrid(); // SQUARES ONLY -> OFF
-    await palantirPage.cycleGrid(); // OFF -> ON
-    await palantirPage.assertGridState('ON');
+  test('third click wraps back to ON', async ({ amcGridPage }) => {
+    await amcGridPage.cycleGrid(); // ON -> SQUARES ONLY
+    await amcGridPage.cycleGrid(); // SQUARES ONLY -> OFF
+    await amcGridPage.cycleGrid(); // OFF -> ON
+    await amcGridPage.assertGridState('ON');
   });
 
   test('full cycle: ON -> SQUARES ONLY -> OFF -> ON', async ({
-    palantirPage,
+    amcGridPage,
   }) => {
-    await palantirPage.assertGridState('ON');
+    await amcGridPage.assertGridState('ON');
 
-    await palantirPage.cycleGrid();
-    await palantirPage.assertGridState('SQUARES ONLY');
+    await amcGridPage.cycleGrid();
+    await amcGridPage.assertGridState('SQUARES ONLY');
 
-    await palantirPage.cycleGrid();
-    await palantirPage.assertGridState('OFF');
+    await amcGridPage.cycleGrid();
+    await amcGridPage.assertGridState('OFF');
 
-    await palantirPage.cycleGrid();
-    await palantirPage.assertGridState('ON');
+    await amcGridPage.cycleGrid();
+    await amcGridPage.assertGridState('ON');
   });
 
   test('button color style updates on each state change', async ({
-    palantirPage,
+    amcGridPage,
     page,
   }) => {
     // ON state — blue (#38bdf8)
@@ -68,10 +68,10 @@ test.describe('Grid Visibility Toggle', () => {
     const onColor = await getColor();
     // Color may be set via CSS class or inline style; just ensure it changes
 
-    await palantirPage.cycleGrid(); // -> SQUARES ONLY
+    await amcGridPage.cycleGrid(); // -> SQUARES ONLY
     const squaresColor = await getColor();
 
-    await palantirPage.cycleGrid(); // -> OFF
+    await amcGridPage.cycleGrid(); // -> OFF
     const offColor = await getColor();
 
     // Each state should produce a distinct inline color

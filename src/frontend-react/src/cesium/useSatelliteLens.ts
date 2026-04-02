@@ -104,11 +104,11 @@ export function useSatelliteLens(viewerRef: RefObject<Cesium.Viewer | null>) {
     }
 
     window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('palantir:toggleSatLens', onToggleEvent);
+    window.addEventListener('amc-grid:toggleSatLens', onToggleEvent);
 
     return () => {
       window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('palantir:toggleSatLens', onToggleEvent);
+      window.removeEventListener('amc-grid:toggleSatLens', onToggleEvent);
       destroyLens();
     };
   }, [viewerRef]);

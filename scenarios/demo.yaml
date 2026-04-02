@@ -1,4 +1,4 @@
-name: "Palantir Demo — F2T2EA Kill Chain"
+name: "AMC-Grid Demo — F2T2EA Kill Chain"
 description: >
   Automated demo scenario that exercises the full F2T2EA kill chain.
   Spawns targets at intervals, introduces weather degradation, and

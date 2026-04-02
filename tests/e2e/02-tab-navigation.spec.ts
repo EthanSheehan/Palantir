@@ -9,83 +9,83 @@ import { test, expect } from './fixtures/base';
 
 test.describe('Tab Navigation', () => {
   test('MISSION tab is active by default on page load', async ({
-    palantirPage,
+    amcGridPage,
   }) => {
-    await palantirPage.assertMissionTabActive();
+    await amcGridPage.assertMissionTabActive();
 
     // Other tabs are not active
-    await expect(palantirPage.tabAssetsBtn).not.toHaveClass(/active/);
-    await expect(palantirPage.tabEnemiesBtn).not.toHaveClass(/active/);
-    await expect(palantirPage.tabAssetsContent).not.toHaveClass(/active-tab/);
-    await expect(palantirPage.tabEnemiesContent).not.toHaveClass(/active-tab/);
+    await expect(amcGridPage.tabAssetsBtn).not.toHaveClass(/active/);
+    await expect(amcGridPage.tabEnemiesBtn).not.toHaveClass(/active/);
+    await expect(amcGridPage.tabAssetsContent).not.toHaveClass(/active-tab/);
+    await expect(amcGridPage.tabEnemiesContent).not.toHaveClass(/active-tab/);
   });
 
   test('clicking ASSETS tab shows assets content and hides others', async ({
-    palantirPage,
+    amcGridPage,
   }) => {
-    await palantirPage.switchToAssetsTab();
+    await amcGridPage.switchToAssetsTab();
 
-    await palantirPage.assertAssetsTabActive();
+    await amcGridPage.assertAssetsTabActive();
 
-    await expect(palantirPage.tabMissionBtn).not.toHaveClass(/active/);
-    await expect(palantirPage.tabEnemiesBtn).not.toHaveClass(/active/);
-    await expect(palantirPage.tabMissionContent).not.toHaveClass(/active-tab/);
-    await expect(palantirPage.tabEnemiesContent).not.toHaveClass(/active-tab/);
+    await expect(amcGridPage.tabMissionBtn).not.toHaveClass(/active/);
+    await expect(amcGridPage.tabEnemiesBtn).not.toHaveClass(/active/);
+    await expect(amcGridPage.tabMissionContent).not.toHaveClass(/active-tab/);
+    await expect(amcGridPage.tabEnemiesContent).not.toHaveClass(/active-tab/);
   });
 
   test('clicking ENEMIES tab shows enemies content and hides others', async ({
-    palantirPage,
+    amcGridPage,
   }) => {
-    await palantirPage.switchToEnemiesTab();
+    await amcGridPage.switchToEnemiesTab();
 
-    await palantirPage.assertEnemiesTabActive();
+    await amcGridPage.assertEnemiesTabActive();
 
-    await expect(palantirPage.tabMissionBtn).not.toHaveClass(/active/);
-    await expect(palantirPage.tabAssetsBtn).not.toHaveClass(/active/);
-    await expect(palantirPage.tabMissionContent).not.toHaveClass(/active-tab/);
-    await expect(palantirPage.tabAssetsContent).not.toHaveClass(/active-tab/);
+    await expect(amcGridPage.tabMissionBtn).not.toHaveClass(/active/);
+    await expect(amcGridPage.tabAssetsBtn).not.toHaveClass(/active/);
+    await expect(amcGridPage.tabMissionContent).not.toHaveClass(/active-tab/);
+    await expect(amcGridPage.tabAssetsContent).not.toHaveClass(/active-tab/);
   });
 
   test('cycling through all three tabs works correctly', async ({
-    palantirPage,
+    amcGridPage,
   }) => {
     // Start: MISSION active
-    await palantirPage.assertMissionTabActive();
+    await amcGridPage.assertMissionTabActive();
 
     // Navigate to ASSETS
-    await palantirPage.switchToAssetsTab();
-    await palantirPage.assertAssetsTabActive();
+    await amcGridPage.switchToAssetsTab();
+    await amcGridPage.assertAssetsTabActive();
 
     // Navigate to ENEMIES
-    await palantirPage.switchToEnemiesTab();
-    await palantirPage.assertEnemiesTabActive();
+    await amcGridPage.switchToEnemiesTab();
+    await amcGridPage.assertEnemiesTabActive();
 
     // Navigate back to MISSION
-    await palantirPage.switchToMissionTab();
-    await palantirPage.assertMissionTabActive();
+    await amcGridPage.switchToMissionTab();
+    await amcGridPage.assertMissionTabActive();
   });
 
-  test('tab buttons have accessible text labels', async ({ palantirPage }) => {
-    await expect(palantirPage.tabMissionBtn).toHaveText('MISSION');
-    await expect(palantirPage.tabAssetsBtn).toHaveText('ASSETS');
-    await expect(palantirPage.tabEnemiesBtn).toHaveText('ENEMIES');
+  test('tab buttons have accessible text labels', async ({ amcGridPage }) => {
+    await expect(amcGridPage.tabMissionBtn).toHaveText('MISSION');
+    await expect(amcGridPage.tabAssetsBtn).toHaveText('ASSETS');
+    await expect(amcGridPage.tabEnemiesBtn).toHaveText('ENEMIES');
   });
 
   test('only one tab content panel is visible at a time', async ({
-    palantirPage,
+    amcGridPage,
   }) => {
-    const allContents = palantirPage.page.locator('.tab-content');
-    const activeTabs = palantirPage.page.locator('.tab-content.active-tab');
+    const allContents = amcGridPage.page.locator('.tab-content');
+    const activeTabs = amcGridPage.page.locator('.tab-content.active-tab');
 
     // Initially one active
     await expect(activeTabs).toHaveCount(1);
 
     // After switching to ASSETS
-    await palantirPage.switchToAssetsTab();
+    await amcGridPage.switchToAssetsTab();
     await expect(activeTabs).toHaveCount(1);
 
     // After switching to ENEMIES
-    await palantirPage.switchToEnemiesTab();
+    await amcGridPage.switchToEnemiesTab();
     await expect(activeTabs).toHaveCount(1);
 
     // Total panels should always be 3

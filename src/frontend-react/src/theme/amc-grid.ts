@@ -1,6 +1,6 @@
 import * as echarts from 'echarts';
 
-export const PALANTIR_THEME = {
+export const AMC_GRID_THEME = {
   color: [
     '#2d72d2', '#22c55e', '#ef4444', '#f59e0b', '#a78bfa',
     '#06b6d4', '#ec4899', '#ff6400', '#eab308', '#94a3b8',
@@ -35,6 +35,6 @@ export const PALANTIR_THEME = {
   },
 };
 
-export function registerPalantirTheme() {
-  echarts.registerTheme('palantir', PALANTIR_THEME);
+export function registerAMCGridTheme() {
+  echarts.registerTheme('amc-grid', AMC_GRID_THEME);
 }

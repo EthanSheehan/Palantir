@@ -141,66 +141,66 @@ def test_generate_metrics_text_returns_string():
 def test_generate_metrics_text_contains_tick_histogram():
     metrics.record_tick(0.01)
     text = metrics.generate_metrics_text()
-    assert "palantir_tick_duration_seconds" in text
-    assert "palantir_tick_duration_seconds_count 1" in text
+    assert "amc_grid_tick_duration_seconds" in text
+    assert "amc_grid_tick_duration_seconds_count 1" in text
 
 
 def test_generate_metrics_text_contains_connected_clients():
     metrics.update_gauges(client_count=3, target_count=0, drone_count=0, autonomy_level="MANUAL")
     text = metrics.generate_metrics_text()
-    assert "palantir_connected_clients 3" in text
+    assert "amc_grid_connected_clients 3" in text
 
 
 def test_generate_metrics_text_contains_detection_counter():
     metrics.increment_detection()
     metrics.increment_detection()
     text = metrics.generate_metrics_text()
-    assert "palantir_detection_events_total 2" in text
+    assert "amc_grid_detection_events_total 2" in text
 
 
 def test_generate_metrics_text_contains_hitl_approvals():
     metrics.increment_approval()
     text = metrics.generate_metrics_text()
-    assert "palantir_hitl_approvals_total 1" in text
+    assert "amc_grid_hitl_approvals_total 1" in text
 
 
 def test_generate_metrics_text_contains_hitl_rejections():
     metrics.increment_rejection()
     text = metrics.generate_metrics_text()
-    assert "palantir_hitl_rejections_total 1" in text
+    assert "amc_grid_hitl_rejections_total 1" in text
 
 
 def test_generate_metrics_text_contains_targets_gauge():
     metrics.update_gauges(client_count=0, target_count=8, drone_count=0, autonomy_level="MANUAL")
     text = metrics.generate_metrics_text()
-    assert "palantir_targets_active 8" in text
+    assert "amc_grid_targets_active 8" in text
 
 
 def test_generate_metrics_text_contains_drones_gauge():
     metrics.update_gauges(client_count=0, target_count=0, drone_count=6, autonomy_level="MANUAL")
     text = metrics.generate_metrics_text()
-    assert "palantir_drones_active 6" in text
+    assert "amc_grid_drones_active 6" in text
 
 
 def test_generate_metrics_text_autonomy_level_labels():
     metrics.update_gauges(client_count=0, target_count=0, drone_count=0, autonomy_level="SUPERVISED")
     text = metrics.generate_metrics_text()
-    assert 'palantir_autonomy_level{level="SUPERVISED"} 1' in text
-    assert 'palantir_autonomy_level{level="MANUAL"} 0' in text
-    assert 'palantir_autonomy_level{level="AUTONOMOUS"} 0' in text
+    assert 'amc_grid_autonomy_level{level="SUPERVISED"} 1' in text
+    assert 'amc_grid_autonomy_level{level="MANUAL"} 0' in text
+    assert 'amc_grid_autonomy_level{level="AUTONOMOUS"} 0' in text
 
 
 def test_generate_metrics_text_has_help_lines():
     text = metrics.generate_metrics_text()
-    assert "# HELP palantir_tick_duration_seconds" in text
-    assert "# HELP palantir_connected_clients" in text
-    assert "# HELP palantir_detection_events_total" in text
+    assert "# HELP amc_grid_tick_duration_seconds" in text
+    assert "# HELP amc_grid_connected_clients" in text
+    assert "# HELP amc_grid_detection_events_total" in text
 
 
 def test_generate_metrics_text_has_type_lines():
     text = metrics.generate_metrics_text()
-    assert "# TYPE palantir_tick_duration_seconds histogram" in text
-    assert "# TYPE palantir_connected_clients gauge" in text
+    assert "# TYPE amc_grid_tick_duration_seconds histogram" in text
+    assert "# TYPE amc_grid_connected_clients gauge" in text
 
 
 def test_generate_metrics_text_ends_with_newline():
@@ -227,8 +227,8 @@ def test_metrics_endpoint_content_type(client):
 def test_metrics_endpoint_returns_prometheus_text(client):
     response = client.get("/metrics")
     text = response.text
-    assert "palantir_connected_clients" in text
-    assert "palantir_tick_duration_seconds" in text
+    assert "amc_grid_connected_clients" in text
+    assert "amc_grid_tick_duration_seconds" in text
 
 
 def test_metrics_endpoint_reflects_incremented_counter(client):
@@ -236,10 +236,10 @@ def test_metrics_endpoint_reflects_incremented_counter(client):
     metrics.increment_detection()
     metrics.increment_detection()
     response = client.get("/metrics")
-    assert "palantir_detection_events_total 3" in response.text
+    assert "amc_grid_detection_events_total 3" in response.text
 
 
 def test_metrics_endpoint_reflects_gauge_update(client):
     metrics.update_gauges(client_count=0, target_count=9, drone_count=0, autonomy_level="MANUAL")
     response = client.get("/metrics")
-    assert "palantir_targets_active 9" in response.text
+    assert "amc_grid_targets_active 9" in response.text

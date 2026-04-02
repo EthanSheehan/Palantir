@@ -198,7 +198,7 @@ A phase is complete when:
 - [ ] `python-reviewer` reports no CRITICAL or HIGH issues
 - [ ] `security-reviewer` reports no CRITICAL issues
 - [ ] Code follows project style (immutability, <800 line files, proper error handling)
-- [ ] Feature works end-to-end in the running system (`./palantir.sh`)
+- [ ] Feature works end-to-end in the running system (`./amc-grid.sh`)
 - [ ] CLAUDE.md updated if architecture changed
 
 ---

@@ -31,7 +31,7 @@ AUTH_DISABLED: bool = os.environ.get("AUTH_DISABLED", "false").lower() in ("true
 _raw_secret: str | None = os.environ.get("JWT_SECRET")
 # Dev/test mode: allow short or missing secret (fallback to dev placeholder).
 # When AUTH_DISABLED is False the secret is validated lazily in validate_token().
-JWT_SECRET: str = _raw_secret if _raw_secret else "palantir-dev-secret"
+JWT_SECRET: str = _raw_secret if _raw_secret else "amc-grid-dev-secret"
 
 _DEFAULT_EXPIRY = 86400  # 24 hours
 

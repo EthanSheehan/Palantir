@@ -1,4 +1,4 @@
-# Palantir Frontend — Technical Reference
+# AMC-Grid Frontend — Technical Reference
 
 **Date:** 2026-03-19
 
@@ -81,7 +81,7 @@ src/frontend-react/src/
     geo.ts                   # Haversine distance, bearing helpers
     api.ts                   # WebSocket message builder
   theme/
-    palantir.ts              # ECharts Palantir dark theme
+    amc-grid.ts              # ECharts AMC-Grid dark theme
 ```
 
 ### Enemy Card Components (Verification UI)
@@ -154,7 +154,7 @@ The ENEMIES tab renders per-target cards with these verification-specific compon
 
 ## Architecture Overview
 
-The Palantir frontend is a **vanilla ES6 JavaScript** application with no build step and no npm bundling. It uses **Cesium JS v1.104** (loaded from CDN) for 3D WGS-84 geospatial visualization.
+The AMC-Grid frontend is a **vanilla ES6 JavaScript** application with no build step and no npm bundling. It uses **Cesium JS v1.104** (loaded from CDN) for 3D WGS-84 geospatial visualization.
 
 | Property | Detail |
 |----------|--------|

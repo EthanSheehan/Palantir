@@ -1,7 +1,7 @@
 """
 battlespace_assessment.py
 =========================
-Pure-function battlespace assessment module for Palantir C2.
+Pure-function battlespace assessment module for AMC-Grid C2.
 
 Provides threat clustering, coverage gap identification, zone threat scoring,
 and movement corridor detection. No state, no side effects.

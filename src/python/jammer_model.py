@@ -1,7 +1,7 @@
 """
 jammer_model.py
 ===============
-Electronic Warfare jamming model for the Palantir C2 system.
+Electronic Warfare jamming model for the AMC-Grid C2 system.
 
 Implements spatial jammer effect radius and frequency-specific attenuation.
 Enemy JAMMING UAVs degrade sensor confidence within their effect radius.

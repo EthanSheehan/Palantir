@@ -79,7 +79,7 @@ export function BottomTimelineDock({ visible, onToggle }: Props) {
       .then(r => r.json())
       .then(data => {
         if (data.state) {
-          window.dispatchEvent(new CustomEvent('palantir:historicalState', { detail: data.state }));
+          window.dispatchEvent(new CustomEvent('amc-grid:historicalState', { detail: data.state }));
         }
       })
       .catch(() => {});

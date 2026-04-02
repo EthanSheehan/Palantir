@@ -1,8 +1,8 @@
-# Palantir Codemaps Index
+# AMC-Grid Codemaps Index
 
 **Last Updated: 2026-03-19**
 
-This document provides an architectural overview of Palantir C2. For detailed component guides, see the codemaps directory (coming soon).
+This document provides an architectural overview of AMC-Grid C2. For detailed component guides, see the codemaps directory (coming soon).
 
 ## System Architecture
 

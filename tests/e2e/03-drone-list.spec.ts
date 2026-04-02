@@ -10,14 +10,14 @@ import { buildState, mockUav } from './helpers/ws-mock';
 
 test.describe('Drone List Population', () => {
   test('drone list is empty before any state arrives', async ({
-    palantirPage,
+    amcGridPage,
   }) => {
-    await palantirPage.switchToAssetsTab();
-    await palantirPage.assertDroneCount(0);
+    await amcGridPage.switchToAssetsTab();
+    await amcGridPage.assertDroneCount(0);
   });
 
   test('drone cards appear after receiving state with UAVs', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
@@ -26,23 +26,23 @@ test.describe('Drone List Population', () => {
       buildState({ uavs: [mockUav(1), mockUav(2)] })
     );
 
-    await palantirPage.switchToAssetsTab();
+    await amcGridPage.switchToAssetsTab();
 
-    await palantirPage.assertDroneCount(2);
-    await palantirPage.assertDroneCardVisible(1);
-    await palantirPage.assertDroneCardVisible(2);
+    await amcGridPage.assertDroneCount(2);
+    await amcGridPage.assertDroneCardVisible(1);
+    await amcGridPage.assertDroneCardVisible(2);
   });
 
-  test('drone card displays UAV ID', async ({ palantirPage, wsMock }) => {
+  test('drone card displays UAV ID', async ({ amcGridPage, wsMock }) => {
     await wsMock.waitForIdentify();
     await wsMock.sendState(buildState({ uavs: [mockUav(7)] }));
 
-    await palantirPage.switchToAssetsTab();
+    await amcGridPage.switchToAssetsTab();
 
-    await expect(palantirPage.droneCard(7)).toContainText('UAV-7');
+    await expect(amcGridPage.droneCard(7)).toContainText('UAV-7');
   });
 
-  test('drone card displays mode status', async ({ palantirPage, wsMock }) => {
+  test('drone card displays mode status', async ({ amcGridPage, wsMock }) => {
     await wsMock.waitForIdentify();
 
     await wsMock.sendState(
@@ -55,35 +55,35 @@ test.describe('Drone List Population', () => {
       })
     );
 
-    await palantirPage.switchToAssetsTab();
+    await amcGridPage.switchToAssetsTab();
 
-    await expect(palantirPage.droneCard(1)).toContainText('idle');
-    await expect(palantirPage.droneCard(2)).toContainText('serving');
-    await expect(palantirPage.droneCard(3)).toContainText('repositioning');
+    await expect(amcGridPage.droneCard(1)).toContainText('idle');
+    await expect(amcGridPage.droneCard(2)).toContainText('serving');
+    await expect(amcGridPage.droneCard(3)).toContainText('repositioning');
   });
 
   test('drone cards update when mode changes across state updates', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
 
     // First state: drone 1 is idle
     await wsMock.sendState(buildState({ uavs: [mockUav(1, { mode: 'idle' })] }));
-    await palantirPage.switchToAssetsTab();
-    await expect(palantirPage.droneCard(1)).toContainText('idle');
+    await amcGridPage.switchToAssetsTab();
+    await expect(amcGridPage.droneCard(1)).toContainText('idle');
 
     // Second state: drone 1 is now serving
     await wsMock.sendState(
       buildState({ uavs: [mockUav(1, { mode: 'serving' })] })
     );
-    await expect(palantirPage.droneCard(1)).toContainText('serving', {
+    await expect(amcGridPage.droneCard(1)).toContainText('serving', {
       timeout: 5000,
     });
   });
 
   test('drone cards are removed when drone leaves state', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
@@ -92,19 +92,19 @@ test.describe('Drone List Population', () => {
     await wsMock.sendState(
       buildState({ uavs: [mockUav(1), mockUav(2)] })
     );
-    await palantirPage.switchToAssetsTab();
-    await palantirPage.assertDroneCount(2);
+    await amcGridPage.switchToAssetsTab();
+    await amcGridPage.assertDroneCount(2);
 
     // Drone 2 is removed in next state
     await wsMock.sendState(buildState({ uavs: [mockUav(1)] }));
 
-    await palantirPage.assertDroneCount(1);
-    await palantirPage.assertDroneCardVisible(1);
-    await expect(palantirPage.droneCard(2)).not.toBeVisible();
+    await amcGridPage.assertDroneCount(1);
+    await amcGridPage.assertDroneCardVisible(1);
+    await expect(amcGridPage.droneCard(2)).not.toBeVisible();
   });
 
   test('drone list handles many drones without error', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
@@ -112,12 +112,12 @@ test.describe('Drone List Population', () => {
     const manyDrones = Array.from({ length: 20 }, (_, i) => mockUav(i + 1));
     await wsMock.sendState(buildState({ uavs: manyDrones }));
 
-    await palantirPage.switchToAssetsTab();
-    await palantirPage.assertDroneCount(20);
+    await amcGridPage.switchToAssetsTab();
+    await amcGridPage.assertDroneCount(20);
   });
 
   test('UAV counter in MISSION tab reflects drone count', async ({
-    palantirPage,
+    amcGridPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
@@ -127,7 +127,7 @@ test.describe('Drone List Population', () => {
     );
 
     // Counter lives in the MISSION tab, so switch to it
-    await palantirPage.switchToMissionTab();
-    await expect(palantirPage.uavCount).toHaveText('3', { timeout: 5000 });
+    await amcGridPage.switchToMissionTab();
+    await expect(amcGridPage.uavCount).toHaveText('3', { timeout: 5000 });
   });
 });

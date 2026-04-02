@@ -1,12 +1,12 @@
 import { test as base, Page } from '@playwright/test';
-import { PalantirPage } from '../pages/PalantirPage';
+import { AMCGridPage } from '../pages/AMCGridPage';
 import { WsMock, createWsMock } from '../helpers/ws-mock';
 
 /**
- * Extended fixtures for Palantir C2 E2E tests.
+ * Extended fixtures for AMC-Grid C2 E2E tests.
  *
- * Every test that uses `palantirPage` automatically gets:
- *   - A `PalantirPage` instance (POM)
+ * Every test that uses `amcGridPage` automatically gets:
+ *   - A `AMCGridPage` instance (POM)
  *   - A `WsMock` that intercepts the WebSocket BEFORE page load
  *   - The page is navigated to '/' inside the fixture setup
  *
@@ -14,25 +14,25 @@ import { WsMock, createWsMock } from '../helpers/ws-mock';
  * can choose their own assertion strategy.
  */
 
-type PalantirFixtures = {
+type AMCGridFixtures = {
   /** Full page wrapper — use in tests that need both the POM and WS mock. */
-  palantirPage: PalantirPage;
-  /** Standalone WebSocket mock — available even when only `palantirPage` is used. */
+  amcGridPage: AMCGridPage;
+  /** Standalone WebSocket mock — available even when only `amcGridPage` is used. */
   wsMock: WsMock;
 };
 
-export const test = base.extend<PalantirFixtures>({
+export const test = base.extend<AMCGridFixtures>({
   wsMock: async ({ page }: { page: Page }, use: (mock: WsMock) => Promise<void>) => {
     // Install the route BEFORE goto so it's in place when the page script runs
     const mock = await createWsMock(page);
     await use(mock);
   },
 
-  palantirPage: async ({ page, wsMock }: { page: Page; wsMock: WsMock }, use: (p: PalantirPage) => Promise<void>) => {
+  amcGridPage: async ({ page, wsMock }: { page: Page; wsMock: WsMock }, use: (p: AMCGridPage) => Promise<void>) => {
     void wsMock; // ensure wsMock fixture is initialised (route installed) first
-    const palantirPage = new PalantirPage(page);
-    await palantirPage.goto();
-    await use(palantirPage);
+    const amcGridPage = new AMCGridPage(page);
+    await amcGridPage.goto();
+    await use(amcGridPage);
   },
 });
 

@@ -46,8 +46,8 @@ export default function App() {
         sendMessage(detail);
       }
     }
-    window.addEventListener('palantir:send', onSend);
-    return () => window.removeEventListener('palantir:send', onSend);
+    window.addEventListener('amc-grid:send', onSend);
+    return () => window.removeEventListener('amc-grid:send', onSend);
   }, [sendMessage]);
 
   // Handle drone target assignment: select the drone and switch to ENEMIES tab
@@ -57,8 +57,8 @@ export default function App() {
       useSimStore.getState().selectDrone(droneId);
       useSimStore.getState().setActiveTab('enemies');
     }
-    window.addEventListener('palantir:assignTarget', onAssignTarget);
-    return () => window.removeEventListener('palantir:assignTarget', onAssignTarget);
+    window.addEventListener('amc-grid:assignTarget', onAssignTarget);
+    return () => window.removeEventListener('amc-grid:assignTarget', onAssignTarget);
   }, []);
 
   // Keyboard shortcuts: N = NVIS, Ctrl+Shift+A = accessibility, L = legend

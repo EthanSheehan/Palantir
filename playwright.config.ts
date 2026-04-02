@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Palantir C2 Playwright Configuration
+ * AMC-Grid C2 Playwright Configuration
  *
  * The frontend is a vanilla JS app served by Python's http.server on :3000.
  * The WebSocket backend runs on :8000. Tests use a mock WebSocket by default
