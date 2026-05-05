@@ -453,7 +453,7 @@ Proposals are grouped into dependency chains. A critical path is identified at t
 ### Group 9: Infrastructure (INFRA01–INFRA03)
 
 #### INFRA01 — Docker + docker-compose
-- **Feasibility:** HIGH — the system has clear startup commands in `palantir.sh`; containerizing FastAPI + React Vite is well-understood
+- **Feasibility:** HIGH — the system has clear startup commands in `grid_sentinel.sh`; containerizing FastAPI + React Vite is well-understood
 - **Complexity:** `Dockerfile.backend` ~40 LOC, `Dockerfile.frontend` ~30 LOC, `docker-compose.yml` ~80 LOC, `.dockerignore` ~20 LOC
 - **Risk:** LOW — native deps (opencv) require `python:3.11-slim` with build tools; documented in Dockerfile
 - **Prerequisites:** D01 (pinned deps make Dockerfile reproducible)

@@ -105,11 +105,11 @@ export function useCesiumWaypoints(viewerRef: React.RefObject<Cesium.Viewer | nu
         placeWaypoint(droneId, cartesian);
       }
     }
-    window.addEventListener('amc-grid:placeWaypoint', onPlaceWaypoint);
+    window.addEventListener('grid-sentinel:placeWaypoint', onPlaceWaypoint);
 
     return () => {
       unsub();
-      window.removeEventListener('amc-grid:placeWaypoint', onPlaceWaypoint);
+      window.removeEventListener('grid-sentinel:placeWaypoint', onPlaceWaypoint);
       const viewer = viewerRef.current;
       if (!viewer || viewer.isDestroyed()) return;
       Object.values(waypointEntitiesRef.current).forEach(({ waypoint, trajectory }) => {

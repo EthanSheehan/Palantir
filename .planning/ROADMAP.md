@@ -1,4 +1,4 @@
-# Palantir — Roadmap
+# Grid-Sentinel — Roadmap
 
 ## Milestones
 

@@ -27,10 +27,10 @@ Create a Makefile with standard development targets: setup, run, demo, test, lin
    	cd src/frontend-react && npm install
 
    run:
-   	./palantir.sh
+   	./grid_sentinel.sh
 
    demo:
-   	./palantir.sh --demo
+   	./grid_sentinel.sh --demo
 
    test:
    	$(PYTHON) -m pytest src/python/tests/ -v --tb=short

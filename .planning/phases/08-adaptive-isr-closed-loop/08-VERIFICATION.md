@@ -6,7 +6,7 @@ score: 13/13 must-haves verified
 re_verification: null
 gaps: []
 human_verification:
-  - test: "Run ./palantir.sh --demo, go to MISSION tab, verify ISR QUEUE table appears with urgency-colored rows"
+  - test: "Run ./grid_sentinel.sh --demo, go to MISSION tab, verify ISR QUEUE table appears with urgency-colored rows"
     expected: "Table shows targets ranked by urgency. High-threat targets (SAM, TEL) appear at top. Urgency values update approximately every 5 seconds."
     why_human: "Visual rendering and live update cadence cannot be verified programmatically"
   - test: "Click Threat-Adaptive in Coverage Mode toggle, observe Cesium map"
@@ -91,7 +91,7 @@ No blocking anti-patterns found.
 
 #### 1. ISR Queue Table Live Rendering
 
-**Test:** Start system with `./palantir.sh --demo`. Open http://localhost:3000, go to MISSION tab. Wait 10 seconds for targets to populate.
+**Test:** Start system with `./grid_sentinel.sh --demo`. Open http://localhost:3000, go to MISSION tab. Wait 10 seconds for targets to populate.
 **Expected:** ISR QUEUE table appears with TGT-N rows, type tags, urgency percentages colored by severity (red > 70%, amber 40-70%, neutral < 40%), and a gap percentage column. Table updates approximately every 5 seconds.
 **Why human:** Cannot verify visual rendering, Blueprint Tag colors, or live update cadence programmatically.
 

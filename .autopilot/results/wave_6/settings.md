@@ -1,11 +1,11 @@
-# W6-037: Magic Constants into PalantirSettings
+# W6-037: Magic Constants into Grid-SentinelSettings
 
 ## Status: COMPLETE
 
 ## Changes Made
 
 ### `src/python/config.py`
-Added 10 new fields to `PalantirSettings` (all env-var overridable via Pydantic):
+Added 10 new fields to `Grid-SentinelSettings` (all env-var overridable via Pydantic):
 
 | Field | Default | Env Var | Source constant |
 |---|---|---|---|
@@ -22,7 +22,7 @@ Added 10 new fields to `PalantirSettings` (all env-var overridable via Pydantic)
 | `max_turn_rate_dps` | `3.0` | `MAX_TURN_RATE_DPS` | `uav_physics.MAX_TURN_RATE` |
 | `idle_count_threshold` | `3` | `IDLE_COUNT_THRESHOLD` | `sim_engine.MIN_IDLE_COUNT` |
 
-### `src/python/tests/test_palantir_settings.py` (new)
+### `src/python/tests/test_grid_sentinel_settings.py` (new)
 26 tests covering:
 - Default values for all 12 new fields
 - Env-var override for all 12 fields

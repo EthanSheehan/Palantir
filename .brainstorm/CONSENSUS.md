@@ -16,7 +16,7 @@
 
 ### Scope Calibration (from Contrarian — Agent 18)
 
-Palantir is a **demo/simulation system** showcasing AI-assisted C2 concepts, a research testbed, and a portfolio project. It is NOT a production military platform. All proposals are calibrated to this scope. Enterprise infrastructure (Kafka, Kubernetes, TimescaleDB, DISA STIGs, DO-178C, HSMs, SIEM) has been removed. The goal is: **a polished, bug-free, visually compelling demo that runs in 30 seconds from `./palantir.sh`**.
+Grid-Sentinel is a **demo/simulation system** showcasing AI-assisted C2 concepts, a research testbed, and a portfolio project. It is NOT a production military platform. All proposals are calibrated to this scope. Enterprise infrastructure (Kafka, Kubernetes, TimescaleDB, DISA STIGs, DO-178C, HSMs, SIEM) has been removed. The goal is: **a polished, bug-free, visually compelling demo that runs in 30 seconds from `./grid_sentinel.sh`**.
 
 ---
 
@@ -57,9 +57,9 @@ Palantir is a **demo/simulation system** showcasing AI-assisted C2 concepts, a r
 - **Agent 18** noted no Android TAK devices exist in the demo environment
 - **Resolution:** DEFERRED to Wave 6. Valid for positioning toward field exercises but not for current demo scope. Only if the system is demonstrably stable first.
 
-### CR-8: Docker vs. `./palantir.sh`
+### CR-8: Docker vs. `./grid_sentinel.sh`
 - **Agents 05, 09, 13** recommended Docker as urgent
-- **Agent 18** noted `./palantir.sh` already works fine
+- **Agent 18** noted `./grid_sentinel.sh` already works fine
 - **Resolution:** Docker Compose included in Wave 2 as a nice-to-have for reproducible deployment, NOT as urgent infrastructure. Kubernetes/Helm/Pulumi KILLED.
 
 ### CR-9: Bayesian Belief State vs. Improved Thresholds
@@ -98,7 +98,7 @@ These do not belong in the backlog for a simulation/demo system:
 | PostgreSQL / TimescaleDB | 05, 10 | SQLite covers actual use case; TimescaleDB is industrial-scale |
 | Redis / Valkey | 05, 13 | Single process, localhost, no scaling requirement |
 | Apache Kafka | 13 | Enterprise event streaming for a 1-user demo |
-| Kubernetes / Helm / Pulumi | 05, 09, 13 | Cloud orchestration for a `./palantir.sh` system |
+| Kubernetes / Helm / Pulumi | 05, 09, 13 | Cloud orchestration for a `./grid_sentinel.sh` system |
 | DO-178C compliance | 15 | FAA aviation safety certification for simulation software |
 | DISA STIG hardening | 15 | DoD production hardening for a dev demo |
 | HSM key storage | 15 | Hardware security modules for API keys on a laptop |
@@ -506,7 +506,7 @@ All Wave 1 items are independent and can execute simultaneously.
 - [ ] Command dispatch table replaces if/elif chain (F-011)
 - [ ] `demo_autopilot()` accepts injected `sim`, `hitl`, `broadcast_fn` — testable with AsyncMock
 - [ ] asyncio.to_thread data race fixed (snapshot before thread dispatch)
-- [ ] CORS origins moved to PalantirSettings
+- [ ] CORS origins moved to Grid-SentinelSettings
 - [ ] Demo autopilot delays configurable
 - [ ] `_process_new_detection()` uses `logger.exception()` not `str(exc)`
 - [ ] `broadcast()` logs client ID on removal
@@ -583,7 +583,7 @@ All Wave 1 items are independent and can execute simultaneously.
 ### W2-007: Docker Compose (Optional)
 **ID:** F-088 | **Priority:** P2 | **Effort:** M | **Innovation Score:** 0.86
 
-**Description:** Containerize for reproducible deployment on any host. NOT urgent — `./palantir.sh` works fine.
+**Description:** Containerize for reproducible deployment on any host. NOT urgent — `./grid_sentinel.sh` works fine.
 
 **Acceptance Criteria:**
 - [ ] Dockerfile for Python backend (multi-stage)
@@ -1092,7 +1092,7 @@ All Wave 1 items are independent and can execute simultaneously.
 ### W6-001: Forward Simulation Branches for COA Evaluation
 **ID:** F-095 | **Priority:** P3 | **Effort:** L | **Innovation Score:** 3.57
 
-**Description:** Before committing to a COA, clone the sim, run N ticks forward per COA alternative, select best predicted outcome. The "decision-oriented digital twin" — Palantir's unique architectural advantage.
+**Description:** Before committing to a COA, clone the sim, run N ticks forward per COA alternative, select best predicted outcome. The "decision-oriented digital twin" — Grid-Sentinel's unique architectural advantage.
 
 **Acceptance Criteria:**
 - [ ] `SimulationModel.clone()` (deepcopy of current state)
@@ -1228,7 +1228,7 @@ All Wave 1 items are independent and can execute simultaneously.
 **Description:** Wrap SimulationOrchestrator as PettingZoo multi-agent env. Per contrarian: this is a multi-month research project. Only if RL research is an explicit goal.
 
 **Acceptance Criteria:**
-- [ ] `PalantirSwarmEnv(ParallelEnv)` wrapper
+- [ ] `Grid-SentinelSwarmEnv(ParallelEnv)` wrapper
 - [ ] Observation: per-drone sensor fusion state
 - [ ] Action: mode selection (FOLLOW/PAINT/INTERCEPT/SEARCH)
 - [ ] Reward: target verification progress minus time
@@ -1442,7 +1442,7 @@ All Wave 1 items are independent and can execute simultaneously.
 
 **Acceptance Criteria:**
 - [ ] Log all operator actions with simulation state as training dataset
-- [ ] Train behavioral cloning policy using PalantirSwarmEnv
+- [ ] Train behavioral cloning policy using Grid-SentinelSwarmEnv
 - [ ] Deploy as alternative to heuristic swarm coordinator
 
 **Agents:** 12 (Research)
@@ -1602,13 +1602,13 @@ All Wave 1 items are independent and can execute simultaneously.
 
 ---
 
-### W6-037: Magic Constants into PalantirSettings
+### W6-037: Magic Constants into Grid-SentinelSettings
 **ID:** F-014 | **Priority:** P3 | **Effort:** M | **Innovation Score:** N/A
 
 **Description:** ~25 magic constants not configurable without editing source. Per contrarian: physics constants can stay; demo-affecting constants should move.
 
 **Acceptance Criteria:**
-- [ ] Autopilot delays, demo FAST thresholds in PalantirSettings
+- [ ] Autopilot delays, demo FAST thresholds in Grid-SentinelSettings
 - [ ] Env-var overridable for test and demo configuration
 - [ ] Physics constants remain as named constants in sim
 

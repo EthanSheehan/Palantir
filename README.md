@@ -1,4 +1,4 @@
-# AMC-Grid C2 — Multi-Agent Decision-Centric Command & Control
+# Grid-Sentinel C2 — Multi-Agent Decision-Centric Command & Control
 
 ![Project Status](https://img.shields.io/badge/status-active-success.svg)
 ![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
@@ -6,7 +6,7 @@
 
 ## Overview
 
-**AMC-Grid C2** is a high-fidelity Command and Control system that automates the **F2T2EA kill chain** (Find, Fix, Track, Target, Engage, Assess) using multi-agent AI orchestration, coordinated drone swarm operations, a physics-based tactical simulator, and a Cesium 3D geospatial frontend.
+**Grid-Sentinel C2** is a high-fidelity Command and Control system that automates the **F2T2EA kill chain** (Find, Fix, Track, Target, Engage, Assess) using multi-agent AI orchestration, coordinated drone swarm operations, a physics-based tactical simulator, and a Cesium 3D geospatial frontend.
 
 - **9 AI Agents** orchestrating the full kill chain with heuristic + LLM fallback
 - **Human-in-the-Loop (HITL)** two-gate approval system for strike authorization
@@ -41,7 +41,7 @@
 
 ```bash
 # Clone and enter project
-git clone <repo-url> && cd AMC-Grid
+git clone <repo-url> && cd Grid-Sentinel
 
 # Python dependencies
 python -m venv venv
@@ -64,7 +64,7 @@ cp .env.example .env
 ### Recommended: Unified Launcher
 
 ```bash
-./amc-grid.sh
+./grid-sentinel.sh
 ```
 
 Starts the FastAPI backend (`:8000`), React dashboard (`:3000`), optional drone simulator, and opens your browser.
@@ -72,7 +72,7 @@ Starts the FastAPI backend (`:8000`), React dashboard (`:3000`), optional drone 
 #### All Launcher Flags
 
 ```bash
-./amc-grid.sh [--demo] [--no-sim] [--no-browser]
+./grid-sentinel.sh [--demo] [--no-sim] [--no-browser]
 ```
 
 | Flag | Description |
@@ -86,19 +86,19 @@ Starts the FastAPI backend (`:8000`), React dashboard (`:3000`), optional drone 
 
 ```bash
 # Normal operation — manual HITL approval
-./amc-grid.sh
+./grid-sentinel.sh
 
 # Watch the full kill chain run on its own
-./amc-grid.sh --demo
+./grid-sentinel.sh --demo
 
 # Demo without the video simulator (lighter)
-./amc-grid.sh --demo --no-sim
+./grid-sentinel.sh --demo --no-sim
 
 # Headless (CI / server) — no browser pop
-./amc-grid.sh --no-browser
+./grid-sentinel.sh --no-browser
 
 # Fastest startup — no sim, no browser
-./amc-grid.sh --no-sim --no-browser
+./grid-sentinel.sh --no-sim --no-browser
 ```
 
 ### Run Components Individually
@@ -147,7 +147,7 @@ python -m pytest src/python/tests/ -v
 Run the full F2T2EA kill chain entirely on auto-pilot:
 
 ```bash
-./amc-grid.sh --demo
+./grid-sentinel.sh --demo
 ```
 
 What the auto-pilot does:
@@ -623,7 +623,7 @@ src/
         geo.ts               # Haversine distance, bearing helpers
         api.ts               # WebSocket message builder
       theme/
-        amc-grid.ts          # ECharts AMC-Grid dark theme
+        grid-sentinel.ts          # ECharts Grid-Sentinel dark theme
   frontend/                  # Legacy vanilla JS frontend (reference only)
 theaters/
   romania.yaml               # Default theater — Black Sea / Romania
@@ -756,7 +756,7 @@ The system runs fully in heuristic mode without any API keys. Keys unlock LLM-ba
 
 ## GENIE — AI Worker Fleet
 
-**GENIE** (Generative Engine for Networked Intelligent Execution) is the multi-agent orchestration system that powers AMC-Grid's development pipeline. **GENIE** dispatches named worker agents to separate terminal sessions for parallel task execution.
+**GENIE** (Generative Engine for Networked Intelligent Execution) is the multi-agent orchestration system that powers Grid-Sentinel's development pipeline. **GENIE** dispatches named worker agents to separate terminal sessions for parallel task execution.
 
 | Worker | Acronym | Model | Color | Specialty |
 |--------|---------|-------|-------|-----------|

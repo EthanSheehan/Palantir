@@ -304,7 +304,7 @@ export const useSimStore = create<SimState>((set, get) => ({
 }));
 
 // Layout persistence — save UI state to localStorage
-const LAYOUT_KEY = 'amc_grid_layout';
+const LAYOUT_KEY = 'grid_sentinel_layout';
 
 function loadPersistedLayout(): Partial<SimState> {
   try {

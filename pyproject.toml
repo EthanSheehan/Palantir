@@ -1,5 +1,5 @@
 [project]
-name = "amc-grid"
+name = "grid-sentinel"
 version = "2.0.0"
 description = "AI-assisted Command & Control system with F2T2EA kill chain automation"
 requires-python = ">=3.11"

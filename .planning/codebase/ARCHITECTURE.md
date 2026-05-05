@@ -206,7 +206,7 @@ The system implements an asynchronous F2T2EA kill chain (Find-Fix-Track-Target-E
 - Location: `src/frontend-react/src/cesium/CesiumContainer.tsx`
 - Renders: 3D globe with drone markers (color-coded by mode), target labels, zones, threat rings, flow lines
 - Listens: Custom events from Cesium (waypoint placement, detail map zoom)
-- Sends: User actions back to backend via custom events (`palantir:send`, `palantir:placeWaypoint`, `palantir:openDetailMap`)
+- Sends: User actions back to backend via custom events (`grid_sentinel:send`, `grid_sentinel:placeWaypoint`, `grid_sentinel:openDetailMap`)
 
 **Demo Autopilot Mode:**
 - Location: `src/python/api_main.py` — `demo_autopilot()` async function (when `DEMO_MODE=true`)

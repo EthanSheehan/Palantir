@@ -24,7 +24,7 @@ Remove dead `pipeline.py` (blocking `input()` call, never used in WebSocket flow
 - [ ] `grep -r "from.*pipeline import\|import pipeline" src/python/` returns zero hits (excluding tests)
 - [ ] `grep -r "test_data_synthesizer" src/python/` returns zero hits
 - [ ] All existing tests pass
-- [ ] `./palantir.sh --demo` runs without import errors
+- [ ] `./grid_sentinel.sh --demo` runs without import errors
 
 ## Rollback
 - Restore `pipeline.py` and `test_data_synthesizer.py` from git

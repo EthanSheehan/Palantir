@@ -1,6 +1,6 @@
 # Autopilot Resume Briefing
 
-**Generated:** 2026-03-26 18:52 UTC | **Team:** autopilot-Palantir-8310
+**Generated:** 2026-03-26 18:52 UTC | **Team:** autopilot-Grid-Sentinel-8310
 
 ---
 

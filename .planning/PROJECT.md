@@ -1,4 +1,4 @@
-# Palantir — Project Definition
+# Grid-Sentinel — Project Definition
 
 ## What This Is
 
@@ -35,7 +35,7 @@ Automated kill chain acceleration through sensor fusion and swarm coordination �
 - Mobile app — desktop C2 workstation focus
 - Offline mode — real-time WebSocket architecture
 - Full sim replay — event log sufficient for audit
-- Conjure/AtlasDB/Plottable — Blueprint-only adoption from Palantir repos
+- Conjure/AtlasDB/Plottable — Blueprint-only adoption from Grid-Sentinel repos
 
 ## Context
 
@@ -56,7 +56,7 @@ Theater-configurable via YAML (Romania, South China Sea, Baltic).
 | Fusion algorithm | Complementary: `1 - product(1 - ci)` | ✓ Good — simple, correct, no tuning params |
 | Autonomy model | 3-tier (MANUAL/SUPERVISED/AUTONOMOUS) | ✓ Good — military C2 HITL requirement met |
 | No StrictMode | Cesium Viewer double-mount breaks | ✓ Good — necessary workaround |
-| Event bridge | Window custom events (palantir:send, etc.) | ✓ Good — Cesium→React bridge without prop drilling |
+| Event bridge | Window custom events (grid_sentinel:send, etc.) | ✓ Good — Cesium→React bridge without prop drilling |
 | Enemy UAV IDs | Start at 1000 | ✓ Good — no collision with target/UAV IDs |
 
 ## Constraints

@@ -1,8 +1,8 @@
-# AMC-Grid WebSocket Protocol
+# Grid-Sentinel WebSocket Protocol
 
 ## Overview
 
-AMC-Grid exposes a single WebSocket endpoint at `/ws`. All real-time communication —
+Grid-Sentinel exposes a single WebSocket endpoint at `/ws`. All real-time communication —
 simulation state broadcasts, drone commands, HITL approvals, and feed subscriptions —
 flows through this endpoint. The server runs at 10 Hz and pushes full simulation state
 to every connected DASHBOARD client each tick.

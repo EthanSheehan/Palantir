@@ -5,7 +5,7 @@
 ## Directory Layout
 
 ```
-palantir/
+grid_sentinel/
 ├── src/
 │   ├── python/                           # FastAPI backend + simulation engine
 │   │   ├── api_main.py                   # FastAPI app, WebSocket endpoint, 10Hz loop
@@ -180,7 +180,7 @@ palantir/
 │   ├── fix_plan.md
 │   └── .ralphrc
 │
-├── palantir.sh                           # Launch script (backend + frontend + simulator)
+├── grid_sentinel.sh                           # Launch script (backend + frontend + simulator)
 ├── requirements.txt                      # Python dependencies
 ├── package.json                          # Node.js root (monorepo)
 ├── CLAUDE.md                             # Project guidelines for Claude

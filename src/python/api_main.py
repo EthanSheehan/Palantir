@@ -1,4 +1,4 @@
-"""AMC-Grid C2 — FastAPI entry point (slim orchestrator).
+"""Grid-Sentinel C2 — FastAPI entry point (slim orchestrator).
 
 All heavy logic lives in extracted modules:
   - websocket_handlers.py — command dispatch table, action handlers

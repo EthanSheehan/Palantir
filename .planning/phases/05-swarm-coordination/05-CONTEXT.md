@@ -62,7 +62,7 @@ Automated swarm coordination that dispatches complementary sensors to targets, a
 - Target has `.sensor_contributions`, `.detected_by_sensor`, `.verification_state`
 - `get_state()` serializes full sim state as JSON for WebSocket broadcast
 - Zustand `SimulationStore.ts` for frontend state management
-- Custom event bridge (`palantir:send`) for Cesium→React WebSocket communication
+- Custom event bridge (`grid_sentinel:send`) for Cesium→React WebSocket communication
 
 ### Integration Points
 - `sim_engine.py` tick loop — hook SwarmCoordinator after detection/fusion step

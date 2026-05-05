@@ -3,8 +3,8 @@
 ## Status: COMPLETE
 
 ## Files Created
-- `/Users/Rocklord/Documents/GitHub/Palantir/src/python/lost_link.py` — implementation (140 lines)
-- `/Users/Rocklord/Documents/GitHub/Palantir/src/python/tests/test_lost_link.py` — tests (60 tests)
+- `/Users/Rocklord/Documents/GitHub/Grid-Sentinel/src/python/lost_link.py` — implementation (140 lines)
+- `/Users/Rocklord/Documents/GitHub/Grid-Sentinel/src/python/tests/test_lost_link.py` — tests (60 tests)
 
 ## Acceptance Criteria
 - [x] Per-drone `lost_link_behavior`: LOITER / RTB / SAFE_LAND / CONTINUE

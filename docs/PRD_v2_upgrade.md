@@ -1,6 +1,6 @@
-# PRD v2: AMC-Grid C2 — Full System Upgrade
+# PRD v2: Grid-Sentinel C2 — Full System Upgrade
 
-**Project:** AMC-Grid C2
+**Project:** Grid-Sentinel C2
 **Version:** 2.0
 **Date:** 2026-03-17
 **Target:** Military-grade C2 demo (local deployment, single operator, desktop)
@@ -9,7 +9,7 @@
 
 ## 1. Executive Summary
 
-AMC-Grid C2 v1 delivered a working proof-of-concept: 10Hz simulation loop, Cesium 3D visualization, dual-client WebSocket architecture, and a skeleton multi-agent kill chain. The system has a solid foundation but critical gaps prevent it from being a convincing military demo:
+Grid-Sentinel C2 v1 delivered a working proof-of-concept: 10Hz simulation loop, Cesium 3D visualization, dual-client WebSocket architecture, and a skeleton multi-agent kill chain. The system has a solid foundation but critical gaps prevent it from being a convincing military demo:
 
 - **AI agents are 80% stubbed** — the kill chain doesn't actually execute
 - **Frontend is a 1534-line monolith** — hard to extend with new features
@@ -99,7 +99,7 @@ AMC-Grid C2 v1 delivered a working proof-of-concept: 10Hz simulation loop, Cesiu
 | LLM | Ollama (local, free) + heuristic fallback | No paid APIs; works offline/air-gapped |
 | Persistence | In-memory (current state only) | Demo scope; no DB overhead |
 | Auth | None | Single operator demo |
-| Deployment | `amc-grid.sh` launcher | Keep it simple; Docker optional later |
+| Deployment | `grid-sentinel.sh` launcher | Keep it simple; Docker optional later |
 | Logging | `structlog` → JSON | Replace prints; debug-friendly |
 | Video sim | Integrated with sim_engine targets | Drones see actual simulated entities |
 

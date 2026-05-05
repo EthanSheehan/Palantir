@@ -87,7 +87,7 @@ The `autonomy-autonomous` command directly sends `{ action: 'set_autonomy_level'
 ```ts
 action: () => {
   // cannot open Dialog from here directly — emit a custom event or call a store action
-  window.dispatchEvent(new CustomEvent('palantir:openAutonomyBriefing'));
+  window.dispatchEvent(new CustomEvent('grid_sentinel:openAutonomyBriefing'));
 },
 ```
 

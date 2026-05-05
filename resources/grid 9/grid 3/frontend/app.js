@@ -22,7 +22,7 @@ viewer.imageryLayers.addImageryProvider(new Cesium.UrlTemplateImageryProvider({
     url: 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}.png?api_key=74c21d3f-b418-4db6-9318-ffb876f1f071'
 }));
 
-// Configure Palantir-style Cinematic Lighting & Dark Mode
+// Configure Grid-Sentinel-style Cinematic Lighting & Dark Mode
 viewer.scene.globe.baseColor = Cesium.Color.BLACK;
 viewer.scene.backgroundColor = Cesium.Color.BLACK;
 viewer.scene.globe.enableLighting = true; 
@@ -177,7 +177,7 @@ function updateSimulation(state) {
                 width: 3,
                 material: new Cesium.PolylineGlowMaterialProperty({
                     glowPower: 0.2,
-                    color: Cesium.Color.CYAN // Palantir style flows
+                    color: Cesium.Color.CYAN // Grid-Sentinel style flows
                 }),
                 arcType: Cesium.ArcType.GEODESIC
             }

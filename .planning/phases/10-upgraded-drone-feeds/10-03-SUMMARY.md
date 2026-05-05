@@ -72,6 +72,6 @@ None — plan executed exactly as written.
 
 ## Self-Check: PASSED
 
-- `/Users/Rocklord/Documents/GitHub/Palantir/src/frontend-react/src/overlays/DroneCamPIP.tsx` — FOUND
-- `/Users/Rocklord/Documents/GitHub/Palantir/src/frontend-react/src/hooks/useDroneCam.ts` — FOUND
+- `/Users/Rocklord/Documents/GitHub/Grid-Sentinel/src/frontend-react/src/overlays/DroneCamPIP.tsx` — FOUND
+- `/Users/Rocklord/Documents/GitHub/Grid-Sentinel/src/frontend-react/src/hooks/useDroneCam.ts` — FOUND
 - Commit `01b96be` — FOUND

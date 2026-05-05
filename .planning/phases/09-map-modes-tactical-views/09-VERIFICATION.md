@@ -116,7 +116,7 @@ No anti-patterns detected. Scanned all 10 new/modified files for TODO, FIXME, pl
 
 #### 1. Mode switching visual feedback
 
-**Test:** Launch `./palantir.sh`, wait for globe to load. Press keys 1 through 6 in sequence.
+**Test:** Launch `./grid_sentinel.sh`, wait for globe to load. Press keys 1 through 6 in sequence.
 **Expected:** Each keypress highlights the corresponding button in the MapModeBar (Blueprint Intent.PRIMARY / active state). Layer panel checkboxes update to reflect the mode's defaults (e.g., in THREAT mode, Drones and Zones should be unchecked).
 **Why human:** Blueprint component rendering and checkbox state updates require browser interaction.
 

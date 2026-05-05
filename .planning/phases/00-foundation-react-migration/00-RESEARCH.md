@@ -10,9 +10,9 @@ The project already has a scaffold at `src/frontend-react/` with all dependencie
 
 The existing vanilla JS frontend (`src/frontend/`) has well-understood patterns that map directly to React hooks. The state object (`state.js`) maps cleanly to a single Zustand store. The WebSocket handler (`websocket.js`) maps to a `useWebSocket` hook. All Cesium entity management uses imperative patterns (SampledPositionProperty, GroundPrimitive, CallbackProperty) that must stay imperative inside `useEffect` bodies — this is the right approach given the decision to avoid resium.
 
-The `palantir.sh` launcher currently starts `src/frontend/serve.py`. It must be updated to run `vite` (or `vite build && serve dist`) for the React frontend. The bug in `sim_engine.py:509` already has the correct tuple `("FOLLOW", "PAINT", "INTERCEPT")` in the current codebase — the stated bug at line 509 appears to be a previously fixed issue. The STATE.md entry may be stale, but verify before including a "fix" task.
+The `grid_sentinel.sh` launcher currently starts `src/frontend/serve.py`. It must be updated to run `vite` (or `vite build && serve dist`) for the React frontend. The bug in `sim_engine.py:509` already has the correct tuple `("FOLLOW", "PAINT", "INTERCEPT")` in the current codebase — the stated bug at line 509 appears to be a previously fixed issue. The STATE.md entry may be stale, but verify before including a "fix" task.
 
-**Primary recommendation:** Author files in dependency order — store + types → hooks → CesiumContainer + Cesium hooks → panels — then update `palantir.sh`. Keep React.StrictMode disabled (or guard Viewer creation with a ref flag) to prevent double-mount Viewer corruption.
+**Primary recommendation:** Author files in dependency order — store + types → hooks → CesiumContainer + Cesium hooks → panels — then update `grid_sentinel.sh`. Keep React.StrictMode disabled (or guard Viewer creation with a ref flag) to prevent double-mount Viewer corruption.
 
 ## Standard Stack
 
@@ -30,7 +30,7 @@ The `palantir.sh` launcher currently starts `src/frontend/serve.py`. It must be 
 | @blueprintjs/icons | 5.14.0 | Icon set | Paired with core |
 | @blueprintjs/select | 5.3.0 | Dropdown components | Theater selector |
 | zustand | 4.5.0 | State management | Zero-boilerplate, subscribes outside React |
-| echarts | 5.5.0 | Charts | Palantir-dark theme support |
+| echarts | 5.5.0 | Charts | Grid-Sentinel-dark theme support |
 | echarts-for-react | 3.0.2 | ECharts React wrapper | Standard for React+ECharts |
 
 **Note:** Zustand 5.x was released after project dependency lock — project is on v4. The v4 API (`create` + `immer` middleware pattern) is what must be used.
@@ -46,7 +46,7 @@ The `palantir.sh` launcher currently starts `src/frontend/serve.py`. It must be 
 |------------|-----------|----------|
 | vite-plugin-cesium | Manual CESIUM_BASE_URL config | Plugin automates all asset copying; manual is ~20 lines of extra config |
 | Zustand v4 | Jotai, Redux | Zustand is already locked in project decision |
-| echarts-for-react | recharts, victory | ECharts was decided for Palantir dark theme |
+| echarts-for-react | recharts, victory | ECharts was decided for Grid-Sentinel dark theme |
 
 **Installation (already in package.json — run once):**
 ```bash
@@ -565,7 +565,7 @@ const WS_ACTIONS = {
 };
 ```
 
-### palantir.sh Update Pattern
+### grid_sentinel.sh Update Pattern
 ```bash
 # Replace: (cd src/frontend && python3 serve.py 3000) &
 # With: (cd src/frontend-react && npm run dev -- --port 3000) &
@@ -606,10 +606,10 @@ const WS_ACTIONS = {
    - What's unclear: Whether the team wants StrictMode for its benefits (catches side effects)
    - Recommendation: Disable StrictMode in `main.tsx` for this project; the Cesium imperative pattern is fundamentally side-effect-based
 
-4. **palantir.sh Vite dev vs prod**
+4. **grid_sentinel.sh Vite dev vs prod**
    - What we know: Vite dev server supports HMR but requires Node.js; the existing `serve.py` is a simple Python static server
    - What's unclear: Whether CI/production should use `vite build` + static serve or always run dev server
-   - Recommendation: Update `palantir.sh` to use `npm run dev` for local development; add a `--prod` flag for built output
+   - Recommendation: Update `grid_sentinel.sh` to use `npm run dev` for local development; add a `--prod` flag for built output
 
 ## Validation Architecture
 
@@ -652,7 +652,7 @@ const WS_ACTIONS = {
 - `src/frontend/map.js`, `drones.js`, `targets.js`, `websocket.js`, `state.js` — source-of-truth for port
 - `src/python/sim_engine.py` — line 509 bug status verified in codebase
 - `theaters/romania.yaml` — confirmed theater YAML structure and unused fields
-- `palantir.sh` — confirmed how frontend is launched today
+- `grid_sentinel.sh` — confirmed how frontend is launched today
 
 ### Secondary (MEDIUM confidence)
 - [Cesium blog: Configuring Vite or Webpack for CesiumJS](https://cesium.com/blog/2024/02/13/configuring-vite-or-webpack-for-cesiumjs/) — CesiumJS 1.114 extern notes verified
@@ -691,6 +691,6 @@ const WS_ACTIONS = {
 | P0-THEATER | Wire theater YAML speed_kmh, threat_range_km into sim | Pattern 10 documents spawn-time wiring approach |
 | P0-LOG | JSONL event logger (event_logger.py) | Pattern 8 documents asyncio queue + background writer pattern |
 | P0-SENSORS | Multi-sensor UAV spawn (sensors: list[str]) | Pattern 9 documents weighted random distribution |
-| P0-ECHARTS | ECharts install + base palantir dark theme stub | Package already in package.json; theme/palantir.ts is an empty stub |
-| P0-LAUNCHER | Update palantir.sh to use Vite dev server | Open Question 4 covers the shell script change |
+| P0-ECHARTS | ECharts install + base grid_sentinel dark theme stub | Package already in package.json; theme/grid_sentinel.ts is an empty stub |
+| P0-LAUNCHER | Update grid_sentinel.sh to use Vite dev server | Open Question 4 covers the shell script change |
 </phase_requirements>

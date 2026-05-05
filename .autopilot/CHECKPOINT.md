@@ -1,6 +1,6 @@
 # Autopilot Checkpoint
 - **Status**: COMPLETE
-- **Team**: autopilot-Palantir-8310
+- **Team**: autopilot-Grid-Sentinel-8310
 - **Completed features**: 76/96 (79%)
 - **Test status**: 1811/1811 passing
 - **Commits this session**:

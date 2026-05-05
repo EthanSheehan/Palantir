@@ -112,10 +112,10 @@ export function DetailMapDialog() {
           const lat = Cesium.Math.toDegrees(carto.latitude);
           const droneId = activedroneIdRef.current;
 
-          window.dispatchEvent(new CustomEvent('amc-grid:send', {
+          window.dispatchEvent(new CustomEvent('grid-sentinel:send', {
             detail: { action: 'move_drone', drone_id: droneId, target_lon: lon, target_lat: lat },
           }));
-          window.dispatchEvent(new CustomEvent('amc-grid:placeWaypoint', {
+          window.dispatchEvent(new CustomEvent('grid-sentinel:placeWaypoint', {
             detail: { droneId, cartesian },
           }));
 
@@ -167,8 +167,8 @@ export function DetailMapDialog() {
       });
     }
 
-    window.addEventListener('amc-grid:openDetailMap', onOpenDetailMap);
-    return () => window.removeEventListener('amc-grid:openDetailMap', onOpenDetailMap);
+    window.addEventListener('grid-sentinel:openDetailMap', onOpenDetailMap);
+    return () => window.removeEventListener('grid-sentinel:openDetailMap', onOpenDetailMap);
   }, [initViewer]);
 
   if (!open) return null;

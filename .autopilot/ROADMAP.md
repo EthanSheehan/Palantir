@@ -99,7 +99,7 @@ Time →
 
 ## Success Criteria (Wave 1 Complete)
 
-- [ ] `./palantir.sh --demo` runs full F2T2EA cycle — drones dispatch to targets
+- [ ] `./grid_sentinel.sh --demo` runs full F2T2EA cycle — drones dispatch to targets
 - [ ] All agents callable without NotImplementedError
 - [ ] No silent exception swallowing
 - [ ] No memory leaks in 30-minute demo

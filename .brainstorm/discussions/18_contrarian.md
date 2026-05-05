@@ -10,7 +10,7 @@
 
 Fifteen agent discussions were generated against a sophisticated demo/simulation project, and almost all of them applied production military system standards to it. The result is a backlog that would take a team of five engineers two years to complete, for a system that needs to run convincingly on a developer's laptop.
 
-Before implementing anything, establish what Palantir actually is:
+Before implementing anything, establish what Grid-Sentinel actually is:
 - A demo/simulation that showcases AI-assisted kill chain concepts
 - A research testbed for human-AI teaming experiments
 - A portfolio project demonstrating full-stack + AI architecture skills
@@ -40,7 +40,7 @@ With that calibration, here is what the agents got wrong, what is over-engineere
 
 **The claim:** Can't scale beyond single process without Redis.
 
-**The reality:** This system has never needed to scale beyond a single process. The demo runs `./palantir.sh` on one machine. There is no multi-instance deployment. Redis adds operational overhead (run a sidecar service, manage pub/sub channels, handle connection failures) for a system where all clients connect to the same Python process over localhost. This is premature horizontal scaling for a vertically-scaled demo.
+**The reality:** This system has never needed to scale beyond a single process. The demo runs `./grid_sentinel.sh` on one machine. There is no multi-instance deployment. Redis adds operational overhead (run a sidecar service, manage pub/sub channels, handle connection failures) for a system where all clients connect to the same Python process over localhost. This is premature horizontal scaling for a vertically-scaled demo.
 
 **Verdict:** KILL Redis for current scope. Revisit only if multi-process deployment becomes an actual requirement.
 
@@ -52,7 +52,7 @@ The scout listed kafka-python for "large-scale deployments, multiple theaters, p
 
 ### 1.4 Docker + Kubernetes + Helm + Pulumi (05_dependencies, 09_devex, 13_libraries)
 
-Three different agents recommended Docker Compose as urgent and two mentioned Kubernetes/Helm/Pulumi. The install story for this project is already good: `./palantir.sh` with a venv. Docker adds image build complexity, volume mount debugging, and port mapping confusion for zero user-facing benefit on a dev machine. Kubernetes and Pulumi are cloud deployment tools for a system that runs fine with `./palantir.sh`.
+Three different agents recommended Docker Compose as urgent and two mentioned Kubernetes/Helm/Pulumi. The install story for this project is already good: `./grid_sentinel.sh` with a venv. Docker adds image build complexity, volume mount debugging, and port mapping confusion for zero user-facing benefit on a dev machine. Kubernetes and Pulumi are cloud deployment tools for a system that runs fine with `./grid_sentinel.sh`.
 
 **Verdict:** Docker Compose is fine if someone specifically needs it. Kubernetes, Helm, Pulumi — KILL. Not this project's scope.
 
@@ -66,7 +66,7 @@ The best practices agent recommended formalizing an Entity Component System arch
 
 ### 1.6 DO-178C / DAL Classification (15_best_practices — listed as CRITICAL)
 
-The best practices agent classified Palantir's engagement authorization logic as "DAL A" under the FAA/EASA aerospace software certification standard and recommended Monte Carlo simulation, formal verification, and FMEA for every critical component.
+The best practices agent classified Grid-Sentinel's engagement authorization logic as "DAL A" under the FAA/EASA aerospace software certification standard and recommended Monte Carlo simulation, formal verification, and FMEA for every critical component.
 
 DO-178C is a regulatory compliance standard for software controlling aircraft that carry human passengers. It is not applicable to a simulation/demo C2 system. Recommending "formal verification" and "Hardware-in-the-Loop testing" for a Python simulation that runs on a developer's laptop is actively misleading about what this project needs.
 
@@ -123,11 +123,11 @@ For a localhost demo, latency of WebSocket MJPEG is under 100ms. WebRTC's advant
 
 Three agents agreed that adding CoT (Cursor on Target) XML export for ATAK integration is valuable. But:
 - CoT is a complex XML dialect with type hierarchies, MILSPEC codes, and CoT event schemas that require significant mapping work
-- `PyTAK` handles the protocol, but the Palantir state model (Drone, Target, EnemyUAV) maps imperfectly to CoT's entity taxonomy
+- `PyTAK` handles the protocol, but the Grid-Sentinel state model (Drone, Target, EnemyUAV) maps imperfectly to CoT's entity taxonomy
 - ATAK is an Android app — testing the integration requires Android devices or an emulator
 - The "allied partners with ATAK tablets in the field" user scenario doesn't exist for this demo
 
-This recommendation only makes sense if Palantir is being positioned to integrate with real TAK deployments. For a demo system, it's aspirational scope-creep.
+This recommendation only makes sense if Grid-Sentinel is being positioned to integrate with real TAK deployments. For a demo system, it's aspirational scope-creep.
 
 **Hidden complexity verdict:** Evaluate after the system is demonstrably stable and the demo use case expands to field exercises.
 
@@ -223,11 +223,11 @@ The testing agent (06) mentioned "Zero React component/unit tests" but listed it
 
 ### 4.5 The Research Framing is Wrong for the Competitive Landscape
 
-The competitor analysis (11) correctly identified that Palantir has no open-source equivalent. It then recommended the following differentiator improvements: MAVLink bridge, MIL-STD-2525 symbology, CoT interoperability, RL/Gym compatibility, offline operation with local LLMs. These are all real gaps relative to competitor feature sets. But:
+The competitor analysis (11) correctly identified that Grid-Sentinel has no open-source equivalent. It then recommended the following differentiator improvements: MAVLink bridge, MIL-STD-2525 symbology, CoT interoperability, RL/Gym compatibility, offline operation with local LLMs. These are all real gaps relative to competitor feature sets. But:
 
-The competitors have millions of dollars, teams of engineers, and years of development. Palantir cannot close these gaps by adding 15 more features. The competitive advantage is the integrated AI kill chain demo that runs in a browser — which works NOW despite the bugs. The right strategy is to make the existing demo undeniably impressive, not to chase feature parity with ATAK's ecosystem.
+The competitors have millions of dollars, teams of engineers, and years of development. Grid-Sentinel cannot close these gaps by adding 15 more features. The competitive advantage is the integrated AI kill chain demo that runs in a browser — which works NOW despite the bugs. The right strategy is to make the existing demo undeniably impressive, not to chase feature parity with ATAK's ecosystem.
 
-**What all agents missed:** The strongest competitive position for Palantir is a polished, bug-free, visually compelling demo that runs in 30 seconds from `./palantir.sh`. Every hour spent on MAVLink bridges is an hour not spent making the existing demo more reliable and legible.
+**What all agents missed:** The strongest competitive position for Grid-Sentinel is a polished, bug-free, visually compelling demo that runs in 30 seconds from `./grid_sentinel.sh`. Every hour spent on MAVLink bridges is an hour not spent making the existing demo more reliable and legible.
 
 ### 4.6 Memory Leaks Are Production-Ending for a Demo
 
@@ -253,9 +253,9 @@ This is fine. The system is designed to run on localhost. If it ever needs to be
 
 **Actual priority:** Document it. Don't fix it.
 
-### 5.3 "Magic constants not in PalantirSettings" (03_architecture — mentioned as issue)
+### 5.3 "Magic constants not in Grid-SentinelSettings" (03_architecture — mentioned as issue)
 
-There are ~25 magic constants in `sim_engine.py`. For a simulation engine, most of these are physics/behavior parameters that are simulation-domain knowledge, not configuration concerns. Exposing `MAX_TURN_RATE`, `CONFIDENCE_FADE_RATE`, and loiter radii through `PalantirSettings` adds configuration surface area with no user-facing benefit.
+There are ~25 magic constants in `sim_engine.py`. For a simulation engine, most of these are physics/behavior parameters that are simulation-domain knowledge, not configuration concerns. Exposing `MAX_TURN_RATE`, `CONFIDENCE_FADE_RATE`, and loiter radii through `Grid-SentinelSettings` adds configuration surface area with no user-facing benefit.
 
 **Actual priority:** Constants that affect demo behavior (autopilot delays, demo FAST thresholds) should be configurable. Physics constants can stay as named constants in the sim.
 
@@ -288,7 +288,7 @@ This is what does not belong in the backlog for a simulation/demo system:
 | PostgreSQL / TimescaleDB | 05, 10 | SQLite covers the actual use case; TimescaleDB is industrial-scale |
 | Redis / Valkey | 05, 13 | Single process, localhost, no scaling requirement |
 | Apache Kafka | 13 | Enterprise event streaming for a demo with 1 user |
-| Kubernetes / Helm | 05, 09 | Cloud orchestration for a `./palantir.sh` system |
+| Kubernetes / Helm | 05, 09 | Cloud orchestration for a `./grid_sentinel.sh` system |
 | Pulumi IaC | 13 | Cloud infrastructure for a laptop demo |
 | DO-178C compliance | 15 | FAA aviation safety certification for simulation software |
 | DISA STIG hardening | 15 | DoD production hardening for a dev demo |
@@ -343,7 +343,7 @@ Everything else is optional enhancement, not fixing a broken demo.
 The research agent (12) produced a genuinely valuable survey of the academic state of the art: SwarmRaft consensus, GraphZero-PPO, Geo-Commander hex encoding, hierarchical MARL, XAI for autonomous C2. This is real and applicable research.
 
 The problem is that every recommendation was framed as an implementation task for this codebase. The research findings are most useful as:
-- **Documentation framing:** "Palantir's swarm coordinator implements the greedy approximation to the Hungarian assignment problem, consistent with the DARPA OFFSET program's findings on near-optimal task allocation."
+- **Documentation framing:** "Grid-Sentinel's swarm coordinator implements the greedy approximation to the Hungarian assignment problem, consistent with the DARPA OFFSET program's findings on near-optimal task allocation."
 - **Demo narrative:** "The three autonomy levels align with the ACE hierarchical autonomy model."
 - **Future work framing:** "The natural evolution of the swarm coordinator is Raft-style consensus, as implemented in SwarmRaft (arXiv 2508.00622)."
 
@@ -371,4 +371,4 @@ The 15 agents collectively recommended building a production military C2 system 
 
 The contrarian position: fix the 4 critical bugs, add 30 targeted tests for the untested critical paths, and patch 3 UX issues that hurt live demos. That's 2-3 weeks of focused work. The result is a demo that runs correctly, looks polished, and demonstrates all its claimed capabilities without crashing.
 
-Everything else — Kafka, ECS, Stone Soup, MARL, CoT, NVIS mode, cATO, DO-178C — is building toward a system Palantir hasn't decided to become yet. Don't build the enterprise before the demo works.
+Everything else — Kafka, ECS, Stone Soup, MARL, CoT, NVIS mode, cATO, DO-178C — is building toward a system Grid-Sentinel hasn't decided to become yet. Don't build the enterprise before the demo works.

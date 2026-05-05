@@ -1,7 +1,7 @@
-# Palantir — Project Brief
+# Grid-Sentinel — Project Brief
 
 ## Purpose
-Palantir is a decision-centric AI-assisted Command & Control (C2) system automating the F2T2EA kill chain (Find, Fix, Track, Target, Engage, Assess) using multi-agent AI orchestration, coordinated drone swarm operations, multi-sensor fusion, physics-based tactical simulation, and a professional React+Blueprint+Cesium 3D geospatial frontend.
+Grid-Sentinel is a decision-centric AI-assisted Command & Control (C2) system automating the F2T2EA kill chain (Find, Fix, Track, Target, Engage, Assess) using multi-agent AI orchestration, coordinated drone swarm operations, multi-sensor fusion, physics-based tactical simulation, and a professional React+Blueprint+Cesium 3D geospatial frontend.
 
 ## Stack
 - **Backend**: Python 3, FastAPI, WebSocket (10Hz sim loop), LangGraph/LangChain agents

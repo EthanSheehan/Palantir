@@ -1,15 +1,15 @@
 asyncapi: "2.6.0"
 
 info:
-  title: AMC-Grid C2 WebSocket API
+  title: Grid-Sentinel C2 WebSocket API
   version: "2.0.0"
   description: |
-    AsyncAPI specification for the AMC-Grid Command & Control system WebSocket protocol.
+    AsyncAPI specification for the Grid-Sentinel Command & Control system WebSocket protocol.
     The backend runs a 10Hz simulation loop and broadcasts full simulation state to
     all connected DASHBOARD clients each tick. Clients send action commands to control
     drones, approve HITL nominations, and configure the system.
   contact:
-    name: AMC-Grid C2 Team
+    name: Grid-Sentinel C2 Team
 
 servers:
   development:

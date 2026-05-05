@@ -25,9 +25,9 @@ def _counter(name: str, help_text: str, value: float) -> None:
     lines.append(f"{name}_total {_fmt(value)}")   # ← appends _total to value line
 ```
 
-The `# HELP` and `# TYPE` lines use `name` (e.g., `palantir_detection_events`), but the value line emits `{name}_total`. Per Prometheus exposition format 0.0.4, the `# HELP` and `# TYPE` lines must use the **same metric family name** as the sample lines. When name already ends with the base name, Prometheus scrapers expect `# HELP palantir_detection_events_total …` and `# TYPE palantir_detection_events_total counter` — not a mismatch between declaration and sample.
+The `# HELP` and `# TYPE` lines use `name` (e.g., `grid_sentinel_detection_events`), but the value line emits `{name}_total`. Per Prometheus exposition format 0.0.4, the `# HELP` and `# TYPE` lines must use the **same metric family name** as the sample lines. When name already ends with the base name, Prometheus scrapers expect `# HELP grid_sentinel_detection_events_total …` and `# TYPE grid_sentinel_detection_events_total counter` — not a mismatch between declaration and sample.
 
-The test at line 197 (`test_generate_metrics_text_has_help_lines`) checks for `"# HELP palantir_detection_events"` which passes, but a real Prometheus scraper would log a parse warning about the `_total` sample having no matching TYPE declaration.
+The test at line 197 (`test_generate_metrics_text_has_help_lines`) checks for `"# HELP grid_sentinel_detection_events"` which passes, but a real Prometheus scraper would log a parse warning about the `_total` sample having no matching TYPE declaration.
 
 **Fix:** Either pass the `_total` suffixed name into the helper, or have the helper use `f"{name}_total"` consistently for both HELP/TYPE and value lines.
 
@@ -150,11 +150,11 @@ These two imports appear after the large block of project-local imports (lines 2
 
 ```python
 clean_env = {
-    "AUTH_DISABLED": "true",   # ← no such field in PalantirSettings
+    "AUTH_DISABLED": "true",   # ← no such field in Grid-SentinelSettings
 }
 ```
 
-`PalantirSettings` has `auth_enabled` (default `False`), not `AUTH_DISABLED`. This environment variable has no effect; the test is relying on `auth_enabled`'s default of `False` rather than explicitly disabling auth. Not a bug (tests pass correctly), but the comment/intent is misleading.
+`Grid-SentinelSettings` has `auth_enabled` (default `False`), not `AUTH_DISABLED`. This environment variable has no effect; the test is relying on `auth_enabled`'s default of `False` rather than explicitly disabling auth. Not a bug (tests pass correctly), but the comment/intent is misleading.
 
 **Fix:** Remove `AUTH_DISABLED` or replace with `"AUTH_ENABLED": "false"`.
 
@@ -194,7 +194,7 @@ The `_get_origin_checker` helper re-implements the `_is_origin_allowed` function
 | L-003 | LOW | config.py:148 | TLS cert/key paths not validated for existence at startup |
 | L-004 | LOW | api_main.py:518 | `websocket.close()` before `accept()` — intent not documented |
 | L-005 | LOW | api_main.py:57 | Import order inconsistency (cosmetic) |
-| L-006 | LOW | test_tls_config.py:21 | `AUTH_DISABLED` env var doesn't exist in `PalantirSettings` |
+| L-006 | LOW | test_tls_config.py:21 | `AUTH_DISABLED` env var doesn't exist in `Grid-SentinelSettings` |
 | L-007 | LOW | test_tls_config.py:95 | Test duplicates production logic instead of importing it |
 
 **CRITICAL:** 0

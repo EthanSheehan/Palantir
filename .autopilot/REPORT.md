@@ -3,7 +3,7 @@
 
 ## Executive Summary
 
-The Palantir autopilot ran from wave 1 through 6C-Beta, transforming the codebase from a partially functional demo prototype into a production-hardened, safety-critical C2 system. Starting from a baseline of ~475 tests, the autopilot added 1,336 new tests across 35 test files, reaching 1,811 total with all passing. The work spanned Python backend hardening, a complete architecture refactor, nine new simulation subsystems, seventeen new Python modules, and fourteen new React frontend components.
+The Grid-Sentinel autopilot ran from wave 1 through 6C-Beta, transforming the codebase from a partially functional demo prototype into a production-hardened, safety-critical C2 system. Starting from a baseline of ~475 tests, the autopilot added 1,336 new tests across 35 test files, reaching 1,811 total with all passing. The work spanned Python backend hardening, a complete architecture refactor, nine new simulation subsystems, seventeen new Python modules, and fourteen new React frontend components.
 
 The session proceeded in eight distinct sub-waves. Waves 1-2 addressed correctness and architecture: critical bugs, silent exception swallowing, memory leaks, O(N) entity lookups, and a full split of the monolithic `api_main.py` into focused modules. Waves 3-5 built the tactical intelligence stack: ROE engine, audit trail, Kalman fusion, Hungarian algorithm swarm assignment, SQLite persistence, WebSocket authentication, RBAC, LLM defense, weather/EW effects, terrain model, scenario scripting, and simulation controls. Waves 6A-6C added the advanced simulation modules (forward sim, CEP model, DBSCAN clustering, UAV kinematics, corridor detection) and a complete frontend UI upgrade (kill chain ribbon, command palette, globe context menu, global alert center, floating strike board, NVIS mode, accessibility mode, Prometheus metrics, TLS support, and the AsyncAPI protocol specification).
 
@@ -158,7 +158,7 @@ Two backend additions:
 - LLM prompt injection defense
 - Tamper-evident audit trail
 - TLS support with config validation
-- `palantir:send` event bridge action allowlist
+- `grid_sentinel:send` event bridge action allowlist
 
 **Frontend:**
 - 14 new React components (KillChainRibbon, CommandPalette, CesiumContextMenu, GlobalAlertCenter, FloatingStrikeBoard, SwarmHealthPanel, AutonomyBriefingDialog, ConnectionStatus, MapLegend, EngagementHistory, NVIS mode, accessibility mode, batch approve/reject, StrikeBoard batch actions)
@@ -196,7 +196,7 @@ Two backend additions:
 
 **Security fixes applied across all waves:**
 - `/metrics` endpoint gated (was unauthenticated, exposed operational intelligence)
-- `palantir:send` event bridge allowlisted (was open to arbitrary WebSocket actions via XSS)
+- `grid_sentinel:send` event bridge allowlisted (was open to arbitrary WebSocket actions via XSS)
 - `CommandPalette` AUTONOMOUS command routed through `AutonomyBriefingDialog`
 - `useWebSocket` `JSON.parse` wrapped in try/catch
 - `autonomy_level` clamped to known values before Prometheus interpolation

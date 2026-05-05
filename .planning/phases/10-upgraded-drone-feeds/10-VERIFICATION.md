@@ -83,7 +83,7 @@ No blocker anti-patterns detected.
 
 #### 1. Visual sensor mode rendering
 
-**Test:** Start `./palantir.sh --demo`, open http://localhost:3000, activate drone cam, cycle EO/SAR/FUS/SIG per slot.
+**Test:** Start `./grid_sentinel.sh --demo`, open http://localhost:3000, activate drone cam, cycle EO/SAR/FUS/SIG per slot.
 **Expected:** EO = green thermal glow; SAR = amber scan-line with velocity vectors; FUSION = split EO left / SAR right with divider; SIGINT = blue/yellow waterfall scrolling at 2Hz.
 **Why human:** Canvas visual output and animation quality cannot be verified programmatically.
 

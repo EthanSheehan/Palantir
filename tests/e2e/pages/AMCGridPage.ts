@@ -1,7 +1,7 @@
 import { Page, Locator, expect } from '@playwright/test';
 
 /**
- * Page Object Model for the AMC-Grid C2 frontend.
+ * Page Object Model for the Grid-Sentinel C2 frontend.
  *
  * Centralises all selector knowledge so tests never hard-code CSS selectors
  * directly. If the HTML changes, only this file needs to be updated.

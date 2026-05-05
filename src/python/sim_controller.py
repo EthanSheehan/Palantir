@@ -1,7 +1,7 @@
 """sim_controller.py — Simulation fidelity controls (W5-001).
 
 Provides pause/resume, time compression (1x/5x/10x/50x), and single-step
-mode for the AMC-Grid simulation loop.
+mode for the Grid-Sentinel simulation loop.
 
 All state is immutable (frozen dataclass). Methods return new SimController
 instances rather than mutating in place.

@@ -3,7 +3,7 @@
 # Documentation: https://github.com/frankbria/ralph-claude-code
 
 # Project identification
-PROJECT_NAME="palantir"
+PROJECT_NAME="grid_sentinel"
 PROJECT_TYPE="typescript"
 
 # Claude Code CLI command

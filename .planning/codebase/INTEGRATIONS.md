@@ -132,7 +132,7 @@
 **Build:**
 - Frontend: `npm run build` → TypeScript + Vite bundling
 - Backend: Python modules loaded directly; no compilation
-- Launcher: `./palantir.sh` starts all services (backend, frontend, simulator)
+- Launcher: `./grid_sentinel.sh` starts all services (backend, frontend, simulator)
 
 ## Environment Configuration
 

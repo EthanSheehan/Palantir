@@ -1,5 +1,5 @@
 {
-  "name": "amc-grid",
+  "name": "grid-sentinel",
   "version": "1.0.0",
   "description": "![Project Status](https://img.shields.io/badge/status-active-success.svg) ![License](https://img.shields.io/badge/license-MIT-blue.svg)",
   "main": "index.js",
@@ -19,16 +19,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/EthanSheehan/AMC-Grid.git"
+    "url": "git+https://github.com/EthanSheehan/Grid-Sentinel.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/EthanSheehan/AMC-Grid/issues"
+    "url": "https://github.com/EthanSheehan/Grid-Sentinel/issues"
   },
-  "homepage": "https://github.com/EthanSheehan/AMC-Grid#readme",
+  "homepage": "https://github.com/EthanSheehan/Grid-Sentinel#readme",
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "@types/node": "^25.5.0",

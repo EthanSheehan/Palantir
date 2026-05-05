@@ -20,7 +20,7 @@
 ## Key Findings
 
 ### Strengths
-- Excellent `palantir.sh` launcher with preflight checks, port cleanup, demo mode
+- Excellent `grid_sentinel.sh` launcher with preflight checks, port cleanup, demo mode
 - 475 tests across 23 files with pytest-asyncio support
 - 15+ docs in docs/ folder — comprehensive architecture coverage
 - structlog with JSON output, event logging with daily rotation

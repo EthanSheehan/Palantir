@@ -1,9 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-# AMC-Grid C2 v2 — Unified Launcher
+# Grid-Sentinel C2 v2 — Unified Launcher
 # Starts the FastAPI backend, Cesium dashboard, and (optionally) drone simulator.
-# Usage: ./amc-grid.sh [--no-sim] [--no-browser]
+# Usage: ./grid-sentinel.sh [--no-sim] [--no-browser]
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -18,7 +18,7 @@ for arg in "$@"; do
         --no-browser) NO_BROWSER=true ;;
         --demo)       DEMO_MODE=true ;;
         --help|-h)
-            echo "Usage: ./amc-grid.sh [--no-sim] [--no-browser] [--demo]"
+            echo "Usage: ./grid-sentinel.sh [--no-sim] [--no-browser] [--demo]"
             echo "  --no-sim      Skip drone video simulator (useful if OpenCV not installed)"
             echo "  --no-browser  Don't auto-open browser"
             echo "  --demo        Enable auto-pilot demo mode (full F2T2EA kill chain)"
@@ -68,7 +68,7 @@ done
 PIDS=()
 cleanup() {
     echo ""
-    echo "Shutting down AMC-Grid C2..."
+    echo "Shutting down Grid-Sentinel C2..."
     for pid in "${PIDS[@]}"; do
         kill "$pid" 2>/dev/null || true
     done

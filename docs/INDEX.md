@@ -1,8 +1,8 @@
-# AMC-Grid C2 Documentation Index
+# Grid-Sentinel C2 Documentation Index
 
 **Last Updated: 2026-03-17**
 
-Complete guide to AMC-Grid documentation. Choose your path based on your role.
+Complete guide to Grid-Sentinel documentation. Choose your path based on your role.
 
 ## Quick Navigation
 
@@ -23,7 +23,7 @@ python3 -m venv venv
 cp .env.example .env
 
 # Run
-./amc-grid.sh
+./grid-sentinel.sh
 
 # Test
 ./venv/bin/python3 -m pytest src/python/tests/
@@ -42,11 +42,11 @@ Operations and deployment guidance.
 **Quick Deployment:**
 ```bash
 # Local
-./amc-grid.sh
+./grid-sentinel.sh
 
 # Docker
-docker build -t amc-grid .
-docker run -e OPENAI_API_KEY=sk-... -p 8000:8000 amc-grid
+docker build -t grid-sentinel .
+docker run -e OPENAI_API_KEY=sk-... -p 8000:8000 grid-sentinel
 
 # Health check
 curl http://localhost:8000/api/theaters
@@ -263,7 +263,7 @@ All documentation is generated from source code to ensure accuracy. Timestamps i
 **Last Batch Update: 2026-03-17**
 
 Files generated from:
-- `amc-grid.sh` — Launch scripts and commands
+- `grid-sentinel.sh` — Launch scripts and commands
 - `requirements.txt` — Python dependencies
 - `.env.example` — Environment configuration
 - `package.json` — npm scripts
@@ -290,11 +290,11 @@ To keep documentation current, update relevant files when making code changes (s
 
 ## Related Resources
 
-- **GitHub Repository**: https://github.com/EthanSheehan/AMC-Grid
+- **GitHub Repository**: https://github.com/EthanSheehan/Grid-Sentinel
 - **Interactive API Docs**: `http://localhost:8000/docs` (when running)
 - **Project Vision**: [project_charter.md](project_charter.md)
 - **Upgrade Roadmap**: [PRD_v2_upgrade.md](PRD_v2_upgrade.md)
 
 ---
 
-**Navigation Tip**: Bookmark this page for quick access to all AMC-Grid documentation.
+**Navigation Tip**: Bookmark this page for quick access to all Grid-Sentinel documentation.

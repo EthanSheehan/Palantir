@@ -5,7 +5,7 @@ status: human_needed
 score: 11/11 must-haves verified
 re_verification: false
 human_verification:
-  - test: "Run ./palantir.sh --demo, open http://localhost:3000, click ASSESS tab"
+  - test: "Run ./grid_sentinel.sh --demo, open http://localhost:3000, click ASSESS tab"
     expected: "Threat cluster cards appear with type badges (AD_NETWORK, CONVOY, etc.) and target counts, zone threat heatmap renders with blue-to-red gradient, coverage gap section shows amber alerts or 'Full coverage' message, movement corridors section shows corridor count"
     why_human: "React component visual rendering and real-time data flow cannot be verified programmatically"
   - test: "On Cesium globe after ~10 seconds, verify colored polygon overlays around clustered targets"
@@ -107,7 +107,7 @@ No anti-patterns detected. Scan of all 6 phase-created Python files and 5 fronte
 
 #### 1. ASSESS Tab Rendering
 
-**Test:** Run `./palantir.sh --demo`, navigate to http://localhost:3000, wait 10 seconds, click "ASSESS" tab.
+**Test:** Run `./grid_sentinel.sh --demo`, navigate to http://localhost:3000, wait 10 seconds, click "ASSESS" tab.
 **Expected:** Threat cluster cards with colored type badges (AD_NETWORK, CONVOY, SAM_BATTERY), member counts, threat score percentages; coverage gap section (amber warnings or "Full coverage" message); zone threat heatmap with blue-to-red gradient; movement corridors count summary.
 **Why human:** React component rendering and live Zustand state connection cannot be verified without a browser.
 

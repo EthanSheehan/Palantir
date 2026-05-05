@@ -2,11 +2,11 @@
 
 **Last Updated: 2026-03-17**
 
-Complete reference for all AMC-Grid environment variables, grouped by category.
+Complete reference for all Grid-Sentinel environment variables, grouped by category.
 
 ## Overview
 
-AMC-Grid uses environment variables for configuration via `.env` files (loaded by `python-dotenv`). The system has sensible defaults and works without any API keys (heuristic mode).
+Grid-Sentinel uses environment variables for configuration via `.env` files (loaded by `python-dotenv`). The system has sensible defaults and works without any API keys (heuristic mode).
 
 ## Setup
 
@@ -45,7 +45,7 @@ These enable LLM-backed agent reasoning. Without them, agents use built-in heuri
 # No code changes required
 
 # Test LLM fallback (check logs)
-./amc-grid.sh 2>&1 | grep -i "inference\|provider"
+./grid-sentinel.sh 2>&1 | grep -i "inference\|provider"
 ```
 
 ### Server Configuration
@@ -66,7 +66,7 @@ Control how the FastAPI backend runs.
 PORT=8001 ./venv/bin/python3 src/python/api_main.py
 
 # Enable debug logging
-LOG_LEVEL=DEBUG ./amc-grid.sh
+LOG_LEVEL=DEBUG ./grid-sentinel.sh
 
 # Check if port is available before starting
 lsof -i :8000  # Should show nothing if port is free
@@ -85,10 +85,10 @@ Control simulation behavior and speed.
 
 ```bash
 # Run faster simulation (higher CPU usage)
-SIMULATION_HZ=20 ./amc-grid.sh
+SIMULATION_HZ=20 ./grid-sentinel.sh
 
 # Start with different theater
-DEFAULT_THEATER=south_china_sea ./amc-grid.sh
+DEFAULT_THEATER=south_china_sea ./grid-sentinel.sh
 
 # Available theaters (see theaters/ directory)
 ls theaters/*.yaml
@@ -105,10 +105,10 @@ Control client connectivity and backend URL.
 **Usage**:
 ```bash
 # Change if backend is on different host
-WS_BACKEND_URL=ws://192.168.1.100:8000/ws ./amc-grid.sh
+WS_BACKEND_URL=ws://192.168.1.100:8000/ws ./grid-sentinel.sh
 
 # Or if using HTTPS
-WS_BACKEND_URL=wss://api.example.com/ws ./amc-grid.sh
+WS_BACKEND_URL=wss://api.example.com/ws ./grid-sentinel.sh
 ```
 
 ### Optional: Performance Tuning
@@ -128,7 +128,7 @@ RATE_LIMIT_MAX_MESSAGES = 30  # Line ~44
 
 ## Environment Validation
 
-AMC-Grid validates configuration on startup:
+Grid-Sentinel validates configuration on startup:
 
 ```bash
 # Check if .env is valid
@@ -214,7 +214,7 @@ Run with:
 docker run -e OPENAI_API_KEY=sk-... \
            -e GEMINI_API_KEY=AIza... \
            -p 8000:8000 \
-           amc-grid:latest
+           grid-sentinel:latest
 ```
 
 ### Kubernetes Deployment
@@ -223,7 +223,7 @@ docker run -e OPENAI_API_KEY=sk-... \
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: amc-grid-config
+  name: grid-sentinel-config
 data:
   HOST: "0.0.0.0"
   PORT: "8000"
@@ -234,7 +234,7 @@ data:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: amc-grid-secrets
+  name: grid-sentinel-secrets
 type: Opaque
 stringData:
   OPENAI_API_KEY: "sk-..."
@@ -257,7 +257,7 @@ echo "OPENAI_API_KEY=sk-your-key-here" >> .env
 
 # Or set directly
 export OPENAI_API_KEY=sk-...
-./amc-grid.sh
+./grid-sentinel.sh
 
 # Verify
 grep OPENAI .env
@@ -278,7 +278,7 @@ grep "^HOST=" .env
 sed -i '' 's/HOST=.*/HOST=0.0.0.0/' .env
 
 # Restart
-./amc-grid.sh
+./grid-sentinel.sh
 ```
 
 ### "Port already in use"
@@ -295,7 +295,7 @@ kill -9 <PID>
 
 # Or use different port
 echo "PORT=8001" >> .env
-./amc-grid.sh  # Now runs on :8001
+./grid-sentinel.sh  # Now runs on :8001
 ```
 
 ### Frontend can't connect to backend
@@ -331,7 +331,7 @@ AMC_GRID_LIVE=1 npm run test:e2e:live
 
 ```bash
 # Maximum logging
-LOG_LEVEL=DEBUG ./amc-grid.sh
+LOG_LEVEL=DEBUG ./grid-sentinel.sh
 
 # Check config loaded correctly
 ./venv/bin/python3 -c "
@@ -347,7 +347,7 @@ for k, v in os.environ.items():
 
 ```bash
 # Faster simulation for load testing
-SIMULATION_HZ=60 ./amc-grid.sh
+SIMULATION_HZ=60 ./grid-sentinel.sh
 
 # Monitor resource usage
 watch -n 0.1 'ps aux | grep api_main | grep -v grep'
@@ -365,7 +365,7 @@ Ctrl+C
 nano .env
 
 # 3. Restart
-./amc-grid.sh
+./grid-sentinel.sh
 ```
 
 For theater changes without restart:

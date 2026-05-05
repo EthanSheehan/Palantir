@@ -55,7 +55,7 @@ export function DroneActionButtons({ uav }: DroneActionButtonsProps) {
       </button>
 
       <button
-        onClick={() => window.dispatchEvent(new CustomEvent('amc-grid:openDetailMap', { detail: { droneId: uav.id, lon: uav.lon, lat: uav.lat } }))}
+        onClick={() => window.dispatchEvent(new CustomEvent('grid-sentinel:openDetailMap', { detail: { droneId: uav.id, lon: uav.lon, lat: uav.lat } }))}
         style={{
           width: 28,
           padding: '3px',

@@ -1,7 +1,7 @@
 """
 weather_engine.py
 =================
-Dynamic weather front simulation for the AMC-Grid C2 system.
+Dynamic weather front simulation for the Grid-Sentinel C2 system.
 
 Implements zone-based weather states that advance through a CLEAR→OVERCAST→RAIN→STORM
 cycle, degrading sensor performance based on sensor type and weather intensity.

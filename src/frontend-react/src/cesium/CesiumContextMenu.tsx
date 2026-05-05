@@ -125,7 +125,7 @@ export function CesiumContextMenu({ position, entityType, entityId, onClose }: C
             text="Assign Target"
             onClick={() => {
               // Open target assignment by selecting the drone — user picks target from sidebar
-              window.dispatchEvent(new CustomEvent('amc-grid:assignTarget', { detail: { droneId: numericId } }));
+              window.dispatchEvent(new CustomEvent('grid-sentinel:assignTarget', { detail: { droneId: numericId } }));
               onClose();
             }}
           />

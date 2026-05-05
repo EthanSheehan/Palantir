@@ -12,7 +12,7 @@ All HIGH and MEDIUM issues from Wave 6C-Alpha reviews addressed. Items 1-3 were 
 **Status:** Already complete.
 `paletteOpen` state, Ctrl+K keydown handler, and `<CommandPalette isOpen={paletteOpen} onClose={...} />` were all present at lines 26, 68-72, and 109 of `App.tsx`.
 
-### Fix 2 — Security H-2: palantir:send event bridge allowlist
+### Fix 2 — Security H-2: grid_sentinel:send event bridge allowlist
 **Status:** Already complete.
 `App.tsx` lines 31-44 already contain an `ALLOWED_ACTIONS` Set with `move_drone`, `scan_area`, `follow_target`, `paint_target`, `intercept_target`, `intercept_enemy`, `cancel_track`, `request_swarm`, `release_swarm`, `verify_target`. Unauthorized actions are silently dropped.
 
@@ -30,8 +30,8 @@ All HIGH and MEDIUM issues from Wave 6C-Alpha reviews addressed. Items 1-3 were 
 - `src/frontend-react/src/panels/mission/AutonomyToggle.tsx`
 
 **Changes:**
-- CommandPalette AUTONOMOUS command now dispatches `window.dispatchEvent(new CustomEvent('palantir:openAutonomyBriefing'))` instead of calling `onClose()` directly
-- AutonomyToggle adds a `useEffect` that listens for `palantir:openAutonomyBriefing` and sets `briefingOpen(true)`, routing through the existing confirmation dialog
+- CommandPalette AUTONOMOUS command now dispatches `window.dispatchEvent(new CustomEvent('grid_sentinel:openAutonomyBriefing'))` instead of calling `onClose()` directly
+- AutonomyToggle adds a `useEffect` that listens for `grid_sentinel:openAutonomyBriefing` and sets `briefingOpen(true)`, routing through the existing confirmation dialog
 
 ### Fix 5 — Code MEDIUM-6: KillChainRibbon uses includes() — replaced with Set
 **File changed:** `src/frontend-react/src/overlays/KillChainRibbon.tsx`

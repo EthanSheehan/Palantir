@@ -36,5 +36,5 @@ export const AMC_GRID_THEME = {
 };
 
 export function registerAMCGridTheme() {
-  echarts.registerTheme('amc-grid', AMC_GRID_THEME);
+  echarts.registerTheme('grid-sentinel', AMC_GRID_THEME);
 }

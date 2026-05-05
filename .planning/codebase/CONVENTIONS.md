@@ -187,7 +187,7 @@ logger.info("event", target_id=target.id, state=new_state)
 """
 sensor_fusion.py
 ================
-Pure-function multi-sensor fusion module for Palantir C2.
+Pure-function multi-sensor fusion module for Grid-Sentinel C2.
 
 Implements complementary fusion across sensor types (1 - product(1-ci))
 with max-within-type deduplication. No state, no side effects.

@@ -61,7 +61,7 @@
 | 38 | Valkey/Redis state persistence + pub/sub replacing in-memory global state | 05, 13 | 4 | 3 | L | high | **1.71** |
 | 39 | Docker Compose full-stack containerization | 05, 09, 13 | 3 | 2 | L | low | **0.86** |
 | 40 | Decision-Agent / Execute-Agent separation for `TacticalAssistant` | 12 | 4 | 5 | L | high | **2.86** |
-| 41 | PettingZoo RL training environment wrapping the Palantir simulation | 13, 12 | 5 | 5 | XL | high | **1.79** |
+| 41 | PettingZoo RL training environment wrapping the Grid-Sentinel simulation | 13, 12 | 5 | 5 | XL | high | **1.79** |
 | 42 | Stone Soup multi-target tracking framework replacing verification engine | 13, 02 | 5 | 5 | XL | high | **1.79** |
 | 43 | Terrain LOS analysis with DEM integration into sensor model | 10, 12 | 4 | 5 | XL | high | **1.43** |
 | 44 | SwarmRaft consensus-based UAV assignment (Byzantine fault-tolerant) | 12, 10 | 4 | 5 | XL | high | **1.43** |
@@ -96,7 +96,7 @@ These proposals have the best impact-to-effort ratio AND would most transform th
 
 **What:** Every autonomous decision emits a structured `DecisionExplanation`: action taken, top-3 sensor factors with confidence scores, ROE rule satisfied, alternatives rejected, counterfactual threshold ("if confidence drops below 0.75, defer to operator"). Frontend surfaces a "Why?" button on every HITL entry and autonomous action log entry.
 
-**Why it's a game-changer:** XAI is the #1 unresolved problem in military AI per DARPA (10+ years). It is now a DoD 3000.09 statutory requirement. It directly addresses the 22% operator override rate by enabling trust calibration. No competitor offers this. `TacticalAssistant` already generates LLM text — chain-of-thought prompting adds structured XAI at near-zero marginal cost. This is Palantir's biggest differentiator if done well.
+**Why it's a game-changer:** XAI is the #1 unresolved problem in military AI per DARPA (10+ years). It is now a DoD 3000.09 statutory requirement. It directly addresses the 22% operator override rate by enabling trust calibration. No competitor offers this. `TacticalAssistant` already generates LLM text — chain-of-thought prompting adds structured XAI at near-zero marginal cost. This is Grid-Sentinel's biggest differentiator if done well.
 
 **Implementation:** Add `reasoning_trace` struct to `StrikeBoardEntry` and `HitlNomination`. Prompt `TacticalAssistant` with chain-of-thought template. Add "Why?" expandable panel in `StrikeBoardEntry.tsx`.
 
@@ -173,7 +173,7 @@ These proposals have the best impact-to-effort ratio AND would most transform th
 
 **What:** Before the autopilot authorizes a COA, run N ticks of the simulation forward (using a snapshot copy of current state) to predict the likely outcome. Compare predicted outcomes across COAs; select the one with the best predicted result. Surface the simulation-predicted outcome in the COA rationale.
 
-**Why it's a game-changer:** This is the "decision-oriented digital twin" concept from military digital twin research (ACM 2024, Defence Horizon 2025). Palantir already *is* a digital twin — the physics engine is all there. Running forward branches before committing to action upgrades COA selection from heuristic (0.4×Pk + 0.3/time + 0.3/risk formula) to simulation-validated. This has no equivalent in any open-source C2 system and would be genuinely publishable as a research contribution.
+**Why it's a game-changer:** This is the "decision-oriented digital twin" concept from military digital twin research (ACM 2024, Defence Horizon 2025). Grid-Sentinel already *is* a digital twin — the physics engine is all there. Running forward branches before committing to action upgrades COA selection from heuristic (0.4×Pk + 0.3/time + 0.3/risk formula) to simulation-validated. This has no equivalent in any open-source C2 system and would be genuinely publishable as a research contribution.
 
 **Implementation:** Add `SimulationModel.clone()` (deepcopy of current state). Add `project_forward(model, ticks)` function. Run in `asyncio.to_thread()` for each COA candidate during autopilot authorization. Select max-score projected COA.
 
@@ -250,7 +250,7 @@ These proposals have the best impact-to-effort ratio AND would most transform th
 
 **The bug fix outranks everything.** The SCANNING→SEARCH fix (#1) scores highest because it restores the one thing that defines the autopilot: the ability to dispatch drones to targets. Every downstream proposal for smarter COA selection, better fusion, or deeper autonomy is moot if drone dispatch is silently broken.
 
-**The simulation is the moat.** Palantir's unique advantage over every competitor is that the physics simulator and the C2 system are the same process. The forward simulation COA selection (#9) exploits this in a way that no competitor can replicate without rebuilding from scratch. This should be on the roadmap.
+**The simulation is the moat.** Grid-Sentinel's unique advantage over every competitor is that the physics simulator and the C2 system are the same process. The forward simulation COA selection (#9) exploits this in a way that no competitor can replicate without rebuilding from scratch. This should be on the roadmap.
 
 **Architecture debt is a tax, not a blocker.** The god files (`api_main.py` at 1,113 lines, `sim_engine.py` at 1,553 lines) impose a tax on every other proposal. They don't need to be refactored before implementing the Top 10, but they make each implementation harder. A parallel track of incremental extraction is warranted.
 

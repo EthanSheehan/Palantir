@@ -1,4 +1,4 @@
-# AMC-Grid C2 API Reference
+# Grid-Sentinel C2 API Reference
 
 **Last Updated: 2026-03-19**
 
@@ -6,7 +6,7 @@ Quick reference for all API endpoints and WebSocket messages. For full interacti
 
 ## Overview
 
-The AMC-Grid API consists of:
+The Grid-Sentinel API consists of:
 - **HTTP REST endpoints** for static configuration
 - **WebSocket stream** for real-time simulation state and bidirectional commands
 - **Async agents** for AI-driven reasoning
@@ -1001,10 +1001,10 @@ Demo mode runs the full F2T2EA kill chain automatically without human input, use
 
 ```bash
 # Via launch script (recommended)
-./amc-grid.sh --demo
+./grid-sentinel.sh --demo
 
 # Via launch script without drone video simulator
-./amc-grid.sh --demo --no-sim
+./grid-sentinel.sh --demo --no-sim
 
 # Via environment variable (backend only)
 DEMO_MODE=true ./venv/bin/python3 src/python/api_main.py

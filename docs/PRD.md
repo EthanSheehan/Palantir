@@ -1,7 +1,7 @@
-# PRD: AMC-Grid C2 – Multi-Agent Decision-Centric C2 System
+# PRD: Grid-Sentinel C2 – Multi-Agent Decision-Centric C2 System
 
 ## 1. Executive Summary
-Project **Antigravity** is a high-fidelity recreation of the multi-domain Command and Control (C2) capabilities demonstrated in the AMC-Grid "Maven Smart System" showcase. The system pivots from traditional "data-centric" surveillance to a **"decision-centric"** orchestration model, utilizing specialized AI agents to automate the F2T2EA (Find, Fix, Track, Target, Engage, Assess) kill chain.
+Project **Antigravity** is a high-fidelity recreation of the multi-domain Command and Control (C2) capabilities demonstrated in the Grid-Sentinel "Maven Smart System" showcase. The system pivots from traditional "data-centric" surveillance to a **"decision-centric"** orchestration model, utilizing specialized AI agents to automate the F2T2EA (Find, Fix, Track, Target, Engage, Assess) kill chain.
 
 ---
 

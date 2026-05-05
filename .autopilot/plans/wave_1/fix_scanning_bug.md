@@ -22,7 +22,7 @@ Change invalid `"SCANNING"` mode string to `"SEARCH"` in autopilot dispatch and 
 
 ## Verification
 - [ ] `grep -r "SCANNING" src/python/` returns zero hits (excluding test assertions)
-- [ ] `./palantir.sh --demo` shows drones dispatching to newly detected targets
+- [ ] `./grid_sentinel.sh --demo` shows drones dispatching to newly detected targets
 - [ ] All 475 existing tests pass
 
 ## Rollback

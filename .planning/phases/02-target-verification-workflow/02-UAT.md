@@ -13,7 +13,7 @@ updated: 2026-03-19T23:10:00Z
 ## Tests
 
 ### 1. Cold Start Smoke Test
-expected: Kill any running Palantir processes. Start fresh with `./palantir.sh`. Backend boots on :8000 without errors, frontend serves on :3000, WebSocket connects, and the Cesium globe renders with drones and targets.
+expected: Kill any running Grid-Sentinel processes. Start fresh with `./grid_sentinel.sh`. Backend boots on :8000 without errors, frontend serves on :3000, WebSocket connects, and the Cesium globe renders with drones and targets.
 result: pass
 
 ### 2. Target Verification Progression

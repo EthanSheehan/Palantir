@@ -1,17 +1,17 @@
-# AMC-Grid C2 — Feature & Upgrade Proposals
+# Grid-Sentinel C2 — Feature & Upgrade Proposals
 > Analyzed by 23 autonomous agents on 2026-03-20
 
 ---
 
 ## Executive Summary
 
-AMC-Grid is a technically sophisticated AI-assisted Command & Control (C2) simulation system that implements the full F2T2EA kill chain (Find, Fix, Track, Target, Engage, Assess) using nine LangGraph/LangChain agents, a coordinated drone swarm simulation, multi-sensor fusion, and a professional React+Cesium 3D geospatial frontend. After completing the v1.0 Swarm Upgrade milestone (10 phases), the system stands at an inflection point: it demonstrates capabilities — AI kill chain automation, multi-sensor fusion, three autonomy levels, real-time Cesium visualization — that no open-source competitor combines in a single cohesive system. The 23 agents that analyzed every dimension of the codebase found it impressively capable but operationally unreliable due to a cluster of fixable bugs, untested critical paths, and architectural technical debt.
+Grid-Sentinel is a technically sophisticated AI-assisted Command & Control (C2) simulation system that implements the full F2T2EA kill chain (Find, Fix, Track, Target, Engage, Assess) using nine LangGraph/LangChain agents, a coordinated drone swarm simulation, multi-sensor fusion, and a professional React+Cesium 3D geospatial frontend. After completing the v1.0 Swarm Upgrade milestone (10 phases), the system stands at an inflection point: it demonstrates capabilities — AI kill chain automation, multi-sensor fusion, three autonomy levels, real-time Cesium visualization — that no open-source competitor combines in a single cohesive system. The 23 agents that analyzed every dimension of the codebase found it impressively capable but operationally unreliable due to a cluster of fixable bugs, untested critical paths, and architectural technical debt.
 
 The most urgent finding is that the demo autopilot — the system's showpiece — is silently broken. A single-character bug (`"SCANNING"` instead of `"SEARCH"` at `api_main.py:275`) means the autopilot never dispatches any SEARCH-mode drones to targets. Simultaneously, three of the nine AI agents always raise `NotImplementedError` when called. The Cesium frontend accumulates a memory leak that freezes the globe after 10 minutes of operation. These are demo-ending defects that collectively undermine the system's credibility to any observer, and all are fixable within a single focused day.
 
 Beyond the critical defects, the brainstorm surfaced four strategic opportunity areas. First, the architecture carries significant technical debt: `sim_engine.py` (1,553 lines) and `api_main.py` (1,113 lines) are god objects that make testing, understanding, and extending the system unnecessarily difficult. Both should be split along natural functional seams before major new features are added. Second, the security posture has critical gaps — zero authentication on any endpoint, a HITL replay attack vector, and no message size guard — that must be addressed before any external demo or deployment. Third, the UX analysis identified several operator-safety issues that could cause serious problems in a live demo: no confirmation modal before switching to AUTONOMOUS mode, transition toasts only visible on one tab, and dead buttons that destroy credibility. Fourth, the system is missing three modules that define the threshold between a demo and a production-credible autonomous C2 system: a deterministic ROE engine, a structured audit trail, and an AI explainability layer.
 
-The strategic direction that emerges from cross-agent synthesis is clear: fix the demo so it works correctly, then make it demonstrably safe and explainable, then extend it with new capabilities. The research landscape confirms AMC-Grid has no open-source equivalent. Every hour spent polishing the existing kill chain pipeline is more valuable than adding new features before the foundation is solid. The competitive advantage — an integrated AI kill chain that runs in a browser — is already built. The work now is to make it run reliably, look trustworthy, and be extensible.
+The strategic direction that emerges from cross-agent synthesis is clear: fix the demo so it works correctly, then make it demonstrably safe and explainable, then extend it with new capabilities. The research landscape confirms Grid-Sentinel has no open-source equivalent. Every hour spent polishing the existing kill chain pipeline is more valuable than adding new features before the foundation is solid. The competitive advantage — an integrated AI kill chain that runs in a browser — is already built. The work now is to make it run reliably, look trustworthy, and be extensible.
 
 ---
 
@@ -156,7 +156,7 @@ Implementation: change `"SCANNING"` → `"SEARCH"` on `api_main.py:275`. Write 8
 
 ### 2. Implement NotImplementedError Agents (B02)
 
-Three of AMC-Grid's nine AI agents always crash when called. `battlespace_manager.py:167`, `pattern_analyzer.py:79`, and `synthesis_query_agent.py:117` all raise `NotImplementedError` from their `_generate_response()` method. Any user action that calls `generate_sitrep()`, `analyze_patterns()`, or `generate_mission_path()` produces a 500 error in the backend. The SITREP button in the UI is effectively a crash button. These are not edge cases — they are the primary functions of three named AI agents.
+Three of Grid-Sentinel's nine AI agents always crash when called. `battlespace_manager.py:167`, `pattern_analyzer.py:79`, and `synthesis_query_agent.py:117` all raise `NotImplementedError` from their `_generate_response()` method. Any user action that calls `generate_sitrep()`, `analyze_patterns()`, or `generate_mission_path()` produces a 500 error in the backend. The SITREP button in the UI is effectively a crash button. These are not edge cases — they are the primary functions of three named AI agents.
 
 The `llm_adapter.py` fallback chain (Gemini → Anthropic → heuristic) provides the implementation pattern. Each agent needs its `_generate_response()` wired to: (a) a structured LLM prompt using the existing `llm_adapter`, (b) a heuristic fallback that calls existing analysis functions, and (c) proper Pydantic output validation. The `synthesis_query_agent` should query `sim.get_state()` and format a structured SITREP. The `pattern_analyzer` should call the existing `battlespace_assessment` functions and format their output as pattern analysis. The `battlespace_manager` should integrate with the `mission_data/` modules.
 
@@ -186,9 +186,9 @@ This proposal scores 8.33 (tied for highest among medium-effort proposals) becau
 
 The AI Explainability layer is the highest-innovation medium-effort proposal in the entire analysis (score 8.33). Every AI recommendation currently provides a text rationale from `TacticalAssistant` and nothing else. Operators cannot see which sensors drove the recommendation, what alternatives were rejected, how confident the system is, or what threshold would cause the system to defer to them. This transparency deficit is cited as the #1 unresolved problem in military AI by DARPA (running the XAI program since 2016), is now a statutory requirement under DoD 3000.09 ("why-did-you-do-that" button), and directly causes the documented 22% autonomous action override rate in field trials.
 
-The implementation path is architecturally elegant because AMC-Grid's `TacticalAssistant` already uses LLMs — adding chain-of-thought prompting ("reason step by step before concluding") extracts structured reasoning at near-zero marginal cost. Each recommendation adds a `reasoning_trace` struct to `StrikeBoardEntry` containing: action taken, top-3 sensor evidence factors with confidence scores, ROE rule satisfied, alternatives considered and why rejected, and a counterfactual threshold statement ("if confidence drops below 0.75, I will defer to operator"). The frontend adds an expandable "Why?" panel on every HITL entry. Every AI output is labeled with its source: `[AI: Gemini-2.0]`, `[AI: Anthropic]`, `[Heuristic: Rule 7]`.
+The implementation path is architecturally elegant because Grid-Sentinel's `TacticalAssistant` already uses LLMs — adding chain-of-thought prompting ("reason step by step before concluding") extracts structured reasoning at near-zero marginal cost. Each recommendation adds a `reasoning_trace` struct to `StrikeBoardEntry` containing: action taken, top-3 sensor evidence factors with confidence scores, ROE rule satisfied, alternatives considered and why rejected, and a counterfactual threshold statement ("if confidence drops below 0.75, I will defer to operator"). The frontend adds an expandable "Why?" panel on every HITL entry. Every AI output is labeled with its source: `[AI: Gemini-2.0]`, `[AI: Anthropic]`, `[Heuristic: Rule 7]`.
 
-No competitor offers this. ATAK, QGC, ArduPilot, and all other open-source systems provide zero AI reasoning transparency. This single feature would make AMC-Grid the only open-source C2 system that satisfies the DoD 3000.09 explainability requirement in both letter and spirit.
+No competitor offers this. ATAK, QGC, ArduPilot, and all other open-source systems provide zero AI reasoning transparency. This single feature would make Grid-Sentinel the only open-source C2 system that satisfies the DoD 3000.09 explainability requirement in both letter and spirit.
 
 ---
 
@@ -230,7 +230,7 @@ This is the architectural upgrade that transforms the autonomy system from a dem
 
 ### 10. Forward Simulation COA Selection (ALGO10)
 
-This is AMC-Grid's most unique strategic opportunity: the physics simulator and the C2 system are the same process. No competitor can replicate this without rebuilding from scratch. Before committing to a Course of Action, the autopilot can run N ticks of the simulation forward on a snapshot copy of current state to predict the likely outcome for each COA candidate. The COA with the best predicted result is selected, and the predicted outcome is surfaced in the authorization rationale: "Projected outcome in 30s: Target T-04 destroyed with 87% probability; no friendly assets within engagement radius."
+This is Grid-Sentinel's most unique strategic opportunity: the physics simulator and the C2 system are the same process. No competitor can replicate this without rebuilding from scratch. Before committing to a Course of Action, the autopilot can run N ticks of the simulation forward on a snapshot copy of current state to predict the likely outcome for each COA candidate. The COA with the best predicted result is selected, and the predicted outcome is surfaced in the authorization rationale: "Projected outcome in 30s: Target T-04 destroyed with 87% probability; no friendly assets within engagement radius."
 
 Implementation requires `SimulationModel.clone()` (deepcopy of current state), a `project_forward(model, ticks)` function that runs the sim without WebSocket broadcasting, and async execution via `asyncio.to_thread()` for each COA candidate during authorization. The current COA scoring (0.4×Pk + 0.3/time + 0.3/risk formula) is replaced by simulation-validated outcome prediction. This upgrade is genuinely publishable as a research contribution: no open-source or academic system has implemented simulation-validated COA selection at real-time C2 speeds.
 
@@ -254,7 +254,7 @@ The split produces natural modules: `api_main.py` → `websocket_handlers.py` (c
 
 ### 13. Swarm Coordinator Hungarian Algorithm (ALGO03)
 
-The current `swarm_coordinator.py` uses greedy assignment: for each target with a sensor gap, it picks the closest available drone. Greedy assignment is known to produce suboptimal results in multi-target, multi-drone scenarios because it does not account for the global cost of all assignments simultaneously. The Hungarian algorithm (`scipy.optimize.linear_sum_assignment`) finds the globally optimal assignment in O(n³), which for AMC-Grid's typical scale (20 drones, 17 targets) runs in under 1ms.
+The current `swarm_coordinator.py` uses greedy assignment: for each target with a sensor gap, it picks the closest available drone. Greedy assignment is known to produce suboptimal results in multi-target, multi-drone scenarios because it does not account for the global cost of all assignments simultaneously. The Hungarian algorithm (`scipy.optimize.linear_sum_assignment`) finds the globally optimal assignment in O(n³), which for Grid-Sentinel's typical scale (20 drones, 17 targets) runs in under 1ms.
 
 The cost matrix encodes: distance to target (lower is better), sensor-gap coverage (more gaps covered is better), fuel level (higher fuel is better), current mode transition cost (mode switches cost). The Hungarian solver returns the globally optimal assignment in one call. Additionally, the swarm coordinator currently ignores the autonomy level setting (a comment in the code says "autonomy tier integration deferred") — the upgrade fixes this by gating autonomous reassignments through `AutonomyController`. Byzantine position anomaly detection flags drones reporting positions inconsistent with their last known velocity vector, addressing the SwarmRaft research finding on GNSS-denied environments.
 
@@ -361,7 +361,7 @@ Current implementation → next fidelity level for each algorithm, with effort e
 
 Based on Agent 11's competitive landscape analysis against 13 open-source systems.
 
-| Feature | ATAK | QGC | ArduPilot | OpenUxAS | Panopticon | AirSim | **AMC-Grid** |
+| Feature | ATAK | QGC | ArduPilot | OpenUxAS | Panopticon | AirSim | **Grid-Sentinel** |
 |---------|------|-----|-----------|----------|------------|--------|------------|
 | Autonomous kill chain | None | None | None | Task alloc | RL research | Research API | **Full F2T2EA** |
 | AI/LLM agents | None | None | None | None | RL only | None | **9-agent LangGraph** |
@@ -377,14 +377,14 @@ Based on Agent 11's competitive landscape analysis against 13 open-source system
 
 *ATAK closed its GitHub source in May 2025.
 
-**What Competitors Have That AMC-Grid Lacks:**
-1. **Hardware integration** — ArduPilot/PX4/QGC command real MAVLink hardware; AMC-Grid simulates only
-2. **Military symbol standards** — ODIN/ATAK render APP-6/MIL-STD-2525 symbology; AMC-Grid uses custom icons
-3. **Interoperability protocols** — CoT (ATAK), DIS (OpenDIS), LMCP (OpenUxAS); AMC-Grid speaks only its own WebSocket dialect
-4. **Offline operation** — ODIN and ATAK work without internet; AMC-Grid requires LLM API keys
-5. **RL training environment** — Panopticon exposes OpenAI Gym interface; AMC-Grid does not
+**What Competitors Have That Grid-Sentinel Lacks:**
+1. **Hardware integration** — ArduPilot/PX4/QGC command real MAVLink hardware; Grid-Sentinel simulates only
+2. **Military symbol standards** — ODIN/ATAK render APP-6/MIL-STD-2525 symbology; Grid-Sentinel uses custom icons
+3. **Interoperability protocols** — CoT (ATAK), DIS (OpenDIS), LMCP (OpenUxAS); Grid-Sentinel speaks only its own WebSocket dialect
+4. **Offline operation** — ODIN and ATAK work without internet; Grid-Sentinel requires LLM API keys
+5. **RL training environment** — Panopticon exposes OpenAI Gym interface; Grid-Sentinel does not
 
-**AMC-Grid's Unique Differentiators (no competitor has these):**
+**Grid-Sentinel's Unique Differentiators (no competitor has these):**
 1. End-to-end AI kill chain (Find through Assess in a single pipeline)
 2. LangGraph multi-agent orchestration with LLM fallback chain
 3. Cesium 3D globe with 6 purpose-built tactical overlay modes
@@ -401,13 +401,13 @@ Research-grade innovations identified by Agent 12 with feasibility assessment.
 ### 1. Hierarchical Autonomy with Dynamic Authority Allocation
 **Research basis:** DARPA ACE program, CHI 2025 human-AI teaming research.
 **Innovation:** Static 3-level autonomy toggle → confidence-gated dynamic authority where autopilot escalates low-confidence decisions to operator even in AUTONOMOUS mode.
-**Feasibility:** MEDIUM — requires confidence evaluation per decision. AMC-Grid's `TacticalAssistant` already generates confidence scores; the escalation logic is additive.
+**Feasibility:** MEDIUM — requires confidence evaluation per decision. Grid-Sentinel's `TacticalAssistant` already generates confidence scores; the escalation logic is additive.
 **Impact:** Transforms AUTONOMOUS mode from all-or-nothing to operationally nuanced. Directly addresses the 22% field trial override rate.
 
 ### 2. Forward Simulation Branch for COA Selection
 **Research basis:** Decision-Oriented Digital Twin (ACM 2024); Battlefield Digital Twin research (Defence Horizon 2025).
 **Innovation:** Before committing to a COA, run N-tick forward simulation in a cloned physics model, select the COA with the best predicted outcome.
-**Feasibility:** MEDIUM — `SimulationModel.clone()` + `project_forward()` function. AMC-Grid already IS the digital twin; this exploits the co-location of simulator and C2.
+**Feasibility:** MEDIUM — `SimulationModel.clone()` + `project_forward()` function. Grid-Sentinel already IS the digital twin; this exploits the co-location of simulator and C2.
 **Impact:** Genuinely publishable research contribution. No open-source or academic system has implemented simulation-validated COA selection at real-time C2 speeds.
 
 ### 3. Decision-Agent / Execute-Agent Separation
@@ -424,9 +424,9 @@ Research-grade innovations identified by Agent 12 with feasibility assessment.
 
 ### 5. OpenAI Gym / PettingZoo RL Environment
 **Research basis:** Panopticon AI, GraphZero-PPO (Nature 2025).
-**Innovation:** Wrap AMC-Grid's physics simulator as a PettingZoo `ParallelEnv`. Each drone is an agent. Train a policy via MARL that outperforms the greedy swarm coordinator.
+**Innovation:** Wrap Grid-Sentinel's physics simulator as a PettingZoo `ParallelEnv`. Each drone is an agent. Train a policy via MARL that outperforms the greedy swarm coordinator.
 **Feasibility:** LOW — requires stripping WebSocket layer from the hot path; reward shaping is a research problem; training takes days on GPU.
-**Impact:** Self-improving autopilot; academic research platform; makes AMC-Grid the only open-source C2 with an RL training interface.
+**Impact:** Self-improving autopilot; academic research platform; makes Grid-Sentinel the only open-source C2 with an RL training interface.
 
 ### 6. Behavioral Cloning from Operator Sessions
 **Research basis:** Imitation learning (battlefield digital twin literature, Defence Horizon 2025).
@@ -440,7 +440,7 @@ Research-grade innovations identified by Agent 12 with feasibility assessment.
 
 Agent 18 (Contrarian) challenged every assumption across all 15 source discussions. Key findings:
 
-### What Is AMC-Grid Actually?
+### What Is Grid-Sentinel Actually?
 Before implementing anything from the 18-24 month backlog implied by the other 14 agents, establish the system's actual purpose: it is a simulation/demo that showcases AI-assisted kill chain concepts, a research testbed for human-AI teaming experiments, a portfolio project demonstrating full-stack + AI architecture skills, and a teaching tool for C2 concepts. It is NOT a DoD procurement candidate, a production system handling real targeting decisions, or a platform requiring ATO/DISA STIG/DO-178C compliance. Calibrate accordingly.
 
 ### Proposals to Kill Outright
@@ -450,7 +450,7 @@ Before implementing anything from the 18-24 month backlog implied by the other 1
 | PostgreSQL / TimescaleDB | JSONL event log is already append-only immutable; SQLite covers actual use case; TimescaleDB is industrial-scale infrastructure |
 | Redis / Valkey | Single process, localhost, no scaling requirement today |
 | Apache Kafka | Enterprise event streaming for a demo with 1 user |
-| Kubernetes / Helm / Pulumi | Cloud orchestration for a `./amc-grid.sh` system |
+| Kubernetes / Helm / Pulumi | Cloud orchestration for a `./grid-sentinel.sh` system |
 | DO-178C compliance | FAA aviation safety certification is not applicable to simulation software |
 | DISA STIG hardening | DoD production hardening for a dev demo that binds to localhost |
 | HSM key storage | Hardware security modules for API keys on a laptop |
@@ -682,7 +682,7 @@ DX audit findings from Agent 9 with scores and priorities.
 
 | Dimension | Score | Notes |
 |-----------|-------|-------|
-| Setup ease | 8/10 | `amc-grid.sh` is excellent; clear venv setup |
+| Setup ease | 8/10 | `grid-sentinel.sh` is excellent; clear venv setup |
 | Test infrastructure | 7/10 | 475 tests but no CI/CD automation |
 | Documentation quality | 9/10 | Comprehensive README, CLAUDE.md, 15+ docs files |
 | Contribution barriers | 6/10 | Good docs but no pre-commit, linting, style checks |
@@ -855,16 +855,16 @@ Found get_state() called 2-3× per tick (each call is O(U×T)), entity lookups u
 Found four critical findings: zero authentication on any endpoint, HITL bypass via self-declared client type, HITL replay attack vector, and demo autopilot running without any dead-man switch. Key finding: any WebSocket client can approve target nominations and authorize COAs — the two-gate HITL system provides no actual security. The agent also found no hardcoded secrets and correct use of safe_load for YAML.
 
 ### Agent 09 — Developer Experience Audit
-Rated CI/CD 1/10 (no .github/workflows), release process 3/10, dev tools 3/10 (no linting/formatting/pre-commit). Overall DX score: 5.8/10. Key finding: the excellent amc-grid.sh launcher, 475 tests, and comprehensive documentation provide a strong base; the gap is automation — quality gates that run without human invocation.
+Rated CI/CD 1/10 (no .github/workflows), release process 3/10, dev tools 3/10 (no linting/formatting/pre-commit). Overall DX score: 5.8/10. Key finding: the excellent grid-sentinel.sh launcher, 475 tests, and comprehensive documentation provide a strong base; the gap is automation — quality gates that run without human invocation.
 
 ### Agent 10 — Missing Modules Analysis
 Identified 15 missing modules critical for production-grade autonomous operations. Priority stack: ROE Engine (safety constraint), Persistence Layer (mission continuity), AI Explainability (accountability), AAR Engine (feedback loop), Scenario Scripting (reproducible testing), Logistics Module (resource constraints), Simulation Fidelity Controls (developer velocity), Terrain Analysis (sensor realism), Weather Engine (environment modeling), EW Module (contested spectrum).
 
 ### Agent 11 — Competitive Landscape Analysis
-Analyzed 13 open-source competitors (ATAK, QGC, ArduPilot, PX4, OpenUxAS, Panopticon, AirSim, OpenMCT, etc.). Key finding: no open-source system combines AI kill chain automation, drone swarm coordination, multi-sensor fusion, and a browser-native 3D Cesium frontend in a single cohesive system. AMC-Grid's unique differentiators: F2T2EA pipeline with 9 LangGraph agents, Cesium globe with 6 tactical modes, three autonomy levels with two-gate HITL, and browser-native React frontend.
+Analyzed 13 open-source competitors (ATAK, QGC, ArduPilot, PX4, OpenUxAS, Panopticon, AirSim, OpenMCT, etc.). Key finding: no open-source system combines AI kill chain automation, drone swarm coordination, multi-sensor fusion, and a browser-native 3D Cesium frontend in a single cohesive system. Grid-Sentinel's unique differentiators: F2T2EA pipeline with 9 LangGraph agents, Cesium globe with 6 tactical modes, three autonomy levels with two-gate HITL, and browser-native React frontend.
 
 ### Agent 12 — Research Survey
-Surveyed 10 research domains (autonomous C2, multi-agent AI, swarm autonomy, sensor fusion, human-AI teaming, JADC2, RL, digital twins, XAI, edge AI). Key finding: three research capabilities would most transform the system — hierarchical autonomy with dynamic authority allocation (ACE model), resilient swarm coordination with Raft-style consensus (SwarmRaft), and closed-loop simulation for COA validation (digital twin "what-if" branches). AMC-Grid is positioned to contribute original research in all three areas.
+Surveyed 10 research domains (autonomous C2, multi-agent AI, swarm autonomy, sensor fusion, human-AI teaming, JADC2, RL, digital twins, XAI, edge AI). Key finding: three research capabilities would most transform the system — hierarchical autonomy with dynamic authority allocation (ACE model), resilient swarm coordination with Raft-style consensus (SwarmRaft), and closed-loop simulation for COA validation (digital twin "what-if" branches). Grid-Sentinel is positioned to contribute original research in all three areas.
 
 ### Agent 13 — Library Scout
 Catalogued 25 library candidates across 10 categories. Priority recommendations: FilterPy (Kalman fusion), PyTAK+FreeTAKServer (TAK interoperability), turf.js (frontend geospatial), Shapely (backend geometry), Playwright (E2E tests), Hypothesis (property tests), Locust (load tests), Valkey/Redis (state persistence), paho-mqtt (real hardware integration). Key finding: Stone Soup and PettingZoo, while technically relevant, both represent multi-week refactors with uncertain payoff for a demo system.
@@ -873,7 +873,7 @@ Catalogued 25 library candidates across 10 categories. Priority recommendations:
 Researched operator communities, procurement documents, and academic literature on C2/drone platforms. Key finding: the top user need across all communities is transparent AI reasoning ("why did it do that?") followed by adjustable per-action autonomy controls and complete audit trails for autonomous actions. DoD Directive 3000.09, UN Disarmament Dialogues 2025, and CJADC2 ICD all converge on these three requirements as non-negotiable for autonomous C2 deployment.
 
 ### Agent 15 — Best Practices Survey
-Surveyed 10 best practice domains (architecture, simulation, human-AI teaming, testing, documentation, security, performance, LLM integration, CI/CD, protocols). Key finding: the gap between AMC-Grid's current state and production military system standards is significant but manageable — the architecture patterns (event-driven WebSocket, frozen dataclasses, time-stepped sim loop) are already correct; the missing elements are formalization, tooling, and the compliance-required additions (auth, audit, ROE engine, XAI).
+Surveyed 10 best practice domains (architecture, simulation, human-AI teaming, testing, documentation, security, performance, LLM integration, CI/CD, protocols). Key finding: the gap between Grid-Sentinel's current state and production military system standards is significant but manageable — the architecture patterns (event-driven WebSocket, frozen dataclasses, time-stepped sim loop) are already correct; the missing elements are formalization, tooling, and the compliance-required additions (auth, audit, ROE engine, XAI).
 
 ### Agent 16 — Master Feature List
 Synthesized all proposals from Agents 01-15 into a master list of 87 features across 10 categories. Key finding: proposals naturally cluster into 5 phases — critical bug fixes (do immediately), quality foundation (test coverage + CI), architecture refactoring (after tests), autonomy enhancement (ROE engine + XAI + autonomy matrix), and new capabilities (AAR, EW, logistics, CoT bridge, RL environment).

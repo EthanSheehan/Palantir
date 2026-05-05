@@ -12,7 +12,7 @@ from pydantic_settings import BaseSettings
 
 
 class AMCGridSettings(BaseSettings):
-    """All environment variables consumed by the AMC-Grid C2 system."""
+    """All environment variables consumed by the Grid-Sentinel C2 system."""
 
     # -- Required for LangChain / OpenAI agent features --
     openai_api_key: str = Field(

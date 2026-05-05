@@ -6,7 +6,7 @@
 
 ### 1. `docs/asyncapi.yaml` (AsyncAPI 2.6.0 specification)
 
-Full AsyncAPI 2.6.0 specification documenting the Palantir WebSocket protocol.
+Full AsyncAPI 2.6.0 specification documenting the Grid-Sentinel WebSocket protocol.
 
 **Coverage:**
 - 36 client → server messages documented (all actions in `_DISPATCH_TABLE` + `IDENTIFY` handshake)

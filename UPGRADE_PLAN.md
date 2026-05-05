@@ -1,6 +1,6 @@
-# AMC-Grid Swarm Sensor Fusion Upgrade Plan
+# Grid-Sentinel Swarm Sensor Fusion Upgrade Plan
 
-> Staged upgrade roadmap for drone swarm sensor fusion, intelligent target management, and battlespace assessment. Each stage is independently demoable via `./amc-grid.sh --demo`.
+> Staged upgrade roadmap for drone swarm sensor fusion, intelligent target management, and battlespace assessment. Each stage is independently demoable via `./grid-sentinel.sh --demo`.
 
 ---
 
@@ -160,7 +160,7 @@ All functions referencing `tracked_by_uav_id` / `tracked_target_id` (singular) m
 
 ### 1.7 Demo Checkpoint
 
-Run `./amc-grid.sh --demo` and verify:
+Run `./grid-sentinel.sh --demo` and verify:
 - [ ] Multiple UAVs near a target → fused confidence climbs
 - [ ] Confidence bar shows per-sensor breakdown
 - [ ] Removing a UAV from the area → fused confidence degrades
@@ -274,7 +274,7 @@ Operator manually promotes a CLASSIFIED target to VERIFIED (fast-track for urgen
 
 ### 2.6 Demo Checkpoint
 
-Run `./amc-grid.sh --demo` and verify:
+Run `./grid-sentinel.sh --demo` and verify:
 - [ ] Targets appear as DETECTED with low confidence
 - [ ] As more UAVs contribute sensors, confidence climbs → CLASSIFIED auto-promotion
 - [ ] When second sensor type contributes → VERIFIED auto-promotion
@@ -489,7 +489,7 @@ New broadcast type:
 
 ### 3.6 Demo Checkpoint
 
-Run `./amc-grid.sh --demo` and verify:
+Run `./grid-sentinel.sh --demo` and verify:
 - [ ] Autonomy toggle works (MANUAL / SUPERVISED / AUTONOMOUS)
 - [ ] In MANUAL: drones only change mode via operator commands
 - [ ] In SUPERVISED: system recommends transitions, shows notification, auto-approves after timeout
@@ -645,7 +645,7 @@ New WebSocket actions:
 
 ### 4.6 Demo Checkpoint
 
-Run `./amc-grid.sh --demo` and verify:
+Run `./grid-sentinel.sh --demo` and verify:
 - [ ] Single EO_IR UAV detects target → system dispatches SIGINT + SAR UAVs
 - [ ] Formation lines appear on map between swarm members
 - [ ] As supporting UAVs arrive, sensor coverage fills in
@@ -816,7 +816,7 @@ Default on connect: `STATE_FEED` + `INTEL_FEED` + `COMMAND_FEED` (backward compa
 
 ### 5.5 Demo Checkpoint
 
-Run `./amc-grid.sh --demo` and verify:
+Run `./grid-sentinel.sh --demo` and verify:
 - [ ] Intel feed shows real-time target state transitions
 - [ ] Command log shows all mode transitions with source attribution
 - [ ] Sensor feed subscription works (select drone → see its raw detections)
@@ -1001,7 +1001,7 @@ for t in self.targets:
 
 ### 6.6 Demo Checkpoint
 
-Run `./amc-grid.sh --demo` and verify:
+Run `./grid-sentinel.sh --demo` and verify:
 - [ ] SAM + RADAR + CP auto-clustered as "SAM_BATTERY" with convex hull
 - [ ] Truck patrol routes rendered as movement corridors
 - [ ] Coverage gap overlay highlights unsurveyed zones
@@ -1166,7 +1166,7 @@ UAV-2  FOLLOW   [HUMAN]              TGT-12
 
 ### 7.6 Demo Checkpoint — Full Integration
 
-Run `./amc-grid.sh --demo` and verify the complete loop:
+Run `./grid-sentinel.sh --demo` and verify the complete loop:
 
 1. **Detection**: UAVs spread across battlespace, detecting targets
 2. **Fusion**: Multiple UAVs contribute detections, fused confidence rises

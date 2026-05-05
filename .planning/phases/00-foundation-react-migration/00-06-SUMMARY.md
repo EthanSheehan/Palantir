@@ -27,7 +27,7 @@ key_files:
     - src/frontend-react/src/cesium/CesiumContainer.tsx
     - src/frontend-react/src/App.tsx
 decisions:
-  - "Window custom events bridge Cesium hooks to WebSocket: palantir:send, palantir:placeWaypoint, palantir:openDetailMap — avoids threading the sendMessage prop through Cesium imperative code"
+  - "Window custom events bridge Cesium hooks to WebSocket: grid_sentinel:send, grid_sentinel:placeWaypoint, grid_sentinel:openDetailMap — avoids threading the sendMessage prop through Cesium imperative code"
   - "useCesiumMacroTrack defers first position recording by one frame to avoid camera jump on flyTo completion"
   - "ctx non-null assertion via reassignment (const ctx: CanvasRenderingContext2D = ctxRaw) bypasses TypeScript flow narrowing limits in nested functions"
   - "DetailMapDialog defers viewer init to rAF after open state change to ensure container is in DOM"
@@ -57,11 +57,11 @@ Compass, drone click-selection, range rings, waypoints, lock indicators, drone c
 
 - `useCesiumMacroTrack`: `preUpdate` event listener that applies camera position delta to follow the tracked drone without locking `trackedEntity`. First frame skips delta to avoid camera jump after flyTo.
 
-- `useCesiumClickHandlers`: Single-click for drone macro selection (250ms debounce) or target selection, double-click for third-person tracking or spike action. Waypoint-setting mode intercepts clicks to send `move_drone` via `palantir:send` window event.
+- `useCesiumClickHandlers`: Single-click for drone macro selection (250ms debounce) or target selection, double-click for third-person tracking or spike action. Waypoint-setting mode intercepts clicks to send `move_drone` via `grid_sentinel:send` window event.
 
 - `useCesiumRangeRings`: 10 concentric rings (1m–50km radius, 2000m–0m altitude) using `CallbackProperty` centered on waypoint or drone entity. `toggleRangeRings(droneId)` exposes toggle.
 
-- `useCesiumWaypoints`: Green cylinder (2000m tall) + dashed polyline trajectory per drone. Listens for `palantir:placeWaypoint` window events. Visibility controlled by `showAllWaypoints` store flag and tracked drone ID. Removes waypoints when drone exits REPOSITIONING mode.
+- `useCesiumWaypoints`: Green cylinder (2000m tall) + dashed polyline trajectory per drone. Listens for `grid_sentinel:placeWaypoint` window events. Visibility controlled by `showAllWaypoints` store flag and tracked drone ID. Removes waypoints when drone exits REPOSITIONING mode.
 
 - `useCesiumLockIndicators`: Subscribes to store `uavs`. Adds red ellipse (500m radius, 0.8 alpha outline) on target when UAV in PAINT mode, removes when mode changes.
 
@@ -79,7 +79,7 @@ Compass, drone click-selection, range rings, waypoints, lock indicators, drone c
 
 - `CesiumContainer` updated: wires all 6 new hooks, adds `CameraControls` and `DroneCamPIP` as sibling overlays.
 
-- `App` updated: flex column wrapping `DemoBanner` + content row. `DetailMapDialog` rendered at app root. `palantir:send` window events bridged to `sendMessage` WebSocket function.
+- `App` updated: flex column wrapping `DemoBanner` + content row. `DetailMapDialog` rendered at app root. `grid_sentinel:send` window events bridged to `sendMessage` WebSocket function.
 
 ## Deviations from Plan
 
@@ -88,7 +88,7 @@ Compass, drone click-selection, range rings, waypoints, lock indicators, drone c
 **1. [Rule 2 - Missing Critical] Window event bridge for WebSocket communication**
 - **Found during:** Task 1 (useCesiumClickHandlers)
 - **Issue:** Cesium hooks live outside React component tree — no clean way to access `sendMessage` from WebSocketContext without prop drilling through CesiumContainer
-- **Fix:** Added `palantir:send` and `palantir:placeWaypoint` window events dispatched from Cesium hooks; App.tsx bridge listens and calls `sendMessage`
+- **Fix:** Added `grid_sentinel:send` and `grid_sentinel:placeWaypoint` window events dispatched from Cesium hooks; App.tsx bridge listens and calls `sendMessage`
 - **Files modified:** App.tsx, useCesiumClickHandlers.ts, useCesiumWaypoints.ts, DetailMapDialog.tsx
 
 **2. [Rule 1 - Bug] TypeScript ctx null narrowing in nested functions**

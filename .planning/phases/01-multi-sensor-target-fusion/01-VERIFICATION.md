@@ -121,7 +121,7 @@ No TODO/FIXME/placeholder comments, empty implementations, or stub handlers foun
 
 ### 1. FusionBar visual rendering
 
-**Test:** Run `./palantir.sh --demo`, open browser at localhost:3000, navigate to ENEMIES tab after 10-20 seconds.
+**Test:** Run `./grid_sentinel.sh --demo`, open browser at localhost:3000, navigate to ENEMIES tab after 10-20 seconds.
 **Expected:** Stacked bar segments appear in EnemyCard rows — blue (EO_IR), green (SAR), amber (SIGINT) segments proportional to per-sensor confidence. Badge shows "N SENSORS" count.
 **Why human:** ECharts canvas rendering cannot be verified programmatically without a headless browser.
 

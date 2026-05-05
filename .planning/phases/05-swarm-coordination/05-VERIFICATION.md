@@ -37,7 +37,7 @@ human_verification:
 | 8 | release_swarm WS action cancels all SUPPORT-mode UAVs tracking that target | VERIFIED | api_main.py lines 914-916: `elif action == "release_swarm": sim.release_swarm(payload["target_id"])`; `test_request_release_swarm` PASSES; released count == 0 asserted |
 | 9 | swarm_tasks array appears in get_state() broadcast with target_id, assigned_uav_ids, sensor_coverage | VERIFIED | sim_engine.py lines 1459-1466: `"swarm_tasks": [{"target_id":..., "assigned_uav_ids":..., "sensor_coverage":..., "formation_type":...}...]`; `test_swarm_state_in_broadcast` PASSES |
 | 10 | SwarmPanel shows filled sensor icons for covered types and hollow icons for gap types per target | VERIFIED (code) | SwarmPanel.tsx: `coveredSensors = new Set(target.sensor_contributions.map(c => c.sensor_type))`; renders filled dot when `covered` else hollow; HUMAN needed for visual confirmation |
-| 11 | REQUEST SWARM and RELEASE SWARM buttons send correct WS actions | VERIFIED | SwarmPanel.tsx lines 31-38: `window.dispatchEvent(new CustomEvent('palantir:send', { detail: { action: 'request_swarm', target_id: target.id } }))`; same for release_swarm |
+| 11 | REQUEST SWARM and RELEASE SWARM buttons send correct WS actions | VERIFIED | SwarmPanel.tsx lines 31-38: `window.dispatchEvent(new CustomEvent('grid_sentinel:send', { detail: { action: 'request_swarm', target_id: target.id } }))`; same for release_swarm |
 | 12 | Dashed cyan polylines connect SUPPORT UAVs to their target on the Cesium map | VERIFIED (code) | useCesiumSwarmLines.ts: `PolylineDashMaterialProperty` with `Cesium.Color.CYAN.withAlpha(0.7)`; reads swarmTasks.assigned_uav_ids; HUMAN needed for visual confirmation |
 | 13 | swarm_tasks data flows from WS state through Zustand store to SwarmPanel and Cesium hook | VERIFIED | SimulationStore.ts: `swarmTasks: data.swarm_tasks || []` in setSimData; EnemiesTab reads `useSimStore(s => s.swarmTasks)`; useCesiumSwarmLines reads `state.swarmTasks` |
 | 14 | Duplicate SUPPORT assignment for same UAV-target pair is prevented | VERIFIED | sim_engine.py line 979-980: guard `if uav and not (uav.mode == "SUPPORT" and order.target_id in uav.tracked_target_ids)` before `_assign_target` |
@@ -53,7 +53,7 @@ human_verification:
 | `src/python/sim_engine.py` | SwarmCoordinator instantiation, tick() integration, get_state() swarm_tasks, request/release methods | VERIFIED | Import at line 10; `self.swarm_coordinator` at line 562; step 11 at lines 974-981; `swarm_tasks` in get_state at line 1459; `request_swarm` and `release_swarm` methods at lines 717-733 |
 | `src/python/api_main.py` | request_swarm and release_swarm WS action handlers | VERIFIED | Schema at lines 115-116; handlers at lines 910-916 with log_event |
 | `src/frontend-react/src/store/types.ts` | SwarmTask interface and swarm_tasks on SimStatePayload | VERIFIED | SwarmTask interface at line 76; `swarm_tasks?: SwarmTask[]` at line 140; 'SUPPORT' in UAV mode union at line 12 |
-| `src/frontend-react/src/panels/enemies/SwarmPanel.tsx` | Per-target sensor coverage indicator with request/release buttons | VERIFIED | 115 lines (>60 min); exports SwarmPanel wrapped in React.memo; palantir:send dispatches confirmed |
+| `src/frontend-react/src/panels/enemies/SwarmPanel.tsx` | Per-target sensor coverage indicator with request/release buttons | VERIFIED | 115 lines (>60 min); exports SwarmPanel wrapped in React.memo; grid_sentinel:send dispatches confirmed |
 | `src/frontend-react/src/cesium/useCesiumSwarmLines.ts` | Dashed cyan polylines between SUPPORT UAVs and targets | VERIFIED | 64 lines (>40 min); exports useCesiumSwarmLines; PolylineDashMaterialProperty with CYAN.withAlpha(0.7) confirmed |
 | `src/frontend-react/src/cesium/CesiumContainer.tsx` | useCesiumSwarmLines hook composed in | VERIFIED | Import at line 8; call at line 34 |
 
@@ -66,7 +66,7 @@ human_verification:
 | `sim_engine.py` | `get_state()` | swarm_tasks list in state broadcast | WIRED | Lines 1459-1466: `"swarm_tasks"` key with list comprehension from `get_active_tasks().values()` |
 | `swarm_coordinator.py` | `sensor_fusion.py` | reads `c.sensor_type` from `target.sensor_contributions` | WIRED | Line 196: `covered = {c.sensor_type for c in target.sensor_contributions}` |
 | `SimulationStore.ts` | `types.ts` | SimState includes swarmTasks: SwarmTask[] | WIRED | Line 26: `swarmTasks: SwarmTask[]`; line 141: `swarmTasks: data.swarm_tasks \|\| []` |
-| `SwarmPanel.tsx` | WebSocket | palantir:send event dispatches request_swarm/release_swarm | WIRED | Lines 31-38: both events dispatched with correct action strings |
+| `SwarmPanel.tsx` | WebSocket | grid_sentinel:send event dispatches request_swarm/release_swarm | WIRED | Lines 31-38: both events dispatched with correct action strings |
 | `useCesiumSwarmLines.ts` | `SimulationStore.ts` | useSimStore.subscribe reads swarmTasks + uavs + targets | WIRED | Lines 9, 17: confirmed |
 
 ### Requirements Coverage
@@ -87,7 +87,7 @@ No blockers or stubs detected.
 
 #### 1. SwarmPanel sensor coverage indicators
 
-**Test:** Start the system (`./palantir.sh`), navigate to ENEMIES tab. Find any detected target.
+**Test:** Start the system (`./grid_sentinel.sh`), navigate to ENEMIES tab. Find any detected target.
 **Expected:** SwarmPanel row appears below each EnemyCard showing three sensor badges (EO/IR, SAR, SIGINT). Covered sensors show a filled colored dot; gap sensors show a hollow grey-bordered dot. REQUEST SWARM button present when no swarm active.
 **Why human:** Visual rendering and Blueprint component layout cannot be verified programmatically.
 

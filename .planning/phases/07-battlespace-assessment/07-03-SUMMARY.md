@@ -131,7 +131,7 @@ None — no external service configuration required.
 
 - All 6 required files created and wired
 - Assessment data flows: backend BattlespaceAssessor -> WS payload -> SimulationStore -> ASSESS tab + Cesium overlays
-- Ready for visual verification via `./palantir.sh --demo`
+- Ready for visual verification via `./grid_sentinel.sh --demo`
 - Phase 08 (Adaptive ISR) can build on assessment data already in SimulationStore
 
 ## Self-Check: PASSED

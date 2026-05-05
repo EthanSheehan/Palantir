@@ -1,7 +1,7 @@
 """
 uav_kinematics.py
 =================
-3-DOF point-mass UAV kinematics for the AMC-Grid C2 system.
+3-DOF point-mass UAV kinematics for the Grid-Sentinel C2 system.
 
 Provides immutable state types and pure functions for:
 - Wind vector ground-speed / track-angle adjustment

@@ -60,7 +60,7 @@ tests/e2e/
 ├── helpers/
 │   └── ws-mock.ts              # WebSocket mock helper
 ├── pages/
-│   └── PalantirPage.ts          # Page Object Model
+│   └── Grid-SentinelPage.ts          # Page Object Model
 └── ...
 
 src/python/tests/
@@ -148,7 +148,7 @@ import { test, expect } from './fixtures/base';
 
 test.describe('WebSocket Connection', () => {
   test('sends IDENTIFY handshake immediately after connecting', async ({
-    palantirPage,
+    grid_sentinelPage,
     wsMock,
   }) => {
     const identPayload = await wsMock.waitForIdentify();
@@ -158,11 +158,11 @@ test.describe('WebSocket Connection', () => {
   });
 
   test('shows "Uplink Active" status once WebSocket opens', async ({
-    palantirPage,
+    grid_sentinelPage,
     wsMock,
   }) => {
     await wsMock.waitForIdentify();
-    await palantirPage.assertConnected();
+    await grid_sentinelPage.assertConnected();
   });
 });
 ```
@@ -187,8 +187,8 @@ test.describe('WebSocket Connection', () => {
 
 3. **Fixtures injection for test setup:**
    ```typescript
-   test('...', async ({ palantirPage, wsMock }) => {
-     // palantirPage auto-navigates to / and sets up WS mock
+   test('...', async ({ grid_sentinelPage, wsMock }) => {
+     // grid_sentinelPage auto-navigates to / and sets up WS mock
      // wsMock allows assertions on WebSocket messages
    })
    ```
@@ -408,7 +408,7 @@ Examples:
 
 ```typescript
 test('updates UAV and zone counters from state payload', async ({
-  palantirPage,
+  grid_sentinelPage,
   wsMock,
 }) => {
   await wsMock.waitForIdentify();
@@ -420,8 +420,8 @@ test('updates UAV and zone counters from state payload', async ({
 
   await wsMock.sendState(state);
 
-  await expect(palantirPage.uavCount).toHaveText('3', { timeout: 5000 });
-  await expect(palantirPage.zoneCount).toHaveText('5', { timeout: 5000 });
+  await expect(grid_sentinelPage.uavCount).toHaveText('3', { timeout: 5000 });
+  await expect(grid_sentinelPage.zoneCount).toHaveText('5', { timeout: 5000 });
 });
 ```
 
@@ -456,7 +456,7 @@ async def test_async_operation():
 
 All E2E tests are async:
 ```typescript
-test('sends IDENTIFY handshake', async ({ palantirPage, wsMock }) => {
+test('sends IDENTIFY handshake', async ({ grid_sentinelPage, wsMock }) => {
   const identPayload = await wsMock.waitForIdentify();  // await on async operations
   expect(identPayload.type).toBe('IDENTIFY');
 });
@@ -479,17 +479,17 @@ def test_invalid_severity_rejected(self):
 
 Use Playwright locators and assertions:
 ```typescript
-await expect(palantirPage.connStatus).toHaveText('Signal Lost', {
+await expect(grid_sentinelPage.connStatus).toHaveText('Signal Lost', {
   timeout: 5000,
 });
-await expect(palantirPage.connStatus).toHaveClass(/disconnected/);
+await expect(grid_sentinelPage.connStatus).toHaveClass(/disconnected/);
 ```
 
 **Graceful Failure Testing:**
 
 ```typescript
 test('ignores malformed/unknown message types gracefully', async ({
-  palantirPage,
+  grid_sentinelPage,
   wsMock,
   page,
 }) => {
@@ -507,7 +507,7 @@ test('ignores malformed/unknown message types gracefully', async ({
   });
 
   // Status should still be connected (no crash)
-  await palantirPage.assertConnected();
+  await grid_sentinelPage.assertConnected();
 
   // No uncaught errors
   expect(

@@ -34,7 +34,7 @@
 - Phase 8/9/10 STATUS in STATE.md still showed "PLANNED" after execution — state updates lagged
 
 ### Patterns Established
-- Window custom events (`palantir:send`, etc.) for Cesium→React bridge
+- Window custom events (`grid_sentinel:send`, etc.) for Cesium→React bridge
 - `?? true` fallback pattern for backward-compatible layer visibility
 - Module-level constants for mode physics (`_SENSOR_QUALITY_MAP`, `AUTONOMOUS_TRANSITIONS`)
 - GroundPrimitive rebuild-on-count-change pattern for Cesium layers

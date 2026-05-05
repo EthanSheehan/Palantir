@@ -43,8 +43,8 @@ export function AutonomyToggle() {
     function onOpenBriefing() {
       setBriefingOpen(true);
     }
-    window.addEventListener('amc-grid:openAutonomyBriefing', onOpenBriefing);
-    return () => window.removeEventListener('amc-grid:openAutonomyBriefing', onOpenBriefing);
+    window.addEventListener('grid-sentinel:openAutonomyBriefing', onOpenBriefing);
+    return () => window.removeEventListener('grid-sentinel:openAutonomyBriefing', onOpenBriefing);
   }, []);
 
   return (

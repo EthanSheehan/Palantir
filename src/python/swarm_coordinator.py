@@ -1,7 +1,7 @@
 """
 swarm_coordinator.py
 ====================
-Pure-logic swarm coordination module for AMC-Grid C2.
+Pure-logic swarm coordination module for Grid-Sentinel C2.
 
 Implements optimal UAV-to-target assignment via Hungarian algorithm
 (scipy.optimize.linear_sum_assignment), with idle-count guard, sensor-gap

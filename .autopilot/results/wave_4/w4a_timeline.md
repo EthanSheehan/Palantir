@@ -24,7 +24,7 @@
 - Toggle with `T` key
 - Collapsible header shows LIVE/HISTORICAL tag + "RETURN TO LIVE" button
 - Expanded shows slider (Blueprint Slider) + play/pause button
-- Scrubbing fires `palantir:historicalState` custom event with historical state data
+- Scrubbing fires `grid_sentinel:historicalState` custom event with historical state data
 - Snapshot count shown in header
 
 ## Tests

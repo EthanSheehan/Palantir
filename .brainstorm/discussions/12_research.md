@@ -1,7 +1,7 @@
-# Cutting-Edge Research: Autonomous C2 and Palantir Autopilot
+# Cutting-Edge Research: Autonomous C2 and Grid-Sentinel Autopilot
 
 **Compiled:** 2026-03-20
-**Purpose:** State-of-the-art survey across 10 research domains relevant to Palantir's `/autopilot` system
+**Purpose:** State-of-the-art survey across 10 research domains relevant to Grid-Sentinel's `/autopilot` system
 
 ---
 
@@ -19,11 +19,11 @@
 
 **Assault Breaker II / STITCHES** extend the Third Offset Strategy by finding the optimal balance between centralized direction and decentralized execution in all-domain battlespace, with AI managing the handoff.
 
-### Applicable to Palantir Autopilot
+### Applicable to Grid-Sentinel Autopilot
 
-- The ACE hierarchical autonomy model maps directly to Palantir's three autonomy levels (MANUAL / SUPERVISED / AUTONOMOUS). The autopilot should adopt a similar decomposition: high-level goal selection remains human-configurable, while low-level engagement tactics and UAV maneuver are fully autonomous.
-- Mosaic Warfare's "tile recombination" concept validates Palantir's swarm coordinator approach — drones as interchangeable sensor/effector tiles assigned dynamically by AI.
-- OFFSET's lesson on urban complexity suggests Palantir needs robust fallback behaviors when GNSS, comms, or sensor coverage degrades.
+- The ACE hierarchical autonomy model maps directly to Grid-Sentinel's three autonomy levels (MANUAL / SUPERVISED / AUTONOMOUS). The autopilot should adopt a similar decomposition: high-level goal selection remains human-configurable, while low-level engagement tactics and UAV maneuver are fully autonomous.
+- Mosaic Warfare's "tile recombination" concept validates Grid-Sentinel's swarm coordinator approach — drones as interchangeable sensor/effector tiles assigned dynamically by AI.
+- OFFSET's lesson on urban complexity suggests Grid-Sentinel needs robust fallback behaviors when GNSS, comms, or sensor coverage degrades.
 
 ---
 
@@ -37,14 +37,14 @@
 
 **Causal Reasoning and LLMs for Military Decision-Making (MDPI AI, 2025)** investigates whether LLMs can exhibit sufficient causal reasoning to support military decisions, evaluating officers on strategic resource assessment, multi-order effects reasoning, and geopolitical interpretation. Finding: LLMs show promise but require explicit causal scaffolding to avoid shallow pattern-matching.
 
-**Multi-Agent Scenario Generation (arXiv 2511.07690)** distributes cognitive effort across specialized LLM agents for military training scenario generation, mirroring effective human teamwork with a human-AI co-generation framework. Applicable to Palantir's demo mode / scenario injection.
+**Multi-Agent Scenario Generation (arXiv 2511.07690)** distributes cognitive effort across specialized LLM agents for military training scenario generation, mirroring effective human teamwork with a human-AI co-generation framework. Applicable to Grid-Sentinel's demo mode / scenario injection.
 
 **Known risks:** Automation bias, hallucinations in time-critical contexts, and overconfident responses that are not obviously wrong — all identified by JAPCC (Joint Air Power Competence Centre) as critical failure modes. LLMs as "cognitive advisors" risk accelerated escalation if operators over-trust outputs.
 
-### Applicable to Palantir Autopilot
+### Applicable to Grid-Sentinel Autopilot
 
-- The Decision-Agent / Execute-Agent separation is a concrete architecture for Palantir's `TacticalAssistant`. The current single-agent design could be evolved into: a Strategic-Agent (assesses battlespace, generates COAs) and a Tactical-Agent (decomposes COAs into drone tasking actions).
-- Geo-Commander's hexagonal grid encoding for spatial pre-screening is directly applicable to Palantir's grid zone system — LLM reasoning can be grounded in zone IDs rather than raw coordinates to reduce hallucination risk.
+- The Decision-Agent / Execute-Agent separation is a concrete architecture for Grid-Sentinel's `TacticalAssistant`. The current single-agent design could be evolved into: a Strategic-Agent (assesses battlespace, generates COAs) and a Tactical-Agent (decomposes COAs into drone tasking actions).
+- Geo-Commander's hexagonal grid encoding for spatial pre-screening is directly applicable to Grid-Sentinel's grid zone system — LLM reasoning can be grounded in zone IDs rather than raw coordinates to reduce hallucination risk.
 - Causal scaffolding (explicit if-then chains) should be added to `TacticalAssistant` prompts to reduce shallow reasoning.
 - In autopilot mode, all LLM recommendations should include a confidence score and explicit reasoning chain before being auto-approved.
 
@@ -66,12 +66,12 @@
 
 **DARPA OFFSET final lessons:** 250-UAV heterogeneous swarms are operationally viable in urban environments with proper SOPs and safety workflows. The technology is ready; the limiting factor is operational integration and human oversight workflow.
 
-### Applicable to Palantir Autopilot
+### Applicable to Grid-Sentinel Autopilot
 
-- Palantir's `swarm_coordinator.py` currently uses greedy UAV-to-target assignment. Upgrading to a consensus-based assignment (Raft-style) would make it resilient to individual UAV failures and GNSS degradation.
-- SwarmRaft's Byzantine fault detection is directly applicable — Palantir should implement position anomaly detection to flag UAVs reporting implausible positions.
-- The AMORPHOUS leaderless model suggests Palantir's autopilot should support dynamic role promotion: if the primary assigned drone for a target is lost, the swarm coordinator should automatically promote the best alternative without human intervention.
-- Hexagonal grid zones (already present in Palantir) align with decentralized coverage assignment — each zone can be "owned" by a drone dynamically.
+- Grid-Sentinel's `swarm_coordinator.py` currently uses greedy UAV-to-target assignment. Upgrading to a consensus-based assignment (Raft-style) would make it resilient to individual UAV failures and GNSS degradation.
+- SwarmRaft's Byzantine fault detection is directly applicable — Grid-Sentinel should implement position anomaly detection to flag UAVs reporting implausible positions.
+- The AMORPHOUS leaderless model suggests Grid-Sentinel's autopilot should support dynamic role promotion: if the primary assigned drone for a target is lost, the swarm coordinator should automatically promote the best alternative without human intervention.
+- Hexagonal grid zones (already present in Grid-Sentinel) align with decentralized coverage assignment — each zone can be "owned" by a drone dynamically.
 
 ---
 
@@ -83,18 +83,18 @@
 
 **Cross-Modal Attention (IEEE, 2025)** is now the dominant approach for explicit feature sharing between sensor modalities. Cross-attention blocks for RGB/infrared fusion achieve state-of-the-art on standard benchmarks, outperforming early/late fusion by 8-15% on detection metrics.
 
-**Airborne small-target detection with multimodal fusion + cross-attention (MDPI Remote Sensing, 2025)** demonstrates a framework combining photometric perception and cross-attention mechanisms, addressing the limitation that single-modality systems miss small, fast-moving targets. Directly relevant to Palantir's drone detection scenarios.
+**Airborne small-target detection with multimodal fusion + cross-attention (MDPI Remote Sensing, 2025)** demonstrates a framework combining photometric perception and cross-attention mechanisms, addressing the limitation that single-modality systems miss small, fast-moving targets. Directly relevant to Grid-Sentinel's drone detection scenarios.
 
 **Intelligent Multimodal Multi-Sensor Fusion for UAV Identification (arXiv 2510.22947)** integrates vision, SIGINT, and kinematic data for UAV identification and localization, with multi-modal fusion achieving substantially higher robustness than single-sensor approaches under adversarial conditions.
 
-**Dynamic sensor weighting:** Attention models can be trained to weight sensor contributions dynamically based on scenario context — e.g., downweighting optical sensors in smoke/fog and upweighting SIGINT. This is the evolution beyond Palantir's current `1 - ∏(1-ci)` complementary fusion.
+**Dynamic sensor weighting:** Attention models can be trained to weight sensor contributions dynamically based on scenario context — e.g., downweighting optical sensors in smoke/fog and upweighting SIGINT. This is the evolution beyond Grid-Sentinel's current `1 - ∏(1-ci)` complementary fusion.
 
 **Infrared-visible fusion (Springer AI Review, 2025)** surveys techniques for integrating thermal (IR) and photometric (visible) cues, achieving robustness in day/night conditions and through camouflage — critical for all-weather ISR.
 
-### Applicable to Palantir Autopilot
+### Applicable to Grid-Sentinel Autopilot
 
-- Palantir's `sensor_fusion.py` currently uses `1 - ∏(1-ci)` complementary fusion with max-within-type deduplication. This can be upgraded to learned attention weights that adjust per-sensor confidence based on environmental context (weather, time of day, target type).
-- Cross-modal attention between EO and IR sensor streams (already simulated in Palantir's camera modes) should inform fusion weights rather than being treated independently.
+- Grid-Sentinel's `sensor_fusion.py` currently uses `1 - ∏(1-ci)` complementary fusion with max-within-type deduplication. This can be upgraded to learned attention weights that adjust per-sensor confidence based on environmental context (weather, time of day, target type).
+- Cross-modal attention between EO and IR sensor streams (already simulated in Grid-Sentinel's camera modes) should inform fusion weights rather than being treated independently.
 - Dynamic sensor weighting would allow autopilot to automatically adjust ISR tasking when certain sensor types are degraded — e.g., prioritize SAR drones in bad weather automatically.
 - The `isr_priority.py` scoring could incorporate sensor-modality fitness scores that vary with environmental conditions.
 
@@ -116,11 +116,11 @@
 
 **Automation complacency risk:** Over-automation reduces operator vigilance — operators who trust AI too much miss AI errors. The solution is "appropriate trust": operators should understand when and why the AI might fail.
 
-### Applicable to Palantir Autopilot
+### Applicable to Grid-Sentinel Autopilot
 
-- Palantir's autonomy toggle (MANUAL / SUPERVISED / AUTONOMOUS) implements static authority allocation. The research suggests adding dynamic authority allocation: the system should request human confirmation when its confidence is low or the situation is novel, even in AUTONOMOUS mode.
+- Grid-Sentinel's autonomy toggle (MANUAL / SUPERVISED / AUTONOMOUS) implements static authority allocation. The research suggests adding dynamic authority allocation: the system should request human confirmation when its confidence is low or the situation is novel, even in AUTONOMOUS mode.
 - The `TacticalAssistant` should emit calibrated confidence scores with every recommendation, and the frontend should display these prominently to help operators maintain appropriate trust.
-- Shared Mental Model support: Palantir's frontend should show not just AI recommendations but the AI's reasoning (why it nominated this target, why it selected this COA). The XAI section below covers techniques for this.
+- Shared Mental Model support: Grid-Sentinel's frontend should show not just AI recommendations but the AI's reasoning (why it nominated this target, why it selected this COA). The XAI section below covers techniques for this.
 - Autopilot mode should include "vigilance prompts" — periodic events that require human acknowledgment to confirm they are still monitoring — to prevent automation complacency.
 - The HITL two-gate system (`hitl_manager.py`) is well-aligned with the literature; the key upgrade is making the gates adaptive based on confidence level rather than purely role-based.
 
@@ -140,12 +140,12 @@
 
 **Combined Joint All-Domain C2 (CJA2DC2)** extends JADC2 to coalition partners — managing sensor/shooter coordination across NATO allies with different classification levels and communication systems.
 
-### Applicable to Palantir Autopilot
+### Applicable to Grid-Sentinel Autopilot
 
-- Palantir's F2T2EA pipeline is a direct implementation of JADC2 kill chain acceleration. The autopilot's primary value proposition is compressing the HITL approval latency.
-- The MDCX/XOS model (one operator, multiple drone classes) validates Palantir's single-operator multi-drone model. The autopilot should expose a unified command interface regardless of drone type.
-- CJA2DC2's coalition data-sharing challenge maps to Palantir's intel feed subscription system — different clients can subscribe to different classification tiers of events.
-- Palantir should add explicit timeline tracking: log the time from target DETECTED to ENGAGED for each target, display it in the ASSESS tab, and allow autopilot to optimize for minimum kill-chain latency.
+- Grid-Sentinel's F2T2EA pipeline is a direct implementation of JADC2 kill chain acceleration. The autopilot's primary value proposition is compressing the HITL approval latency.
+- The MDCX/XOS model (one operator, multiple drone classes) validates Grid-Sentinel's single-operator multi-drone model. The autopilot should expose a unified command interface regardless of drone type.
+- CJA2DC2's coalition data-sharing challenge maps to Grid-Sentinel's intel feed subscription system — different clients can subscribe to different classification tiers of events.
+- Grid-Sentinel should add explicit timeline tracking: log the time from target DETECTED to ENGAGED for each target, display it in the ASSESS tab, and allow autopilot to optimize for minimum kill-chain latency.
 
 ---
 
@@ -165,12 +165,12 @@
 
 **Key challenges (2025):** Scalability issues in large scenarios, computational complexity of MARL training, and the sim-to-real gap (policies trained in simulation often fail in real environments due to dynamics mismatches).
 
-### Applicable to Palantir Autopilot
+### Applicable to Grid-Sentinel Autopilot
 
-- Palantir's `swarm_coordinator.py` greedy assignment algorithm is a heuristic approximation of the optimal MARL policy. Integrating a pre-trained GraphZero-PPO-style policy (running offline, informing the greedy heuristic) could improve assignment quality without full MARL training complexity.
-- The hierarchical MARL decomposition maps directly to Palantir's architecture: high-level = swarm-level COA (which targets to pursue, which zones to cover), low-level = individual drone mode selection (FOLLOW/PAINT/INTERCEPT/SEARCH).
-- RL policies for UAV mode selection could be trained in Palantir's own physics simulator, then applied in the live system — closing the sim-to-real gap using Palantir's existing simulation as the training environment.
-- MARL-LAC's attack-defense framing applies directly to Palantir's enemy UAV interception logic — a learned policy for intercept vs. evade vs. escort decisions would outperform the current rule-based approach.
+- Grid-Sentinel's `swarm_coordinator.py` greedy assignment algorithm is a heuristic approximation of the optimal MARL policy. Integrating a pre-trained GraphZero-PPO-style policy (running offline, informing the greedy heuristic) could improve assignment quality without full MARL training complexity.
+- The hierarchical MARL decomposition maps directly to Grid-Sentinel's architecture: high-level = swarm-level COA (which targets to pursue, which zones to cover), low-level = individual drone mode selection (FOLLOW/PAINT/INTERCEPT/SEARCH).
+- RL policies for UAV mode selection could be trained in Grid-Sentinel's own physics simulator, then applied in the live system — closing the sim-to-real gap using Grid-Sentinel's existing simulation as the training environment.
+- MARL-LAC's attack-defense framing applies directly to Grid-Sentinel's enemy UAV interception logic — a learned policy for intercept vs. evade vs. escort decisions would outperform the current rule-based approach.
 
 ---
 
@@ -190,11 +190,11 @@
 
 **Environmental digital twins** represent terrain, weather, and electromagnetic conditions — enabling sensor effectiveness modeling in the twin rather than the real world.
 
-### Applicable to Palantir Autopilot
+### Applicable to Grid-Sentinel Autopilot
 
-- Palantir is already a digital twin: its physics simulator (`sim_engine.py`) maintains a live in-memory model of the battlefield, broadcasting state at 10Hz. The autopilot can treat this as the digital twin and run predictive branches.
+- Grid-Sentinel is already a digital twin: its physics simulator (`sim_engine.py`) maintains a live in-memory model of the battlefield, broadcasting state at 10Hz. The autopilot can treat this as the digital twin and run predictive branches.
 - The "decision-oriented twin" concept should be added to autopilot: before executing any COA, run a forward simulation for N seconds to predict outcomes, then select the COA with the best predicted result.
-- The imitation learning pipeline (train in sim → validate in twin → deploy) is immediately applicable to Palantir — behavioral cloning from expert operator sessions can produce an autopilot baseline without full RL training.
+- The imitation learning pipeline (train in sim → validate in twin → deploy) is immediately applicable to Grid-Sentinel — behavioral cloning from expert operator sessions can produce an autopilot baseline without full RL training.
 - Weather and electromagnetic conditions should be added to the simulation model to make sensor effectiveness predictions more accurate during autopilot operation.
 
 ---
@@ -218,9 +218,9 @@
 - **Counterfactual explanations:** "The target was nominated because confidence was 0.85; without the SAR confirmation, confidence would have been 0.52"
 - **Natural language explanations:** LLM-generated rationale from the same model making the recommendation (chain-of-thought as built-in XAI)
 
-### Applicable to Palantir Autopilot
+### Applicable to Grid-Sentinel Autopilot
 
-- Palantir's `TacticalAssistant` LLM already generates natural language. Chain-of-thought prompting (the model explains its reasoning before concluding) provides built-in XAI at zero additional cost.
+- Grid-Sentinel's `TacticalAssistant` LLM already generates natural language. Chain-of-thought prompting (the model explains its reasoning before concluding) provides built-in XAI at zero additional cost.
 - Every autopilot action should include an explanation string: "Engaged target T-04 (TEL) because: confidence=0.92, 3 sensor types corroborated, ROE satisfied (non-civilian zone), no friendly forces within 2km, highest ISR priority."
 - Counterfactual thresholds should be displayed: "If confidence drops below 0.75, autopilot will defer to operator."
 - For legal/accountability purposes, all autopilot decisions should be logged to `event_logger.py` with full reasoning traces, not just action outcomes.
@@ -251,35 +251,35 @@
 
 **Quantization and model compression:** INT8 and INT4 quantization achieve 2-4x speedup with <5% accuracy loss on standard detection benchmarks. Knowledge distillation reduces model size 10-100x for deployment on constrained hardware.
 
-### Applicable to Palantir Autopilot
+### Applicable to Grid-Sentinel Autopilot
 
-- Palantir's `sensor_model.py` simulates probabilistic detection (Pd) based on range, RCS, and weather — but assumes centralized computation. An edge AI upgrade would push detection inference to individual UAVs, with only confirmation/classification results (not raw imagery) transmitted to the C2 backend.
-- The DECKS federated learning model could enable Palantir's drone fleet to share learned detection models across missions — patterns learned from one theater (e.g., recognizing TEL signatures) propagate to other drones in the swarm.
-- For Palantir's autopilot, edge AI changes the timing model: detection latency drops from network-round-trip to onboard inference time (~20-50ms), fundamentally accelerating the F2T2EA kill chain.
+- Grid-Sentinel's `sensor_model.py` simulates probabilistic detection (Pd) based on range, RCS, and weather — but assumes centralized computation. An edge AI upgrade would push detection inference to individual UAVs, with only confirmation/classification results (not raw imagery) transmitted to the C2 backend.
+- The DECKS federated learning model could enable Grid-Sentinel's drone fleet to share learned detection models across missions — patterns learned from one theater (e.g., recognizing TEL signatures) propagate to other drones in the swarm.
+- For Grid-Sentinel's autopilot, edge AI changes the timing model: detection latency drops from network-round-trip to onboard inference time (~20-50ms), fundamentally accelerating the F2T2EA kill chain.
 - The `video_simulator.py` simulates drone feeds; upgrading it to include simulated edge AI classification (with configurable accuracy/latency parameters) would make the simulation more realistic for autopilot tuning.
-- Palantir's ISR priority queue should account for edge AI capability when assigning drones — drones with better onboard inference hardware should be preferred for verification tasks requiring fast target classification.
+- Grid-Sentinel's ISR priority queue should account for edge AI capability when assigning drones — drones with better onboard inference hardware should be preferred for verification tasks requiring fast target classification.
 
 ---
 
-## Cross-Cutting Synthesis for Palantir Autopilot
+## Cross-Cutting Synthesis for Grid-Sentinel Autopilot
 
 ### The Three Critical Capabilities
 
-Synthesizing across all 10 domains, three capabilities stand out as highest-leverage for Palantir's `/autopilot`:
+Synthesizing across all 10 domains, three capabilities stand out as highest-leverage for Grid-Sentinel's `/autopilot`:
 
 **1. Hierarchical Autonomy with Dynamic Authority Allocation**
 - Source domains: ACE (Area 1), Human-AI teaming (Area 5), Hierarchical MARL (Area 7)
-- Current Palantir state: static 3-level autonomy toggle
+- Current Grid-Sentinel state: static 3-level autonomy toggle
 - Upgrade: dynamic confidence-gated authority — autopilot autonomously executes high-confidence decisions, escalates low-confidence decisions to operator, and uses LLM reasoning to explain each escalation
 
 **2. Resilient Swarm Coordination with Consensus**
 - Source domains: SwarmRaft (Area 3), OFFSET lessons (Area 1), Edge AI (Area 10)
-- Current Palantir state: greedy assignment, no fault tolerance
+- Current Grid-Sentinel state: greedy assignment, no fault tolerance
 - Upgrade: Raft-style consensus for UAV assignment, Byzantine position anomaly detection, automatic role promotion on drone failure
 
 **3. Closed-Loop Simulation for Policy Improvement**
 - Source domains: Digital Twins (Area 8), MARL (Area 7), Sim-to-Real (Area 8)
-- Current Palantir state: simulation and live C2 are separate
+- Current Grid-Sentinel state: simulation and live C2 are separate
 - Upgrade: autopilot runs forward simulation branches before committing to COAs; behavioral cloning from operator sessions generates initial autopilot policies; RL fine-tuning improves policies over time within the simulator
 
 ### Key Papers to Track
@@ -295,12 +295,12 @@ Synthesizing across all 10 domains, three capabilities stand out as highest-leve
 | DECKS Federated Learning | Edge AI | UAV-to-UAV knowledge sharing |
 | AERO onboard inference | Edge AI | On-device detection pipeline |
 
-### Open Research Gaps (Where Palantir Could Lead)
+### Open Research Gaps (Where Grid-Sentinel Could Lead)
 
-1. **End-to-end autopilot evaluation:** No public benchmark exists for full F2T2EA kill chain automation. Palantir's simulator could generate one.
-2. **LLM + MARL integration:** LLMs for high-level reasoning, MARL for low-level control — tight integration remains an open problem. Palantir's architecture (LangGraph agents + swarm coordinator) is well-positioned to explore this.
-3. **XAI for multi-agent decisions:** Explaining why a swarm collectively chose a particular assignment is harder than explaining a single-agent decision. Palantir's event log + LLM summaries could contribute here.
-4. **Adaptive sensor fusion under EW:** How fusion should degrade gracefully when adversary jamming selectively suppresses sensor types is underexplored. Palantir's multi-sensor model can simulate this.
+1. **End-to-end autopilot evaluation:** No public benchmark exists for full F2T2EA kill chain automation. Grid-Sentinel's simulator could generate one.
+2. **LLM + MARL integration:** LLMs for high-level reasoning, MARL for low-level control — tight integration remains an open problem. Grid-Sentinel's architecture (LangGraph agents + swarm coordinator) is well-positioned to explore this.
+3. **XAI for multi-agent decisions:** Explaining why a swarm collectively chose a particular assignment is harder than explaining a single-agent decision. Grid-Sentinel's event log + LLM summaries could contribute here.
+4. **Adaptive sensor fusion under EW:** How fusion should degrade gracefully when adversary jamming selectively suppresses sensor types is underexplored. Grid-Sentinel's multi-sensor model can simulate this.
 
 ---
 

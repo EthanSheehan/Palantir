@@ -8,7 +8,7 @@
 
 ## Summary
 
-Overall security posture is **GOOD**. The most important finding is the hardened `palantir:send` event bridge allowlist in `App.tsx`. No critical issues found. Two medium issues and three low issues require attention.
+Overall security posture is **GOOD**. The most important finding is the hardened `grid_sentinel:send` event bridge allowlist in `App.tsx`. No critical issues found. Two medium issues and three low issues require attention.
 
 ---
 
@@ -79,7 +79,7 @@ All overlay-originated decisions write static strings ("Approved via overlay", "
 **File:** `App.tsx:35-47`
 **Severity:** LOW (well-mitigated, but noted)
 
-The `palantir:send` bridge correctly allowlists which `action` values can be dispatched. However, the full `detail` object is forwarded wholesale — additional payload fields (`drone_id`, `target_id`, coordinates) are not validated. A script injected into the Cesium context could fire events with allowlisted actions but crafted numeric payloads.
+The `grid_sentinel:send` bridge correctly allowlists which `action` values can be dispatched. However, the full `detail` object is forwarded wholesale — additional payload fields (`drone_id`, `target_id`, coordinates) are not validated. A script injected into the Cesium context could fire events with allowlisted actions but crafted numeric payloads.
 
 **Risk:** Low — requires a separate injection vector within Cesium first. The allowlist effectively prevents action injection.
 

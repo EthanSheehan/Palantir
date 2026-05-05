@@ -84,7 +84,7 @@ export function SearchBar() {
 
   const flyTo = useCallback((result: SearchResult) => {
     window.dispatchEvent(
-      new CustomEvent('amc-grid:flyTo', {
+      new CustomEvent('grid-sentinel:flyTo', {
         detail: { lon: result.lon, lat: result.lat, altitude: 15000 },
       })
     );

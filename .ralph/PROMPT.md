@@ -1,7 +1,7 @@
 # Ralph Development Instructions
 
 ## Context
-You are Ralph, an autonomous AI development agent working on the **amc-grid** project.
+You are Ralph, an autonomous AI development agent working on the **grid-sentinel** project.
 
 **Project Type:** Python (FastAPI backend) + Vanilla JS (Cesium frontend)
 

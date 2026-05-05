@@ -1,4 +1,4 @@
-# Palantir Implementation Roadmap
+# Grid-Sentinel Implementation Roadmap
 
 **Author:** Roadmap Designer (Agent 22)
 **Date:** 2026-03-20
@@ -33,7 +33,7 @@ This roadmap organizes 87 proposals from the brainstorm into five phases with pa
 | F-004 | Replace blocking `input()` in `pipeline.py` | `pipeline.py` | ~10 | 0.1d |
 | F-015 | Fix `_nominated` set memory leak (add TTL/cap) | `api_main.py` | ~10 | 0.1d |
 
-**Success criteria:** `./palantir.sh --demo` runs a full F2T2EA cycle with drones dispatching to targets. All agents callable without crash. No silent exception swallowing.
+**Success criteria:** `./grid_sentinel.sh --demo` runs a full F2T2EA cycle with drones dispatching to targets. All agents callable without crash. No silent exception swallowing.
 
 ### Track 1B: Security Baseline (~1 day)
 
@@ -154,7 +154,7 @@ Also fixes inside this refactor:
 - F-011: Command dispatch table (replace 200-line if/elif)
 - F-012: asyncio data race (snapshot before `to_thread`)
 - F-013: `demo_autopilot()` decoupled from WebSocket globals
-- F-014: Magic constants -> `PalantirSettings`
+- F-014: Magic constants -> `Grid-SentinelSettings`
 - CORS origins moved to config
 
 **Success criteria:** `autopilot.py` testable with AsyncMock (no WebSocket required). All action handlers individually testable. Data race eliminated. No module exceeds 400 lines.
@@ -453,7 +453,7 @@ All tracks are independent. With 3 engineers: ~2.5 weeks wall-clock.
 
 ## Phase 5: Innovation & Research
 
-**Goal:** Cutting-edge capabilities that differentiate Palantir from all competitors.
+**Goal:** Cutting-edge capabilities that differentiate Grid-Sentinel from all competitors.
 **Duration:** ~13+ person-days (ongoing, prioritize by research value)
 **Dependencies:** Phases 1-4 complete
 
@@ -468,7 +468,7 @@ All tracks are independent. With 3 engineers: ~2.5 weeks wall-clock.
 | Frontend symbology | milsymbol.js NATO symbol rendering on Cesium globe | ~200 |
 | FreeTAKServer sidecar | Docker Compose addition | ~50 |
 
-**Success criteria:** Palantir publishes VERIFIED targets to TAK ecosystem. Incoming CoT tracks appear on Cesium globe. NATO symbology rendered.
+**Success criteria:** Grid-Sentinel publishes VERIFIED targets to TAK ecosystem. Incoming CoT tracks appear on Cesium globe. NATO symbology rendered.
 
 ### Track 5B: Terrain Analysis with DEM Integration (~3 days)
 

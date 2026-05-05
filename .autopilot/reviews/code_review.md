@@ -57,10 +57,10 @@ AUTH_DISABLED: bool = os.environ.get("AUTH_DISABLED", "false").lower() in ("true
 File: `src/python/rbac.py:23`
 
 ```python
-JWT_SECRET: str = os.environ.get("JWT_SECRET", "palantir-dev-secret")
+JWT_SECRET: str = os.environ.get("JWT_SECRET", "grid_sentinel-dev-secret")
 ```
 
-`"palantir-dev-secret"` is 20 bytes — below the 32-byte minimum for HS256 (PyJWT emits `InsecureKeyLengthWarning` in tests). The fallback makes the secret predictable in any environment where `JWT_SECRET` is not set. If H1 is fixed, this becomes a direct attack vector.
+`"grid_sentinel-dev-secret"` is 20 bytes — below the 32-byte minimum for HS256 (PyJWT emits `InsecureKeyLengthWarning` in tests). The fallback makes the secret predictable in any environment where `JWT_SECRET` is not set. If H1 is fixed, this becomes a direct attack vector.
 
 **Fix:** Remove the fallback — raise at import time if secret is absent and auth is enabled:
 ```python

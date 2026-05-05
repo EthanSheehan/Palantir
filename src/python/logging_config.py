@@ -1,5 +1,5 @@
 """
-Structured logging configuration for AMC-Grid C2.
+Structured logging configuration for Grid-Sentinel C2.
 
 Import and call ``configure_logging()`` once at application startup.
 Every module should then obtain a logger via::

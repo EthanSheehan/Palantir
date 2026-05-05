@@ -50,7 +50,7 @@ created: 2026-03-19
 | 0-python-bugfix | 04 | 1 | sim_engine fix | unit | `./venv/bin/python3 -m pytest src/python/tests/ -x -q` | ✅ | ⬜ pending |
 | 0-event-logger | 04 | 1 | Event logger | unit | `./venv/bin/python3 -m pytest src/python/tests/test_event_logger.py` | ❌ W0 | ⬜ pending |
 | 0-multi-sensor | 04 | 1 | Multi-sensor UAV | unit | `./venv/bin/python3 -m pytest src/python/tests/test_sim_engine.py` | ✅ | ⬜ pending |
-| 0-palantir-sh | 05 | 4 | palantir.sh | manual | `./palantir.sh --no-browser` starts Vite on :5173 | ✅ | ⬜ pending |
+| 0-grid_sentinel-sh | 05 | 4 | grid_sentinel.sh | manual | `./grid_sentinel.sh --no-browser` starts Vite on :5173 | ✅ | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -73,7 +73,7 @@ created: 2026-03-19
 | Cesium globe renders targets | 0.3 Cesium hooks | No headless Cesium renderer | Start dev server, verify target billboards appear |
 | Sidebar resize drag | 0.2 resizer | DOM interaction | Drag sidebar resizer, verify Cesium reflows |
 | Drone cam canvas renders | 0.2 DroneCamPIP | Canvas rendering | Select drone, verify PIP shows synthetic feed |
-| Demo autopilot end-to-end | 0.8 checkpoint | Full system integration | `./palantir.sh --demo`, observe kill chain |
+| Demo autopilot end-to-end | 0.8 checkpoint | Full system integration | `./grid_sentinel.sh --demo`, observe kill chain |
 
 ---
 

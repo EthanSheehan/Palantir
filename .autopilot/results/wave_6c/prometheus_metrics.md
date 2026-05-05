@@ -12,14 +12,14 @@
 
 | Metric | Type | Description |
 |--------|------|-------------|
-| `palantir_tick_duration_seconds` | Histogram | Simulation tick duration |
-| `palantir_connected_clients` | Gauge | WebSocket client count |
-| `palantir_detection_events_total` | Counter | Detection events from sim engine |
-| `palantir_hitl_approvals_total` | Counter | HITL nomination approvals |
-| `palantir_hitl_rejections_total` | Counter | HITL nomination rejections |
-| `palantir_targets_active` | Gauge | Active (non-destroyed) targets |
-| `palantir_drones_active` | Gauge | Operational drones |
-| `palantir_autonomy_level{level="..."}` | Gauge | One-hot autonomy level labels |
+| `grid_sentinel_tick_duration_seconds` | Histogram | Simulation tick duration |
+| `grid_sentinel_connected_clients` | Gauge | WebSocket client count |
+| `grid_sentinel_detection_events_total` | Counter | Detection events from sim engine |
+| `grid_sentinel_hitl_approvals_total` | Counter | HITL nomination approvals |
+| `grid_sentinel_hitl_rejections_total` | Counter | HITL nomination rejections |
+| `grid_sentinel_targets_active` | Gauge | Active (non-destroyed) targets |
+| `grid_sentinel_drones_active` | Gauge | Operational drones |
+| `grid_sentinel_autonomy_level{level="..."}` | Gauge | One-hot autonomy level labels |
 
 ## Implementation Notes
 

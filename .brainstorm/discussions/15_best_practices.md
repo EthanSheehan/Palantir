@@ -2,7 +2,7 @@
 
 ## Research Mandate
 
-Survey 10 core areas of best practices for C2 (Command and Control) systems and autonomous military software. For each area: identify the standard/practice, explain why it matters, and recommend how Palantir should adopt it.
+Survey 10 core areas of best practices for C2 (Command and Control) systems and autonomous military software. For each area: identify the standard/practice, explain why it matters, and recommend how Grid-Sentinel should adopt it.
 
 ---
 
@@ -30,7 +30,7 @@ Real-time C2 systems must achieve:
 
 Monolithic architectures introduce bottlenecks; event-driven microservices allow independent scaling of command flows, sensor fusion, and assessment.
 
-### Palantir Adoption Path
+### Grid-Sentinel Adoption Path
 
 - **Implement event-driven core** — Use WebSocket infrastructure (already present) to broadcast state-changing events (target detected, verified, nominated, engaged, etc.)
 - **Separate concerns via microservices** — Keep simulation, verification, fusion, swarm coordination, assessment, and pipeline orchestration as independent service modules
@@ -52,7 +52,7 @@ Monolithic architectures introduce bottlenecks; event-driven microservices allow
 - Widely adopted in game engines (Unity DOTS, Unreal, Godot) and physics simulators
 
 **Time-Stepped Physics** — Deterministic, predictable state evolution (vs. event-driven):
-- Fixed delta-time tick loop (e.g., 10 Hz in Palantir)
+- Fixed delta-time tick loop (e.g., 10 Hz in Grid-Sentinel)
 - Enables replay, debugging, and distributed simulation
 - Simpler to debug than hybrid approaches
 
@@ -71,7 +71,7 @@ Simulation engines must:
 
 ECS architecture enables 100x performance improvement over traditional OOP approaches and supports parallelization.
 
-### Palantir Adoption Path
+### Grid-Sentinel Adoption Path
 
 - **Formalize ECS structure** — Document entities (Drone, Target, Zone, EnemyUAV) and systems (PhysicsSystem, FusionSystem, VerificationSystem, SwarmSystem, AssessmentSystem)
 - **Immutable state pattern** — Expand frozen dataclasses to all state objects; use `@dataclass(frozen=True)` + `replace()` for updates
@@ -112,7 +112,7 @@ Military AI systems must:
 
 Insufficient human oversight in autonomous systems has led to military incidents (e.g., drone misidentifications); strong human-AI teaming practices reduce risk and improve acceptance.
 
-### Palantir Adoption Path
+### Grid-Sentinel Adoption Path
 
 - **Formalize autonomy levels** — Expand beyond MANUAL/SUPERVISED/AUTONOMOUS:
   - **MANUAL** — Operator selects all targets, weapons, timing
@@ -170,7 +170,7 @@ Autonomous military systems must:
 
 Without rigorous testing, autonomous systems can make decisions with unintended consequences (e.g., misidentification, fratricide, civilian casualty).
 
-### Palantir Adoption Path
+### Grid-Sentinel Adoption Path
 
 - **Classify system criticality** — Map components to DO-178C DALs:
   - **DAL A** — Engagement authorization logic, target verification state machine, firing solutions
@@ -237,7 +237,7 @@ Military procurement and operations require:
 
 Poor documentation leads to system vulnerabilities, maintenance difficulties, and compliance failures during ATO.
 
-### Palantir Adoption Path
+### Grid-Sentinel Adoption Path
 
 - **Create Software Architecture Document (SAD)** — Formalize:
   - System context (theater, echelon, coalition partners)
@@ -316,7 +316,7 @@ C2 systems are high-value military targets:
 
 Inadequate security has led to military incidents (e.g., sensor spoofing in drone swarms, command injection attacks).
 
-### Palantir Adoption Path
+### Grid-Sentinel Adoption Path
 
 - **Implement Zero Trust Architecture**:
   - **Authentication** — Require operator login with MFA (multi-factor authentication); use OAuth2 with hardware tokens for mission-critical approvals
@@ -396,7 +396,7 @@ Fast systems:
 - **Improve targeting accuracy** — fresh sensor data reduces prediction error
 - **Reduce risk** — quick feedback enables rapid abort if intelligence is wrong
 
-### Palantir Adoption Path
+### Grid-Sentinel Adoption Path
 
 - **Maintain 10 Hz update rate** — Already achieved; document as system requirement
   - Keep WebSocket tick loop at 100 ms
@@ -469,7 +469,7 @@ LLMs in military systems can:
 
 Inadequate guardrails have led to AI safety incidents in other domains (e.g., chatbots making harmful recommendations).
 
-### Palantir Adoption Path
+### Grid-Sentinel Adoption Path
 
 - **Constrain LLM scope** — Limit AI agents to structured decision support:
   - **Strategic Analyst** — analyze target patterns, identify high-value targets (based on structured data only)
@@ -568,7 +568,7 @@ cATO enables:
 - **Reduced risk** — catch vulnerabilities early, in automated testing
 - **Mission relevance** — deploy features at speed of operational need
 
-### Palantir Adoption Path
+### Grid-Sentinel Adoption Path
 
 - **Infrastructure as Code (IaC)** — Formalize deployment:
   - Dockerfile for backend (FastAPI server)
@@ -677,7 +677,7 @@ Military systems must:
 
 Custom data formats create integration friction; standard formats enable rapid coalition interoperability.
 
-### Palantir Adoption Path
+### Grid-Sentinel Adoption Path
 
 - **CoT Integration** — Convert internal entities to CoT XML:
   - Drone → `<event type="a-f-G-E-S-U-C">` (air-friendly-military-ground-equipment-UAV-civilian)

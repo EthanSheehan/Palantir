@@ -63,7 +63,7 @@ Does: WebSocket connection management, 10Hz sim loop, assessment loop, demo auto
 
 ## Configuration Issues
 
-- ~25 magic constants in sim_engine.py not in PalantirSettings
+- ~25 magic constants in sim_engine.py not in Grid-SentinelSettings
 - CORS allow_origins hardcoded to localhost:3000
 - Demo autopilot delays are local constants, not configurable
 

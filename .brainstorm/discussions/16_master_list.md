@@ -170,9 +170,9 @@ Extract autopilot logic into a pure `AutopilotController` class that takes `sim`
 
 ---
 
-### F-014 — Move Magic Constants into PalantirSettings
+### F-014 — Move Magic Constants into Grid-SentinelSettings
 
-Approximately 25 magic constants in `sim_engine.py` are not in `PalantirSettings` and cannot be configured without editing source code. These include sensor thresholds, turn rates, engagement probabilities, detection ranges, and zone balance parameters. CORS origins are hardcoded to `localhost:3000`. Demo autopilot delays are local constants.
+Approximately 25 magic constants in `sim_engine.py` are not in `Grid-SentinelSettings` and cannot be configured without editing source code. These include sensor thresholds, turn rates, engagement probabilities, detection ranges, and zone balance parameters. CORS origins are hardcoded to `localhost:3000`. Demo autopilot delays are local constants.
 
 Move all simulation constants into `config.py` as Pydantic settings with sensible defaults and env-var overrides. This enables theater-specific tuning, test overrides, and production configuration without code changes.
 
@@ -222,7 +222,7 @@ Integrate autonomy level checks: in MANUAL mode, swarm coordinator produces reco
 
 When a user switches theaters, the system recreates `SimulationModel`, which resets the autonomy level to MANUAL. An operator running in AUTONOMOUS mode during an active mission who accidentally triggers a theater switch loses their autonomy settings silently.
 
-Persist the autonomy level (and per-drone autonomy overrides) in `PalantirSettings` or a separate state object that survives `SimulationModel` recreation. Warn the operator before theater switch if a non-MANUAL autonomy level is active.
+Persist the autonomy level (and per-drone autonomy overrides) in `Grid-SentinelSettings` or a separate state object that survives `SimulationModel` recreation. Warn the operator before theater switch if a non-MANUAL autonomy level is active.
 
 - **Proposed by:** Agent 03 (Architecture)
 - **Impact:** 3
@@ -262,7 +262,7 @@ Upgrade to Kalman-based track fusion using FilterPy's Unscented Kalman Filter. M
 
 The current ISR observer heuristic does no track correlation: if the same target is detected by three different UAVs, it may appear as three separate detections. This inflates target counts and degrades swarm assignment quality.
 
-Implement Global Nearest Neighbor (GNN) data association, matching new detections to existing tracks by minimum Mahalanobis distance. Use Stone Soup (UK DSTL library) as the framework, which provides JPDA, GNN, MHT associators out of the box. This directly maps to Palantir's target state machine with a phased migration path.
+Implement Global Nearest Neighbor (GNN) data association, matching new detections to existing tracks by minimum Mahalanobis distance. Use Stone Soup (UK DSTL library) as the framework, which provides JPDA, GNN, MHT associators out of the box. This directly maps to Grid-Sentinel's target state machine with a phased migration path.
 
 - **Proposed by:** Agents 02, 13 (Algorithms, Libraries)
 - **Impact:** 4
@@ -408,7 +408,7 @@ Implement a `MissionStore` with SQLite (development) / PostgreSQL + TimescaleDB 
 
 ### F-033 — AI Explainability Layer: Structured Decision Traces
 
-Every AI-generated recommendation in Palantir currently produces either an LLM text string or a silent heuristic result. Operators cannot distinguish LLM output from heuristics, cannot see the top-3 factors driving a recommendation, and cannot audit why the autopilot took a specific autonomous action. The `reasoning_trace` field on `StrikeBoardEntry` exists as a plain text blob.
+Every AI-generated recommendation in Grid-Sentinel currently produces either an LLM text string or a silent heuristic result. Operators cannot distinguish LLM output from heuristics, cannot see the top-3 factors driving a recommendation, and cannot audit why the autopilot took a specific autonomous action. The `reasoning_trace` field on `StrikeBoardEntry` exists as a plain text blob.
 
 Implement a structured `DecisionExplanation` object: action taken, source (LLM model or heuristic rule ID), top-3 contributing factors with confidence scores, ROE rule satisfied, alternatives considered with scores, and counterfactual threshold ("if confidence drops below 0.75, autopilot defers to operator"). Log all explanations to an `ExplainabilityStore`. Surface in a "reasoning panel" that expands on click in the frontend.
 
@@ -420,7 +420,7 @@ Implement a structured `DecisionExplanation` object: action taken, source (LLM m
 
 ### F-034 — After-Action Review (AAR) Engine with Timeline Replay
 
-Palantir logs events to JSONL files but has no playback UI. Operators cannot review what happened during a mission, compare AI decisions to operator overrides, or generate structured mission debriefs. No competitor in the open-source space provides this capability.
+Grid-Sentinel logs events to JSONL files but has no playback UI. Operators cannot review what happened during a mission, compare AI decisions to operator overrides, or generate structured mission debriefs. No competitor in the open-source space provides this capability.
 
 Implement an `AAREngine` supporting variable-speed replay (1x–50x) from the JSONL event log. A `DecisionTimeline` structures events by phase (Find/Fix/Track/Target/Engage/Assess) with timestamps. The frontend gains an AAR tab with a timeline scrubber, filter controls (by drone, target, action type), and an `AARExporter` generating PDF/CSV mission reports.
 
@@ -528,7 +528,7 @@ Implement `ReportGenerator` producing: target lifecycle report (detection to ass
 
 ### F-043 — Mission Planning Interface: Drag-and-Drop Pre-Mission Setup
 
-Palantir's UI is intelligence/assessment-focused during active missions but provides no pre-mission planning capability. Operators cannot define patrol routes, search zones, UAV-to-task assignments, or initial autonomy levels before a mission begins. QGroundControl's mission planner is the standard competitors provide.
+Grid-Sentinel's UI is intelligence/assessment-focused during active missions but provides no pre-mission planning capability. Operators cannot define patrol routes, search zones, UAV-to-task assignments, or initial autonomy levels before a mission begins. QGroundControl's mission planner is the standard competitors provide.
 
 Implement a PLAN mode on the Cesium map: drag-and-drop patrol route waypoints, define search area polygons, assign UAVs to sectors, set initial autonomy levels per drone, and define exclusion zones. Plans are saved as `MissionPlan` YAML and loaded via `load_mission` WebSocket action.
 
@@ -564,7 +564,7 @@ Implement `SensorPlugin`, `TargetPlugin`, and `AgentPlugin` base classes. A `Plu
 
 ### F-046 — MAVLink Bridge for Real Hardware Integration
 
-Palantir simulates drones but cannot command real physical hardware. Every competitor that works with real drones uses MAVLink (ArduPilot, PX4, QGroundControl). Without a MAVLink bridge, Palantir's AI brain cannot connect to real vehicles.
+Grid-Sentinel simulates drones but cannot command real physical hardware. Every competitor that works with real drones uses MAVLink (ArduPilot, PX4, QGroundControl). Without a MAVLink bridge, Grid-Sentinel's AI brain cannot connect to real vehicles.
 
 Implement a `MAVLinkBridge` module using pymavlink (or MAVSDK-Python) that translates WebSocket commands (`follow_target`, `move_drone`, `intercept_enemy`) to MAVLink messages and maps telemetry back to simulation state. Real drones appear as UAVs in the simulation with live telemetry. This closes the gap between simulation and deployment that all competitors handle differently.
 
@@ -576,7 +576,7 @@ Implement a `MAVLinkBridge` module using pymavlink (or MAVSDK-Python) that trans
 
 ### F-047 — CoT/ATAK Integration: Cursor on Target Protocol Bridge
 
-Palantir uses its own WebSocket protocol but has no standard ingest/export paths. The entire TAK ecosystem (ATAK, WinTAK, FreeTAKServer) uses Cursor on Target (CoT) XML as its lingua franca. Without CoT support, Palantir cannot interoperate with any field-deployed system in the US and allied military.
+Grid-Sentinel uses its own WebSocket protocol but has no standard ingest/export paths. The entire TAK ecosystem (ATAK, WinTAK, FreeTAKServer) uses Cursor on Target (CoT) XML as its lingua franca. Without CoT support, Grid-Sentinel cannot interoperate with any field-deployed system in the US and allied military.
 
 Implement a `CoTBridge` using PyTAK that translates `SimulationModel` state to CoT XML events and publishes on port 8089. `VERIFIED` targets emit as `a-h-G` (hostile ground) events; drones emit as `a-f-A-M-F-Q` (friendly air UAV) events. Subscribe to incoming CoT from allied systems to ingest external intelligence. Optionally sidecar with FreeTAKServer for federation.
 
@@ -588,7 +588,7 @@ Implement a `CoTBridge` using PyTAK that translates `SimulationModel` state to C
 
 ### F-048 — MIL-STD-2525 / APP-6 Military Symbology on Map
 
-Palantir uses custom drone and target icons, not NATO-standard military symbols. Operators trained on standard military systems expect MIL-STD-2525D / APP-6(D) icons — standardized 20-character Symbol Identification Codes (SIDC) that encode entity type, affiliation, echelon, and status in a recognizable, standard icon set.
+Grid-Sentinel uses custom drone and target icons, not NATO-standard military symbols. Operators trained on standard military systems expect MIL-STD-2525D / APP-6(D) icons — standardized 20-character Symbol Identification Codes (SIDC) that encode entity type, affiliation, echelon, and status in a recognizable, standard icon set.
 
 Integrate milsymbol.js (or the Esri JMSML library) in the frontend to render standard NATO military symbols for all entities on the Cesium globe. Map `ontology.py` entity types to SIDC codes. Add a "Military Symbols" toggle in the LayerPanel. This is table-stakes for any procurement evaluation by military operators.
 
@@ -612,9 +612,9 @@ Introduce Redis (or Valkey, the BSD-licensed fork) as a state persistence and pu
 
 ### F-050 — Gymnasium/PettingZoo RL Training Environment Wrapper
 
-Palantir's physics simulator is a high-quality training environment for reinforcement learning policies, but it has no standard RL interface. Wrapping it as a PettingZoo multi-agent environment would enable training swarm coordination and intercept policies that outperform the current greedy heuristics, without building a custom training framework.
+Grid-Sentinel's physics simulator is a high-quality training environment for reinforcement learning policies, but it has no standard RL interface. Wrapping it as a PettingZoo multi-agent environment would enable training swarm coordination and intercept policies that outperform the current greedy heuristics, without building a custom training framework.
 
-Implement a `PalantirSwarmEnv(ParallelEnv)` wrapper: observation space = per-drone sensor fusion state, action space = mode selection (FOLLOW/PAINT/INTERCEPT/SEARCH), reward = target verification progress minus time. Train a PPO policy offline; deploy the trained policy in the live swarm coordinator as a drop-in replacement for the greedy assignment.
+Implement a `Grid-SentinelSwarmEnv(ParallelEnv)` wrapper: observation space = per-drone sensor fusion state, action space = mode selection (FOLLOW/PAINT/INTERCEPT/SEARCH), reward = target verification progress minus time. Train a PPO policy offline; deploy the trained policy in the live swarm coordinator as a drop-in replacement for the greedy assignment.
 
 - **Proposed by:** Agents 12, 13 (Research, Libraries)
 - **Impact:** 4
@@ -896,7 +896,7 @@ Add a Night Operations mode (N key): reduced luminance across all panels, green-
 
 ### F-073 — Color-Blind Accessible Display Mode
 
-Palantir's Blueprint dark theme uses red/green color coding extensively for threat levels, status, and alerts. Approximately 8% of men have red-green color blindness — statistically affecting at least one operator in a 10-person ops center. This is a legal accessibility requirement in many procurement contexts.
+Grid-Sentinel's Blueprint dark theme uses red/green color coding extensively for threat levels, status, and alerts. Approximately 8% of men have red-green color blindness — statistically affecting at least one operator in a 10-person ops center. This is a legal accessibility requirement in many procurement contexts.
 
 Add shape and icon redundancy alongside color coding: threat icons differ by shape (not just color), status indicators use patterns or symbols in addition to red/green. Add an "Accessibility Mode" toggle that switches to a color-blind-safe palette (blue/orange scheme). Audit all UI color usage against WCAG AA contrast ratios.
 
@@ -1088,7 +1088,7 @@ Create `.github/workflows/test.yml`: trigger on push and PR, run ruff linting, m
 
 ### F-088 — Docker Multi-Stage Build and docker-compose Full Stack
 
-The system runs from source only via `palantir.sh`. No Dockerfile exists. Deployment on any machine other than the developer's requires manual dependency installation, venv setup, and npm install. This is the primary barrier to sharing, demoing, and deploying Palantir.
+The system runs from source only via `grid_sentinel.sh`. No Dockerfile exists. Deployment on any machine other than the developer's requires manual dependency installation, venv setup, and npm install. This is the primary barrier to sharing, demoing, and deploying Grid-Sentinel.
 
 Write Dockerfiles for the Python backend (multi-stage: build + runtime) and the React frontend (Node build + nginx serve). Write `docker-compose.yml` orchestrating all services: backend, frontend, video simulator, and optionally Redis/Valkey. `docker compose up` starts the full stack. `docker compose --profile demo up` adds the demo autopilot.
 
@@ -1102,7 +1102,7 @@ Write Dockerfiles for the Python backend (multi-stage: build + runtime) and the 
 
 No `/health` or `/ready` endpoint exists. No performance metrics are exposed. Load balancers, Kubernetes liveness probes, and monitoring systems cannot determine if the backend is healthy. The `performance_auditor.py` agent generates text reports but no machine-readable metrics.
 
-Implement `GET /health` returning `{status, uptime, tick_count, client_count, version}`. Implement `GET /metrics` in Prometheus format: `palantir_tick_duration_ms`, `palantir_client_count`, `palantir_target_count`, `palantir_detection_events_total`, `palantir_hitl_approvals_total`. This enables Grafana dashboards and automated alerting on performance degradation.
+Implement `GET /health` returning `{status, uptime, tick_count, client_count, version}`. Implement `GET /metrics` in Prometheus format: `grid_sentinel_tick_duration_ms`, `grid_sentinel_client_count`, `grid_sentinel_target_count`, `grid_sentinel_detection_events_total`, `grid_sentinel_hitl_approvals_total`. This enables Grafana dashboards and automated alerting on performance degradation.
 
 - **Proposed by:** Agents 09, 07 (DevEx, Performance)
 - **Impact:** 3
@@ -1112,9 +1112,9 @@ Implement `GET /health` returning `{status, uptime, tick_count, client_count, ve
 
 ### F-090 — Makefile with Standard Development Targets
 
-No shortcut commands exist for common development tasks. Developers must remember long commands for setup, testing, linting, and running individual components. The `palantir.sh` launcher is good for running but not for development workflows.
+No shortcut commands exist for common development tasks. Developers must remember long commands for setup, testing, linting, and running individual components. The `grid_sentinel.sh` launcher is good for running but not for development workflows.
 
-Create a `Makefile` with targets: `make setup` (venv + pip + npm install), `make run` (full stack via palantir.sh), `make demo` (demo mode), `make test` (pytest with coverage), `make lint` (ruff + mypy + eslint), `make build` (Docker build), `make docs` (generate API reference). This is the standard developer entry point.
+Create a `Makefile` with targets: `make setup` (venv + pip + npm install), `make run` (full stack via grid_sentinel.sh), `make demo` (demo mode), `make test` (pytest with coverage), `make lint` (ruff + mypy + eslint), `make build` (Docker build), `make docs` (generate API reference). This is the standard developer entry point.
 
 - **Proposed by:** Agent 09 (DevEx)
 - **Impact:** 2
@@ -1188,7 +1188,7 @@ Implement `SimulationBranch(sim, coa)`: deep-copy the current simulation state, 
 
 ### F-096 — Consensus-Based Swarm Fault Tolerance (SwarmRaft)
 
-Palantir's swarm coordinator performs greedy assignment with no fault tolerance. If a drone fails, tasks are not automatically reassigned. If a drone reports implausible positions (GPS spoofing), there is no detection mechanism. Research (SwarmRaft, arXiv 2508.00622) demonstrates Raft-consensus-based coordination resilient to drone failures and GNSS degradation.
+Grid-Sentinel's swarm coordinator performs greedy assignment with no fault tolerance. If a drone fails, tasks are not automatically reassigned. If a drone reports implausible positions (GPS spoofing), there is no detection mechanism. Research (SwarmRaft, arXiv 2508.00622) demonstrates Raft-consensus-based coordination resilient to drone failures and GNSS degradation.
 
 Implement UAV position anomaly detection: flag drones reporting implausible position changes (velocity exceeds physics limits). Implement automatic task promotion: when a drone becomes unavailable, the swarm coordinator immediately reassigns its tasks to the best alternative without human intervention. Add Byzantine fault detection for GNSS-denied scenarios.
 
@@ -1200,9 +1200,9 @@ Implement UAV position anomaly detection: flag drones reporting implausible posi
 
 ### F-097 — Behavioral Cloning from Operator Sessions
 
-Palantir's autopilot uses heuristic rules and LLM reasoning. An alternative approach: learn a policy from expert operator behavior during supervised and manual sessions. Behavioral cloning (imitation learning) can produce a baseline autopilot policy trained on operator actions without requiring full RL training.
+Grid-Sentinel's autopilot uses heuristic rules and LLM reasoning. An alternative approach: learn a policy from expert operator behavior during supervised and manual sessions. Behavioral cloning (imitation learning) can produce a baseline autopilot policy trained on operator actions without requiring full RL training.
 
-Log all operator actions (drone assignments, HITL decisions, COA selections) with associated simulation state as a training dataset. Train a behavioral cloning policy using the `PalantirSwarmEnv` (F-050) with state→action pairs from expert sessions. Deploy the cloned policy as an alternative to the heuristic swarm coordinator.
+Log all operator actions (drone assignments, HITL decisions, COA selections) with associated simulation state as a training dataset. Train a behavioral cloning policy using the `Grid-SentinelSwarmEnv` (F-050) with state→action pairs from expert sessions. Deploy the cloned policy as an alternative to the heuristic swarm coordinator.
 
 - **Proposed by:** Agent 12 (Research)
 - **Impact:** 3
@@ -1212,7 +1212,7 @@ Log all operator actions (drone assignments, HITL decisions, COA selections) wit
 
 ### F-098 — Chain-of-Thought Prompting as Built-In XAI
 
-DARPA's XAI program identified natural language explanations generated by the same model making recommendations as a practical explainability approach. Palantir's LLM agents already generate text — adding chain-of-thought structure makes the reasoning visible without separate XAI infrastructure.
+DARPA's XAI program identified natural language explanations generated by the same model making recommendations as a practical explainability approach. Grid-Sentinel's LLM agents already generate text — adding chain-of-thought structure makes the reasoning visible without separate XAI infrastructure.
 
 Refactor all `TacticalAssistant` and agent prompts to use chain-of-thought: "Think step by step: (1) What is the current threat level? (2) What sensor evidence supports this? (3) What ROE rules apply? (4) What are the alternatives? THEN conclude with your recommendation." Log the full reasoning chain alongside the recommendation. Surface in the reasoning panel (F-063).
 

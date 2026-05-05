@@ -32,7 +32,7 @@
 
 ### Test update: `test_generate_metrics_text_has_help_lines`
 **File:** `src/python/tests/test_metrics.py` (line 197)
-**Change:** Updated assertion from `"# HELP palantir_detection_events"` to `"# HELP palantir_detection_events_total"` to match the corrected M-001 output.
+**Change:** Updated assertion from `"# HELP grid_sentinel_detection_events"` to `"# HELP grid_sentinel_detection_events_total"` to match the corrected M-001 output.
 
 ## Test Results
 

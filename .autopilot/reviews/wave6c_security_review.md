@@ -40,13 +40,13 @@ async def get_metrics(request: Request):
 
 ---
 
-### H-2: `palantir:send` event bridge accepts arbitrary WebSocket payloads from Cesium hooks without validation
+### H-2: `grid_sentinel:send` event bridge accepts arbitrary WebSocket payloads from Cesium hooks without validation
 **File:** `src/frontend-react/src/App.tsx:29-33`
-**Description:** The `palantir:send` event listener in `App.tsx` forwards `(e as CustomEvent).detail` directly to `sendMessage()` — which calls `ws.send(JSON.stringify(msg))` — without any validation of the message shape or permitted action types. Custom events dispatched on `window` are reachable from any JavaScript running in the same origin, including third-party Cesium ion scripts or injected scripts.
+**Description:** The `grid_sentinel:send` event listener in `App.tsx` forwards `(e as CustomEvent).detail` directly to `sendMessage()` — which calls `ws.send(JSON.stringify(msg))` — without any validation of the message shape or permitted action types. Custom events dispatched on `window` are reachable from any JavaScript running in the same origin, including third-party Cesium ion scripts or injected scripts.
 
 If an attacker achieves XSS or can load a malicious Cesium plugin, they can call:
 ```js
-window.dispatchEvent(new CustomEvent('palantir:send', {
+window.dispatchEvent(new CustomEvent('grid_sentinel:send', {
   detail: { action: 'authorize_coa', entry_id: '...', ... }
 }))
 ```
@@ -63,7 +63,7 @@ const CESIUM_ALLOWED_ACTIONS = new Set([
 function onSend(e: Event) {
   const detail = (e as CustomEvent).detail;
   if (!detail?.action || !CESIUM_ALLOWED_ACTIONS.has(detail.action)) {
-    console.warn('palantir:send blocked: unauthorized action', detail?.action);
+    console.warn('grid_sentinel:send blocked: unauthorized action', detail?.action);
     return;
   }
   sendMessage(detail);
@@ -125,7 +125,7 @@ def _validate_path(cls, v):
 **File:** `src/python/metrics.py:138-212`
 **Description:** The `autonomy_level` value passed to `update_gauges()` is interpolated into the Prometheus text output at line 212:
 ```python
-lines.append(f'palantir_autonomy_level{{level="{level}"}} {active}')
+lines.append(f'grid_sentinel_autonomy_level{{level="{level}"}} {active}')
 ```
 The `level` values come from `_AUTONOMY_LEVELS = ("MANUAL", "SUPERVISED", "AUTONOMOUS")` which are safe constants — however the `autonomy_level` stored in `_state` comes from callers (e.g., `update_gauges(autonomy_level=sim.autonomy_level)`). If `sim.autonomy_level` were ever set to an unexpected value (e.g., via a malformed WebSocket action or future refactor), the string would be interpolated into the metric output without sanitization.
 
@@ -174,7 +174,7 @@ An operator who enables auth but forgets to rotate the demo token leaves a known
 
 ### L-4: `CommandPalette` stores command history in `localStorage` by command ID
 **File:** `src/frontend-react/src/overlays/CommandPalette.tsx:5-27`
-**Description:** Command history is stored in `localStorage` under key `palantir:cmd_history`. This persists sensitive operational history (which targets were approved, which autonomy states were set) in plaintext browser storage, readable by any script with same-origin access. In a shared workstation/kiosk scenario, this leaks recent operator actions.
+**Description:** Command history is stored in `localStorage` under key `grid_sentinel:cmd_history`. This persists sensitive operational history (which targets were approved, which autonomy states were set) in plaintext browser storage, readable by any script with same-origin access. In a shared workstation/kiosk scenario, this leaks recent operator actions.
 
 **Recommendation:** Use `sessionStorage` instead of `localStorage` so history does not persist across browser sessions, or clear history on logout/disconnect.
 
@@ -232,7 +232,7 @@ const ws = new WebSocket(`${scheme}://${window.location.hostname}:8000/ws`);
 ## Priority Fix Order
 
 1. **H-1** — Protect `/metrics` endpoint (auth or localhost-only gate)
-2. **H-2** — Allowlist `palantir:send` event bridge actions
+2. **H-2** — Allowlist `grid_sentinel:send` event bridge actions
 3. **M-1** — Route CommandPalette AUTONOMOUS command through briefing dialog
 4. **M-3** — Wrap `JSON.parse` in try/catch in `useWebSocket`
 5. **M-5** — Clamp `autonomy_level` to known values in `update_gauges`

@@ -34,7 +34,7 @@ The backend changes are minimal: expose `fov_targets` (targets currently in a UA
 | Library | Version | Purpose | Why Standard |
 |---------|---------|---------|--------------|
 | Canvas 2D API | browser native | EO/IR and SAR synthetic sensor rendering | Already used in useDroneCam; no deps; predictable 60fps rAF loop |
-| ECharts | 5.5.0 (already installed) | SIGINT waterfall heatmap display | Already in project; palantir theme registered; heatmap series fits time-frequency display |
+| ECharts | 5.5.0 (already installed) | SIGINT waterfall heatmap display | Already in project; grid_sentinel theme registered; heatmap series fits time-frequency display |
 | echarts-for-react | 3.0.2 (already installed) | React wrapper for ECharts | Consistent with FusionBar.tsx pattern already in codebase |
 | @blueprintjs/core | 5.13.0 (already installed) | CamLayoutSelector ButtonGroup, HUD overlays | Project standard; SegmentedControl/ButtonGroup used everywhere |
 | React 18 | 18.3.1 (already installed) | Component architecture for layout system | Project standard |
@@ -477,7 +477,7 @@ No `nyquist_validation` key in `.planning/config.json` — treat as enabled.
 | FR-9 | CamLayout Zustand actions update state correctly | unit | TypeScript compile + manual | existing |
 
 ### Sampling Rate
-- **Per task commit:** `cd /Users/Rocklord/Documents/GitHub/Palantir/src/frontend-react && npx tsc --noEmit`
+- **Per task commit:** `cd /Users/Rocklord/Documents/GitHub/Grid-Sentinel/src/frontend-react && npx tsc --noEmit`
 - **Per wave merge:** `./venv/bin/python3 -m pytest src/python/tests/ -q && cd src/frontend-react && npx tsc --noEmit`
 - **Phase gate:** Full suite green before `/gsd:verify-work`
 
@@ -493,7 +493,7 @@ No `nyquist_validation` key in `.planning/config.json` — treat as enabled.
 - Codebase: `src/frontend-react/src/panels/enemies/FusionBar.tsx` — ECharts usage pattern
 - Codebase: `src/frontend-react/src/store/types.ts` — full UAV/Target data model
 - Codebase: `src/frontend-react/src/store/SimulationStore.ts` — Zustand store patterns
-- Codebase: `src/frontend-react/src/theme/palantir.ts` — ECharts theme registration
+- Codebase: `src/frontend-react/src/theme/grid_sentinel.ts` — ECharts theme registration
 - Codebase: `src/frontend-react/package.json` — confirmed library versions
 - Codebase: `src/python/sim_engine.py` — confirmed fuel_hours and sensors[] already serialized
 - Project STATE.md decisions — Blueprint SegmentedControl mutable array constraint, as const incompatibility

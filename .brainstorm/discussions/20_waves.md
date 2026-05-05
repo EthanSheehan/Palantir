@@ -170,8 +170,8 @@ Extract from `api_main.py` (~1,113 lines):
 - Fix asyncio data race: `asyncio.to_thread()` reads `sim` state while main loop mutates — add a lock or snapshot-before-thread pattern
 
 Fix inside this refactor:
-- CORS origins: move hardcoded `localhost:3000` to `PalantirSettings`
-- Demo autopilot delays: move local constants to `PalantirSettings`
+- CORS origins: move hardcoded `localhost:3000` to `Grid-SentinelSettings`
+- Demo autopilot delays: move local constants to `Grid-SentinelSettings`
 - `_process_new_detection()`: use `logger.exception()` not `str(exc)`
 - `broadcast()`: log client ID on removal
 
@@ -354,7 +354,7 @@ New module: `src/python/aar_engine.py` + frontend AAR tab
 
 **What Wave 4 Enables:**
 - System is procurement-demonstrable with XAI, audit trail, per-action autonomy, and pre-autonomy briefing
-- Research community can use Palantir as a testbed (reproducible scenarios, metrics export)
+- Research community can use Grid-Sentinel as a testbed (reproducible scenarios, metrics export)
 - Scenario scripting (Wave 5A) has simulation fidelity controls to build on
 - Advanced sensor fusion (Wave 5) has per-action autonomy model to integrate with
 
@@ -469,7 +469,7 @@ New module: `src/python/aar_engine.py` + frontend AAR tab
 - WebSocket delta encoding: send only changed fields, not full state each tick (50-80% bandwidth reduction)
 - SampledPositionProperty pruning in frontend: cap at 600 samples (60s at 10Hz) per drone
 - Frontend latency indicator: display WebSocket message age in header
-- CORS origins: move to `PalantirSettings`, support multiple origins
+- CORS origins: move to `Grid-SentinelSettings`, support multiple origins
 - TLS support in FastAPI (uvicorn SSL config)
 - NVIS night-operations mode in frontend (N key, green-dominant low-luminance CSS theme)
 - Color-blind accessibility mode (shape+icon redundancy alongside color coding)
@@ -564,10 +564,10 @@ The non-fast-path items (terrain analysis, EW, logistics, RL, CoT bridge) can pr
 
 ## Open Research Opportunities
 
-Per 12_research.md, Palantir is positioned to lead in three areas no competitor has addressed:
+Per 12_research.md, Grid-Sentinel is positioned to lead in three areas no competitor has addressed:
 
 1. **End-to-end F2T2EA autopilot benchmark** — No public benchmark exists. After Wave 4, expose a research API and publish scenario packs.
 
-2. **LLM + swarm coordination integration** — After Wave 3D (Hungarian swarm) + 4A (XAI), Palantir uniquely combines LLM reasoning with optimal assignment. Log the delta between LLM recommendation and Hungarian solution to build a training dataset.
+2. **LLM + swarm coordination integration** — After Wave 3D (Hungarian swarm) + 4A (XAI), Grid-Sentinel uniquely combines LLM reasoning with optimal assignment. Log the delta between LLM recommendation and Hungarian solution to build a training dataset.
 
-3. **Adaptive sensor fusion under EW** — After Wave 5B (EW engine) + 3C (Kalman fusion), run studies on how fusion degrades gracefully under selective jamming. Palantir's multi-sensor model is uniquely suited.
+3. **Adaptive sensor fusion under EW** — After Wave 5B (EW engine) + 3C (Kalman fusion), run studies on how fusion degrades gracefully under selective jamming. Grid-Sentinel's multi-sensor model is uniquely suited.

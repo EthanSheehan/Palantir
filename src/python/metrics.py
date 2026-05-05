@@ -1,4 +1,4 @@
-"""Prometheus-compatible metrics for AMC-Grid C2.
+"""Prometheus-compatible metrics for Grid-Sentinel C2.
 
 Implements the Prometheus text exposition format (0.0.4) without requiring
 the prometheus_client library.  Each metric is stored as a frozen snapshot
@@ -160,7 +160,7 @@ def generate_metrics_text() -> str:
         lines.append(f"{name}_sum {_fmt(total)}")
 
     _histogram(
-        "amc_grid_tick_duration_seconds",
+        "grid_sentinel_tick_duration_seconds",
         "Simulation tick duration in seconds",
         s.tick_count,
         s.tick_duration_sum,
@@ -168,48 +168,48 @@ def generate_metrics_text() -> str:
     )
 
     _gauge(
-        "amc_grid_connected_clients",
+        "grid_sentinel_connected_clients",
         "Number of currently connected WebSocket clients",
         s.connected_clients,
     )
 
     _counter(
-        "amc_grid_detection_events",
+        "grid_sentinel_detection_events",
         "Total detection events from simulation engine",
         s.detection_events_total,
     )
 
     _counter(
-        "amc_grid_hitl_approvals",
+        "grid_sentinel_hitl_approvals",
         "Total HITL nomination approvals",
         s.hitl_approvals_total,
     )
 
     _counter(
-        "amc_grid_hitl_rejections",
+        "grid_sentinel_hitl_rejections",
         "Total HITL nomination rejections",
         s.hitl_rejections_total,
     )
 
     _gauge(
-        "amc_grid_targets_active",
+        "grid_sentinel_targets_active",
         "Number of active (non-destroyed) targets",
         s.targets_active,
     )
 
     _gauge(
-        "amc_grid_drones_active",
+        "grid_sentinel_drones_active",
         "Number of operational drones",
         s.drones_active,
     )
 
     # Autonomy level as one-hot gauges with label
-    lines.append("# HELP amc_grid_autonomy_level Current autonomy level (1 = active)")
-    lines.append("# TYPE amc_grid_autonomy_level gauge")
+    lines.append("# HELP grid_sentinel_autonomy_level Current autonomy level (1 = active)")
+    lines.append("# TYPE grid_sentinel_autonomy_level gauge")
     sanitized_level = s.autonomy_level if s.autonomy_level in _AUTONOMY_LEVELS else "UNKNOWN"
     for level in _AUTONOMY_LEVELS:
         active = 1 if sanitized_level == level else 0
-        lines.append(f'amc_grid_autonomy_level{{level="{level}"}} {active}')
+        lines.append(f'grid_sentinel_autonomy_level{{level="{level}"}} {active}')
 
     lines.append("")  # trailing newline required by spec
     return "\n".join(lines)

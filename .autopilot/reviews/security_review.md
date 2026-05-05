@@ -42,10 +42,10 @@ The existing `src/python/auth.py` defaults `AUTH_DISABLED` to `"false"`. The new
 **File:** `src/python/rbac.py`, line 26
 
 ```python
-JWT_SECRET: str = os.environ.get("JWT_SECRET", "palantir-dev-secret")
+JWT_SECRET: str = os.environ.get("JWT_SECRET", "grid_sentinel-dev-secret")
 ```
 
-`"palantir-dev-secret"` is now committed to git history. If `JWT_SECRET` is not set in production, all tokens are signed with a publicly known secret, allowing any attacker to forge valid JWTs for any role including ADMIN.
+`"grid_sentinel-dev-secret"` is now committed to git history. If `JWT_SECRET` is not set in production, all tokens are signed with a publicly known secret, allowing any attacker to forge valid JWTs for any role including ADMIN.
 
 **Impact:** Complete authentication bypass when `JWT_SECRET` env var is absent.
 

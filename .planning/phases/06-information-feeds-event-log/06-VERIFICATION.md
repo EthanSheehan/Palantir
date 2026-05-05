@@ -90,7 +90,7 @@ No blocker or warning anti-patterns found.
 
 #### 1. IntelFeed and CommandLog Live Population
 
-**Test:** Start `./palantir.sh --demo`, open http://localhost:3000, go to MISSION tab. Wait 30 seconds.
+**Test:** Start `./grid_sentinel.sh --demo`, open http://localhost:3000, go to MISSION tab. Wait 30 seconds.
 **Expected:** IntelFeed panel appears below AssistantWidget showing target state transitions (DETECTED, CLASSIFIED, VERIFIED events with color-coded Tags). CommandLog panel shows command actions with timestamps and autopilot source attribution. Both stabilize near the cap (do not grow without bound).
 **Why human:** Requires live WebSocket connection and demo autopilot emitting real events. Cannot verify event stream content programmatically.
 

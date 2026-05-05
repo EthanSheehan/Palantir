@@ -1,7 +1,7 @@
 """
 sensor_weighting.py
 ===================
-Per-sensor fitness functions for dynamic sensor weighting in AMC-Grid C2.
+Per-sensor fitness functions for dynamic sensor weighting in Grid-Sentinel C2.
 
 Computes fitness multipliers per sensor type based on environment (weather,
 time of day, target type). Used by the fusion pipeline to up/down-weight

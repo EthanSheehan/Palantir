@@ -1,6 +1,6 @@
 # Grid 2: Cesium 3D Globe Implementation Guide
 
-To create a Google Earth / AMC-Grid-style 3D macro grid, we will use **CesiumJS**, an open-source JavaScript library for world-class 3D globes and maps.
+To create a Google Earth / Grid-Sentinel-style 3D macro grid, we will use **CesiumJS**, an open-source JavaScript library for world-class 3D globes and maps.
 
 ## 1. Required API Keys
 
@@ -41,7 +41,7 @@ We will follow a similar architectural split as `grid 1`, but deeply optimized f
     *   **Zones:** Rendered as 3D Polygons (`Cesium.Entity` with `polygon` graphics), clamped to the ground, with dynamic colors/opacity representing the imbalance gradient.
     *   **Flows:** Rendered as 3D Polylines that arc through the sky (using `Cesium.ArcType.GEODESIC`) to visually represent UAV repositioning over the mountains.
     *   **UAVs:** Rendered as 3D models (glTF) or simple glowing spheres floating at altitude, with their positions updating smoothly.
-*   **UI:** A sleek, dark, glassmorphism UI overlay (AMC-Grid style) using vanilla CSS, showing connection status, fleet health, and interactive controls to trigger demand spikes.
+*   **UI:** A sleek, dark, glassmorphism UI overlay (Grid-Sentinel style) using vanilla CSS, showing connection status, fleet health, and interactive controls to trigger demand spikes.
 
 ---
 

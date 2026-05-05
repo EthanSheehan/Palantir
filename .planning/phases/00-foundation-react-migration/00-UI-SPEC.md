@@ -551,7 +551,7 @@ Custom overrides needed (not provided by Blueprint):
 - Grid visibility button active colors (inline style toggled on click)
 - Sidebar resize handle — custom, not a Blueprint component
 
-CSS class convention: Blueprint classes (`bp5-*`) take precedence. Custom classes are prefixed with `palantir-` to avoid collisions.
+CSS class convention: Blueprint classes (`bp5-*`) take precedence. Custom classes are prefixed with `grid_sentinel-` to avoid collisions.
 
 ---
 
@@ -584,7 +584,7 @@ This project does not use shadcn. No component registry is in use. Blueprint.js 
    ```
    import '@blueprintjs/core/lib/css/blueprint.css';
    import '@blueprintjs/icons/lib/css/blueprint-icons.css';
-   // custom palantir.css after
+   // custom grid_sentinel.css after
    ```
 
 7. **vite-plugin-cesium order**: In `vite.config.ts`, `cesium()` must appear before `react()` in the plugins array.

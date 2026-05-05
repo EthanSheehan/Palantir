@@ -51,8 +51,8 @@ React frontend for swarm coordination — SwarmTask TypeScript types, Zustand st
 - Added `swarmTasks: SwarmTask[]` to `SimState` interface and Zustand store initial state
 - Updated `setSimData` to map `data.swarm_tasks || []` into `swarmTasks`
 - Created `SwarmPanel.tsx` — renders 3 sensor coverage indicators (EO/IR, SAR, SIGINT) with filled dot (covered) or hollow dot (gap) per sensor type
-- REQUEST button dispatches `palantir:send` with `action: 'request_swarm'`; shown when no swarm assigned
-- RELEASE button dispatches `palantir:send` with `action: 'release_swarm'`; shown when swarm active
+- REQUEST button dispatches `grid_sentinel:send` with `action: 'request_swarm'`; shown when no swarm assigned
+- RELEASE button dispatches `grid_sentinel:send` with `action: 'release_swarm'`; shown when swarm active
 - `SwarmPanel` wrapped in `React.memo` with custom comparator — only re-renders on sensor coverage set change or assigned UAV count change
 - `EnemiesTab.tsx` builds `swarmByTarget` lookup map and renders `<SwarmPanel>` beneath each `<EnemyCard>`
 

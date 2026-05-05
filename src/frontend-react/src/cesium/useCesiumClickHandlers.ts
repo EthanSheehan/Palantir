@@ -96,12 +96,12 @@ export function useCesiumClickHandlers(
             const droneId = store.trackedDroneId;
 
             // Send via WebSocket context — dispatch custom event
-            window.dispatchEvent(new CustomEvent('amc-grid:send', {
+            window.dispatchEvent(new CustomEvent('grid-sentinel:send', {
               detail: { action: 'move_drone', drone_id: droneId, target_lon: lon, target_lat: lat },
             }));
 
             // Place waypoint via event
-            window.dispatchEvent(new CustomEvent('amc-grid:placeWaypoint', {
+            window.dispatchEvent(new CustomEvent('grid-sentinel:placeWaypoint', {
               detail: { droneId, cartesian },
             }));
 
@@ -179,7 +179,7 @@ export function useCesiumClickHandlers(
           const lon = Cesium.Math.toDegrees(carto.longitude);
           const lat = Cesium.Math.toDegrees(carto.latitude);
 
-          window.dispatchEvent(new CustomEvent('amc-grid:send', {
+          window.dispatchEvent(new CustomEvent('grid-sentinel:send', {
             detail: { action: 'spike', lon, lat, radius: 0.5, magnitude: 20 },
           }));
 

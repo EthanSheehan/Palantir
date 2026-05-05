@@ -1,7 +1,7 @@
 """
 sim_engine.py
 =============
-Simulation orchestrator for the AMC-Grid C2 system.
+Simulation orchestrator for the Grid-Sentinel C2 system.
 
 This module owns only the tick() loop and coordination logic.
 Entity classes and physics live in dedicated sub-modules:

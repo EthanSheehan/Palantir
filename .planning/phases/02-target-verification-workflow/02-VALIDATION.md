@@ -74,7 +74,7 @@ created: 2026-03-19
 |----------|-------------|------------|-------------------|
 | VerificationStepper renders step dots | FR-2 UI | No Playwright/E2E setup yet | Load UI, observe target cards show DETECTED→CLASSIFIED→VERIFIED dots |
 | VERIFY button visible on CLASSIFIED only | FR-2 UI | No Playwright/E2E setup yet | Click VERIFY on CLASSIFIED target, confirm it promotes to VERIFIED |
-| Demo timing feels natural | FR-2 Demo | Subjective timing assessment | Run `./palantir.sh --demo`, watch targets climb through states |
+| Demo timing feels natural | FR-2 Demo | Subjective timing assessment | Run `./grid_sentinel.sh --demo`, watch targets climb through states |
 
 *All Python behaviors have automated verification.*
 

@@ -1,4 +1,4 @@
-"""WebSocket delta compression for AMC-Grid C2.
+"""WebSocket delta compression for Grid-Sentinel C2.
 
 Reduces bandwidth by 50-80% by sending only changed fields per tick.
 Supports gzip compression and per-client state tracking.

@@ -1,7 +1,7 @@
 import { Page } from '@playwright/test';
 
 /**
- * WebSocket mock helper for AMC-Grid C2 E2E tests.
+ * WebSocket mock helper for Grid-Sentinel C2 E2E tests.
  *
  * Intercepts the WebSocket connection at ws://localhost:8000/ws and replaces
  * it with a controllable mock. This allows tests to:

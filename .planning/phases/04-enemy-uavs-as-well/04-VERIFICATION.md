@@ -4,7 +4,7 @@ verified: 2026-03-20T10:00:00Z
 status: human_needed
 score: 13/13 must-haves verified
 human_verification:
-  - test: "Run ./palantir.sh --demo and open http://localhost:3000. On the Cesium globe, confirm 3 red entities with ENM-0/ENM-1/ENM-2 labels are visible."
+  - test: "Run ./grid_sentinel.sh --demo and open http://localhost:3000. On the Cesium globe, confirm 3 red entities with ENM-0/ENM-1/ENM-2 labels are visible."
     expected: "Three red point entities with mode-colored labels appear on the globe, separate from friendly blue drones."
     why_human: "Cesium rendering cannot be verified programmatically — requires visual confirmation in a live browser."
   - test: "Click the ENEMIES tab. Confirm an 'Airborne Threats' section appears with EnemyUAVCard entries showing mode, confidence percentage, sensor count, and a JAMMING badge on the jamming drone."
@@ -125,7 +125,7 @@ No blockers or warnings found.
 
 ### 1. Enemy UAV Entities on Cesium Globe
 
-**Test:** Run `./palantir.sh --demo` and open `http://localhost:3000`. Look at the Cesium globe.
+**Test:** Run `./grid_sentinel.sh --demo` and open `http://localhost:3000`. Look at the Cesium globe.
 **Expected:** 3 red point entities with labels "ENM-0", "ENM-1", "ENM-2" appear on the globe, distinct from the blue friendly drone labels.
 **Why human:** Cesium WebGL rendering cannot be verified programmatically.
 

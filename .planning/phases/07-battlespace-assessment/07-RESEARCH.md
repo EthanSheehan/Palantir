@@ -6,7 +6,7 @@
 
 ## Summary
 
-Phase 7 adds a live Common Operating Picture layer to Palantir: a `BattlespaceAssessor` class runs every 5 seconds, produces clusters of threats (SAM_BATTERY, CONVOY, CP_COMPLEX, AD_NETWORK), identifies coverage gaps, scores zone threats, and detects movement corridors. Results flow through the existing WebSocket state broadcast to new React components: a sidebar `AssessmentTab`, `ThreatClusterCard`, `CoverageGapAlert`, an ECharts zone heatmap, and Cesium overlays (convex hull polygons, SAM engagement envelopes, movement corridor polylines).
+Phase 7 adds a live Common Operating Picture layer to Grid-Sentinel: a `BattlespaceAssessor` class runs every 5 seconds, produces clusters of threats (SAM_BATTERY, CONVOY, CP_COMPLEX, AD_NETWORK), identifies coverage gaps, scores zone threats, and detects movement corridors. Results flow through the existing WebSocket state broadcast to new React components: a sidebar `AssessmentTab`, `ThreatClusterCard`, `CoverageGapAlert`, an ECharts zone heatmap, and Cesium overlays (convex hull polygons, SAM engagement envelopes, movement corridor polylines).
 
 The project has mature patterns for all required pieces: `sensor_fusion.py` and `verification_engine.py` demonstrate pure-function design with frozen dataclasses; `useCesiumZones.ts` shows the Cesium Primitives approach for polygon overlays; `FusionBar.tsx` shows the ECharts-for-React pattern. No new third-party libraries are required — the existing stack (Python stdlib, Cesium 1.114, Blueprint 5, ECharts 5.5, echarts-for-react 3.0.2) covers everything.
 
@@ -301,7 +301,7 @@ viewer.entities.add({
 ```
 
 ### Pattern 10: ECharts Heatmap for Zone Threat Scores
-**What:** `visualMap` + `heatmap` series on a virtual grid. Use `ReactECharts` (already used in `FusionBar.tsx`) with the `palantir` theme.
+**What:** `visualMap` + `heatmap` series on a virtual grid. Use `ReactECharts` (already used in `FusionBar.tsx`) with the `grid_sentinel` theme.
 **Key:** ECharts heatmap data format is `[x_idx, y_idx, value]` array. For a 50x50 grid this is 2500 data points — fine for canvas renderer.
 ```typescript
 // Source: ECharts docs — heatmap series, ReactECharts pattern from FusionBar.tsx
@@ -383,7 +383,7 @@ export interface AssessmentPayload {
 | Problem | Don't Build | Use Instead | Why |
 |---------|-------------|-------------|-----|
 | Convex hull | Full polygon clipping library | Gift-wrapping (Jarvis march) in 20 lines | Cluster sizes are < 20 points; O(nh) is fine |
-| Heatmap visualization | Custom canvas drawing | ECharts heatmap series via ReactECharts | Already in project, Palantir theme registered |
+| Heatmap visualization | Custom canvas drawing | ECharts heatmap series via ReactECharts | Already in project, Grid-Sentinel theme registered |
 | SAM engagement rings | Custom circle math | Cesium `EllipseGeometry` / `entity.ellipse` | Project already has range rings (useCesiumRangeRings.ts) |
 | Distance calculation | Custom formula | `math.hypot()` in degree space (or haversine for accuracy) | `geo_utils.haversine_distance` already exists in project |
 | State management | Custom event system | Zustand store extension | Pattern established for all prior phases |

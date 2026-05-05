@@ -1,7 +1,7 @@
 """
 vectorized_detection.py
 =======================
-NumPy-vectorized detection loop for the AMC-Grid C2 simulation engine.
+NumPy-vectorized detection loop for the Grid-Sentinel C2 simulation engine.
 
 Replaces the O(T * U * S) scalar detection loop with broadcast array operations
 yielding 10-50x speedup at large target/UAV counts.

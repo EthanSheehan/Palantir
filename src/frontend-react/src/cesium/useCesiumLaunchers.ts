@@ -21,7 +21,7 @@ function getLauncherPin(available: number, capacity: number): string {
 
 function dispatchLaunch(launcherName: string): void {
   window.dispatchEvent(
-    new CustomEvent('amc-grid:send', {
+    new CustomEvent('grid-sentinel:send', {
       detail: { action: 'launch_drone', launcher_name: launcherName },
     })
   );

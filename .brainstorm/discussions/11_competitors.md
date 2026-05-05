@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-No open-source system combines all of Palantir's core capabilities: AI multi-agent orchestration driving a full F2T2EA kill chain, coordinated drone swarm operation with multi-sensor fusion, physics-based tactical simulation, and a real-time 3D Cesium frontend — all in a single cohesive system. Competitors are either specialized (drone autopilot, situational awareness, simulation) or research-grade with minimal AI integration. Palantir occupies a unique intersection that no competitor currently fills.
+No open-source system combines all of Grid-Sentinel's core capabilities: AI multi-agent orchestration driving a full F2T2EA kill chain, coordinated drone swarm operation with multi-sensor fusion, physics-based tactical simulation, and a real-time 3D Cesium frontend — all in a single cohesive system. Competitors are either specialized (drone autopilot, situational awareness, simulation) or research-grade with minimal AI integration. Grid-Sentinel occupies a unique intersection that no competitor currently fills.
 
 ---
 
@@ -297,7 +297,7 @@ No open-source system combines all of Palantir's core capabilities: AI multi-age
 
 ## Feature Comparison Matrix
 
-| Feature | ATAK | FreeTAK | ODIN | QGC | ArduPilot | PX4 | DroneKit | OpenAMASE | OpenUxAS | Panopticon | AirSim | OpenMCT | **Palantir** |
+| Feature | ATAK | FreeTAK | ODIN | QGC | ArduPilot | PX4 | DroneKit | OpenAMASE | OpenUxAS | Panopticon | AirSim | OpenMCT | **Grid-Sentinel** |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | **Autonomous Operations** | None | None | None | Mission-script | Onboard modes | Onboard modes | Script-only | Basic loiter | Task alloc. | RL research | Research API | None | **Full AI kill chain** |
 | **AI/LLM Integration** | None | None | None | None | None | None | None | None | None | RL only | None | None | **LangGraph + LLM agents** |
@@ -318,49 +318,49 @@ No open-source system combines all of Palantir's core capabilities: AI multi-age
 
 ---
 
-## What Competitors Have That Palantir Lacks
+## What Competitors Have That Grid-Sentinel Lacks
 
 ### 1. Hardware Integration
-**Gap:** Palantir simulates drones but cannot command real MAVLink vehicles.
+**Gap:** Grid-Sentinel simulates drones but cannot command real MAVLink vehicles.
 - ArduPilot, PX4, QGC, and DroneKit all command real physical hardware via MAVLink
-- No MAVLink adapter means Palantir cannot operate real Pixhawk/Cube drones
-- **Opportunity:** A MAVLink bridge would connect Palantir's AI brain to real hardware
+- No MAVLink adapter means Grid-Sentinel cannot operate real Pixhawk/Cube drones
+- **Opportunity:** A MAVLink bridge would connect Grid-Sentinel's AI brain to real hardware
 
 ### 2. Military Symbol Standards (APP-6 / MIL-STD-2525)
-**Gap:** Palantir uses custom target/drone icons, not NATO standard military symbols.
+**Gap:** Grid-Sentinel uses custom target/drone icons, not NATO standard military symbols.
 - ODIN and ATAK both render standard military unit symbols
 - Real operators expect MIL-STD-2525 icons for target type, threat level, affiliation
 - **Opportunity:** Integrate milsymbol.js or similar for standard symbology overlays
 
 ### 3. Interoperability Protocols (CoT, DIS, LMCP)
-**Gap:** Palantir has its own WebSocket protocol but no standard ingest paths.
+**Gap:** Grid-Sentinel has its own WebSocket protocol but no standard ingest paths.
 - ATAK's CoT is the de facto standard for tactical data exchange
 - DIS (OpenDIS) enables multi-simulator federation
-- **Opportunity:** CoT ingest layer would allow ATAK clients to feed Palantir targets
+- **Opportunity:** CoT ingest layer would allow ATAK clients to feed Grid-Sentinel targets
 
 ### 4. Offline Operation
-**Gap:** Palantir requires live internet (LLM APIs, tile servers).
+**Gap:** Grid-Sentinel requires live internet (LLM APIs, tile servers).
 - ODIN and ATAK are designed to operate completely offline
 - **Opportunity:** Local LLM fallback + tile caching for denied/degraded environments
 
 ### 5. Mobile Client
-**Gap:** Palantir's React frontend requires a desktop browser.
+**Gap:** Grid-Sentinel's React frontend requires a desktop browser.
 - ATAK (Android), iTAK (iOS) provide mobile tactical UIs
 - **Opportunity:** Progressive web app (PWA) or responsive design improvements
 
 ### 6. Mission Planning UI
-**Gap:** Palantir's UI is intelligence/assessment-focused; no drag-and-drop mission planning.
+**Gap:** Grid-Sentinel's UI is intelligence/assessment-focused; no drag-and-drop mission planning.
 - QGC's mission planner with waypoint dragging, survey grid generation, geofence editing is mature
 - **Opportunity:** Add a mission planning mode with waypoint/area-of-operations definition
 
 ### 7. Replay and After-Action Review
-**Gap:** Palantir logs events to JSONL but has no playback UI.
+**Gap:** Grid-Sentinel logs events to JSONL but has no playback UI.
 - OpenAMASE has a dedicated data playback tool
 - Open MCT specializes in historical telemetry replay
 - **Opportunity:** Build a replay mode using existing event log infrastructure
 
 ### 8. RL / Training Environment
-**Gap:** Palantir is an operational system, not an RL research sandbox.
+**Gap:** Grid-Sentinel is an operational system, not an RL research sandbox.
 - Panopticon provides OpenAI Gym compatibility
 - AirSim provided RL research APIs
 - **Opportunity:** Expose Gym-compatible step/reset interface for training autonomous agents
@@ -397,10 +397,10 @@ No open-source system combines all of Palantir's core capabilities: AI multi-age
 
 ---
 
-## Palantir's Unique Differentiators
+## Grid-Sentinel's Unique Differentiators
 
 ### 1. End-to-End AI Kill Chain (Unique)
-No competitor combines detection → classification → verification → nomination → authorization → engagement → assessment in a single automated pipeline. Palantir's F2T2EA pipeline with 9 LangChain agents is unprecedented in open-source C2.
+No competitor combines detection → classification → verification → nomination → authorization → engagement → assessment in a single automated pipeline. Grid-Sentinel's F2T2EA pipeline with 9 LangChain agents is unprecedented in open-source C2.
 
 ### 2. Multi-Agent AI Orchestration (Unique)
 LangGraph-based agent coordination (ISR Observer → Strategy Analyst → Tactical Planner → Effectors Agent) with LLM fallback chain (Gemini → Anthropic → heuristic) has no equivalent in the open-source space. Competitors are either entirely manual or use simple algorithmic task assignment (OpenUxAS).
@@ -409,7 +409,7 @@ LangGraph-based agent coordination (ISR Observer → Strategy Analyst → Tactic
 The combination of `swarm_coordinator.py` (greedy UAV-to-target assignment with sensor-gap detection) + `sensor_fusion.py` (complementary fusion across sensor types) + `verification_engine.py` (FSM with per-target-type thresholds) is more sophisticated than any open-source competitor. OpenUxAS handles task allocation but without sensor fusion or target state machines.
 
 ### 4. Cesium 3D Globe with 6 Tactical Modes (Unique)
-No open-source C2 system uses CesiumJS with purpose-built tactical overlays. ODIN and ATAK use 2D maps; AirSim uses Unreal Engine (not browser-native). Palantir's OPERATIONAL, COVERAGE, THREAT, FUSION, SWARM, and TERRAIN modes with real-time entity updates are unmatched.
+No open-source C2 system uses CesiumJS with purpose-built tactical overlays. ODIN and ATAK use 2D maps; AirSim uses Unreal Engine (not browser-native). Grid-Sentinel's OPERATIONAL, COVERAGE, THREAT, FUSION, SWARM, and TERRAIN modes with real-time entity updates are unmatched.
 
 ### 5. Physics-Based Tactical Simulator + AI in the Loop (Unique)
 The integrated simulation loop (10Hz WebSocket broadcast) with AI agents generating recommendations on simulated detections is novel. AirSim provides high-fidelity physics but no AI decision layer. OpenAMASE provides basic physics but no AI.
@@ -421,7 +421,7 @@ MANUAL → SUPERVISED → AUTONOMOUS with configurable two-gate HITL approval (n
 `demo_autopilot()` — fully autonomous F2T2EA cycle with probabilistic engagement outcomes, no operator input required — makes the full kill chain demonstrable without human participation. No competitor offers a comparable self-driving demonstration mode.
 
 ### 8. Browser-Native React Frontend with Real-Time State (Strong)
-React + Vite + TypeScript + Zustand + Blueprint dark theme with WebSocket state binding is a modern, deployable web app. ATAK is mobile-native; QGC is Qt desktop; ODIN is Electron; Open MCT is browser-native but visualization-only. Palantir is the only browser-native operational C2 with a 3D globe.
+React + Vite + TypeScript + Zustand + Blueprint dark theme with WebSocket state binding is a modern, deployable web app. ATAK is mobile-native; QGC is Qt desktop; ODIN is Electron; Open MCT is browser-native but visualization-only. Grid-Sentinel is the only browser-native operational C2 with a 3D globe.
 
 ---
 
@@ -430,27 +430,27 @@ React + Vite + TypeScript + Zustand + Blueprint dark theme with WebSocket state 
 ### Pattern 1: Pre-Planned Mission Execution (QGC, ArduPilot, PX4, DroneKit)
 Operator defines waypoints, survey areas, or mission trees in advance. Vehicle autonomously executes the plan but cannot adapt to dynamic targets or AI-generated intelligence. Human must re-plan if situation changes. Zero real-time AI involvement.
 
-**Palantir contrast:** AI continuously reprocesses targets and generates COAs. Swarm coordinator dynamically reassigns drones based on sensor gaps and target state. No pre-planned mission required.
+**Grid-Sentinel contrast:** AI continuously reprocesses targets and generates COAs. Swarm coordinator dynamically reassigns drones based on sensor gaps and target state. No pre-planned mission required.
 
 ### Pattern 2: Algorithmic Task Allocation (OpenUxAS)
 Formal optimization algorithms determine vehicle-task assignment. Near-optimal task sequencing is computed without LLMs or ML. No target intelligence, no probabilistic engagement, no kill chain. Decision-making is purely combinatorial.
 
-**Palantir contrast:** LangChain agents reason about ROE, prioritize targets by threat level, generate narrative COAs, and adapt to HITL feedback. Algorithmic + AI, not just algorithmic.
+**Grid-Sentinel contrast:** LangChain agents reason about ROE, prioritize targets by threat level, generate narrative COAs, and adapt to HITL feedback. Algorithmic + AI, not just algorithmic.
 
 ### Pattern 3: RL Research Sandbox (Panopticon)
 RL agents train against a gym environment. Autonomy is emergent from training, not designed. Not deployable without significant engineering. Research prototype, not operational system.
 
-**Palantir contrast:** Production Python backend with operational state machine, not a training environment. AI runs at 10Hz alongside real-time simulation.
+**Grid-Sentinel contrast:** Production Python backend with operational state machine, not a training environment. AI runs at 10Hz alongside real-time simulation.
 
 ### Pattern 4: Script-Driven Autonomy (DroneKit)
 Developer writes Python scripts that issue MAVLink commands. Autonomy is only as sophisticated as the script. No built-in intelligence, no dynamic response to sensor data.
 
-**Palantir contrast:** Agent pipeline responds to detection events, not scripted sequences. ISR Queue, verification FSM, and HITL gates create structured decision flow.
+**Grid-Sentinel contrast:** Agent pipeline responds to detection events, not scripted sequences. ISR Queue, verification FSM, and HITL gates create structured decision flow.
 
 ### Pattern 5: None (ATAK, FreeTAKServer, ODIN, OpenDIS, OpenC2, OpenMCT)
 Purely operator-driven. No automation of any tactical decisions. Human manually tracks targets, assigns assets, and executes actions.
 
-**Palantir contrast:** In SUPERVISED mode, AI nominates targets and proposes COAs; human approves. In AUTONOMOUS mode, the full pipeline runs without operator input. MANUAL mode matches these competitors.
+**Grid-Sentinel contrast:** In SUPERVISED mode, AI nominates targets and proposes COAs; human approves. In AUTONOMOUS mode, the full pipeline runs without operator input. MANUAL mode matches these competitors.
 
 ---
 
@@ -458,7 +458,7 @@ Purely operator-driven. No automation of any tactical decisions. Human manually 
 
 Based on competitor analysis, the highest-value `/autopilot` improvements that no competitor offers:
 
-1. **Dynamic ROE enforcement with LLM reasoning** — Competitors have no equivalent. Palantir's `strategy_analyst.py` already does this; expose it more prominently with configurable ROE parameters.
+1. **Dynamic ROE enforcement with LLM reasoning** — Competitors have no equivalent. Grid-Sentinel's `strategy_analyst.py` already does this; expose it more prominently with configurable ROE parameters.
 
 2. **Sensor retasking autonomy** — `ai_tasking_manager.py` is unique. No competitor dynamically reassigns sensors based on coverage gaps and target priority. Make this more aggressive in AUTONOMOUS mode.
 
@@ -466,7 +466,7 @@ Based on competitor analysis, the highest-value `/autopilot` improvements that n
 
 4. **Autonomous theater adaptation** — Automatically switch tactical posture based on assessed threat environment (zone threat scores, coverage gaps, enemy UAV presence). No competitor does battlefield assessment-driven autonomy.
 
-5. **MAVLink bridge for real hardware** — Would make Palantir's AI brain command real drones, closing the gap between simulation and hardware deployment that all competitors face differently.
+5. **MAVLink bridge for real hardware** — Would make Grid-Sentinel's AI brain command real drones, closing the gap between simulation and hardware deployment that all competitors face differently.
 
 ---
 

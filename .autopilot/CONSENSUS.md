@@ -294,13 +294,13 @@
 - NEW: `Makefile` (create at project root)
 
 **Scope:**
-- IN: Targets: `setup` (venv + pip install), `run` (palantir.sh), `demo` (palantir.sh --demo), `test` (pytest), `lint` (ruff + mypy), `build` (frontend npm build), `clean`.
+- IN: Targets: `setup` (venv + pip install), `run` (grid_sentinel.sh), `demo` (grid_sentinel.sh --demo), `test` (pytest), `lint` (ruff + mypy), `build` (frontend npm build), `clean`.
 - OUT: Do not add Docker targets (Wave 2).
 
 **Acceptance Criteria:**
 - [ ] `make setup` creates venv and installs deps
-- [ ] `make run` launches palantir.sh
-- [ ] `make demo` launches palantir.sh --demo
+- [ ] `make run` launches grid_sentinel.sh
+- [ ] `make demo` launches grid_sentinel.sh --demo
 - [ ] `make test` runs pytest with coverage
 - [ ] `make lint` runs ruff + mypy
 - [ ] `make build` builds frontend
@@ -546,7 +546,7 @@ All other features (W1-001 through W1-023) have NO inter-dependencies and can ex
 
 All of the following must be true before advancing to Wave 2:
 
-- [ ] `./palantir.sh --demo` runs a full F2T2EA cycle with drones dispatching to targets (W1-001 fix verified)
+- [ ] `./grid_sentinel.sh --demo` runs a full F2T2EA cycle with drones dispatching to targets (W1-001 fix verified)
 - [ ] All 475 existing tests pass + new tests bring coverage toward 80%
 - [ ] No `NotImplementedError` in any agent (W1-003)
 - [ ] No `except ValueError: pass` in api_main.py (W1-004)

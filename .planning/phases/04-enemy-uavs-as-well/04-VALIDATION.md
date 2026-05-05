@@ -68,7 +68,7 @@ created: 2026-03-19
 |----------|-------------|------------|-------------------|
 | Cesium enemy UAV entities render | Frontend display | Visual/WebGL rendering | Start system, verify red UAV markers on globe |
 | EnemyUAVCard sidebar display | UI component | Interactive UI check | Click enemy UAV, verify card shows behaviors and threat level |
-| Demo autopilot auto-intercept | Demo mode flow | End-to-end timing | Run `./palantir.sh --demo`, verify enemy UAVs appear and get intercepted |
+| Demo autopilot auto-intercept | Demo mode flow | End-to-end timing | Run `./grid_sentinel.sh --demo`, verify enemy UAVs appear and get intercepted |
 
 ---
 

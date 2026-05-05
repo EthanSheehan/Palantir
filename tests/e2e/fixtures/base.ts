@@ -3,7 +3,7 @@ import { AMCGridPage } from '../pages/AMCGridPage';
 import { WsMock, createWsMock } from '../helpers/ws-mock';
 
 /**
- * Extended fixtures for AMC-Grid C2 E2E tests.
+ * Extended fixtures for Grid-Sentinel C2 E2E tests.
  *
  * Every test that uses `amcGridPage` automatically gets:
  *   - A `AMCGridPage` instance (POM)

@@ -4,17 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Project Is
 
-AMC-Grid is a decision-centric AI-assisted Command & Control (C2) system that automates the F2T2EA kill chain (Find, Fix, Track, Target, Engage, Assess) using multi-agent AI orchestration, coordinated drone swarm operations with multi-sensor fusion, a physics-based tactical simulator, and a professional React+Blueprint+Cesium 3D geospatial frontend.
+Grid-Sentinel is a decision-centric AI-assisted Command & Control (C2) system that automates the F2T2EA kill chain (Find, Fix, Track, Target, Engage, Assess) using multi-agent AI orchestration, coordinated drone swarm operations with multi-sensor fusion, a physics-based tactical simulator, and a professional React+Blueprint+Cesium 3D geospatial frontend.
 
 ## Running the System
 
 ```bash
 # Launch everything (backend + frontend + drone simulator)
-./amc-grid.sh
+./grid-sentinel.sh
 
 # Launch in demo auto-pilot mode (full F2T2EA kill chain, no human input needed)
-./amc-grid.sh --demo
-./amc-grid.sh --demo --no-sim    # without drone video simulator
+./grid-sentinel.sh --demo
+./grid-sentinel.sh --demo --no-sim    # without drone video simulator
 
 # Or run components individually:
 ./venv/Scripts/python src/python/api_main.py              # FastAPI backend on :8000
@@ -85,7 +85,7 @@ Environment variables go in a `.env` file (loaded via python-dotenv). Required f
 - Multi-layout drone camera PIP (SINGLE/PIP/SPLIT/QUAD) with 4 sensor modes (EO/IR, SAR, SIGINT, FUSION)
 - SensorHUD, SigintDisplay (RF spectrum waterfall), CameraPresets (OVERVIEW/TOP DOWN/OBLIQUE/FREE)
 - Cesium globe with all entity hooks: drones, targets, zones, flow lines, compass, range rings, lock indicators, assessment overlays, enemy UAVs, swarm lines, launchers
-- Custom event bridge (`amc-grid:send`, `amc-grid:placeWaypoint`, `amc-grid:openDetailMap`) for Cesium→React WebSocket communication
+- Custom event bridge (`grid-sentinel:send`, `grid-sentinel:placeWaypoint`, `grid-sentinel:openDetailMap`) for Cesium→React WebSocket communication
 - LayerPanel for per-layer visibility toggles, MapModeBar for mode switching
 - **Wave 6C Overlays & Components:**
   - `GlobalAlertCenter` — floating overlay (bottom-right, z-index 8900) showing unread alerts (NOMINATION, ENGAGEMENT, TRANSITION, CONNECTION, CRITICAL) with action buttons; auto-dismisses non-critical alerts after 10s; toggled via G key
