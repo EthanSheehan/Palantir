@@ -448,7 +448,7 @@ class TestAsyncTasking:
                     "order_id": "order-1",
                     "asset_id": "UAV-LLM",
                     "target_detection_id": "track-1",
-                    "collection_type": "EO_IR",
+                    "collection_type": "EO/IR",
                     "priority": 5,
                     "estimated_collection_time_minutes": 7.5,
                     "reasoning": "LLM-selected nearest available asset.",
