@@ -14,6 +14,7 @@ import { useCesiumWaypoints } from './useCesiumWaypoints';
 import { useCesiumLockIndicators } from './useCesiumLockIndicators';
 import { useCesiumEnemyUAVs } from './useCesiumEnemyUAVs';
 import { useCesiumAssessment } from './useCesiumAssessment';
+import { useCesiumDetectionLayer } from './useCesiumDetectionLayer';
 import { useSatelliteLens } from './useSatelliteLens';
 import { useCesiumLaunchers } from './useCesiumLaunchers';
 import { useCoverageLayer } from './layers/useCoverageLayer';
@@ -46,6 +47,7 @@ export function CesiumContainer({ children }: { children?: React.ReactNode }) {
   useCesiumSwarmLines(viewerRef);
   useCesiumEnemyUAVs(viewerRef);
   useCesiumAssessment(viewerRef);
+  useCesiumDetectionLayer(viewerRef);
 
   // Map mode layer hooks
   useCoverageLayer(viewerRef);
