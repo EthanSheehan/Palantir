@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W6-007: Vectorize Detection Loop with NumPy
 
 **Status:** COMPLETE

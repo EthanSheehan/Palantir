@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel]
+---
 # Grid-Sentinel C2 — Multi-Agent Decision-Centric Command & Control
 
 ![Project Status](https://img.shields.io/badge/status-active-success.svg)

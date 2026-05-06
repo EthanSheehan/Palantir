@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, brainstorm, analysis]
+---
 # Brainstorm Checkpoint
 
 - **Status**: ALL WAVES COMPLETE

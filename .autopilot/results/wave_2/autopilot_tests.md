@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W2-003: Autopilot Test Suite Results
 
 ## Status: COMPLETE — 10/10 tests passing

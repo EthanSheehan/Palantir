@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, planning]
+---
 # Milestones
 
 ## v1.0 Swarm Upgrade (Shipped: 2026-03-20)

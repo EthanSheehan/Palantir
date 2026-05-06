@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # UAV Kinematics Fixes — Wave 6B Review
 
 ## Status: COMPLETE — 41/41 tests passing

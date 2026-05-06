@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, brainstorm, analysis]
+---
 # 10 — Missing Modules Analysis
 
 ## Priority Stack for Autonomous Operations

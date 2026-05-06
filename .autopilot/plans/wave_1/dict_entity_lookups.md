@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # Replace O(N) Entity Lookups with Dict (W1-009)
 
 ## Summary

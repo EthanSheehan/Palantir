@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W1-005: Delete Dead Pipeline Code — PASS
 
 ## Status: COMPLETE

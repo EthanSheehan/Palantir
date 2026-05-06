@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation]
+---
 # PRD v2: Grid-Sentinel C2 — Full System Upgrade
 
 **Project:** Grid-Sentinel C2

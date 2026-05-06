@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel]
+---
 # Ralph Development Instructions
 
 ## Context

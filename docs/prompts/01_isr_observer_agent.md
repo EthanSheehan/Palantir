@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation, prompts, ai-agents]
+---
 # Agent Definition: ISR Observer Agent
 
 ## Role

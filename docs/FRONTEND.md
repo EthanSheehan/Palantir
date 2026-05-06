@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation]
+---
 # Grid-Sentinel Frontend — Technical Reference
 
 **Date:** 2026-03-19

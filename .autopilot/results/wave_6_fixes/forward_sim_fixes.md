@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # forward_sim.py Fixes — Wave 6
 
 ## Summary

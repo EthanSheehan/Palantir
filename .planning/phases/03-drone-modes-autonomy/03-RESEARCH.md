@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, planning, gsd]
+---
 # Phase 3: Drone Modes & Autonomy - Research
 
 **Researched:** 2026-03-19

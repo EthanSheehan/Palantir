@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # Fix Unbounded Memory Growth in TacticalAssistant (W1-007)
 
 ## Summary

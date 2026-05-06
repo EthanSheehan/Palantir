@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # Fix Dead Enemy Cleanup Branch / Memory Leak (W1-002)
 
 ## Summary

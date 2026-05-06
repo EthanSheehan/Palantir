@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation]
+---
 # Grid-Sentinel WebSocket Protocol
 
 ## Overview

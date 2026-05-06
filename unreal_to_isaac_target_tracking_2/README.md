@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel]
+---
 # Unreal Engine → Isaac Sim: Target Tracking Pipeline
 
 Satellite imagery → UE5 terrain → USD export → Isaac Sim → CV detection + autonomous drone tracking.

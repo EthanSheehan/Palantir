@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W3-004: Swarm Coordinator Upgrade — Hungarian Algorithm
 
 ## Status: COMPLETE

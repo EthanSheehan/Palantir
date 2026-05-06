@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, brainstorm, analysis]
+---
 # CONSENSUS.md — Definitive Feature Set
 
 **Consensus Architect** | **Date:** 2026-03-20

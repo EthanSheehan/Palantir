@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # Re-apply Swarm Autonomy Changes
 
 ## Status: COMPLETE

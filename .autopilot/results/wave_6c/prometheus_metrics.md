@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # Prometheus Metrics Endpoint — Wave 6C Result
 
 ## Status: COMPLETE

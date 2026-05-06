@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, brainstorm, analysis]
+---
 # Library & Integration Candidates for Grid-Sentinel C2
 
 **Scout**: Library & Integration Scout

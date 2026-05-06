@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W2-001: Split sim_engine.py God Module
 
 ## Status: COMPLETE

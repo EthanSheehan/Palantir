@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation]
+---
 # Grid-Sentinel C2 — Feature & Upgrade Proposals
 > Analyzed by 23 autonomous agents on 2026-03-20
 

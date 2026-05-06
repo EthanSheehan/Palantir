@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot]
+---
 # Autopilot Checkpoint
 - **Status**: COMPLETE
 - **Team**: autopilot-Grid-Sentinel-8310

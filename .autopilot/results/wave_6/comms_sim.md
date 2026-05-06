@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W6-008: Communication Simulation Module — Results
 
 ## Status: COMPLETE

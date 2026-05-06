@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, planning, gsd]
+---
 # Phase 9: Map Modes & Tactical Views - Research
 
 **Researched:** 2026-03-20

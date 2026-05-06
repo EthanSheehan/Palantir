@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W1-019: Hypothesis Property-Based Tests — Results
 
 ## Status: PASS

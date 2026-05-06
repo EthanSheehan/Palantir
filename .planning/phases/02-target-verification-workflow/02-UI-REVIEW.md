@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, planning, gsd]
+---
 # Phase 02 — UI Review
 
 **Audited:** 2026-03-19

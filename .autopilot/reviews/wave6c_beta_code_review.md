@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, review]
+---
 # Wave 6C-Beta Code Review
 
 **Reviewer:** code-reviewer agent

@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation]
+---
 # PRD: Grid-Sentinel C2 – Multi-Agent Decision-Centric C2 System
 
 ## 1. Executive Summary

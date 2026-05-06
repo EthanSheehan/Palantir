@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W5-009: Sensor Detection Upgrade — Radar Range Equation
 
 **Status: PASS**

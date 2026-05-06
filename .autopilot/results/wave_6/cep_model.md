@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W6-012: CEP Engagement Model
 
 **Status:** COMPLETE

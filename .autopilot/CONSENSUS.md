@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot]
+---
 # Wave 1 Refined Consensus — Builder Spec
 
 **Date:** 2026-03-20

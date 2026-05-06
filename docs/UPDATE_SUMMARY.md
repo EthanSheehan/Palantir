@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation]
+---
 # Documentation Update Summary
 
 **Update Date: 2026-03-18**

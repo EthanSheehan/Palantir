@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # Demo Autopilot Circuit Breaker (W1-014)
 
 ## Summary

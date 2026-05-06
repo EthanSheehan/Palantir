@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # WebSocket Message Size Guard (W1-011)
 
 ## Summary

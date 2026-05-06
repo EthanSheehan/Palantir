@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation]
+---
 # Environment Variables Reference
 
 **Last Updated: 2026-03-17**

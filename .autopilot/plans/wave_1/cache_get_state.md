@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # Cache get_state() Once Per Tick (W1-008)
 
 ## Summary

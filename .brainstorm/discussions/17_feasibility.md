@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, brainstorm, analysis]
+---
 # 17 — Feasibility Assessment
 
 **Role:** Feasibility Engineer

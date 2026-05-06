@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel]
+---
 # Grid 7: Inline Drone Control Dropdown
 
 This iteration modifies the UI architecture by removing the floating `droneControlPanel` and embedding its functionalities directly into the Drones Tab list via **Delta DOM Expanding Cards**.

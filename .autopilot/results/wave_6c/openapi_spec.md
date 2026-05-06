@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # Wave 6C-Beta: openapi_spec — Results
 
 ## Status: COMPLETE

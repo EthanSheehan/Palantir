@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation, prompts, ai-agents]
+---
 # 2. Strategy Analyst Prompt
 
 **Role:** Decision Support & ROE Evaluation

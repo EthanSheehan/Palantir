@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # Input Validation on All WebSocket Actions (W1-013)
 
 ## Summary

@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # Pre-commit Hooks (W1-016)
 
 ## Summary

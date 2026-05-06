@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, brainstorm, analysis]
+---
 # 08 — Security Audit
 
 ## Risk Matrix

@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation]
+---
 # Grid-Sentinel C2 Documentation Index
 
 **Last Updated: 2026-03-17**

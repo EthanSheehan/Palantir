@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation, prompts, ai-agents]
+---
 # 7. Battlespace Management Agent Prompt
 
 **Role:** Real-time collaborative mapping and geospatial analysis

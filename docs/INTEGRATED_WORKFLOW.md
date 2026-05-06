@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation]
+---
 # Integrated Claude Code Workflow
 
 This project uses four complementary AI development systems working together, with autonomous model selection and mandatory agent team assembly.

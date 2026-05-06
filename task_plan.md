@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel]
+---
 # Task Plan: Project Antigravity Initialization
 
 ## Phase 1: Planning and Setup (Status: COMPLETE)

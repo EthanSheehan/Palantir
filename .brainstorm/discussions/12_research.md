@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, brainstorm, analysis]
+---
 # Cutting-Edge Research: Autonomous C2 and Grid-Sentinel Autopilot
 
 **Compiled:** 2026-03-20

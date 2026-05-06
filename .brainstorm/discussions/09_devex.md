@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, brainstorm, analysis]
+---
 # 09 — Developer Experience Audit
 
 ## Rating Summary

@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W4-004: Confidence-Gated Dynamic Authority
 
 ## Status: COMPLETE

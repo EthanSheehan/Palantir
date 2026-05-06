@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, planning, gsd]
+---
 # Phase 1: Multi-Sensor Target Fusion — Research
 
 **Researched:** 2026-03-19

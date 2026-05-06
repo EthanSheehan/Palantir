@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation, prompts, ai-agents]
+---
 # 6. Performance Auditor Prompt
 
 **Role:** Model Evaluation & Drift Detection

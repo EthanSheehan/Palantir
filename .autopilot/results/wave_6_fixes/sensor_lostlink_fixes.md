@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # Wave 6 Fixes: sensor_weighting.py + lost_link.py
 
 ## Status: COMPLETE — 90/90 tests pass

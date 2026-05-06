@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W3-005: SQLite Persistence Layer — Results
 
 ## Status: COMPLETE

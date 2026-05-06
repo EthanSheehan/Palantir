@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # Makefile with Standard Targets (W1-018)
 
 ## Summary

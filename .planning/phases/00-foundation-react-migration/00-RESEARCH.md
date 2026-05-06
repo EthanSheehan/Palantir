@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, planning, gsd]
+---
 # Phase 0: Foundation & React Migration - Research
 
 **Researched:** 2026-03-19

@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, planning, gsd]
+---
 # Phase 10: Upgraded Drone Feeds - Research
 
 **Researched:** 2026-03-20

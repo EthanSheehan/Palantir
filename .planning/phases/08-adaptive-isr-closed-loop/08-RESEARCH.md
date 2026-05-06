@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, planning, gsd]
+---
 # Phase 8: Adaptive ISR & Closed Loop - Research
 
 **Researched:** 2026-03-20

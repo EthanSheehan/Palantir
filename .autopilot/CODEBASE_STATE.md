@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot]
+---
 # CODEBASE_STATE.md — Wave 1 Builder Reference
 
 **Generated:** 2026-03-20 | **For:** Wave 1 builders (W1-001 through W1-023)

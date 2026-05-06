@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # Delete or Gut pipeline.py Dead Code (W1-005)
 
 ## Summary

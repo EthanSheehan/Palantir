@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # Fix verify_target Handler Bypassing Verification Engine (W1-013b)
 
 ## Summary

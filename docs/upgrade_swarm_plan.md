@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation]
+---
 # Upgrade Swarm Plan — Agent Team Assignments
 
 **Date:** 2026-03-17

@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation]
+---
 # Grid-Sentinel C2 API Reference
 
 **Last Updated: 2026-03-19**

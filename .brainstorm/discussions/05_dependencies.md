@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, brainstorm, analysis]
+---
 # 05 — Dependency Audit
 
 ## Python Dependencies (requirements.txt)

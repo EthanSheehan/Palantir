@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation]
+---
 # Contributing to Grid-Sentinel C2
 
 **Last Updated: 2026-03-19**

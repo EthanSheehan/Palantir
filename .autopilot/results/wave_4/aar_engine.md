@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W4-008: After-Action Review Engine — Results
 
 ## Status: COMPLETE

@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # GitHub Actions CI Pipeline (W1-017)
 
 ## Summary

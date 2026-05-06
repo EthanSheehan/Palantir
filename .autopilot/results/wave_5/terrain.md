@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W5-005: Terrain Analysis Module — PASS
 
 ## Status

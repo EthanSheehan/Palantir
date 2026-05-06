@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # Fix SCANNING vs SEARCH Bug in Autopilot Dispatch (W1-001)
 
 ## Summary

@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # Wave 6 Fixes: delta_compression, cep_model, comms_sim
 
 ## Status: ALL TESTS PASS (134/134)

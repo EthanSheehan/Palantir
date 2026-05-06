@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W5-001: Simulation Fidelity Controls — PASS
 
 ## Status: COMPLETE

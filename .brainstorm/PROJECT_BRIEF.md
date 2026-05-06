@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, brainstorm, analysis]
+---
 # Grid-Sentinel — Project Brief
 
 ## Purpose

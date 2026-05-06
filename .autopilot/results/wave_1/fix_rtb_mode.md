@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W1-022: Fix RTB Mode — Results
 
 **Status:** PASS

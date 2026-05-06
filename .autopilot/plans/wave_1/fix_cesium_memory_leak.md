@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # Fix SampledPositionProperty Frontend Memory Leak (W1-006)
 
 ## Summary

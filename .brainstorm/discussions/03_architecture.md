@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, brainstorm, analysis]
+---
 # 03 — Architecture Audit
 
 ## File Sizes

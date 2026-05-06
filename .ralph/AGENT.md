@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel]
+---
 # Ralph Agent Configuration
 
 ## Build Instructions

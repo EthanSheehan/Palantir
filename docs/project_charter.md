@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation]
+---
 # Project Charter: Grid-Sentinel C2
 
 ## Goal

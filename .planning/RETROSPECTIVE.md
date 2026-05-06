@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, planning]
+---
 # Project Retrospective
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*

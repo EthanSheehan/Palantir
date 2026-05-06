@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, planning, gsd]
+---
 # Phase 5: Swarm Coordination - Context
 
 **Gathered:** 2026-03-20

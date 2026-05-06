@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot]
+---
 # Autopilot Resume Briefing
 
 **Generated:** 2026-03-26 18:52 UTC | **Team:** autopilot-Grid-Sentinel-8310

@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W4-001: AI Explainability Layer — Results
 
 ## Status: COMPLETE

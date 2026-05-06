@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # Wave 6 MEDIUM Fixes: vectorized_detection + dbscan_clustering
 
 **Status: ALL PASS — 63/63 tests green**

@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, review]
+---
 # Wave 6A Security Review
 
 Reviewed: 2026-03-25

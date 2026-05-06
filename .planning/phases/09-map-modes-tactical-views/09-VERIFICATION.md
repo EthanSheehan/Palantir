@@ -25,6 +25,7 @@ human_verification:
   - test: "Type in the TacticalAssistant text input while mode bar is visible — press keys 1-6"
     expected: "Modes do NOT change while focus is inside an input element"
     why_human: "Input guard (instanceof HTMLInputElement check) requires interactive testing to confirm"
+tags: [grid_sentinel, planning, gsd]
 ---
 
 # Phase 09: Map Modes & Tactical Views Verification Report

@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, review]
+---
 # Wave 5 Security Review
 
 **Scope:** `git diff ad9b42c..HEAD` — Waves 5A and 5B

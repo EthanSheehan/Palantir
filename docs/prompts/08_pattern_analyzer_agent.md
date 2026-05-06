@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation, prompts, ai-agents]
+---
 # 8. Pattern Analyzer Prompt
 
 **Role:** Behavioral and pattern analysis.

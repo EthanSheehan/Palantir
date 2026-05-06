@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W3-001: ROE Engine — Results
 
 **Status:** COMPLETE

@@ -15,6 +15,7 @@ human_verification:
   - test: "In ASSETS tab, find a drone dispatched by ISR priority"
     expected: "Amber 'ISR' badge visible next to mode tag on affected drone card"
     why_human: "Badge visibility depends on runtime UAV dispatch state"
+tags: [grid_sentinel, planning, gsd]
 ---
 
 # Phase 8: Adaptive ISR Closed Loop — Verification Report

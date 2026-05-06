@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # Wave 6C-Alpha Python Review Fixes
 
 ## Changes Made

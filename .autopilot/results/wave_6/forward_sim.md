@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W6-001: Forward Simulation Branches — Results
 
 ## Status: COMPLETE

@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # Re-apply verify_target Fix
 
 ## Status: COMPLETE

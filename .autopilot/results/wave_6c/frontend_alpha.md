@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # Wave 6C Frontend Alpha — Results
 
 ## Status: COMPLETE

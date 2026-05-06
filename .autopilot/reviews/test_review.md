@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, review]
+---
 # Wave 5 Test Quality Review
 
 **Review Date:** 2026-03-22

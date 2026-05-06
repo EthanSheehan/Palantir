@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # Fix RTB Mode with Real Return Logic (W1-022)
 
 ## Summary

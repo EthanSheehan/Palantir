@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation]
+---
 # Grid-Sentinel Simulation Engine -- Technical Reference
 
 **Date:** 2026-03-19

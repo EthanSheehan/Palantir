@@ -5,6 +5,7 @@ status: draft
 nyquist_compliant: false
 wave_0_complete: false
 created: 2026-03-19
+tags: [grid_sentinel, planning, gsd]
 ---
 
 # Phase 3 — Validation Strategy

@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel]
+---
 # Camera Pitch Guidance — Detection-Driven Gimbal Tracking
 
 Single degree of freedom demo: camera pitch adjusts to keep the detected target centered vertically. Drone path is identical to the flyover (straight line, 30m, 50kph). Only the camera angle changes.

@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # Reapply api_main.py Split — Results
 
 ## Status: COMPLETE

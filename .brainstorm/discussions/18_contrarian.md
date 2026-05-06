@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, brainstorm, analysis]
+---
 # 18 — Devil's Advocate: Contrarian Analysis
 
 **Role:** Devil's Advocate — challenging every assumption across files 01-15

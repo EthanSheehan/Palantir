@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W5-004: Logistics Module — Result
 
 **Status: PASS**

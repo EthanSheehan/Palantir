@@ -12,6 +12,7 @@ progress:
   completed_phases: 11
   total_plans: 37
   completed_plans: 37
+tags: [grid_sentinel, planning]
 ---
 
 # Project State

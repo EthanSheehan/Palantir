@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, review]
+---
 # Wave 6A Code Review
 
 **Reviewed modules:** forward_sim, delta_compression, vectorized_detection, comms_sim, cep_model, dbscan_clustering

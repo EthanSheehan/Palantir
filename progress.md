@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel]
+---
 # Session Progress
 
 - Read `docs/PRD.md` to gather context.

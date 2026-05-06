@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # UX Quick Fixes — Dead Buttons, Shortcuts (W1-023)
 
 ## Summary

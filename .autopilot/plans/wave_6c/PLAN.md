@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # Wave 6C — Remaining CONSENSUS Features
 
 **Date:** 2026-03-26

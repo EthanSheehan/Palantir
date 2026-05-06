@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W3-006: WebSocket Token Authentication — Results
 
 ## Status: COMPLETE

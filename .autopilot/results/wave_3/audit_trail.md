@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W3-002: Structured Audit Trail — Results
 
 ## Status: COMPLETE

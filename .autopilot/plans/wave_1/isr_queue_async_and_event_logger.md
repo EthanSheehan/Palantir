@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # Move build_isr_queue() to Assessment Thread + Fix Event Logger (W1-010)
 
 ## Summary

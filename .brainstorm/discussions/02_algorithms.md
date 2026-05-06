@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, brainstorm, analysis]
+---
 # 02 — Algorithm & Fidelity Analysis
 
 ## 20 Algorithms Documented

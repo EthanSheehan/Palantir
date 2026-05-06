@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W6-034: Vision Simulator Fixes
 
 ## Status: COMPLETE

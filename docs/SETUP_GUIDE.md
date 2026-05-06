@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation]
+---
 # Setup Guide: Integrated Claude Code Workflow
 
 Step-by-step instructions to replicate the full four-system integrated Claude Code setup (ECC + GSD + DevFleet + Ralph) with autonomous model selection and agent teams.

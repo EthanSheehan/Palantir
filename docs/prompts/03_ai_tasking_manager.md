@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation, prompts, ai-agents]
+---
 # Agent Definition: AI Tasking Manager (Resource Governance)
 
 ## Role

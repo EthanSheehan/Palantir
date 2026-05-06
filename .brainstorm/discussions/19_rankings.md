@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, brainstorm, analysis]
+---
 # 19 — Innovation Rankings: Game-Changers for the Autopilot System
 
 **Analyst:** Innovation Ranker

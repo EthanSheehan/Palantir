@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, planning, architecture]
+---
 # External Integrations
 
 **Analysis Date:** 2026-03-20

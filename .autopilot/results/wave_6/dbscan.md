@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W6-013: DBSCAN Clustering with Persistent IDs
 
 ## Status: COMPLETE

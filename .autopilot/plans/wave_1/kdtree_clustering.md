@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # KD-Tree Clustering with scipy.spatial (W1-021)
 
 ## Summary

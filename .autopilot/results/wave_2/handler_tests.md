@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W2-004: Tests for handle_payload() and tactical_planner
 
 ## Status: COMPLETE

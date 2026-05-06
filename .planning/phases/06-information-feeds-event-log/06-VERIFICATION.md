@@ -11,6 +11,7 @@ human_verification:
   - test: "DroneCamPIP overlay shows fused confidence, sensor count, state color"
     expected: "Green monospace HUD appears bottom-left of drone cam when tracking a target"
     why_human: "Canvas overlay rendering requires visual inspection of the running UI"
+tags: [grid_sentinel, planning, gsd]
 ---
 
 # Phase 6: Information Feeds & Event Log Verification Report

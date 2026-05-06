@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation, prompts, ai-agents]
+---
 # 7. Synthesis & Query Agent Prompt
 
 **Role:** Natural language query and summarization.

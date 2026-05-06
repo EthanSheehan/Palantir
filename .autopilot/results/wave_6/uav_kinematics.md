@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W6-027: 3-DOF UAV Kinematics Upgrade
 
 ## Status: COMPLETE

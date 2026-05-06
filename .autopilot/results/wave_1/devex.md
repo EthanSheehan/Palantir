@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W1-015: pyproject.toml + Makefile Results
 
 ## Status: PASS

@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W5-007: LLM Prompt Injection Defense + Output Validation
 
 **Status: PASS**

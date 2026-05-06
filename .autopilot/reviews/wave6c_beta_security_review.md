@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, review]
+---
 # Wave 6C-Beta Security Review
 
 **Scope:** `GlobalAlertCenter.tsx`, `FloatingStrikeBoard.tsx`, `App.tsx` (recent changes)

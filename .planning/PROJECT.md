@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, planning]
+---
 # Grid-Sentinel — Project Definition
 
 ## What This Is

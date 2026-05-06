@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, review]
+---
 # Wave 6C-Alpha Frontend Code Review
 
 **Reviewer:** Code Reviewer agent (Sonnet 4.6)

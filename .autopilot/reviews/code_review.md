@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, review]
+---
 # Code Review — Wave 5 Changes
 
 **Review Date:** 2026-03-22

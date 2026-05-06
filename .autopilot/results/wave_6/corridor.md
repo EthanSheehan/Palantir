@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W6-028: Corridor Detection Upgrade — Results
 
 ## Status: COMPLETE

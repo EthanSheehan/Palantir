@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation, prompts, ai-agents]
+---
 # 3. Tactical Planner Prompt
 
 **Role:** COA (Course of Action) Generation

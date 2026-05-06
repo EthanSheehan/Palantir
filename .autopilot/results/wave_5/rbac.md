@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W5-006: Multi-User RBAC + JWT Auth
 
 **Status: PASS**

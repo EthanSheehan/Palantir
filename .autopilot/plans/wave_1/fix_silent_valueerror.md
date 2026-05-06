@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # Fix Silent ValueError Swallowing in Autopilot (W1-004)
 
 ## Summary

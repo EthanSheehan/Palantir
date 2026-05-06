@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, brainstorm, analysis]
+---
 # Competitive Landscape Analysis: Open-Source C2, Drone Control & Military Simulation
 
 **Focus area:** `/autopilot` — autonomous operation modes, AI-driven decision automation

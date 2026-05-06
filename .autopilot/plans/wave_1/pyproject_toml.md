@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # pyproject.toml with Pinned Dependencies (W1-015)
 
 ## Summary

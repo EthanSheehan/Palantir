@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation, prompts, ai-agents]
+---
 # 10. Ontology Maintenance Agent Prompt
 
 **Role:** Data integrity and schema evolution (Digital Twin Management).

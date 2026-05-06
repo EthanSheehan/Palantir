@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, brainstorm, analysis]
+---
 # 20 — Dependency & Wave Map
 
 **Author:** Dependency & Wave Mapper

@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel]
+---
 # Cesium 3D Macro Grid (Grid 3)
 
 This folder contains the "Mission Planner" visualization of the Romania macro transport grid. It builds upon Grid 2 by introducing **Interactive Third-Person Drone Tracking**, a **3-Tiered Level of Detail (LOD)** rendering system, and a rebalanced macro-economy.

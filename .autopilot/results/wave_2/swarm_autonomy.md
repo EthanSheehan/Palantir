@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W2-006: Swarm Coordinator Autonomy Awareness
 
 ## Status: COMPLETE

@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W5-008: Export/Reporting Module — PASS
 
 ## Status: COMPLETE

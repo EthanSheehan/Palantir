@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, planning, gsd]
+---
 # Phase 4: Enemy UAVs - Research
 
 **Researched:** 2026-03-19

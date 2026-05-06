@@ -16,6 +16,7 @@ human_verification:
   - test: "In demo mode, wait for demo autopilot to auto-dispatch a friendly UAV to intercept a detected enemy. Watch until the intercepting UAV reaches the enemy. Confirm the enemy turns gray (DESTROYED) and stops moving."
     expected: "Intercept kill sequence completes: friendly UAV approaches, dwells 3s, enemy transitions to DESTROYED with no further movement."
     why_human: "Kill mechanic timing and visual feedback on Cesium globe requires live observation."
+tags: [grid_sentinel, planning, gsd]
 ---
 
 # Phase 04: Enemy UAVs Verification Report

@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel]
+---
 # Grid-Sentinel Swarm Sensor Fusion Upgrade Plan
 
 > Staged upgrade roadmap for drone swarm sensor fusion, intelligent target management, and battlespace assessment. Each stage is independently demoable via `./grid-sentinel.sh --demo`.

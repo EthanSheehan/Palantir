@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # Hypothesis Property-Based Tests (W1-019)
 
 ## Summary

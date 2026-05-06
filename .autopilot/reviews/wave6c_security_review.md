@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, review]
+---
 # Wave 6C-Alpha Security Review
 
 **Reviewer:** Security Reviewer Agent

@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, brainstorm, analysis]
+---
 # 01 — Code Archaeology Report
 
 ## Summary

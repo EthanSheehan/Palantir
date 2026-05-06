@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # Implement Three NotImplementedError Agents (W1-003)
 
 ## Summary

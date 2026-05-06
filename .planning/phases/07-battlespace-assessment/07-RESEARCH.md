@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, planning, gsd]
+---
 # Phase 7: Battlespace Assessment - Research
 
 **Researched:** 2026-03-20

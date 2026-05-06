@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W6-037: Magic Constants into Grid-SentinelSettings
 
 ## Status: COMPLETE

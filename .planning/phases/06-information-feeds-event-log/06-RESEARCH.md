@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, planning, gsd]
+---
 # Phase 6: Information Feeds & Event Log - Research
 
 **Researched:** 2026-03-19

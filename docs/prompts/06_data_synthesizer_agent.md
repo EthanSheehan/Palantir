@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation, prompts, ai-agents]
+---
 # Data Synthesizer Prompt
 
 **Role:** Synthetic Data & Scenario Generation

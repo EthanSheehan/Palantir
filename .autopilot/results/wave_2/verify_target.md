@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W2-005: Fix verify_target Handler Bypassing Verification Engine
 
 ## Status: COMPLETE

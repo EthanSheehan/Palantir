@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel]
+---
 # GPU YOLO via WSL2 — File-Based Bridge
 
 Run YOLO on GPU (~21ms) via WSL2 while Isaac Sim renders on Windows. Isaac Sim's bundled PyTorch cannot access the RTX 5070 (Blackwell sm_120 not supported), but PyTorch nightly in WSL2 can.

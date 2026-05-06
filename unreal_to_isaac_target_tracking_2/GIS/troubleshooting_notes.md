@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel]
+---
 from pathlib import Path
 
 content = """# SynTerra local import troubleshooting notes (Iași / Romania)

@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W6-006: WebSocket Delta Compression — Results
 
 ## Status: COMPLETE

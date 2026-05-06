@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, brainstorm, analysis]
+---
 # 07 — Performance Analysis
 
 ## 10Hz Sim Loop Budget

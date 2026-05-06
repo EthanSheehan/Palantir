@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel]
+---
 # Guidance V2 — Flicker-Free HUD + Pitch Guidance
 
 Same pitch guidance as `guidance/`, but the WSL2 watcher draws ALL HUD elements from scratch instead of compositing from Isaac Sim's annotated frame. Eliminates the UI phasing/flickering.

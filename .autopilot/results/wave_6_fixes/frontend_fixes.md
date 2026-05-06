@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # Wave 6C-Alpha Frontend Review Fixes
 
 ## Summary

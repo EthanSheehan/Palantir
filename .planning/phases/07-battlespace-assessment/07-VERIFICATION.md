@@ -20,6 +20,7 @@ human_verification:
   - test: "Wait 5+ seconds between assessments, verify overlays refresh without accumulation"
     expected: "Old overlay entities removed, new ones appear — no entity pile-up on the globe"
     why_human: "Entity lifecycle / memory leak requires live browser observation"
+tags: [grid_sentinel, planning, gsd]
 ---
 
 # Phase 07: Battlespace Assessment Verification Report

@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # Add Shapely (Backend) and turf.js (Frontend) for Geometry (W1-020)
 
 ## Summary

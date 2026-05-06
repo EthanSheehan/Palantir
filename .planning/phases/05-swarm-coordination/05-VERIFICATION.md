@@ -12,6 +12,7 @@ human_verification:
   - test: "Click REQUEST SWARM button on a detected target, then observe Cesium globe"
     expected: "Dashed cyan polylines appear connecting assigned SUPPORT UAVs to the target; RELEASE button replaces REQUEST button in SwarmPanel"
     why_human: "End-to-end live WebSocket + Cesium rendering path not exercisable via grep/unit tests"
+tags: [grid_sentinel, planning, gsd]
 ---
 
 # Phase 05: Swarm Coordination Verification Report

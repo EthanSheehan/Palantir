@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W4-006: Override Capture with Reason Codes — COMPLETE
 
 ## Files Created

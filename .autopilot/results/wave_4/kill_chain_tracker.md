@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W4-007: F2T2EA Kill Chain Progress Indicator
 
 ## Status: COMPLETE

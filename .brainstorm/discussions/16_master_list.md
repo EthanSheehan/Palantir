@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, brainstorm, analysis]
+---
 # 16 — Master Feature List
 
 **Synthesized from:** Discussions 01–15 (Code Archaeology, Algorithms, Architecture, UX, Dependencies, Testing, Performance, Security, DevEx, Missing Modules, Competitors, Research, Libraries, User Needs, Best Practices)

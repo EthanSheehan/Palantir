@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, brainstorm, analysis]
+---
 # Best Practices Survey: C2 Systems & Autonomous Military Software
 
 ## Research Mandate

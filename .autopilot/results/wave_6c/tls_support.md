@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # TLS Support — Wave 6C Result
 
 ## Status: COMPLETE

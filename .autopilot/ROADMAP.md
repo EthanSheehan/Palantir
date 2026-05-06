@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot]
+---
 # Wave 1 Execution Roadmap
 
 **Total features:** 24 (W1-001 through W1-023 + W1-013b verify_target bypass fix)

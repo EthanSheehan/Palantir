@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # Wave 4A: Timeline Scrub + Historical Playback
 
 **Status:** COMPLETE

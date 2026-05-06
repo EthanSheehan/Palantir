@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot]
+---
 # Autopilot Development Report
 > Date: 2026-03-26 | Waves: 8 sub-waves (1A through 6C-Beta) | Features: 76/96 | Tests: 1811
 

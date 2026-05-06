@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, planning, architecture]
+---
 # Codebase Structure
 
 **Analysis Date:** 2025-03-20

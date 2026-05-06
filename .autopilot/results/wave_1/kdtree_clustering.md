@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W1-021: KD-Tree Clustering — Results
 
 ## Status: PASS

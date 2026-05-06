@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel]
+---
 # Automated Terrain-to-Terminal-Dive Pipeline
 
 Single-command pipeline that converts DEM + satellite imagery into a 3D terminal dive visualization with ground truth annotation and GPU YOLO detection.

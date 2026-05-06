@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W3-003: Sensor Fusion Upgrade with FilterPy Kalman Tracks
 
 ## Status: COMPLETE

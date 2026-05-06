@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W2-002: Split api_main.py God File — Results
 
 ## Status: COMPLETE

@@ -5,6 +5,7 @@ status: draft
 shadcn_initialized: false
 preset: none
 created: 2026-03-19
+tags: [grid_sentinel, planning, gsd]
 ---
 
 # Phase 1 — UI Design Contract

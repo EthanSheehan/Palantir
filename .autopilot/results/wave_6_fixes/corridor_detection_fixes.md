@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # corridor_detection.py — Wave 6 Fix Results
 
 ## Status: COMPLETE — 33/33 tests pass

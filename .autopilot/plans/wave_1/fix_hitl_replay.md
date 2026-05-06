@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, planning]
+---
 # Fix HITL Replay Attack (W1-012)
 
 ## Summary

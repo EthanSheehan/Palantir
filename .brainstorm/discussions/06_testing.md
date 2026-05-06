@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, brainstorm, analysis]
+---
 # 06 — Testing & Validation Analysis
 
 ## Current State

@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel]
+---
 # Grid 2: Cesium 3D Globe Implementation Guide
 
 To create a Google Earth / Grid-Sentinel-style 3D macro grid, we will use **CesiumJS**, an open-source JavaScript library for world-class 3D globes and maps.

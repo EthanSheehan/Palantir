@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel]
+---
 # Findings
 
 - The project focuses on AI agents for military C2 operations (Maven Smart System style) rather than physical trajectory simulation.

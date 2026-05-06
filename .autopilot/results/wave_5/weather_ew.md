@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W5-003: Weather + Electronic Warfare Engine
 
 **Status: PASS**

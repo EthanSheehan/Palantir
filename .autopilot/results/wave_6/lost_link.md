@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W6-022: Per-Drone Lost-Link Behavior
 
 ## Status: COMPLETE

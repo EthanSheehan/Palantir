@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, review]
+---
 # Wave 6C-Alpha Python Review
 
 **Reviewer:** Python Reviewer (Sonnet 4.6)

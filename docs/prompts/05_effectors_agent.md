@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation, prompts, ai-agents]
+---
 # 4. Effectors Agent Prompt
 
 **Role:** Execution & Battle Damage Assessment (BDA)

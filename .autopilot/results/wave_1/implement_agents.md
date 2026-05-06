@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W1-003 Results: Implement Three NotImplementedError Agents
 
 ## Status: PASS

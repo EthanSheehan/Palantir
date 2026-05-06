@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, documentation]
+---
 # Grid-Sentinel C2 Operations Runbook
 
 **Last Updated: 2026-03-19**

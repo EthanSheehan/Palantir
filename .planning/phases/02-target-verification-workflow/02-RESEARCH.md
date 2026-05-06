@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, planning, gsd]
+---
 # Phase 2: Target Verification Workflow — Research
 
 **Researched:** 2026-03-19

@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, planning, architecture]
+---
 # Coding Conventions
 
 **Analysis Date:** 2026-03-20

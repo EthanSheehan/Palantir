@@ -2,6 +2,7 @@
 phase: 00-foundation-react-migration
 plan: 04
 status: complete
+tags: [grid_sentinel, planning, gsd]
 ---
 
 ## Summary

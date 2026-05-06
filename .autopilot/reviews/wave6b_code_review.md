@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, review]
+---
 # Wave 6B Code Review
 
 **Reviewed modules:** sensor_weighting, lost_link, uav_kinematics, corridor_detection

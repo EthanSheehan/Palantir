@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, brainstorm, analysis]
+---
 # User Needs Research: C2/Drone/Autonomy Systems
 **Role:** User Needs Researcher
 **Date:** 2026-03-20

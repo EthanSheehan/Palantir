@@ -1,3 +1,6 @@
+---
+tags: [grid_sentinel, autopilot, research, worker-output]
+---
 # W2-008: Fix Autonomy Level Reset on Theater Switch
 
 ## Status: COMPLETE
