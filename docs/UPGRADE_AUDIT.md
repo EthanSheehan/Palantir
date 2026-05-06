@@ -17,7 +17,7 @@ tags: [grid_sentinel, audit, upgrade_plan]
 | 4 | Swarm Coordination & Tasking | DONE | `swarm_coordinator.py:21` (Hungarian), `:45-69` (dataclasses), `:267-280` (assign), `:174-200` (gap detection, expiry) | `test_swarm_coordinator.py`, `test_hungarian_swarm.py` (304+L) |
 | 5 | Information Feeds | DONE | `intel_feed.py:17-50` (router), `:52-60` (subscription filter) | (integrated tests) |
 | 6 | Battlespace Assessment | DONE | `battlespace_assessment.py:49-79` (frozen dataclasses), `:111-117` (assess), `:200-220` (clustering), `:259-289` (corridors) | `test_battlespace.py` (299L), `test_battlespace_manager.py` |
-| 7 | Adaptive ISR / Closed-Loop Intelligence | **PARTIAL** | `isr_priority.py:1-50` complete; **but** `agents/ai_tasking_manager.py:61` raises `NotImplementedError("LLM integration needs to be completed")`. Heuristic fallback `_generate_response_heuristic()` works. | — |
+| 7 | Adaptive ISR / Closed-Loop Intelligence | DONE | `isr_priority.py:1-50` complete; `agents/ai_tasking_manager.py` now exposes `evaluate_and_retask_async()` routing through `LLMAdapter.complete_structured()` (Gemini → Anthropic → Ollama → heuristic). Sync path retains heuristic. | `test_adaptive_isr.py::TestAsyncTasking` |
 | 8 | Map Modes & Tactical Views | DONE | `MapModeBar.tsx:7-12` (6 modes + shortcuts 1-6), `cesium/layers/use{Coverage,Fusion,Swarm,Threat,Terrain}Layer.ts` | (integrated) |
 | 9 | Upgraded Drone Feeds | DONE | `types.ts:231` (4 SensorMode), `DroneCamPIP.tsx:4-70`, `SensorHUD.tsx:14-17`, `CamLayoutSelector.tsx:9-13` (SINGLE/PIP/SPLIT/QUAD), `vision/video_simulator.py:1-100` | (integrated) |
 
@@ -71,13 +71,13 @@ tags: [grid_sentinel, audit, upgrade_plan]
 
 **Variance from spec:** clustering and corridor detection are integrated into `BattlespaceAssessor` rather than standalone `dbscan_clustering.py` / `corridor_detection.py` modules.
 
-### Stage 7 — Adaptive ISR / Closed-Loop Intelligence (PARTIAL)
+### Stage 7 — Adaptive ISR / Closed-Loop Intelligence (DONE)
 
-- `src/python/isr_priority.py:1-50` — `ISRRequirement` dataclass, `THREAT_WEIGHTS` dict, `build_isr_queue()` function — all complete
-- **BLOCKER:** `src/python/agents/ai_tasking_manager.py:61` — `_generate_response()` raises `NotImplementedError("LLM integration needs to be completed.")`
-- Fallback: `_generate_response_heuristic()` provides proximity-based asset scoring without LLM and works today
-
-**Gap:** decision needed — either complete LLM integration (uses `llm_adapter.py`'s Gemini → Anthropic → heuristic chain), or remove the `NotImplementedError` and route through the heuristic by default since it's already wired.
+- `src/python/isr_priority.py:1-50` — `ISRRequirement` dataclass, `THREAT_WEIGHTS` dict, `build_isr_queue()` function
+- `src/python/agents/ai_tasking_manager.py` — `evaluate_and_retask_async()` routes through `LLMAdapter.complete_structured()` (Gemini → Anthropic → Ollama → heuristic). Sync `evaluate_and_retask()` retains heuristic-only behaviour for legacy callers; the obsolete `NotImplementedError` is gone.
+- `src/python/api_main.py:103` now passes `llm_adapter` to the agent so the websocket `retask_sensors` handler picks up the async path automatically.
+- `src/python/websocket_handlers.py:506` awaits `evaluate_and_retask_async`.
+- Tests: `test_adaptive_isr.py::TestAsyncTasking` covers LLM hit, empty-LLM fallback, no-client fallback, and threshold short-circuit.
 
 ### Stage 8 — Map Modes & Tactical Views (DONE)
 
@@ -104,7 +104,7 @@ tags: [grid_sentinel, audit, upgrade_plan]
 
 ## Key findings
 
-**8 of 9 stages fully implemented.** Stage 7 (Adaptive ISR) has `isr_priority.py` complete; the gap is `ai_tasking_manager.py` LLM integration. Heuristic fallback is functional.
+**All 9 stages fully implemented** as of 2026-05-06 after wiring `ai_tasking_manager.py` to the LLMAdapter. Heuristic fallback remains for offline operation.
 
 **Minor variances from spec:**
 - Stage 3: autonomy is per-action, not per-drone-mode
@@ -113,8 +113,6 @@ tags: [grid_sentinel, audit, upgrade_plan]
 
 **No critical gaps.** All dataclasses, fusion formulas, state machines, swarm algorithms, WebSocket payloads, and frontend components are present and non-stubbed. Stage 7's heuristic tasking path is viable pending LLM integration.
 
-## Recommended Track B work
+## Track B closeout
 
-Single targeted change: complete `ai_tasking_manager.py:_generate_response()` by routing through the existing `llm_adapter.py` (which already does Gemini → Anthropic → heuristic fallback). This converts Stage 7 from PARTIAL to DONE without touching anything else. Estimated <50 lines.
-
-Out of scope for this round: standalone `dbscan_clustering.py` / `corridor_detection.py` extraction (current integrated form works); formal `autonomy_matrix.py` mode-level enum (current per-action policy works).
+Stage 7 has been wired (see `feat: Stage 7 — adaptive ISR via LLMAdapter` commit). Out of scope for this round: standalone `dbscan_clustering.py` / `corridor_detection.py` extraction (current integrated form works); formal `autonomy_matrix.py` mode-level enum (current per-action policy works).

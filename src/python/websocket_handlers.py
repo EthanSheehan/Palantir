@@ -503,7 +503,7 @@ async def _handle_retask_sensors(payload: dict, websocket: WebSocket, ctx: Handl
             ),
             timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ"),
         )
-        result = ctx.ai_tasking_manager.evaluate_and_retask(detection, available_assets=[])
+        result = await ctx.ai_tasking_manager.evaluate_and_retask_async(detection, available_assets=[])
         response = {
             "type": "RETASK_RESPONSE",
             "tasking_orders": [o.model_dump(mode="json") for o in result.tasking_orders],

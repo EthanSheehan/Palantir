@@ -419,3 +419,91 @@ class TestHeuristicTasking:
         result = agent.evaluate_and_retask(detection, assets)
         assert isinstance(result, TaskingManagerOutput)
         assert result.tasking_orders == []
+
+
+# ---------------------------------------------------------------------------
+# TestAsyncTasking — async LLMAdapter integration for Stage 7 closed loop
+# ---------------------------------------------------------------------------
+
+
+class _MockLLMAdapter:
+    """Minimal stand-in for LLMAdapter exposing complete_structured."""
+
+    def __init__(self, response_payload):
+        self.response_payload = response_payload
+        self.calls = 0
+
+    async def complete_structured(self, messages, response_schema, model_hint="default"):
+        self.calls += 1
+        return self.response_payload
+
+
+class TestAsyncTasking:
+    @pytest.mark.asyncio
+    async def test_async_uses_llm_when_available(self):
+        """evaluate_and_retask_async calls complete_structured on LLM-adapter clients."""
+        valid_payload = {
+            "tasking_orders": [
+                {
+                    "order_id": "order-1",
+                    "asset_id": "UAV-LLM",
+                    "target_detection_id": "track-1",
+                    "collection_type": "EO_IR",
+                    "priority": 5,
+                    "estimated_collection_time_minutes": 7.5,
+                    "reasoning": "LLM-selected nearest available asset.",
+                }
+            ],
+            "confidence_gap": 0.4,
+            "reasoning": "LLM tasking output.",
+        }
+        adapter = _MockLLMAdapter(valid_payload)
+        agent = AITaskingManagerAgent(llm_client=adapter, confidence_threshold=0.7)
+        detection = _make_detection(confidence=0.3)
+        assets = [_make_sensor_asset("UAV-LLM", lat=44.05, lon=28.05)]
+
+        result = await agent.evaluate_and_retask_async(detection, assets)
+
+        assert adapter.calls == 1
+        assert isinstance(result, TaskingManagerOutput)
+        assert result.tasking_orders[0].asset_id == "UAV-LLM"
+        assert result.reasoning == "LLM tasking output."
+
+    @pytest.mark.asyncio
+    async def test_async_falls_back_to_heuristic_on_empty_response(self):
+        """If LLM returns {} (heuristic-only mode), agent uses local heuristic."""
+        adapter = _MockLLMAdapter({})
+        agent = AITaskingManagerAgent(llm_client=adapter, confidence_threshold=0.7)
+        detection = _make_detection(confidence=0.3)
+        assets = [_make_sensor_asset("UAV-FALLBACK", lat=44.05, lon=28.05)]
+
+        result = await agent.evaluate_and_retask_async(detection, assets)
+
+        assert isinstance(result, TaskingManagerOutput)
+        assert "Heuristic" in result.reasoning
+        assert result.tasking_orders[0].asset_id == "UAV-FALLBACK"
+
+    @pytest.mark.asyncio
+    async def test_async_falls_back_when_no_llm_client(self):
+        """llm_client=None routes async path through the heuristic too."""
+        agent = AITaskingManagerAgent(llm_client=None, confidence_threshold=0.7)
+        detection = _make_detection(confidence=0.3)
+        assets = [_make_sensor_asset("UAV-N", lat=44.05, lon=28.05)]
+
+        result = await agent.evaluate_and_retask_async(detection, assets)
+
+        assert isinstance(result, TaskingManagerOutput)
+        assert "Heuristic" in result.reasoning
+
+    @pytest.mark.asyncio
+    async def test_async_skips_when_above_threshold(self):
+        """High-confidence detection short-circuits the async path."""
+        adapter = _MockLLMAdapter({})
+        agent = AITaskingManagerAgent(llm_client=adapter, confidence_threshold=0.7)
+        detection = _make_detection(confidence=0.95)
+        assets = [_make_sensor_asset("UAV-ANY", lat=44.0, lon=28.0)]
+
+        result = await agent.evaluate_and_retask_async(detection, assets)
+
+        assert adapter.calls == 0
+        assert result.tasking_orders == []

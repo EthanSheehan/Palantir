@@ -1,4 +1,5 @@
 import json
+import logging
 import uuid
 from typing import Any, List
 
@@ -10,6 +11,8 @@ from schemas.ontology import (
     SensorTaskingOrder,
     TaskingManagerOutput,
 )
+
+logger = logging.getLogger(__name__)
 
 AI_TASKING_MANAGER_PROMPT = """You are the AI Tasking Manager (Resource Governance) Agent. Your function is to evaluate sensor availability and task the nearest high-fidelity imaging asset to confirm target ID.
 
@@ -46,19 +49,49 @@ class AITaskingManagerAgent:
 
     def _generate_response(self, prompt: str) -> str:
         """
-        Wrapper to call the underlying LLM. Implement according to specifically chosen LLM provider.
+        Sync LLM wrapper kept for backward compat with mocking-based tests.
+        The production path is async via `evaluate_and_retask_async`; sync
+        callers always get the heuristic regardless of llm_client.
         """
-        # Example for OpenAI client:
-        # response = self.llm_client.beta.chat.completions.parse(
-        #     model="gpt-4o",
-        #     messages=[
-        #         {"role": "system", "content": self.system_prompt},
-        #         {"role": "user", "content": prompt}
-        #     ],
-        #     response_format=TaskingManagerOutput,
-        # )
-        # return response.choices[0].message.content
-        raise NotImplementedError("LLM integration needs to be completed.")
+        del prompt
+        logger.warning(
+            "ai_tasking_sync_llm_unsupported",
+            extra={"hint": "Use evaluate_and_retask_async with an LLMAdapter for live LLM tasking."},
+        )
+        return ""
+
+    async def _generate_response_async(
+        self,
+        detection: Detection,
+        available_assets: List[SensorAsset],
+    ) -> str:
+        """Call LLMAdapter.complete_structured if available, else heuristic."""
+        if self.llm_client is None or not hasattr(self.llm_client, "complete_structured"):
+            return self._generate_response_heuristic(detection, available_assets)
+
+        prompt = self._build_prompt(detection, available_assets)
+        messages = [
+            {"role": "system", "content": self.system_prompt},
+            {"role": "user", "content": prompt},
+        ]
+        try:
+            schema = TaskingManagerOutput.model_json_schema()
+            result = await self.llm_client.complete_structured(
+                messages, response_schema=schema, model_hint="default"
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("ai_tasking_llm_failed", extra={"error": str(exc)})
+            return self._generate_response_heuristic(detection, available_assets)
+
+        if not result:
+            return self._generate_response_heuristic(detection, available_assets)
+
+        try:
+            output = TaskingManagerOutput(**result)
+            return output.model_dump_json()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("ai_tasking_llm_parse_failed", extra={"error": str(exc)})
+            return self._generate_response_heuristic(detection, available_assets)
 
     def _generate_response_heuristic(self, detection: Detection, available_assets: List[SensorAsset]) -> str:
         """Score assets by proximity and sensor match. No LLM needed."""
@@ -148,14 +181,41 @@ class AITaskingManagerAgent:
                 reasoning="No sensor assets currently available for retasking.",
             )
 
-        # Build prompt and invoke LLM (or heuristic fallback when llm_client is None)
-        prompt = self._build_prompt(detection, ready_assets)
-        if self.llm_client is None:
-            response_content = self._generate_response_heuristic(detection, ready_assets)
-        else:
-            response_content = self._generate_response(prompt)
+        # Sync path: heuristic only. For live LLM tasking, callers should use
+        # evaluate_and_retask_async with an LLMAdapter instance.
+        response_content = self._generate_response_heuristic(detection, ready_assets)
 
         # Parse the JSON string into the Pydantic model
         output = TaskingManagerOutput.model_validate_json(response_content)
 
         return output
+
+    async def evaluate_and_retask_async(
+        self,
+        detection: Detection,
+        available_assets: List[SensorAsset],
+    ) -> TaskingManagerOutput:
+        """Async variant — uses LLMAdapter (Gemini → Anthropic → Ollama → heuristic)
+        when llm_client supports `complete_structured`, else heuristic.
+        """
+        if detection.confidence >= self.confidence_threshold:
+            return TaskingManagerOutput(
+                tasking_orders=[],
+                confidence_gap=0.0,
+                reasoning=(
+                    f"Detection {detection.track_id if hasattr(detection, 'track_id') else 'N/A'} "
+                    f"confidence ({detection.confidence}) meets or exceeds threshold "
+                    f"({self.confidence_threshold}). No retasking required."
+                ),
+            )
+
+        ready_assets = [a for a in available_assets if a.status == SensorStatusEnum.AVAILABLE]
+        if not ready_assets:
+            return TaskingManagerOutput(
+                tasking_orders=[],
+                confidence_gap=round(self.confidence_threshold - detection.confidence, 4),
+                reasoning="No sensor assets currently available for retasking.",
+            )
+
+        response_content = await self._generate_response_async(detection, ready_assets)
+        return TaskingManagerOutput.model_validate_json(response_content)

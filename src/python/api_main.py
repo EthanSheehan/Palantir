@@ -94,13 +94,15 @@ RATE_LIMIT_WINDOW = 1.0  # seconds
 MAX_WS_MESSAGE_SIZE = 65536  # 64KB
 
 # ---------------------------------------------------------------------------
-# Agent instantiation (heuristic mode)
+# Agent instantiation
 # ---------------------------------------------------------------------------
 llm_adapter = LLMAdapter()
 isr_observer = ISRObserverAgent()
 strategy_analyst = StrategyAnalystAgent()
 tactical_planner = TacticalPlannerAgent()
-ai_tasking_manager = AITaskingManagerAgent(llm_client=None)
+# Pass the LLMAdapter so evaluate_and_retask_async routes through Gemini → Anthropic →
+# Ollama → heuristic. Sync evaluate_and_retask remains heuristic-only.
+ai_tasking_manager = AITaskingManagerAgent(llm_client=llm_adapter)
 battlespace_manager = BattlespaceManagerAgent(llm_client=None)
 synthesis_query = SynthesisQueryAgent(llm_client=None)
 
