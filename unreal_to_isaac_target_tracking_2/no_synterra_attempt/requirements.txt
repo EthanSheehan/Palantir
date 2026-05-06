@@ -2,7 +2,10 @@
 pyrender>=0.1.45
 trimesh>=4.0
 pyglet>=2.0
-PyOpenGL>=3.1.0
+# pyrender's setup.py still pins PyOpenGL==3.1.0, which breaks on Python 3.13+
+# (ctypes API change: `No array-type handler for type _ctypes.type`). 3.1.10
+# fixes the binding; install AFTER pyrender so pip overrides the stale pin.
+PyOpenGL>=3.1.10
 
 # Image processing
 numpy>=1.24

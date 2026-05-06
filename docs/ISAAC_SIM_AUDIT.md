@@ -9,11 +9,20 @@ tags: [grid_sentinel, isaac_sim, audit]
 
 ## Summary
 
-**Overall:** WORKING — production-ready pyrender pipeline with full rendering, flight control, and ground-truth annotation. All core functionality is implemented; no stubs or `NotImplementedError`s. The branch's README explicitly names `run_pyrender.py` as the primary entry, replacing Isaac Sim. The implementation backs that claim.
+**Overall:** WORKING — production-ready pyrender pipeline with full rendering, flight control, and ground-truth annotation. All core functionality is implemented; no stubs or `NotImplementedError`s. The branch's README explicitly names `run_pyrender.py` as the primary entry, replacing Isaac Sim.
+
+**End-to-end smoke test (2026-05-06, macOS Intel + Python 3.14):**
+- 500-frame headless run completed without errors at 44–100 fps (320×240).
+- Flight controller transitioned `CRUISE → DIVE` on schedule (frame ~480, pitch 33.2°, altitude dropping from 100 m).
+- Output: `output/_tmp.png` (PNG 320×240 RGB, 30 KB), `output/gt_data.json` with annotated truck bounding box.
+- Ground-truth annotator emitted 1 box per frame as expected (`GT:1`).
+- No NVIDIA / Isaac Sim / CUDA imports executed in the run path.
+
+**Caveat — PyOpenGL pin:** `pyrender 0.1.45`'s `setup.py` still pins `PyOpenGL==3.1.0`, which breaks on Python 3.13+ due to a ctypes API change (`No array-type handler for type _ctypes.type`). The fix is to install `PyOpenGL>=3.1.10` after pyrender. The pipeline's `requirements.txt` was updated to do exactly that. Pip will warn about a "dependency conflict" against pyrender's stale pin — this is harmless.
 
 **Recommended primary entry:** `run_pyrender.py`
 
-**Critical gaps before merge:** none. Pipeline is feature-complete for terminal-dive simulation without NVIDIA dependencies.
+**Critical gaps before merge:** none.
 
 ## Per-file status
 
