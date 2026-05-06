@@ -156,6 +156,9 @@ class TestEngagementResultImmutability:
             "assessment_notes",
             "reasoning_trace",
             "timestamp",
+            # Optional ack from effector dispatch (AFATDS/JREAP/JADOCS/AMPS).
+            # Default None so existing call sites keep working.
+            "effector_ack",
         }
         assert fields == expected
 

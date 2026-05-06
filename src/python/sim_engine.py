@@ -19,6 +19,7 @@ import structlog
 from enemy_uav_engine import ENEMY_UAV_MODES, EnemyUAV
 from romania_grid import RomaniaMacroGrid
 from sensor_fusion import SensorContribution, fuse_detections
+from vision.multi_int_simulator import MultiIntSimulator
 from sensor_model import EnvironmentConditions, evaluate_detection
 from ops_alerts import OpsAlertManager
 from swarm_coordinator import SwarmCoordinator, TaskingOrder
@@ -113,6 +114,13 @@ class SimulationModel:
                 "max_lat": self.grid.MAX_LAT,
             }
             self.environment = EnvironmentConditions()
+
+        # Multi-INT enrichment — synthesises SAR/SIGINT/MTI/GEO contributions
+        # alongside the EO/IR detections so the IntelLayerPanel has real
+        # per-INT data to filter on. Disable via `sim.multi_int_enabled = False`.
+        import os as _os
+        self.multi_int_enabled: bool = _os.environ.get("GS_MULTI_INT", "1") not in ("0", "false", "False")
+        self.multi_int = MultiIntSimulator()
 
         # Phase 3: autonomy system fields
         self.autonomy_level: str = "MANUAL"
@@ -502,6 +510,19 @@ class SimulationModel:
                         )
 
             if contributions:
+                # Multi-INT enrichment: synthesise SAR/SIGINT/MTI/GEO contributions
+                # for already-detected targets only. Never fabricates new tracks.
+                if self.multi_int_enabled:
+                    extra_dicts = self.multi_int.extra_contributions(t, self.uavs.values())
+                    for ed in extra_dicts:
+                        contributions.append(SensorContribution(
+                            uav_id=int(ed["uav_id"]),
+                            sensor_type=str(ed["sensor_type"]),
+                            confidence=float(ed["confidence"]),
+                            range_m=float(ed["range_m"]),
+                            bearing_deg=float(ed["bearing_deg"]),
+                            timestamp=float(ed["timestamp"]),
+                        ))
                 fused = fuse_detections(contributions)
                 t.sensor_contributions = list(fused.contributions)
                 t.fused_confidence = fused.fused_confidence

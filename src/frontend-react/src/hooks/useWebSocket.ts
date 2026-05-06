@@ -84,6 +84,40 @@ export function useWebSocket() {
 
         if (payload.type === 'state') {
           store.getState().setSimData(payload.data);
+          return;
+        }
+
+        // ----- Maven-parity panel responses -----
+        // The new panels (AIPChatPanel, AssetTaskingDrawer, ModelHubBadge,
+        // ActivityTimeline, SLADashboard) listen for grid-sentinel:* CustomEvents
+        // rather than reading store fields, so the WebSocket layer just
+        // re-emits typed messages onto the window.
+        const dispatch = (name: string, detail: unknown) =>
+          window.dispatchEvent(new CustomEvent(name, { detail }));
+
+        if (payload.type === 'AGENT_RESPONSE') {
+          dispatch('grid-sentinel:agent-response', payload);
+          return;
+        }
+        if (payload.type === 'TASKING_RESPONSE') {
+          dispatch('grid-sentinel:tasking-response', payload);
+          return;
+        }
+        if (payload.type === 'PROVIDER_STATUS') {
+          dispatch('grid-sentinel:provider-status', payload);
+          return;
+        }
+        if (payload.type === 'TARGET_HISTORY') {
+          dispatch('grid-sentinel:target-history', payload);
+          return;
+        }
+        if (payload.type === 'SLA_SNAPSHOT') {
+          dispatch('grid-sentinel:sla-snapshot', payload);
+          return;
+        }
+        if (payload.type === 'EFFECTOR_ACK') {
+          dispatch('grid-sentinel:effector-ack', payload);
+          return;
         }
       };
     }

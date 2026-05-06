@@ -46,6 +46,32 @@ class EngagementResult:
     assessment_notes: str
     reasoning_trace: str
     timestamp: str
+    # Optional dict mirroring effectors.base.EffectorAck — populated when the
+    # COA was dispatched through a real (mock) effector channel like AFATDS.
+    effector_ack: Optional[dict] = None
+
+
+# ---------------------------------------------------------------------------
+# Effector routing — pick which mock stub to dispatch a COA through.
+# Mirrors how Maven hands a target off to AFATDS / JREAP / JADOCS / AMPS once
+# operator authorisation lands.
+# ---------------------------------------------------------------------------
+
+_AVIATION_PLATFORMS = {"F-35", "F-15E", "F-15", "F-16", "F-22", "MQ-9", "MQ-1", "AH-64", "B-21", "B-2", "B-1B"}
+_ARTILLERY_PLATFORMS = {"HIMARS", "M777", "M270", "GMLRS", "ATACMS", "M109"}
+_NAVAL_PLATFORMS = {"AEGIS", "SM-6", "SM-2", "NSM", "TLAM", "Tomahawk"}
+
+
+def _route_effector(effector_name: str) -> str:
+    """Map a COA effector name to one of AFATDS / JREAP / JADOCS / AMPS."""
+    name = (effector_name or "").upper()
+    if any(p in name for p in (s.upper() for s in _AVIATION_PLATFORMS)):
+        return "AMPS"
+    if any(p in name for p in (s.upper() for s in _ARTILLERY_PLATFORMS)):
+        return "AFATDS"
+    if any(p in name for p in (s.upper() for s in _NAVAL_PLATFORMS)):
+        return "JREAP"
+    return "JADOCS"
 
 
 # ---------------------------------------------------------------------------
@@ -121,6 +147,15 @@ class EffectorsAgent:
         damage_level = _determine_damage(hit, self._rng)
         new_target_state = _determine_target_state(damage_level)
 
+        # Dispatch through the appropriate mock effector channel — AFATDS for
+        # tube/rocket artillery, JREAP for naval / cross-domain track relays,
+        # AMPS for aviation strike packages, JADOCS for deep-fire deconfliction.
+        effector_ack: Optional[dict] = None
+        try:
+            effector_ack = self._dispatch_effector(coa, target_data)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("effector_dispatch_failed", error=str(exc), coa_id=coa.coa_id)
+
         logger.info(
             "engagement_executed",
             target_id=target_id,
@@ -131,6 +166,7 @@ class EffectorsAgent:
             hit=hit,
             damage_level=damage_level,
             new_target_state=new_target_state,
+            channel=(effector_ack.get("effector") if effector_ack else None),
         )
 
         reasoning = (
@@ -157,7 +193,58 @@ class EffectorsAgent:
             assessment_notes=bda["assessment_notes"],
             reasoning_trace=reasoning,
             timestamp=datetime.now(timezone.utc).isoformat(),
+            effector_ack=effector_ack,
         )
+
+    def _dispatch_effector(self, coa: CourseOfAction, target_data: dict) -> dict:
+        """Route the COA through the appropriate mock effector stub.
+
+        Returns a serialisable dict version of the EffectorAck so it can be
+        embedded in EngagementResult and broadcast over the WebSocket as
+        EFFECTOR_ACK without the frontend needing the dataclass type.
+        """
+        from effectors import AfatdsStub, AmpsStub, JadocsStub, JreapStub
+        from effectors.afatds import FireMissionRequest
+        from effectors.amps import AviationMissionRequest
+        from effectors.jadocs import DeepFireRequest
+        from effectors.jreap import TrackForwardRequest
+
+        target_id = int(target_data.get("id", 0))
+        target_lat = float(target_data.get("lat", 0.0))
+        target_lon = float(target_data.get("lon", 0.0))
+        target_type = str(target_data.get("type", "UNKNOWN"))
+        channel = _route_effector(coa.effector.name)
+
+        if channel == "AFATDS":
+            ack = AfatdsStub().dispatch(FireMissionRequest(
+                target_id=target_id, target_lat=target_lat, target_lon=target_lon,
+                target_type=target_type, rationale=coa.coa_id,
+            ))
+        elif channel == "AMPS":
+            ack = AmpsStub().dispatch(AviationMissionRequest(
+                target_id=target_id, target_lat=target_lat, target_lon=target_lon,
+            ))
+        elif channel == "JREAP":
+            ack = JreapStub().dispatch(TrackForwardRequest(
+                target_id=target_id, target_lat=target_lat, target_lon=target_lon,
+                track_quality=12,
+            ))
+        else:  # JADOCS
+            ack = JadocsStub().dispatch(DeepFireRequest(
+                target_id=target_id, target_lat=target_lat, target_lon=target_lon,
+            ))
+
+        return {
+            "effector": ack.effector,
+            "accepted": ack.accepted,
+            "mission_id": ack.mission_id,
+            "sent_at_ms": ack.sent_at_ms,
+            "ack_at_ms": ack.ack_at_ms,
+            "latency_ms": ack.latency_ms,
+            "detail": ack.detail,
+            "nato_msg_id": ack.nato_msg_id,
+            "channel": channel,
+        }
 
     async def generate_bda(
         self,

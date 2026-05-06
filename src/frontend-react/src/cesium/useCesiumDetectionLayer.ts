@@ -50,22 +50,53 @@ function getDotIcon(target: Target): string {
   return url;
 }
 
+/**
+ * Read the IntelLayerPanel's filter state. The panel writes
+ * `window.__gsIntelFilter` and dispatches a custom event when it changes.
+ * Returns `true` if a target should be visible given the active filters,
+ * which here means: at least one of its sensor_contributions matches an
+ * enabled INT layer (or no contributions at all so we fall back to "show").
+ */
+function targetMatchesFilter(target: Target): boolean {
+  const filter = (window as any).__gsIntelFilter as
+    | { enabled: Record<string, boolean> }
+    | undefined;
+  if (!filter || !filter.enabled) return true;
+  const enabled = filter.enabled;
+  const contribs = target.sensor_contributions ?? [];
+  if (contribs.length === 0) return enabled.EO_IR ?? true; // fallback
+  for (const c of contribs) {
+    if (enabled[c.sensor_type]) return true;
+  }
+  return false;
+}
+
 export function useCesiumDetectionLayer(viewerRef: React.RefObject<Cesium.Viewer | null>) {
   const entitiesRef = useRef<Record<number, Cesium.Entity>>({});
+  const lastTargetsRef = useRef<Target[]>([]);
 
   useEffect(() => {
-    const unsub = useSimStore.subscribe((state) => {
+    function applyTargets(targets: Target[]) {
       const viewer = viewerRef.current;
       if (!viewer || viewer.isDestroyed()) return;
 
+      lastTargetsRef.current = targets;
       const live = new Set<number>();
-      for (const t of state.targets) {
+      for (const t of targets) {
+        const visible = targetMatchesFilter(t);
+        if (!visible) {
+          // If we already created the entity, just toggle its visibility
+          const existing = entitiesRef.current[t.id];
+          if (existing) existing.show = false;
+          continue;
+        }
         live.add(t.id);
         const url = getDotIcon(t);
         const pos = Cesium.Cartesian3.fromDegrees(t.lon, t.lat, 30);
 
         const existing = entitiesRef.current[t.id];
         if (existing) {
+          existing.show = true;
           existing.position = pos as any;
           if (existing.billboard) {
             existing.billboard.image = url as any;
@@ -88,17 +119,28 @@ export function useCesiumDetectionLayer(viewerRef: React.RefObject<Cesium.Viewer
         }
       }
 
-      // Sweep stale
+      // Sweep stale (target removed entirely from sim)
       for (const idStr of Object.keys(entitiesRef.current)) {
         const id = Number(idStr);
-        if (!live.has(id)) {
+        if (!targets.find(t => t.id === id)) {
           viewer.entities.remove(entitiesRef.current[id]);
           delete entitiesRef.current[id];
         }
       }
-    });
+    }
+
+    const unsub = useSimStore.subscribe((state) => applyTargets(state.targets));
+
+    // Re-apply visibility when the IntelLayerPanel filter changes — same
+    // target list, just different show/hide rules.
+    function onFilterChanged() {
+      applyTargets(lastTargetsRef.current);
+    }
+    window.addEventListener('grid-sentinel:intel-filter-changed', onFilterChanged);
+
     return () => {
       unsub();
+      window.removeEventListener('grid-sentinel:intel-filter-changed', onFilterChanged);
       const viewer = viewerRef.current;
       if (viewer && !viewer.isDestroyed()) {
         for (const id of Object.keys(entitiesRef.current)) {

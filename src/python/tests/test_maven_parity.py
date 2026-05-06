@@ -148,6 +148,35 @@ class TestMultiIntSimulator:
 # -------------- effector stubs --------------
 
 
+class TestEffectorRouting:
+    """Verify EffectorsAgent picks the right channel for a COA's effector."""
+
+    def test_route_aviation(self):
+        from agents.effectors_agent import _route_effector
+        assert _route_effector("F-35") == "AMPS"
+        assert _route_effector("MQ-9") == "AMPS"
+        assert _route_effector("AH-64 Apache") == "AMPS"
+        assert _route_effector("B-21 Raider") == "AMPS"
+
+    def test_route_artillery(self):
+        from agents.effectors_agent import _route_effector
+        assert _route_effector("HIMARS") == "AFATDS"
+        assert _route_effector("M777 howitzer") == "AFATDS"
+        assert _route_effector("GMLRS") == "AFATDS"
+        assert _route_effector("ATACMS") == "AFATDS"
+
+    def test_route_naval(self):
+        from agents.effectors_agent import _route_effector
+        assert _route_effector("SM-6") == "JREAP"
+        assert _route_effector("AEGIS") == "JREAP"
+        assert _route_effector("Tomahawk TLAM") == "JREAP"
+
+    def test_route_default_jadocs(self):
+        from agents.effectors_agent import _route_effector
+        assert _route_effector("UNKNOWN_PLATFORM") == "JADOCS"
+        assert _route_effector("") == "JADOCS"
+
+
 class TestEffectorStubs:
     def test_afatds_dispatch(self):
         stub = AfatdsStub()
