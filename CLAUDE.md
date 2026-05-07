@@ -105,13 +105,25 @@ Environment variables go in a `.env` file (loaded via python-dotenv). Required f
   - `OpsAlertsPanel` — operational alerts with REST API
   - `PlannedTargetsPanel` — aimpoint management with REST API
   - Multi-UAV Shift-Click selection, workspace modes (ISR/STRIKE/RECON), layout persistence
-- **Keyboard Shortcuts:** N (NVIS mode), Ctrl+Shift+A (colorblind mode), L (map legend), G (alert center), B (floating strike board), T (timeline dock)
-- **Accessibility Features:** NVIS mode (green-dominant phosphor), colorblind mode (blue/orange replacement), shape redundancy icons
+- **Keyboard Shortcuts:** N (NVIS mode), Ctrl+Shift+A (colorblind mode), L (map legend), G (alert center), B (floating strike board), T (timeline dock), W (workbench), `/` (AIP chat), S (SLA dashboard), A (asset tasking), H (activity history)
+- **Accessibility Features:** NVIS mode (green-dominant phosphor), colorblind mode (blue/orange replacement), shape redundancy icons, WCAG AA contrast pass on Maven-parity panels
+- **Beyond-Maven UI surface (Iterations 1-10 of beyond-Maven push):**
+  - `ClassificationBanner` — top + bottom UNCLASSIFIED/CUI/SECRET sandwich, recolours live from `persona` store field; PersonaSwitcher in VerticalTaskbar bottom cycles tier
+  - `TargetWorkbench` — 8-column kanban (DETECTED → CLASSIFIED → VERIFIED → NOMINATED → AUTHORIZED → ENGAGING → BDA → COMPLETE) with APPROVE/REJECT/RETASK buttons in NOMINATED column. Per-card `ConfidenceSparkline` (60-tick rolling SVG polyline + ▲/▼/· trend arrow)
+  - `useCesiumDetectionLayer` — numbered stable-ID dot per target with state-coloured ring; respects per-INT filter from IntelLayerPanel
+  - `IntelLayerPanel` — EO/IR / SAR / SIGINT / MTI / GEOINT / OSINT toggle + opacity sliders
+  - `AssetTaskingDrawer` — ranked recommender cards via `request_tasking_recommendations` → `ai_tasking_manager.evaluate_and_retask_async`
+  - `AIPChatPanel` — slash-router to all 11 agents (`/isr`, `/strategy`, `/tactics`, `/effects`, `/pattern`, `/tasking`, `/battlespace`, `/sitrep`, `/audit`, `/critic`, `/replay`) with per-task model-tier picker (auto/fast/default/reasoning)
+  - `ModelHubBadge` — header chip showing live LLM provider chain + most-recent answer's tier
+  - `VerticalTaskbar` — left rail with File menu (theater hot-swap submenu) / View menu / ISR-Plan workspace tabs / 5 surface buttons
+  - `ActivityTimeline` — per-target chronological band reading from `audit_log.events_for_target` (DETECTION/STATE/COA/ENGAGEMENT/BDA/OPERATOR/NOTE)
+  - `SLADashboard` — F2T2EA per-stage histograms backed by `metrics.sla_snapshot()` (real data once `record_stage_latency` populates)
+  - Glass-morphism utilities in `styles/glass.css` (.gs-glass, .gs-glass-tinted, .gs-card-enter, :root tokens)
 - Legacy vanilla JS frontend remains in `src/frontend/` for reference
 
 **4. AI Agent Layer (`src/python/agents/`)**
 
-Nine LangGraph/LangChain agents — four in the kill chain pipeline plus five support agents:
+Eleven agents — four in the kill chain pipeline, five support agents, two beyond-Maven reflective agents:
 - `isr_observer.py` — sensor fusion (UAV, satellite, SIGINT)
 - `strategy_analyst.py` — ROE evaluation and priority scoring
 - `tactical_planner.py` — Course of Action (COA) generation
@@ -121,6 +133,10 @@ Nine LangGraph/LangChain agents — four in the kill chain pipeline plus five su
 - `battlespace_manager.py` — map layers + threat ring management
 - `synthesis_query_agent.py` — SITREP generation and NL queries
 - `performance_auditor.py` — system performance monitoring
+- `registry.py::self_critic` — reflective AI: scans audit_log for COA-churn / repeated-rejection patterns and surfaces findings (escalation candidates, invalid-track suspicions). Reasoning-tier LLM by default.
+- `registry.py::decision_replay` — postmortem AAR: re-runs `EffectorsAgent.execute_engagement` on any past `engagement_executed` audit record at a deterministic RNG seed (default 42), reports original-vs-replay damage_level / hit / BDA confidence.
+
+Plug-in agent registry (`agents/registry.py`) maps slash-commands → handlers; `_ask_llm(ctx, system, user, model_hint, max_tokens)` routes through `ctx.llm_adapter` with heuristic fallback. `ctx._operator_model_hint` lets the AIPChatPanel override the agent's preferred tier per query (auto / fast / default / reasoning).
 
 Agents communicate through Pydantic models defined in `src/python/core/ontology.py`. This is the shared data contract — all detection, identity, and tasking types live here.
 
@@ -137,7 +153,7 @@ The backend sends JSON payloads each tick containing drone positions, target pos
 
 **AsyncAPI Specification:** Full WebSocket protocol documented in `docs/asyncapi.yaml` (AsyncAPI 2.6.0) and `docs/websocket_protocol.md` (human-readable guide). Coverage includes 36 client→server messages, 12 server→client messages, all payload schemas with examples, authentication handshake, close codes, Intel feed subscriptions, and error handling.
 
-Key WebSocket actions: `scan_area`, `follow_target`, `paint_target`, `intercept_target`, `intercept_enemy`, `cancel_track`, `move_drone`, `spike`, `approve_nomination`, `reject_nomination`, `retask_nomination`, `authorize_coa`, `reject_coa`, `verify_target`, `retask_sensors`, `set_autonomy_level`, `set_drone_autonomy`, `approve_transition`, `reject_transition`, `request_swarm`, `release_swarm`, `set_coverage_mode`, `set_roe`, `load_scenario`, `save_checkpoint`, `load_checkpoint`, `set_speed`, `pause`, `resume`, `step`, `set_weather`, `get_report`, `subscribe`, `subscribe_sensor_feed`, `reset`, `SET_SCENARIO`, `launch_drone`.
+Key WebSocket actions: `scan_area`, `follow_target`, `paint_target`, `intercept_target`, `intercept_enemy`, `cancel_track`, `move_drone`, `spike`, `approve_nomination`, `reject_nomination`, `retask_nomination`, `authorize_coa`, `reject_coa`, `verify_target`, `retask_sensors`, `set_autonomy_level`, `set_drone_autonomy`, `approve_transition`, `reject_transition`, `request_swarm`, `release_swarm`, `set_coverage_mode`, `set_roe`, `load_scenario`, `save_checkpoint`, `load_checkpoint`, `set_speed`, `pause`, `resume`, `step`, `set_weather`, `get_report`, `subscribe`, `subscribe_sensor_feed`, `reset`, `SET_SCENARIO`, `launch_drone`, `agent_query`, `get_provider_status`, `get_target_history`, `get_sla_snapshot`, `request_tasking_recommendations`, `set_persona`.
 
 ### Key Python Modules (non-agent)
 

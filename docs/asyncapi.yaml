@@ -487,6 +487,144 @@ components:
             scenario: romania
 
     # -------------------------------------------------------------------------
+    # Maven-parity messages (client → server) — added in beyond-Maven push
+    # -------------------------------------------------------------------------
+    AgentQuery:
+      name: agent_query
+      title: AIP Chat — Route Free-Text Query to an Agent
+      summary: |
+        Send a natural-language or slash-command query to one of the 11
+        registered agents. Returns AGENT_RESPONSE with the structured
+        text + meta. `model_hint` overrides the agent's default LLM tier.
+      payload:
+        type: object
+        required: [action, agent, query]
+        properties:
+          action:
+            type: string
+            enum: [agent_query]
+          agent:
+            type: string
+            description: |
+              One of: isr_observer, strategy_analyst, tactical_planner,
+              effectors_agent, pattern_analyzer, ai_tasking_manager,
+              battlespace_manager, synthesis_query_agent,
+              performance_auditor, self_critic, decision_replay.
+          query:
+            type: string
+            maxLength: 4000
+          model_hint:
+            type: string
+            enum: [auto, fast, default, reasoning]
+            default: auto
+      examples:
+        - name: sitrep
+          payload:
+            action: agent_query
+            agent: synthesis_query_agent
+            query: status of all SAM threats
+            model_hint: reasoning
+        - name: replay
+          payload:
+            action: agent_query
+            agent: decision_replay
+            query: replay 0042
+
+    GetProviderStatus:
+      name: get_provider_status
+      title: Probe LLM Provider Chain
+      summary: Returns PROVIDER_STATUS with availability of Gemini / Anthropic / Ollama / heuristic fallback.
+      payload:
+        $ref: "#/components/schemas/ActionOnlyPayload"
+      examples:
+        - name: probe
+          payload:
+            action: get_provider_status
+
+    GetTargetHistory:
+      name: get_target_history
+      title: Activity Timeline Events for a Target
+      summary: |
+        Returns TARGET_HISTORY with timeline-formatted events from the
+        audit log (DETECTION / STATE / COA / ENGAGEMENT / BDA / OPERATOR /
+        NOTE) plus a "current state" sentinel from live sim.
+      payload:
+        type: object
+        required: [action, target_id]
+        properties:
+          action:
+            type: string
+            enum: [get_target_history]
+          target_id:
+            type: integer
+      examples:
+        - name: target-42
+          payload:
+            action: get_target_history
+            target_id: 42
+
+    GetSlaSnapshot:
+      name: get_sla_snapshot
+      title: F2T2EA SLA Dashboard Snapshot
+      summary: |
+        Returns SLA_SNAPSHOT with per-stage latency stats (FIND, FIX,
+        TRACK, TARGET, ENGAGE, ASSESS) — median/p95/p99/samples/threshold.
+        Source field is "metrics" once real data exists, "synthetic"
+        during warm-up.
+      payload:
+        $ref: "#/components/schemas/ActionOnlyPayload"
+      examples:
+        - name: snapshot
+          payload:
+            action: get_sla_snapshot
+
+    RequestTaskingRecommendations:
+      name: request_tasking_recommendations
+      title: Asset Tasking Recommender
+      summary: |
+        Ask AITaskingManager.evaluate_and_retask_async for ranked sensor
+        tasking orders against an in-flight target. Returns TASKING_RESPONSE
+        with `tasking_orders` array (asset_id, collection_type, priority,
+        ETA, why-trace).
+      payload:
+        type: object
+        required: [action, target_id]
+        properties:
+          action:
+            type: string
+            enum: [request_tasking_recommendations]
+          target_id:
+            type: integer
+      examples:
+        - name: target-42
+          payload:
+            action: request_tasking_recommendations
+            target_id: 42
+
+    SetPersona:
+      name: set_persona
+      title: Operator Classification Persona
+      summary: |
+        Record the operator's chosen classification persona. Frontend
+        ClassificationBanner recolours and the WS server stores it on the
+        client metadata for future per-tier broadcast filtering.
+      payload:
+        type: object
+        required: [action, persona]
+        properties:
+          action:
+            type: string
+            enum: [set_persona]
+          persona:
+            type: string
+            enum: [UNCLASSIFIED, CUI, SECRET]
+      examples:
+        - name: secret
+          payload:
+            action: set_persona
+            persona: SECRET
+
+    # -------------------------------------------------------------------------
     # Feed subscription messages (client → server)
     # -------------------------------------------------------------------------
     Subscribe:
