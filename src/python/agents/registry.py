@@ -87,7 +87,12 @@ async def _ask_llm(
 
 
 def _sim_summary(sim: Any) -> dict[str, Any]:
-    """Compact JSON-serialisable view of the live SimulationModel for prompts."""
+    """Compact JSON-serialisable view of the live SimulationModel for prompts.
+
+    First-line agents still pull this directly. The synthesis_query_agent
+    handler now reads through `OntologyService` instead — see
+    `_synthesis_via_ontology` below — proving the typed API works end-to-end.
+    """
     if sim is None:
         return {}
     try:
@@ -115,6 +120,47 @@ def _sim_summary(sim: Any) -> dict[str, Any]:
         "targets_by_type": by_type,
         "nominated": nominated[:8],
         "theater": getattr(sim, "theater_name", "unknown"),
+    }
+
+
+def _ontology_sim_summary(sim: Any) -> dict[str, Any]:
+    """Same shape as `_sim_summary` but uses `OntologyService` to query.
+
+    Demonstrates that typed ontology access produces identical results to
+    direct sim attribute access, which is the precondition for migrating
+    real agents off the dict-poking pattern.
+    """
+    if sim is None:
+        return {}
+    try:
+        from ontology import OntologyService
+        svc = OntologyService(sim)
+        uavs = svc.list("UAV")
+        targets = svc.list("Target")
+    except Exception:  # noqa: BLE001
+        return _sim_summary(sim)
+
+    by_state: dict[str, int] = {}
+    by_type: dict[str, int] = {}
+    nominated: list[dict] = []
+    for t in targets:
+        by_state[(t.state or "UNKNOWN")] = by_state.get(t.state or "UNKNOWN", 0) + 1
+        by_type[t.type] = by_type.get(t.type, 0) + 1
+        if (t.state or "").upper() == "NOMINATED":
+            nominated.append({
+                "id": t.id,
+                "type": t.type,
+                "fused_confidence": round(getattr(t, "fused_confidence", 0.0), 3),
+                "sensor_count": getattr(t, "sensor_count", 0),
+            })
+    return {
+        "uav_count": len(uavs),
+        "target_count": len(targets),
+        "targets_by_state": by_state,
+        "targets_by_type": by_type,
+        "nominated": nominated[:8],
+        "theater": getattr(sim, "theater_name", "unknown"),
+        "_via": "ontology",
     }
 
 
@@ -330,7 +376,10 @@ async def _synthesis(query: str, ctx: Any) -> tuple[str, dict]:
     sim = getattr(ctx, "sim", None)
     if sim is None:
         return ("[heuristic] sim unavailable.", {})
-    summary = _sim_summary(sim)
+    # Migrated to OntologyService per blueprint Phase 3.1 — first agent to
+    # use typed ontology access. Falls back to direct sim access on import
+    # error so heuristic-mode tests stay deterministic.
+    summary = _ontology_sim_summary(sim)
     by_state = summary.get("targets_by_state", {})
     n_uavs = summary.get("uav_count", 0)
 

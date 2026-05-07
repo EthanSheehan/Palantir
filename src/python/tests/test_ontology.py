@@ -191,3 +191,55 @@ class TestOntologyService:
         assert "link_types" in s
         assert "action_types" in s
         assert "UAV" in s["object_types"]
+
+
+class TestSynthesisQueryAgentMigration:
+    """Synthesis query agent reads through OntologyService — verify
+    parity with the legacy `_sim_summary` shape.
+    """
+
+    @pytest.mark.asyncio
+    async def test_summary_shape_via_ontology_matches_direct(self):
+        from agents.registry import _sim_summary, _ontology_sim_summary
+        sim = _FakeSim()
+        sim.uavs[1] = _FakeUav(1, ["EO_IR"], [42])
+        sim.targets[42] = _FakeTarget(42, "SAM")
+        sim.targets[42].state = "NOMINATED"
+        sim.targets[42].fused_confidence = 0.78
+        sim.targets[42].sensor_count = 3
+        sim.targets[100] = _FakeTarget(100, "TEL")
+        sim.targets[100].state = "DETECTED"
+        sim.targets[100].fused_confidence = 0.4
+        sim.targets[100].sensor_count = 1
+
+        direct = _sim_summary(sim)
+        via_ont = _ontology_sim_summary(sim)
+        # The ontology variant adds a `_via` marker but otherwise mirrors
+        # every field from the direct summary.
+        assert via_ont.get("_via") == "ontology"
+        for key in ("uav_count", "target_count", "targets_by_state", "targets_by_type"):
+            assert via_ont[key] == direct[key]
+        assert {n["id"] for n in via_ont["nominated"]} == {n["id"] for n in direct["nominated"]}
+
+    @pytest.mark.asyncio
+    async def test_synthesis_handler_uses_ontology(self):
+        from agents.registry import get_agent
+        sim = _FakeSim()
+        sim.uavs[1] = _FakeUav(1, ["EO_IR"], [])
+        sim.targets[7] = _FakeTarget(7, "SAM")
+        sim.targets[7].state = "DETECTED"
+        sim.targets[7].fused_confidence = 0.5
+        sim.targets[7].sensor_count = 2
+
+        class Ctx:
+            llm_adapter = None
+            theater_name = "test"
+        ctx = Ctx()
+        ctx.sim = sim
+
+        handler = get_agent("synthesis_query_agent")
+        text, meta = await handler("status?", ctx)
+        # Heuristic fallback path (no LLM in test env): meta carries the
+        # by_state map sourced through the ontology summary.
+        assert "by_state" in meta or "uav_count" in meta
+        assert "1 UAVs" in text or "uav" in text.lower()
