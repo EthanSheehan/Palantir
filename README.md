@@ -11,24 +11,36 @@ tags: [grid_sentinel]
 
 **Grid-Sentinel C2** is a high-fidelity Command and Control system that automates the **F2T2EA kill chain** (Find, Fix, Track, Target, Engage, Assess) using multi-agent AI orchestration, coordinated drone swarm operations, a physics-based tactical simulator, and a Cesium 3D geospatial frontend.
 
-- **9 AI Agents** orchestrating the full kill chain with heuristic + LLM fallback
+- **11 AI Agents** orchestrating the full kill chain with heuristic + LLM fallback (incl. `self_critic` reflective AI and `decision_replay` postmortem)
 - **Human-in-the-Loop (HITL)** two-gate approval system for strike authorization
+- **Two-Person Concurrence** on AUTONOMOUS engagements (FedRAMP-High control) — second operator must concur within 5 minutes before the kinetic dispatcher fires
 - **Target Verification Pipeline** — 4-state machine (DETECTED → CLASSIFIED → VERIFIED → NOMINATED) with per-type thresholds, multi-sensor fusion, and operator manual override
-- **Multi-Sensor Fusion** — complementary fusion across EO/IR, SAR, and SIGINT with max-within-type dedup
-- **Swarm Coordination** — greedy UAV-to-target assignment with sensor-gap detection, priority scoring, and auto-release
+- **Multi-Sensor Fusion** — complementary fusion across EO/IR, SAR, SIGINT, MTI, GEOINT with max-within-type dedup; multi-INT simulator synthesises SAR/SIGINT/MTI/GEO contributions per tick
+- **Swarm Coordination** — Hungarian-algorithm UAV-to-target assignment with full cost-matrix attribution exposed in the Cesium swarm-line InfoBox (winner cost + losing alternatives)
 - **Battlespace Assessment** — threat clustering, coverage gap identification, zone threat scoring, movement corridor detection
 - **ISR Priority Queue** — automated sensor retasking based on threat weight, verification gaps, and sensor coverage
 - **6 Map Modes** — OPERATIONAL, COVERAGE, THREAT, FUSION, SWARM, TERRAIN with keyboard shortcuts (1-6)
+- **Effector pipeline** — AFATDS / JREAP / JADOCS / AMPS dispatch stubs with realistic message schemas + ack-latency distributions
+- **F2T2EA SLA Dashboard** — per-stage histograms (FIND/FIX/TRACK/TARGET/ENGAGE/ASSESS) sourced from real `metrics.record_stage_latency` data with synthetic warm-up fallback
+- **Activity Timeline** — per-target chronological band reading from `audit_log.events_for_target` (DETECTION/STATE/COA/ENGAGEMENT/BDA/OPERATOR)
+- **Multi-classification persona switching** — UNCLASSIFIED / CUI / SECRET; fields tagged with classification tier are stripped from outbound state for lower-tier operators
+- **Cross-theater hot-swap** — flip Romania ↔ Baltic ↔ South China Sea live without app restart
+- **Decision replay** — re-run any past engagement against the effectors agent at deterministic seed for AAR / postmortem
+- **AIP chat panel** — slash-router to all 11 agents (`/isr`, `/strategy`, `/tactics`, `/effects`, `/pattern`, `/tasking`, `/battlespace`, `/sitrep`, `/audit`, `/critic`, `/replay`) with per-task model-tier picker (auto / fast / default / reasoning)
+- **Foundry/Gotham-style ontology layer** — 10 object types, 7 link types, 11 action types, `OntologyService(sim)` with `get / list / links / apply / schema`; 8 of 9 chat handlers migrated off direct sim access
+- **Tamper-evident audit log** — SHA-256 hash chain with `verify_chain()`; ROE rule attribution on every `coa_authorized` record
 - **Enemy UAV Tracking** — adversary drone detection with RECON/ATTACK/JAMMING/EVADING modes
 - **Intel Feed System** — subscription-filtered event streams (INTEL, COMMAND, SENSOR feeds)
 - **Multi-layout Drone Camera** — SINGLE, PIP, SPLIT, QUAD layouts with EO/IR, SAR, SIGINT, and FUSION sensor modes
-- **Prometheus metrics endpoint** (`/metrics`) for monitoring tick duration, connected clients, detection events, and HITL decisions
+- **NVIDIA-free pyrender 3D renderer** wired to live SimulationModel — runs on a 2015 Intel MacBook Air, no CUDA
+- **Prometheus metrics endpoint** (`/metrics`) for monitoring tick duration, connected clients, detection events, HITL decisions, and per-stage SLA latency
 - **TLS/SSL support** for secure WebSocket connections with configurable certificates
 - **Physics-based simulation** with 10 enemy unit types, 11 UAV flight modes, and fuel/endurance modeling
 - **3 Theater configurations** (Romania, South China Sea, Baltic) with YAML scenario definition
-- **Real-time Cesium 3D globe** with WebSocket-driven 10 Hz updates, entity labels, range rings, lock indicators, and 5 map layer overlays
-- **React + Vite frontend** with Blueprint dark theme, resizable sidebar, and 4 sidebar tabs
-- **1811 pytest tests** across 35 test files
+- **Real-time Cesium 3D globe** with WebSocket-driven 10 Hz updates, numbered stable-ID detection dots, state-pulse animations, range rings, and 5 map layer overlays
+- **React + Vite frontend** with Blueprint dark theme, glass-morphism utilities, WCAG-AA contrast, resizable sidebar, and Maven-style chrome (ClassificationBanner sandwich, VerticalTaskbar, TargetWorkbench kanban)
+- **CI** — Python matrix (3.11/3.12/3.13), frontend `tsc --noEmit` + Vite build, AsyncAPI YAML validation; security workflow runs `pip-audit`, `npm audit`, `bandit`, `trufflehog` with SARIF upload
+- **1911 pytest tests** across 38 test files (was 1811 across 35 — beyond-Maven push added 100 tests / 3 files)
 
 ---
 

@@ -258,22 +258,30 @@ the Swiss Alps. Romania theater renders use it as backdrop via
   - i14 `6200858` — Foundry/Gotham-style ontology layer (object_types + link_types + action_types + OntologyService)
   - i15 `d3a1b0e` — CI matrix (py 3.11/3.12/3.13 + frontend build + contracts gate) + DISA IL-5/6 posture audit
   - i16 `a1a2715` — synthesis_query_agent migrated to OntologyService (first agent off direct sim access)
-- Test floor risen from 1860 → 1897 over the push. 0 regressions.
+  - i17 `f8b3002` — Cesium swarm-line InfoBox tooltips with cost-matrix attribution
+  - i18 `4cb4386` — two-person concurrence backend (FedRAMP-High control closure)
+  - i19 `32b5221` — security CI workflow (pip-audit + npm audit + bandit + trufflehog SARIF)
+  - i20 `d10a3dd` — remaining 7 chat handlers migrated to OntologyService
+  - i21 `650c28d` — TwoPersonConcurrencePanel UI surface
+  - i22 `(this commit)` — README beyond-Maven section + run-history dashboard
+- Test floor risen from 1860 → 1911 over the push. 0 regressions.
 
-## Outstanding (highest leverage first, smallest blast radius first)
+## Outstanding (deferred / weeks-of-work)
 
-- [ ] Cesium swarm-line tooltip showing the cost-matrix explanation
-      (backend serializes the data already; frontend just needs the
-      hover render).
-- [ ] Migrate the next agent off direct sim access — `pattern_analyzer`
-      is the cleanest target since it already takes a sector argument.
 - [ ] Real Romania DEM tiles for the pyrender bridge (one shell command +
-      checkin per theater).
-- [ ] Two-person concurrence on AUTONOMOUS engagement (closes the
-      FedRAMP High gap from `docs/SECURITY_POSTURE.md`).
-- [ ] `pip-audit` / `npm audit --audit-level high` / `trivy fs` jobs in
-      `.github/workflows/test.yml`.
+      checkin per theater). Beyond-Maven beat: terrain matches theater.
 - [ ] Playwright visual regression goldens for TargetWorkbench /
-      AssetTaskingDrawer / AIPChatPanel / SLADashboard.
+      AssetTaskingDrawer / AIPChatPanel / SLADashboard /
+      TwoPersonConcurrencePanel.
+- [ ] `trivy fs` once a Dockerfile lands; `osv-scanner` for cross-
+      ecosystem CVE coverage. CODEOWNERS gate on `.github/workflows/`.
+- [ ] DoD CAC / PIV smart-card auth as a JWT alternative.
+- [ ] FIPS-140-3 validated cryptography swap (third-party-dependent).
+- [ ] 3-year audit-log retention (storage-policy-dependent).
 - [ ] Edge-replication checkpoint sync (Apollo equivalent) — defer to a
       funded round.
+
+The push from i1 → i22 hit every blueprint differentiator that didn't
+require external dependencies. The remaining items are intentionally
+outside the autonomous-loop scope — each requires either a third-party
+integration or a policy decision.
