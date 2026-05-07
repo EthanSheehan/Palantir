@@ -131,18 +131,52 @@ export function VerticalTaskbar(props: VerticalTaskbarProps) {
         <RailButton icon={'timeline-bar-chart' as IconName} label="SLA" active={props.slaOpen}         onClick={props.onSlaToggle}          accent="#ef4444" />
       </div>
 
-      {/* Bottom: workspace label */}
-      <div style={{
+      {/* Bottom: persona switcher (cycles UNCLASSIFIED → CUI → SECRET) */}
+      <PersonaSwitcher />
+    </div>
+  );
+}
+
+const PERSONA_CYCLE = ['UNCLASSIFIED', 'CUI', 'SECRET'] as const;
+const PERSONA_COLOR: Record<string, string> = {
+  UNCLASSIFIED: '#0a7c2f',
+  CUI: '#5d3d8a',
+  SECRET: '#b91c1c',
+};
+const PERSONA_LABEL: Record<string, string> = {
+  UNCLASSIFIED: 'UNCLASS',
+  CUI: 'CUI',
+  SECRET: 'SECRET',
+};
+
+function PersonaSwitcher() {
+  const persona = useSimStore(s => s.persona);
+  const setPersona = useSimStore(s => s.setPersona);
+  const idx = PERSONA_CYCLE.indexOf(persona as any);
+  const next = PERSONA_CYCLE[(idx + 1) % PERSONA_CYCLE.length];
+  const color = PERSONA_COLOR[persona] ?? '#475569';
+
+  return (
+    <button
+      onClick={() => setPersona(next as any)}
+      title={`Persona: ${persona} — click to cycle to ${next}`}
+      aria-label={`Switch persona to ${next}`}
+      style={{
         padding: '6px 0',
         textAlign: 'center',
-        fontSize: 8,
+        fontSize: 9,
         fontFamily: 'monospace',
-        letterSpacing: '0.16em',
-        color: '#475569',
-        borderTop: '1px solid rgba(255,255,255,0.05)',
-      }}>
-        GRID-SENTINEL
-      </div>
-    </div>
+        letterSpacing: '0.14em',
+        background: `${color}22`,
+        color,
+        border: 'none',
+        borderTop: `2px solid ${color}`,
+        cursor: 'pointer',
+        fontWeight: 700,
+      }}
+    >
+      <div style={{ fontSize: 7, color: '#64748b', letterSpacing: '0.14em' }}>PERSONA</div>
+      <div>{PERSONA_LABEL[persona] ?? persona}</div>
+    </button>
   );
 }

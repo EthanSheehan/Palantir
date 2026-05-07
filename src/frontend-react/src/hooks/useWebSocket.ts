@@ -119,6 +119,10 @@ export function useWebSocket() {
           dispatch('grid-sentinel:effector-ack', payload);
           return;
         }
+        if (payload.type === 'PERSONA_UPDATED') {
+          dispatch('grid-sentinel:persona-updated', payload);
+          return;
+        }
       };
     }
 

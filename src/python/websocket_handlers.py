@@ -1066,7 +1066,34 @@ _DISPATCH_TABLE: dict[str, Callable] = {
     "get_target_history": _handle_get_target_history,
     "get_sla_snapshot": _handle_get_sla_snapshot,
     "request_tasking_recommendations": _handle_request_tasking_recommendations,
+    "set_persona": lambda payload, websocket, ctx: _handle_set_persona(payload, websocket, ctx),
 }
+
+
+_VALID_PERSONAS = {"UNCLASSIFIED", "CUI", "SECRET"}
+
+
+async def _handle_set_persona(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:
+    """Record the operator's chosen classification persona on the WebSocket
+    client metadata. The frontend already drives ClassificationBanner from
+    its local store; this hook lets the backend filter outbound state by
+    classification tier in a future iteration.
+    """
+    persona = (payload.get("persona") or "").upper()
+    if persona not in _VALID_PERSONAS:
+        await _send_error(
+            websocket,
+            f"persona must be one of {sorted(_VALID_PERSONAS)}",
+            "set_persona",
+        )
+        return
+    info = ctx.clients.get(websocket)
+    if info is not None:
+        info["persona"] = persona
+    try:
+        await websocket.send_text(json.dumps({"type": "PERSONA_UPDATED", "persona": persona}))
+    except (WebSocketDisconnect, ConnectionError, OSError):
+        pass
 
 # Type-based dispatch for forwarding messages
 _TYPE_FORWARD = frozenset({"DRONE_FEED", "TRACK_UPDATE", "TRACK_UPDATE_BATCH"})

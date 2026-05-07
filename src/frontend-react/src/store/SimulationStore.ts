@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { UAV, Target, Zone, FlowLine, StrikeEntry, COA, TheaterInfo, AssistantMessage, HitlUpdate, EnemyUAV, SwarmTask, IntelEvent, CommandEvent, AssessmentPayload, ISRRequirement, MapMode, MAP_MODE_DEFAULTS, CamLayout, WorkspaceMode, Launcher } from './types';
+import { UAV, Target, Zone, FlowLine, StrikeEntry, COA, TheaterInfo, AssistantMessage, HitlUpdate, EnemyUAV, SwarmTask, IntelEvent, CommandEvent, AssessmentPayload, ISRRequirement, MapMode, MAP_MODE_DEFAULTS, CamLayout, WorkspaceMode, Launcher, Persona } from './types';
 import { MAX_ASSISTANT_MESSAGES, MAX_INTEL_EVENTS, MAX_COMMAND_EVENTS } from '../shared/constants';
 
 interface SimState {
@@ -69,6 +69,7 @@ interface SimState {
   isSettingWaypoint: boolean;
   rangeRingDroneIds: number[];
   workspaceMode: WorkspaceMode;
+  persona: Persona;
 
   // Actions
   setSimData: (data: {
@@ -115,6 +116,7 @@ interface SimState {
   setCoverageMode: (mode: string) => void;
   toggleRangeRing: (droneId: number) => void;
   setWorkspaceMode: (mode: WorkspaceMode) => void;
+  setPersona: (p: Persona) => void;
 }
 
 export const useSimStore = create<SimState>((set, get) => ({
@@ -142,6 +144,7 @@ export const useSimStore = create<SimState>((set, get) => ({
   isSettingWaypoint: false,
   rangeRingDroneIds: [],
   workspaceMode: 'isr' as WorkspaceMode,
+  persona: 'UNCLASSIFIED' as Persona,
   enemyUavs: [],
   swarmTasks: [],
   autonomyLevel: 'MANUAL',
@@ -301,6 +304,7 @@ export const useSimStore = create<SimState>((set, get) => ({
   })),
 
   setWorkspaceMode: (mode) => set({ workspaceMode: mode }),
+  setPersona: (p) => set({ persona: p }),
 }));
 
 // Layout persistence — save UI state to localStorage

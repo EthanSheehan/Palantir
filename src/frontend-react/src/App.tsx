@@ -143,8 +143,8 @@ export default function App() {
   return (
     <WebSocketContext.Provider value={{ sendMessage }}>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-        {/* Top classification banner — defence-software chrome */}
-        <ClassificationBanner level="UNCLASSIFIED" caveats={['FOUO', 'DEMO']} position="top" />
+        {/* Top classification banner — reads persona from store, recolors live */}
+        <ClassificationBanner position="top" />
         {/* Demo banner */}
         <DemoBanner />
         {/* Kill chain ribbon */}
@@ -186,7 +186,7 @@ export default function App() {
         </div>
 
         {/* Bottom classification banner */}
-        <ClassificationBanner level="UNCLASSIFIED" caveats={['FOUO', 'DEMO']} position="bottom" />
+        <ClassificationBanner position="bottom" />
       </div>
       <DetailMapDialog />
       <CommandPalette isOpen={paletteOpen} onClose={() => setPaletteOpen(false)} />

@@ -1,9 +1,15 @@
 import React from 'react';
+import { useSimStore } from '../store/SimulationStore';
 
 /**
  * Classification banner — top-of-screen chrome found on every defence-grade
- * C2 interface. Reads "UNCLASSIFIED // FOUO // DEMO" by default. Defence
- * software is recognisable as such partly *because* of this banner.
+ * C2 interface. Reads "UNCLASSIFIED // FOUO // DEMO" by default. Reactive
+ * to the live `persona` field in the store so the banner updates the
+ * moment the operator flips persona via the VerticalTaskbar.
+ *
+ * Maven runs a single classification per deployment; we render all three at
+ * once and let the operator demonstrate cross-domain dynamic security
+ * filtering.
  */
 export type ClassificationLevel =
   | 'UNCLASSIFIED'
@@ -21,18 +27,27 @@ const LEVEL_COLORS: Record<ClassificationLevel, { bg: string; fg: string }> = {
 };
 
 interface Props {
-  level?: ClassificationLevel;
-  caveats?: string[];          // e.g. ["FOUO", "REL TO USA, FVEY"]
+  level?: ClassificationLevel;        // override; default reads from store persona
+  caveats?: string[];                 // e.g. ["FOUO", "REL TO USA, FVEY"]
   position?: 'top' | 'bottom';
 }
 
 export function ClassificationBanner({
-  level = 'UNCLASSIFIED',
+  level: levelProp,
   caveats = ['FOUO', 'DEMO'],
   position = 'top',
 }: Props) {
-  const { bg, fg } = LEVEL_COLORS[level];
-  const text = [level, ...caveats].join(' // ');
+  const persona = useSimStore(s => s.persona);
+  // Map persona → banner level. Persona "SECRET" is rendered as SECRET; CUI
+  // as CUI; UNCLASSIFIED stays UNCLASSIFIED.
+  const level = (levelProp ?? persona) as ClassificationLevel;
+  const { bg, fg } = LEVEL_COLORS[level] ?? LEVEL_COLORS.UNCLASSIFIED;
+  // CUI / SECRET strip the FOUO caveat (it's UNCLASS-only) and replace with
+  // a tier-appropriate one.
+  let effectiveCaveats = caveats;
+  if (level === 'SECRET') effectiveCaveats = ['NOFORN', 'DEMO'];
+  else if (level === 'CUI') effectiveCaveats = ['FOUO', 'DEMO'];
+  const text = [level, ...effectiveCaveats].join(' // ');
   return (
     <div
       role="alert"
