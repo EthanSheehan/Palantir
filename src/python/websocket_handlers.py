@@ -352,6 +352,40 @@ async def _handle_authorize_coa(payload: dict, websocket: WebSocket, ctx: Handle
     rationale = payload.get("rationale", "")
     try:
         ctx.hitl.authorize_coa(payload["entry_id"], payload["coa_id"], rationale)
+        # Capture ROE clause attribution in the audit_log so the
+        # ActivityTimeline event can cite the specific rule that
+        # PERMITTED the COA. Beyond-Maven differentiator: Maven shows
+        # "rejected"/"approved"; we cite the exact rule.
+        from audit_log import audit_log as _audit_log
+        target_id = payload.get("target_id")
+        target_type = payload.get("target_type")
+        zone_id = payload.get("zone_id")
+        autonomy_level = getattr(ctx.sim, "autonomy_level", "MANUAL")
+        roe_decision = None
+        roe_rule_name = None
+        if ctx.roe_engine is not None and target_type:
+            try:
+                decision, matched = ctx.roe_engine.evaluate_with_attribution(
+                    target_type=str(target_type),
+                    zone_id=str(zone_id) if zone_id is not None else None,
+                    autonomy_level=str(autonomy_level),
+                )
+                roe_decision = decision.value if hasattr(decision, "value") else str(decision)
+                roe_rule_name = matched.name if matched is not None else None
+            except Exception:  # noqa: BLE001
+                pass
+        _audit_log.append(
+            "coa_authorized",
+            autonomy_level=str(autonomy_level),
+            target_id=int(target_id) if isinstance(target_id, int) else None,
+            details={
+                "coa_id": payload["coa_id"],
+                "entry_id": payload["entry_id"],
+                "rationale": rationale,
+                "roe_decision": roe_decision,
+                "roe_rule_name": roe_rule_name,
+            },
+        )
         await ctx.intel_router.emit(
             "COMMAND_FEED",
             {
@@ -359,6 +393,7 @@ async def _handle_authorize_coa(payload: dict, websocket: WebSocket, ctx: Handle
                 "entry_id": payload["entry_id"],
                 "coa_id": payload["coa_id"],
                 "source": "operator",
+                "roe_rule_name": roe_rule_name,
             },
         )
         response = json.dumps(

@@ -114,6 +114,10 @@ function TargetCard({ target, stage }: CardProps) {
           transition: 'width 180ms',
         }} />
       </div>
+      {/* Confidence sparkline — beyond-Maven differentiator. Maven shows
+          only the snapshot; we show whether confidence is climbing or
+          decaying over the last ~60 ticks (~6s at 10Hz). */}
+      <ConfidenceSparkline values={target.confidence_history} accent={stage.accent} />
 
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: '#64748b', marginBottom: 4 }}>
         <span>{fused}% conf</span>
@@ -162,6 +166,49 @@ function TargetCard({ target, stage }: CardProps) {
     </div>
   );
 }
+
+function ConfidenceSparkline({ values, accent }: { values?: number[]; accent: string }) {
+  if (!values || values.length < 2) {
+    return null;
+  }
+  const v = values.slice(-60);
+  const max = 1.0; // confidence space is [0, 1]
+  const W = 160;   // virtual width — scales via SVG viewBox
+  const H = 18;
+  const stepX = W / (v.length - 1);
+  const points = v.map((val, i) => {
+    const x = i * stepX;
+    const y = H - Math.max(0, Math.min(1, val / max)) * H;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  // Trend arrow: compare last 5 vs first 5
+  const head = v.slice(0, Math.min(5, v.length));
+  const tail = v.slice(-Math.min(5, v.length));
+  const headAvg = head.reduce((a, b) => a + b, 0) / head.length;
+  const tailAvg = tail.reduce((a, b) => a + b, 0) / tail.length;
+  const trend = tailAvg - headAvg;
+  const trendChar = trend > 0.05 ? '▲' : trend < -0.05 ? '▼' : '·';
+  const trendColor = trend > 0.05 ? '#22c55e' : trend < -0.05 ? '#ef4444' : '#475569';
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ flex: 1, height: H, overflow: 'visible' }} preserveAspectRatio="none">
+        <polyline
+          fill="none"
+          stroke={accent}
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          points={points}
+          opacity={0.85}
+        />
+      </svg>
+      <span style={{ fontSize: 9, color: trendColor, fontFamily: 'monospace', minWidth: 8, textAlign: 'right' }}>
+        {trendChar}
+      </span>
+    </div>
+  );
+}
+
 
 interface ColumnProps {
   stage: Stage;

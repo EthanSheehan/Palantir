@@ -46,6 +46,7 @@ export interface Target {
   detection_range_km: number | null;
   time_in_state_sec: number;
   next_threshold: number | null;
+  confidence_history?: number[];     // 60-tick rolling fused-confidence values
 }
 
 export interface EnemyUAV {

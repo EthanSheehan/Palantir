@@ -527,6 +527,8 @@ class SimulationModel:
                 t.sensor_contributions = list(fused.contributions)
                 t.fused_confidence = fused.fused_confidence
                 t.sensor_count = fused.sensor_count
+                # Append to confidence sparkline history
+                t.confidence_history.append(round(fused.fused_confidence, 3))
                 if t.state == "UNDETECTED":
                     t.state = "DETECTED"
                 t.detection_confidence = fused.fused_confidence
@@ -1151,6 +1153,7 @@ class SimulationModel:
                     "time_in_state_sec": round(t.time_in_state_sec, 1),
                     "next_threshold": self._get_next_threshold(t),
                     "concealed": getattr(t, "concealed", False),
+                    "confidence_history": list(getattr(t, "confidence_history", [])),
                 }
                 for t in self.targets.values()
             ],

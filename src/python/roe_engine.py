@@ -150,6 +150,31 @@ class ROEEngine:
 
         return ROEDecision.ESCALATE
 
+    def evaluate_with_attribution(
+        self,
+        target_type: str,
+        zone_id: str | None,
+        autonomy_level: str,
+        collateral_radius_m: float = 0.0,
+    ) -> tuple[ROEDecision, ROERule | None]:
+        """Like `evaluate` but also returns the *specific rule* that drove
+        the decision. Used by the ActivityTimeline to render
+        `ROE-3.2.1: PID required for SAM strike` rather than a generic
+        "rejected" event.
+
+        Returns (decision, matched_rule_or_None).
+        """
+        first_match: ROERule | None = None
+        for rule in self._rules:
+            if _rule_matches(rule, target_type, zone_id, autonomy_level, collateral_radius_m):
+                if rule.decision == ROEDecision.DENIED:
+                    return ROEDecision.DENIED, rule
+                if first_match is None:
+                    first_match = rule
+        if first_match is not None:
+            return first_match.decision, first_match
+        return ROEDecision.ESCALATE, None
+
     @classmethod
     def load_from_yaml(cls, path: str) -> ROEEngine:
         with open(path) as f:

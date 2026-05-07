@@ -87,6 +87,10 @@ class Target:
         self.sensor_contributions: list = []
         self.fused_confidence: float = 0.0
         self.sensor_count: int = 0
+        # Rolling 60-tick history for the verification-confidence sparkline.
+        # Beyond-Maven differentiator: operators see whether confidence is
+        # climbing or decaying, not just the current snapshot bar.
+        self.confidence_history: deque = deque(maxlen=60)
 
         # Behavior fields
         self.behavior = UNIT_BEHAVIOR.get(self.type, "stationary")

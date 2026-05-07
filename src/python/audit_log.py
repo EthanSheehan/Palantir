@@ -197,7 +197,21 @@ def _format_event(action: str, details: dict) -> tuple[str, str]:
     if action == "nomination_retasked":
         return ("Nomination retasked", details.get("rationale", ""))
     if action == "coa_authorized":
-        return ("COA authorized", details.get("coa_id", ""))
+        rule = details.get("roe_rule_name")
+        decision = details.get("roe_decision")
+        rule_attr = (
+            f"ROE-{rule}: {decision}"
+            if rule and decision
+            else (rule or decision or "")
+        )
+        return (
+            "COA authorized",
+            (
+                f"{rule_attr} · COA {details.get('coa_id', '?')}"
+                if rule_attr
+                else details.get("coa_id", "")
+            ),
+        )
     if action == "verify_target":
         return ("Operator verify", details.get("rationale", ""))
     return (action, json.dumps(details, default=str))
