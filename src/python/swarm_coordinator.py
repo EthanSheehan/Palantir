@@ -94,6 +94,18 @@ class SwarmCoordinator:
         self._last_positions: Dict[int, Tuple[float, float]] = {}
         self._byzantine_flagged: set[int] = set()
         self._promoted_targets: set[int] = set()
+        # Cost-matrix attribution from the last hungarian assignment —
+        # rendered as a tooltip on the Cesium swarm-line layer.
+        self._last_explanations: Dict[int, dict] = {}
+
+    def get_explanations(self) -> Dict[int, dict]:
+        """Return a copy of the most recent cost-matrix attribution map.
+
+        Each entry is keyed by target_id and contains:
+        `{uav_id, winning_cost, sensor_type, alternatives: [{uav_id, cost}, …]}`
+        Cleared each tick when a new hungarian pass runs.
+        """
+        return dict(self._last_explanations)
 
     # ------------------------------------------------------------------
     # Public API
@@ -279,6 +291,12 @@ class SwarmCoordinator:
         cost_matrix = self._build_cost_matrix(available, task_list)
         row_ind, col_ind = linear_sum_assignment(cost_matrix)
 
+        # Capture beyond-Maven cost-matrix attribution: for every task, what
+        # was the winning UAV's cost and what were the alternatives we lost?
+        # Surfaced via get_explanations() and rendered as a tooltip on the
+        # Cesium swarm-line layer.
+        winners: dict[int, dict] = {}  # target_id → explanation dict
+        winning_pairs = set(zip(row_ind.tolist(), col_ind.tolist()))
         orders: List[TaskingOrder] = []
         priority_counter = 0
         for r, c in zip(row_ind, col_ind):
@@ -296,6 +314,24 @@ class SwarmCoordinator:
                     priority=priority_counter,
                 )
             )
+            # Build alternatives from the other UAVs on this column
+            alternatives = []
+            for r2 in range(cost_matrix.shape[0]):
+                if r2 == r or cost_matrix[r2, c] >= 1e18:
+                    continue
+                alternatives.append({
+                    "uav_id": int(available[r2].id),
+                    "cost": round(float(cost_matrix[r2, c]), 3),
+                })
+            alternatives.sort(key=lambda a: a["cost"])
+            winners[int(target.id)] = {
+                "uav_id": int(uav.id),
+                "winning_cost": round(float(cost_matrix[r, c]), 3),
+                "sensor_type": sensor_type,
+                "alternatives": alternatives[:5],
+            }
+        # Stash on the coordinator instance so the broadcast layer can pull it
+        self._last_explanations = winners
         return orders
 
     def _build_cost_matrix(

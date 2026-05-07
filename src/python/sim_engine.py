@@ -1187,6 +1187,7 @@ class SimulationModel:
                     "assigned_uav_ids": list(task.assigned_uav_ids),
                     "sensor_coverage": list(task.sensor_coverage),
                     "formation_type": task.formation_type,
+                    "explanation": self.swarm_coordinator.get_explanations().get(task.target_id),
                 }
                 for task in self.swarm_coordinator.get_active_tasks().values()
             ],

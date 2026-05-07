@@ -233,6 +233,12 @@ function MessageRow({ message }: { message: ChatMessage }) {
     );
   }
   const isUser = message.role === 'user';
+  // Typewriter render for short agent answers — adds presence to streamed
+  // responses without slowing long ones down.
+  const useTypewriter = message.role === 'agent' && (message.text?.length ?? 0) <= 600;
+  const renderedText = useTypewriter
+    ? <TypewriterText text={message.text} />
+    : message.text;
   return (
     <div style={{
       display: 'flex',
@@ -271,8 +277,31 @@ function MessageRow({ message }: { message: ChatMessage }) {
         lineHeight: 1.42,
         whiteSpace: 'pre-wrap',
       }}>
-        {message.text}
+        {renderedText}
       </div>
     </div>
+  );
+}
+
+/**
+ * TypewriterText — staggered character reveal for streamed-feeling agent
+ * responses. Each character gets a tiny opacity transition starting after
+ * its index*delay ms. Pure CSS via inline animationDelay; no JS interval
+ * loop, so even a 600-char response barely moves the main thread.
+ */
+function TypewriterText({ text }: { text: string }) {
+  const delayPerChar = 18; // ms — slow enough to feel alive, fast enough to read
+  return (
+    <>
+      {Array.from(text).map((ch, i) => (
+        <span
+          key={i}
+          className="gs-type-cell"
+          style={{ animationDelay: `${i * delayPerChar}ms` }}
+        >
+          {ch}
+        </span>
+      ))}
+    </>
   );
 }

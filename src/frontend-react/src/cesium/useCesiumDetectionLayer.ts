@@ -30,7 +30,7 @@ const STATE_COLORS: Record<string, string> = {
 
 const dotSvgCache: Record<string, string> = {};
 
-function getDotIcon(target: Target): string {
+function getDotIcon(target: Target, pulse: boolean = false): string {
   const state = (target.state ?? 'DETECTED').toUpperCase();
   const color = STATE_COLORS[state] ?? '#cbd5e1';
   const fused = Math.max(0, Math.min(1, target.fused_confidence ?? 0));
@@ -38,9 +38,19 @@ function getDotIcon(target: Target): string {
   const id = String(target.id).padStart(4, '0');
   const ring = state === 'NOMINATED' ? 3 : 2;
   const flash = state === 'NOMINATED' ? '<animate attributeName="opacity" values="1;0.4;1" dur="1s" repeatCount="indefinite"/>' : '';
-  const cacheKey = `${id}_${state}_${Math.round(fused * 10)}_${sensorCount}`;
+  const cacheKey = `${id}_${state}_${Math.round(fused * 10)}_${sensorCount}_${pulse}`;
   if (dotSvgCache[cacheKey]) return dotSvgCache[cacheKey];
+  // Pulse ring fires once on every state advance (600ms outer ring grows
+  // from r=14 to r=22 with opacity fading 0.6 → 0). Beyond-Maven flair —
+  // operators see when a track moves through the kill chain at a glance.
+  const pulseRing = pulse
+    ? `<circle cx="23" cy="23" r="14" fill="none" stroke="${color}" stroke-width="2">
+         <animate attributeName="r" from="14" to="22" dur="0.6s" begin="0s" fill="freeze" />
+         <animate attributeName="opacity" from="0.7" to="0" dur="0.6s" begin="0s" fill="freeze" />
+       </circle>`
+    : '';
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="46" height="46" viewBox="0 0 46 46">
+    ${pulseRing}
     <circle cx="23" cy="23" r="14" fill="rgba(7,11,17,0.85)" stroke="${color}" stroke-width="${ring}">${flash}</circle>
     <text x="23" y="22" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="9" font-weight="700" fill="${color}" text-anchor="middle">#${id}</text>
     <text x="23" y="32" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="7" fill="${color}" text-anchor="middle" opacity="0.85">${Math.round(fused * 100)}% · ${sensorCount}S</text>
@@ -74,6 +84,12 @@ function targetMatchesFilter(target: Target): boolean {
 export function useCesiumDetectionLayer(viewerRef: React.RefObject<Cesium.Viewer | null>) {
   const entitiesRef = useRef<Record<number, Cesium.Entity>>({});
   const lastTargetsRef = useRef<Target[]>([]);
+  // Tracks last-known state per target id so we can fire the SVG pulse
+  // animation exactly once on a state advance (DETECTED → CLASSIFIED, etc.)
+  const lastStateRef = useRef<Record<number, string>>({});
+  // When we set pulse=true for a target, schedule clearing it next tick
+  // so subsequent renders revert to the pulse-free icon.
+  const pulseClearTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
     function applyTargets(targets: Target[]) {
@@ -91,7 +107,22 @@ export function useCesiumDetectionLayer(viewerRef: React.RefObject<Cesium.Viewer
           continue;
         }
         live.add(t.id);
-        const url = getDotIcon(t);
+        // Detect state transition since last frame and fire pulse once.
+        const currentState = (t.state ?? 'DETECTED').toUpperCase();
+        const previous = lastStateRef.current[t.id];
+        const justAdvanced = previous !== undefined && previous !== currentState;
+        lastStateRef.current[t.id] = currentState;
+        if (justAdvanced && pulseClearTimers.current[t.id]) {
+          clearTimeout(pulseClearTimers.current[t.id]);
+        }
+        if (justAdvanced) {
+          // Schedule a re-render after 700ms to clear the pulse so the cache
+          // doesn't keep serving the animated SVG forever.
+          pulseClearTimers.current[t.id] = setTimeout(() => {
+            applyTargets(lastTargetsRef.current);
+          }, 700);
+        }
+        const url = getDotIcon(t, justAdvanced);
         const pos = Cesium.Cartesian3.fromDegrees(t.lon, t.lat, 30);
 
         const existing = entitiesRef.current[t.id];

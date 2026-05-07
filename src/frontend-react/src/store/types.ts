@@ -77,11 +77,19 @@ export interface FlowLine {
   target: [number, number];
 }
 
+export interface SwarmExplanation {
+  uav_id: number;            // winner
+  winning_cost: number;
+  sensor_type: string;
+  alternatives: Array<{ uav_id: number; cost: number }>;
+}
+
 export interface SwarmTask {
   target_id: number;
   assigned_uav_ids: number[];
   sensor_coverage: string[];
   formation_type: string;
+  explanation?: SwarmExplanation | null;
 }
 
 export interface StrikeEntry {
