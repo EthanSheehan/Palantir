@@ -191,7 +191,8 @@ async def _isr_observer(query: str, ctx: Any) -> tuple[str, dict]:
     sim = getattr(ctx, "sim", None)
     if sim is None:
         return ("[heuristic] sim unavailable.", {})
-    summary = _sim_summary(sim)
+    # Migrated to OntologyService (iteration 20).
+    summary = _ontology_sim_summary(sim)
     n_targets = summary.get("target_count", 0)
     n_uavs = summary.get("uav_count", 0)
 
@@ -223,7 +224,8 @@ _STRATEGY_SYSTEM = (
 @register_agent("strategy_analyst")
 async def _strategy_analyst(query: str, ctx: Any) -> tuple[str, dict]:
     sim = getattr(ctx, "sim", None)
-    summary = _sim_summary(sim) if sim is not None else {}
+    # Migrated to OntologyService (iteration 20).
+    summary = _ontology_sim_summary(sim) if sim is not None else {}
     nominated = summary.get("nominated", []) if summary else []
 
     if sim is not None:
@@ -258,7 +260,8 @@ _TACTICS_SYSTEM = (
 @register_agent("tactical_planner")
 async def _tactical_planner(query: str, ctx: Any) -> tuple[str, dict]:
     sim = getattr(ctx, "sim", None)
-    summary = _sim_summary(sim) if sim is not None else {}
+    # Migrated to OntologyService (iteration 20).
+    summary = _ontology_sim_summary(sim) if sim is not None else {}
 
     user_prompt = (
         f"Operator query: {query!r}\n"
@@ -285,7 +288,8 @@ async def _effectors_agent(query: str, ctx: Any) -> tuple[str, dict]:
         "pipeline (AFATDS / JREAP / JADOCS / AMPS) in <=3 sentences."
     )
     sim = getattr(ctx, "sim", None)
-    summary = _sim_summary(sim) if sim is not None else {}
+    # Migrated to OntologyService (iteration 20).
+    summary = _ontology_sim_summary(sim) if sim is not None else {}
     user_prompt = (
         f"Operator query: {query!r}\n"
         f"Sim snapshot: {summary}\n"
@@ -308,7 +312,8 @@ async def _pattern_analyzer(query: str, ctx: Any) -> tuple[str, dict]:
     sim = getattr(ctx, "sim", None)
     if sim is None or not hasattr(sim, "targets"):
         return ("[heuristic] sim unavailable.", {})
-    summary = _sim_summary(sim)
+    # Migrated to OntologyService (iteration 20).
+    summary = _ontology_sim_summary(sim)
     by_type = summary.get("targets_by_type", {})
 
     system = (
@@ -349,7 +354,8 @@ async def _battlespace(query: str, ctx: Any) -> tuple[str, dict]:
     sim = getattr(ctx, "sim", None)
     if sim is None:
         return ("[heuristic] sim unavailable.", {})
-    summary = _sim_summary(sim)
+    # Migrated to OntologyService (iteration 20).
+    summary = _ontology_sim_summary(sim)
     n_uavs = summary.get("uav_count", 0)
     n_targets = summary.get("target_count", 0)
 
@@ -567,7 +573,8 @@ async def _auditor(query: str, ctx: Any) -> tuple[str, dict]:
         "agent activity, and any latency hotspots. <=3 sentences."
     )
     sim = getattr(ctx, "sim", None)
-    summary = _sim_summary(sim) if sim is not None else {}
+    # Migrated to OntologyService (iteration 20).
+    summary = _ontology_sim_summary(sim) if sim is not None else {}
     user_prompt = f"Operator query: {query!r}\nSnapshot: {summary}"
     llm = await _ask_llm(ctx, system, user_prompt, model_hint="fast", max_tokens=250)
     if llm is not None:
