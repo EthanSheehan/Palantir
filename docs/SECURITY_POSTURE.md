@@ -103,7 +103,7 @@ are configuration, policy, or third-party integration work.
 | Configuration management (CM-2) | partial | `theaters/*.yaml` + `roe/*.yaml` are version-controlled, but no signed-baseline workflow. |
 | Boundary protection (SC-7) | partial | `tls_support.py` covers WebSocket TLS; no formal network segmentation diagram or DMZ deployment recipe. |
 | Encryption at rest (SC-28) | partial | SQLite checkpoints are plaintext on disk. No key-management for stored audit chain. |
-| Vulnerability scanning (RA-5) | partial | `ruff` covers Python lint, ESLint covers frontend, but no `pip-audit` / `npm audit` / `trivy` in CI. |
+| Vulnerability scanning (RA-5) | implemented | `pip-audit`, `npm audit --audit-level=high`, `bandit` SAST, `trufflehog` verified-secrets scan all in `.github/workflows/security.yml` (push + weekly cron). SARIF uploaded to GitHub Security tab. |
 | Incident response (IR-2 .. IR-8) | not implemented | No documented IR playbook, no IR plan in repo. |
 | System backup (CP-9) | partial | `checkpoint.py` enables operational restart; no scheduled off-host backup. |
 
@@ -153,9 +153,20 @@ runs the following on every push:
 - AsyncAPI YAML parse validation — keeps the WebSocket protocol
   contract honest.
 
-A future iteration should add: `pip-audit` for CVE scanning,
-`npm audit --audit-level high`, `trivy fs` against the Docker image, and
-a SARIF upload for GitHub's code-scanning view.
+**Update (iteration 19):** `.github/workflows/security.yml` now runs:
+
+- `pip-audit` against `requirements.txt` with SARIF upload
+- `npm audit --audit-level=high` against `src/frontend-react/`
+- `bandit` static analysis on `src/python/` with SARIF upload
+- `trufflehog` verified-secrets scan on every push + weekly cron
+
+Findings appear in the GitHub Security tab. Weekly cron (Sun 04:30 UTC)
+re-runs on the codebase as-is, so newly disclosed CVEs surface even
+without a code change.
+
+Still TODO: `trivy fs` against a built container image (no Dockerfile in
+repo yet); `osv-scanner` for cross-ecosystem coverage; CODEOWNERS-gated
+review on changes to `.github/workflows/`.
 
 ## References
 
