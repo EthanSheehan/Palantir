@@ -1142,7 +1142,87 @@ _DISPATCH_TABLE: dict[str, Callable] = {
     "get_sla_snapshot": _handle_get_sla_snapshot,
     "request_tasking_recommendations": _handle_request_tasking_recommendations,
     "set_persona": lambda payload, websocket, ctx: _handle_set_persona(payload, websocket, ctx),
+    "request_concurrence": lambda p, w, c: _handle_request_concurrence(p, w, c),
+    "record_concurrence": lambda p, w, c: _handle_record_concurrence(p, w, c),
 }
+
+
+# ---------------------------------------------------------------------------
+# Two-person concurrence (FedRAMP-High control closure)
+# ---------------------------------------------------------------------------
+
+
+async def _handle_request_concurrence(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:
+    """First operator opens a two-person concurrence request on a target."""
+    target_id = payload.get("target_id")
+    primary = payload.get("primary_operator_id") or payload.get("operator_id")
+    rationale = payload.get("rationale", "")
+    coa_id = payload.get("coa_id")
+    if target_id is None or not primary:
+        await _send_error(
+            websocket,
+            "target_id and primary_operator_id required",
+            "request_concurrence",
+        )
+        return
+    try:
+        target_id = int(target_id)
+    except (TypeError, ValueError):
+        await _send_error(websocket, "target_id must be int", "request_concurrence")
+        return
+    from two_person_concurrence import two_person_concurrence as _tpc
+    req = _tpc.request_concurrence(
+        target_id=target_id,
+        primary_operator_id=str(primary),
+        rationale=str(rationale),
+        coa_id=str(coa_id) if coa_id else None,
+    )
+    try:
+        await websocket.send_text(json.dumps({
+            "type": "CONCURRENCE_REQUESTED",
+            "target_id": req.target_id,
+            "primary_operator_id": req.primary_operator_id,
+            "created_at": req.created_at,
+        }))
+    except (WebSocketDisconnect, ConnectionError, OSError):
+        pass
+
+
+async def _handle_record_concurrence(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:
+    """Second operator concurs."""
+    target_id = payload.get("target_id")
+    secondary = payload.get("secondary_operator_id") or payload.get("operator_id")
+    if target_id is None or not secondary:
+        await _send_error(
+            websocket,
+            "target_id and secondary_operator_id required",
+            "record_concurrence",
+        )
+        return
+    try:
+        target_id = int(target_id)
+    except (TypeError, ValueError):
+        await _send_error(websocket, "target_id must be int", "record_concurrence")
+        return
+    from two_person_concurrence import two_person_concurrence as _tpc
+    try:
+        rec = _tpc.record_concurrence(
+            target_id=target_id,
+            secondary_operator_id=str(secondary),
+        )
+    except ValueError as exc:
+        await _send_error(websocket, str(exc), "record_concurrence")
+        return
+    try:
+        await websocket.send_text(json.dumps({
+            "type": "CONCURRENCE_GRANTED",
+            "target_id": rec.target_id,
+            "primary_operator_id": rec.primary_operator_id,
+            "secondary_operator_id": rec.secondary_operator_id,
+            "latency_sec": round(rec.latency_sec, 2),
+        }))
+    except (WebSocketDisconnect, ConnectionError, OSError):
+        pass
 
 
 _VALID_PERSONAS = {"UNCLASSIFIED", "CUI", "SECRET"}

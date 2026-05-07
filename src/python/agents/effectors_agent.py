@@ -137,11 +137,57 @@ class EffectorsAgent:
         self,
         coa: CourseOfAction,
         target_data: dict,
+        autonomy_level: str = "MANUAL",
     ) -> EngagementResult:
         target_id = target_data.get("id", 0)
         target_state = target_data.get("state", "DETECTED")
         base_pk = coa.probability_of_kill
         modified_pk = _compute_modified_pk(base_pk, target_state)
+
+        # FedRAMP-High control: AUTONOMOUS engagements require two-person
+        # concurrence. Closes the gap flagged in docs/SECURITY_POSTURE.md.
+        # MANUAL / SUPERVISED skip this check — those already have direct
+        # operator gating via approve_nomination + authorize_coa.
+        if autonomy_level == "AUTONOMOUS":
+            try:
+                from two_person_concurrence import two_person_concurrence as _tpc
+                authz = _tpc.consume_authorisation(int(target_id))
+                if authz is None:
+                    msg = (
+                        f"AUTONOMOUS engagement on target {target_id} blocked: "
+                        f"two-person concurrence required (FedRAMP-High control)."
+                    )
+                    logger.warning("two_person_block", target_id=target_id)
+                    return EngagementResult(
+                        target_id=int(target_id),
+                        coa_id=coa.coa_id,
+                        effector_used=coa.effector.name,
+                        hit=False,
+                        damage_level=DAMAGE_MISSED,
+                        bda_confidence=0.0,
+                        assessment_notes=msg,
+                        reasoning_trace=msg,
+                        timestamp=datetime.now(timezone.utc).isoformat(),
+                        effector_ack={
+                            "effector": "BLOCKED_TPC",
+                            "accepted": False,
+                            "mission_id": "n/a",
+                            "sent_at_ms": 0,
+                            "ack_at_ms": 0,
+                            "latency_ms": 0,
+                            "detail": msg,
+                            "channel": "BLOCKED_TPC",
+                        },
+                    )
+                logger.info(
+                    "two_person_consumed",
+                    target_id=target_id,
+                    primary=authz.primary_operator_id,
+                    secondary=authz.secondary_operator_id,
+                    latency_sec=round(authz.latency_sec, 2),
+                )
+            except ImportError:
+                logger.warning("two_person_unavailable", target_id=target_id)
 
         hit = _roll_hit(modified_pk, self._rng)
         damage_level = _determine_damage(hit, self._rng)
