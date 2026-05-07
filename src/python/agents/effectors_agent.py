@@ -179,6 +179,15 @@ class EffectorsAgent:
                     target_id=int(target_id) if target_id is not None else None,
                     details={**effector_ack, "coa_id": coa.coa_id},
                 )
+                # Effector dispatch ack latency feeds the ENGAGE stage of the
+                # SLA Dashboard. ASSESS is recorded after BDA below.
+                try:
+                    import metrics as _metrics
+                    _metrics.record_stage_latency(
+                        "ENGAGE", float(effector_ack.get("latency_ms", 0))
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
             _audit_log.append(
                 action_type="engagement_executed",
                 target_id=int(target_id) if target_id is not None else None,

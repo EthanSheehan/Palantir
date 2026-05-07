@@ -566,6 +566,8 @@ class SimulationModel:
             if new_state != t.state:
                 old_state = t.state
                 t.state = new_state
+                # Capture how long we spent in old_state before resetting
+                stage_duration_ms = float(t.time_in_state_sec or 0.0) * 1000.0
                 t.time_in_state_sec = 0.0
                 logger.info(
                     "target_state_transition",
@@ -592,6 +594,16 @@ class SimulationModel:
                             "sensor_count": int(t.sensor_count),
                         },
                     )
+                except Exception:  # noqa: BLE001
+                    pass
+                # Record per-stage F2T2EA latency for the SLA Dashboard.
+                # The state we just left maps to the kill-chain stage that
+                # *completed* at this transition.
+                try:
+                    import metrics as _metrics
+                    completed_stage = _metrics.STATE_TO_COMPLETED_STAGE.get(old_state)
+                    if completed_stage and stage_duration_ms > 0:
+                        _metrics.record_stage_latency(completed_stage, stage_duration_ms)
                 except Exception:  # noqa: BLE001
                     pass
             else:

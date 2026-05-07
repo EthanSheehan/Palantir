@@ -148,6 +148,94 @@ class TestMultiIntSimulator:
 # -------------- effector stubs --------------
 
 
+class TestSlaMetrics:
+    """Verify metrics.record_stage_latency / sla_snapshot."""
+
+    def test_sla_snapshot_returns_six_stages_when_empty(self):
+        import metrics
+        # Reset state to make the test independent
+        metrics._state.stage_latencies_ms = {
+            k: [] for k in ("FIND", "FIX", "TRACK", "TARGET", "ENGAGE", "ASSESS")
+        }
+        snap = metrics.sla_snapshot()
+        stages = [s["stage"] for s in snap]
+        assert stages == ["FIND", "FIX", "TRACK", "TARGET", "ENGAGE", "ASSESS"]
+        for entry in snap:
+            assert entry["samples"] == []
+            assert entry["threshold_ms"] == metrics.SLA_THRESHOLDS_MS[entry["stage"]]
+
+    def test_record_stage_latency_clamps_bad_values(self):
+        import metrics
+        metrics._state.stage_latencies_ms["FIND"] = []
+        metrics.record_stage_latency("FIND", -50)             # negative rejected
+        metrics.record_stage_latency("FIND", 1_000_000_000)   # too large rejected
+        metrics.record_stage_latency("UNKNOWN", 100)          # bad stage rejected
+        metrics.record_stage_latency("FIND", 1234)            # accepted
+        assert metrics._state.stage_latencies_ms["FIND"] == [1234.0]
+
+    def test_record_stage_latency_bounded(self):
+        import metrics
+        metrics._state.stage_latencies_ms["FIX"] = []
+        for i in range(300):
+            metrics.record_stage_latency("FIX", float(i))
+        assert len(metrics._state.stage_latencies_ms["FIX"]) == 240
+        # Most recent samples retained
+        assert metrics._state.stage_latencies_ms["FIX"][-1] == 299.0
+
+    def test_sla_snapshot_computes_percentiles(self):
+        import metrics
+        metrics._state.stage_latencies_ms["TRACK"] = []
+        for v in [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000]:
+            metrics.record_stage_latency("TRACK", float(v))
+        snap = metrics.sla_snapshot()
+        track = next(s for s in snap if s["stage"] == "TRACK")
+        # median is index len/2 = 5 → 600
+        assert track["median_ms"] == 600
+        assert track["p95_ms"] == 1000
+        assert len(track["samples"]) == 10
+
+
+class TestAuditTimelineEvents:
+    """Verify audit_log.events_for_target shapes events for the timeline UI."""
+
+    def test_events_for_target_filters_by_id(self):
+        from audit_log import AuditLog
+        log = AuditLog()
+        log.append("target_state_transition", target_id=1,
+                   details={"from_state": "DETECTED", "to_state": "CLASSIFIED",
+                            "fused_confidence": 0.6})
+        log.append("target_state_transition", target_id=2,
+                   details={"from_state": "DETECTED", "to_state": "CLASSIFIED",
+                            "fused_confidence": 0.5})
+        events = log.events_for_target(1)
+        assert len(events) == 1
+        assert events[0]["kind"] == "STATE"
+        assert "DETECTED → CLASSIFIED" in events[0]["label"]
+
+    def test_engagement_event_shape(self):
+        from audit_log import AuditLog
+        log = AuditLog()
+        log.append("engagement_executed", target_id=42,
+                   details={"effector": "F-15E", "damage_level": "DESTROYED",
+                            "modified_pk": 0.85, "reasoning_trace": "Test"})
+        events = log.events_for_target(42)
+        assert len(events) == 1
+        assert events[0]["kind"] == "ENGAGEMENT"
+        assert "F-15E" in events[0]["label"]
+
+    def test_effector_dispatch_event_includes_latency(self):
+        from audit_log import AuditLog
+        log = AuditLog()
+        log.append("effector_dispatched", target_id=7,
+                   details={"channel": "AFATDS", "mission_id": "FM-XYZ",
+                            "latency_ms": 350, "detail": "FM accepted"})
+        events = log.events_for_target(7)
+        assert len(events) == 1
+        assert events[0]["kind"] == "ENGAGEMENT"
+        assert "AFATDS" in events[0]["label"]
+        assert "350ms" in events[0]["detail"]
+
+
 class TestEffectorRouting:
     """Verify EffectorsAgent picks the right channel for a COA's effector."""
 

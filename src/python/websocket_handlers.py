@@ -917,38 +917,49 @@ async def _handle_get_target_history(payload: dict, websocket: WebSocket, ctx: H
 async def _handle_get_sla_snapshot(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:
     """Pump per-stage F2T2EA latency stats to the SLA dashboard.
 
-    For now reads from kill_chain_tracker (when available); falls back to
-    synthetic samples so the UI is verifiable end-to-end before metrics.py
-    histogram bridge lands.
+    Reads from `metrics.sla_snapshot()` which collects real per-stage
+    durations from sim_engine state transitions and effector dispatches.
+    During the warm-up window (no samples yet), synthesises plausible
+    values so the panel renders.
     """
-    import random
-    import math
+    import metrics as _metrics
 
-    def _synth(stage: str, base_ms: float) -> dict:
-        samples = []
-        for _ in range(60):
-            noise = math.exp(random.gauss(-0.25, 0.7))
-            samples.append(int(base_ms * noise * 0.6))
-        sorted_s = sorted(samples)
-        return {
-            "stage": stage,
-            "median_ms": sorted_s[len(sorted_s) // 2],
-            "p95_ms": sorted_s[int(len(sorted_s) * 0.95)],
-            "p99_ms": sorted_s[int(len(sorted_s) * 0.99)],
-            "samples": samples,
-            "threshold_ms": int(base_ms * 1.5),
-        }
+    real = _metrics.sla_snapshot()
+    has_real_data = any(s.get("samples") for s in real)
+    if has_real_data:
+        out = real
+    else:
+        import math
+        import random
+        def _synth(stage: str, base_ms: float, threshold_ms: float) -> dict:
+            samples = []
+            for _ in range(60):
+                noise = math.exp(random.gauss(-0.25, 0.7))
+                samples.append(int(base_ms * noise * 0.6))
+            sorted_s = sorted(samples)
+            return {
+                "stage": stage,
+                "median_ms": sorted_s[len(sorted_s) // 2],
+                "p95_ms": sorted_s[int(len(sorted_s) * 0.95)],
+                "p99_ms": sorted_s[int(len(sorted_s) * 0.99)],
+                "samples": samples,
+                "threshold_ms": threshold_ms,
+            }
+        out = [
+            _synth("FIND",   1500,  _metrics.SLA_THRESHOLDS_MS["FIND"]),
+            _synth("FIX",    4000,  _metrics.SLA_THRESHOLDS_MS["FIX"]),
+            _synth("TRACK",  6000,  _metrics.SLA_THRESHOLDS_MS["TRACK"]),
+            _synth("TARGET", 12000, _metrics.SLA_THRESHOLDS_MS["TARGET"]),
+            _synth("ENGAGE", 25000, _metrics.SLA_THRESHOLDS_MS["ENGAGE"]),
+            _synth("ASSESS", 18000, _metrics.SLA_THRESHOLDS_MS["ASSESS"]),
+        ]
 
-    metrics = [
-        _synth("FIND",   1500),
-        _synth("FIX",    4000),
-        _synth("TRACK",  6000),
-        _synth("TARGET", 12000),
-        _synth("ENGAGE", 25000),
-        _synth("ASSESS", 18000),
-    ]
     try:
-        await websocket.send_text(json.dumps({"type": "SLA_SNAPSHOT", "metrics": metrics}))
+        await websocket.send_text(json.dumps({
+            "type": "SLA_SNAPSHOT",
+            "source": "metrics" if has_real_data else "synthetic",
+            "metrics": out,
+        }))
     except (WebSocketDisconnect, ConnectionError, OSError):
         pass
 

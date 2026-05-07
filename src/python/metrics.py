@@ -30,9 +30,42 @@ class _State:
     targets_active: int = 0
     drones_active: int = 0
     autonomy_level: str = "MANUAL"
+    # F2T2EA per-stage latency samples (milliseconds). Bounded ring buffer
+    # of 240 samples per stage so SLA Dashboard can render real distributions.
+    stage_latencies_ms: dict[str, list[float]] = dataclasses.field(
+        default_factory=lambda: {
+            "FIND": [], "FIX": [], "TRACK": [],
+            "TARGET": [], "ENGAGE": [], "ASSESS": [],
+        }
+    )
 
 
 _state = _State()
+
+
+# F2T2EA stage SLA thresholds in milliseconds. Sourced from the
+# blueprint targets in docs/PROFESSIONAL_LEVEL_BLUEPRINT.md.
+SLA_THRESHOLDS_MS: Final[dict[str, float]] = {
+    "FIND":   2_000.0,
+    "FIX":    6_000.0,
+    "TRACK":  10_000.0,
+    "TARGET": 18_000.0,
+    "ENGAGE": 35_000.0,
+    "ASSESS": 25_000.0,
+}
+
+# Map verification states to the F2T2EA stage that *just completed* when the
+# state advances. Used by sim_engine to record_stage_latency on transitions.
+STATE_TO_COMPLETED_STAGE: Final[dict[str, str]] = {
+    "DETECTED":   "FIND",
+    "CLASSIFIED": "FIX",
+    "VERIFIED":   "TRACK",
+    "NOMINATED":  "TARGET",
+    "AUTHORIZED": "ENGAGE",
+    "APPROVED":   "ENGAGE",
+    "ENGAGING":   "ASSESS",
+    "ENGAGED":    "ASSESS",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -85,6 +118,57 @@ def increment_rejection() -> None:
     """Increment the HITL rejection counter."""
     with _lock:
         _state.hitl_rejections_total += 1
+
+
+def record_stage_latency(stage: str, duration_ms: float) -> None:
+    """Record one F2T2EA-stage transit time in milliseconds.
+
+    Stage names: FIND / FIX / TRACK / TARGET / ENGAGE / ASSESS.
+    Bounded to 240 samples per stage (≈4 minutes at typical kill-chain
+    cadence). Older samples are dropped FIFO.
+    """
+    if stage not in _state.stage_latencies_ms:
+        return
+    if duration_ms < 0 or duration_ms > 600_000:  # reject obvious noise
+        return
+    with _lock:
+        bucket = _state.stage_latencies_ms[stage]
+        bucket.append(float(duration_ms))
+        if len(bucket) > 240:
+            del bucket[: len(bucket) - 240]
+
+
+def sla_snapshot() -> list[dict]:
+    """Return per-stage SLA stats for the SLA Dashboard frontend.
+
+    Each entry is `{stage, median_ms, p95_ms, p99_ms, samples,
+    threshold_ms}`. Stages with zero samples return all-zeros so the panel
+    can still render the row.
+    """
+    out: list[dict] = []
+    with _lock:
+        for stage, threshold in SLA_THRESHOLDS_MS.items():
+            samples = list(_state.stage_latencies_ms.get(stage, []))
+            if samples:
+                sorted_s = sorted(samples)
+                out.append({
+                    "stage": stage,
+                    "median_ms": sorted_s[len(sorted_s) // 2],
+                    "p95_ms": sorted_s[min(len(sorted_s) - 1, int(len(sorted_s) * 0.95))],
+                    "p99_ms": sorted_s[min(len(sorted_s) - 1, int(len(sorted_s) * 0.99))],
+                    "samples": samples,
+                    "threshold_ms": threshold,
+                })
+            else:
+                out.append({
+                    "stage": stage,
+                    "median_ms": 0.0,
+                    "p95_ms": 0.0,
+                    "p99_ms": 0.0,
+                    "samples": [],
+                    "threshold_ms": threshold,
+                })
+    return out
 
 
 def update_gauges(
