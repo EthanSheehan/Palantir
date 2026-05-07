@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button, Menu, MenuItem, MenuDivider, Popover, Divider, Icon, IconName } from '@blueprintjs/core';
 import { useSimStore } from '../store/SimulationStore';
+import { useSendMessage } from '../App';
 
 /**
  * VerticalTaskbar — left-edge command rail.
@@ -24,11 +25,24 @@ export interface VerticalTaskbarProps {
   assetTaskingOpen?: boolean;
 }
 
+const THEATERS = ['romania', 'baltic', 'south_china_sea'] as const;
+
 function FileMenu() {
+  const sendMessage = useSendMessage();
   return (
     <Menu small>
       <MenuItem icon={'document' as IconName} text="New Mission" disabled />
       <MenuItem icon={'folder-open' as IconName} text="Open Scenario" disabled />
+      <MenuDivider />
+      <MenuItem icon={'globe-network' as IconName} text="Switch theater">
+        {THEATERS.map(t => (
+          <MenuItem
+            key={t}
+            text={t.replace(/_/g, ' ').toUpperCase()}
+            onClick={() => sendMessage({ action: 'SET_SCENARIO', scenario: t })}
+          />
+        ))}
+      </MenuItem>
       <MenuDivider />
       <MenuItem icon={'floppy-disk' as IconName} text="Save Checkpoint" disabled />
       <MenuItem icon={'export' as IconName} text="Export SITREP" disabled />

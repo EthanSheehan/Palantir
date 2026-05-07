@@ -236,6 +236,53 @@ class TestAuditTimelineEvents:
         assert "350ms" in events[0]["detail"]
 
 
+class TestSelfCriticAgent:
+    """Reflective AI surfaces audit-log patterns."""
+
+    @pytest.mark.asyncio
+    async def test_no_records_returns_clean_message(self):
+        from agents.registry import get_agent
+        # Build an empty audit log via context that exposes a trivial sim
+        class _Sim:
+            uavs = {}
+            targets = {}
+            theater_name = "test"
+        class Ctx:
+            sim = _Sim()
+            llm_adapter = None
+        # Pin audit_log to a fresh instance so leftover records from other
+        # tests don't influence this one.
+        import audit_log as _mod
+        original = _mod.audit_log
+        _mod.audit_log = _mod.AuditLog()
+        try:
+            handler = get_agent("self_critic")
+            text, meta = await handler("status?", Ctx())
+            assert "no audit history" in text.lower() or "no patterns" in text.lower()
+            assert isinstance(meta, dict)
+        finally:
+            _mod.audit_log = original
+
+    @pytest.mark.asyncio
+    async def test_repeated_rejections_surface_finding(self):
+        from agents.registry import get_agent
+        import audit_log as _mod
+        original = _mod.audit_log
+        _mod.audit_log = _mod.AuditLog()
+        try:
+            for _ in range(3):
+                _mod.audit_log.append("nomination_rejected", target_id=42, details={"rationale": "bad PID"})
+            class Ctx:
+                sim = None
+                llm_adapter = None
+            handler = get_agent("self_critic")
+            text, meta = await handler("any concerns?", Ctx())
+            assert "0042" in text
+            assert meta.get("finding_count", 0) >= 1
+        finally:
+            _mod.audit_log = original
+
+
 class TestEffectorRouting:
     """Verify EffectorsAgent picks the right channel for a COA's effector."""
 

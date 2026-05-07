@@ -357,6 +357,70 @@ async def _synthesis(query: str, ctx: Any) -> tuple[str, dict]:
     )
 
 
+@register_agent("self_critic")
+async def _self_critic(query: str, ctx: Any) -> tuple[str, dict]:
+    """Reflective AI — reviews recent audit_log records and surfaces findings.
+
+    Beyond-Maven differentiator: Maven is forward-only — it tasks, executes,
+    moves on. We add a second-order agent that watches the system's own
+    behaviour for patterns (repeated COA churn, slow nominations, recurring
+    rejections on the same target) and feeds them back as INTEL events.
+    """
+    try:
+        from audit_log import audit_log as _audit_log
+    except Exception:  # noqa: BLE001
+        return ("[heuristic] audit_log unavailable.", {})
+
+    records = _audit_log.to_json()[-200:]  # last 200 audit events
+    if not records:
+        return ("Self-critic: no audit history yet — nothing to review.", {"finding_count": 0})
+
+    # Heuristic findings (always available):
+    by_target: dict[int, list[dict]] = {}
+    coa_counts: dict[int, int] = {}
+    rejections: dict[int, int] = {}
+    for r in records:
+        tid = r.get("target_id")
+        if tid is None:
+            continue
+        by_target.setdefault(tid, []).append(r)
+        if r.get("action_type") == "coa_authorized":
+            coa_counts[tid] = coa_counts.get(tid, 0) + 1
+        if r.get("action_type") == "nomination_rejected":
+            rejections[tid] = rejections.get(tid, 0) + 1
+
+    findings: list[str] = []
+    for tid, count in coa_counts.items():
+        if count >= 3:
+            findings.append(f"Target #{tid:04d}: {count} COA authorisations in window — consider escalation.")
+    for tid, count in rejections.items():
+        if count >= 2:
+            findings.append(f"Target #{tid:04d}: {count} repeated nomination rejections — track may be invalid.")
+
+    text = (
+        "Self-critic findings:\n" + "\n".join(f"  • {f}" for f in findings)
+        if findings
+        else f"Self-critic: reviewed {len(records)} audit events, no patterns of concern."
+    )
+    meta = {"finding_count": len(findings), "records_reviewed": len(records)}
+
+    # If LLM is available, ask it to interpret the findings
+    if findings:
+        system = (
+            "You are a self-critic AI for an autonomous C2 system. Given a "
+            "list of pattern findings from the audit log, write 2-4 plain "
+            "English sentences highlighting the most important. Cite "
+            "specific target IDs."
+        )
+        user = "Findings:\n" + "\n".join(findings) + f"\n\nOperator query: {query!r}"
+        llm = await _ask_llm(ctx, system, user, model_hint="reasoning", max_tokens=400)
+        if llm is not None:
+            t, m = llm
+            return t, {**m, **meta}
+
+    return text, meta
+
+
 @register_agent("performance_auditor")
 async def _auditor(query: str, ctx: Any) -> tuple[str, dict]:
     system = (

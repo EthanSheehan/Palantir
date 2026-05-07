@@ -123,6 +123,10 @@ export function useWebSocket() {
           dispatch('grid-sentinel:persona-updated', payload);
           return;
         }
+        if (payload.type === 'THEATER_SWAPPED') {
+          dispatch('grid-sentinel:theater-swapped', payload);
+          return;
+        }
       };
     }
 

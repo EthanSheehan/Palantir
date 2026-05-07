@@ -205,6 +205,46 @@ async def _handle_set_scenario(payload: dict, websocket: WebSocket, ctx: Handler
     if scenario and scenario not in _list_theaters():
         await _send_error(websocket, f"Unknown theater '{scenario}'. Valid: {_list_theaters()}", "SET_SCENARIO")
         return
+
+    # If the operator picked a different theater, hot-swap the live
+    # SimulationModel rather than just forwarding to the SIMULATOR. New
+    # bounds, new launchers, fresh UAVs/targets in the new theater. This is
+    # one of the beyond-Maven differentiators: Maven is single-theater per
+    # deployment; we flip from Romania to Baltic to South China Sea live.
+    swapped = False
+    if scenario and scenario != getattr(ctx.sim, "theater_name", None):
+        try:
+            from sim_engine import SimulationModel
+            from theater_loader import load_theater
+            new_sim = SimulationModel(theater_name=scenario)
+            new_sim.theater = load_theater(scenario)
+            # Replace fields in-place so anyone holding a reference (broadcast
+            # loop, agents, etc.) sees the new theater without app restart.
+            for attr in (
+                "theater_name", "theater", "uavs", "targets", "enemy_uavs",
+                "bounds", "grid", "environment",
+            ):
+                if hasattr(new_sim, attr):
+                    setattr(ctx.sim, attr, getattr(new_sim, attr))
+            swapped = True
+            logger.info("theater_hot_swapped", new=scenario)
+            await ctx.intel_router.emit(
+                "COMMAND_FEED",
+                {"action": "theater_swapped", "theater": scenario, "source": "operator"},
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("theater_hot_swap_failed", scenario=scenario, error=str(exc))
+            await _send_error(websocket, f"Theater swap failed: {exc}", "SET_SCENARIO")
+            return
+
+    if swapped:
+        try:
+            await websocket.send_text(json.dumps({
+                "type": "THEATER_SWAPPED",
+                "theater": scenario,
+            }))
+        except (WebSocketDisconnect, ConnectionError, OSError):
+            pass
     await ctx.broadcast(ctx.raw_data, target_type="SIMULATOR", sender=websocket)
 
 
