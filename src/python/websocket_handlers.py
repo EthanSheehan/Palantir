@@ -154,6 +154,7 @@ class HandlerContext:
         "raw_data",
         "roe_engine",
         "override_tracker",
+        "llm_adapter",
     )
 
     def __init__(
@@ -168,6 +169,7 @@ class HandlerContext:
         raw_data: str,
         roe_engine: ROEEngine | None = None,
         override_tracker=None,
+        llm_adapter=None,
     ):
         self.sim = sim
         self.hitl = hitl
@@ -178,6 +180,7 @@ class HandlerContext:
         self.raw_data = raw_data
         self.roe_engine = roe_engine
         self.override_tracker = override_tracker
+        self.llm_adapter = llm_adapter
 
 
 async def _handle_spike(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:

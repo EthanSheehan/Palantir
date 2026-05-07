@@ -715,6 +715,7 @@ def _build_handler_context(websocket: WebSocket, raw_data: str) -> HandlerContex
         ai_tasking_manager=ai_tasking_manager,
         raw_data=raw_data,
         roe_engine=roe_engine,
+        llm_adapter=llm_adapter,
     )
 
 
