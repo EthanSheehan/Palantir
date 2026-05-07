@@ -144,8 +144,54 @@ if settings.demo_mode:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Persona-aware classification filter (beyond-Maven differentiator)
+# ---------------------------------------------------------------------------
+# Maps each Target / UAV field to the *minimum classification tier* required
+# to see it. Tier ordering: UNCLASSIFIED < CUI < SECRET. A client whose
+# persona is UNCLASSIFIED gets fields tagged UNCLASSIFIED only; CUI gets
+# UNCLASSIFIED + CUI; SECRET gets everything.
+_FIELD_CLASSIFICATION: dict[str, str] = {
+    # Threat ring data is sensitive when it reveals US estimate of red SAM
+    # capability — gated to CUI in real-world deployments.
+    "threat_range_km": "CUI",
+    "detection_range_km": "CUI",
+    # SIGINT contribution provenance (which RF emitter geolocator picked it up)
+    # is canonically SECRET.
+    "source_kind": "SECRET",
+    # ROE rule attribution is operationally sensitive.
+    "roe_rule_name": "CUI",
+}
+
+_TIER_RANK = {"UNCLASSIFIED": 0, "CUI": 1, "SECRET": 2}
+
+
+def _filter_for_persona(payload, persona: str):
+    """Recursively drop fields whose classification tier exceeds the
+    operator's persona. Pure function over JSON-shaped dict / list / primitive.
+    """
+    persona_rank = _TIER_RANK.get(persona, 0)
+    if isinstance(payload, dict):
+        out = {}
+        for k, v in payload.items():
+            tier = _FIELD_CLASSIFICATION.get(k)
+            if tier and _TIER_RANK.get(tier, 0) > persona_rank:
+                continue  # drop
+            out[k] = _filter_for_persona(v, persona)
+        return out
+    if isinstance(payload, list):
+        return [_filter_for_persona(v, persona) for v in payload]
+    return payload
+
+
 async def broadcast(message: str, target_type: str = None, sender: WebSocket = None, feed: str = None):
-    """Parallel broadcast to all matching clients with a strict timeout."""
+    """Parallel broadcast to all matching clients with a strict timeout.
+
+    Beyond-Maven addition: per-client persona-aware filtering. UNCLASSIFIED
+    operators get the message stripped of CUI / SECRET fields; CUI personas
+    get UNCLASS+CUI; SECRET gets the full payload. Cached per persona to
+    avoid re-walking the JSON for every connected client of the same tier.
+    """
     if not clients:
         return
 
@@ -163,9 +209,28 @@ async def broadcast(message: str, target_type: str = None, sender: WebSocket = N
     if not targets:
         return
 
+    # Resolve per-persona payload. Try-parse JSON only once per persona;
+    # SECRET clients get the original string verbatim.
+    _per_persona_cache: dict[str, str] = {}
+
+    def _payload_for(persona: str) -> str:
+        if persona == "SECRET" or persona not in _TIER_RANK:
+            return message
+        if persona in _per_persona_cache:
+            return _per_persona_cache[persona]
+        try:
+            parsed = json.loads(message)
+        except (json.JSONDecodeError, TypeError):
+            return message
+        filtered = _filter_for_persona(parsed, persona)
+        encoded = json.dumps(filtered)
+        _per_persona_cache[persona] = encoded
+        return encoded
+
     async def _send(ws):
         try:
-            await asyncio.wait_for(ws.send_text(message), timeout=0.1)
+            persona = clients.get(ws, {}).get("persona", "UNCLASSIFIED")
+            await asyncio.wait_for(ws.send_text(_payload_for(persona)), timeout=0.1)
         except (asyncio.TimeoutError, WebSocketDisconnect, ConnectionError, OSError) as exc:
             logger.warning("broadcast_send_failed", error=str(exc))
             return ws

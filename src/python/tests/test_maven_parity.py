@@ -236,6 +236,59 @@ class TestAuditTimelineEvents:
         assert "350ms" in events[0]["detail"]
 
 
+class TestPersonaBroadcastFilter:
+    """Per-persona classification filter on the broadcast payload."""
+
+    def test_unclassified_drops_cui_and_secret_fields(self):
+        from api_main import _filter_for_persona
+        state = {
+            "targets": [{
+                "id": 1,
+                "type": "SAM",
+                "threat_range_km": 75,    # CUI
+                "detection_range_km": 50, # CUI
+                "sensor_contributions": [{
+                    "uav_id": 2, "sensor_type": "SIGINT",
+                    "source_kind": "RFEMITTER-S-band",  # SECRET
+                }],
+            }],
+        }
+        out = _filter_for_persona(state, "UNCLASSIFIED")
+        assert "threat_range_km" not in out["targets"][0]
+        assert "detection_range_km" not in out["targets"][0]
+        contrib = out["targets"][0]["sensor_contributions"][0]
+        assert "source_kind" not in contrib
+        assert contrib["sensor_type"] == "SIGINT"
+
+    def test_cui_keeps_cui_drops_secret(self):
+        from api_main import _filter_for_persona
+        state = {
+            "threat_range_km": 75,
+            "sensor_contributions": [{
+                "uav_id": 1,
+                "source_kind": "ICEYE-X-band",
+            }],
+        }
+        out = _filter_for_persona(state, "CUI")
+        assert out["threat_range_km"] == 75
+        assert "source_kind" not in out["sensor_contributions"][0]
+
+    def test_secret_keeps_everything(self):
+        from api_main import _filter_for_persona
+        state = {
+            "threat_range_km": 75,
+            "sensor_contributions": [{"source_kind": "x"}],
+        }
+        out = _filter_for_persona(state, "SECRET")
+        assert out["threat_range_km"] == 75
+        assert out["sensor_contributions"][0]["source_kind"] == "x"
+
+    def test_unknown_persona_treated_as_unclassified(self):
+        from api_main import _filter_for_persona
+        out = _filter_for_persona({"threat_range_km": 1}, "BOGUS")
+        assert out == {}
+
+
 class TestSelfCriticAgent:
     """Reflective AI surfaces audit-log patterns."""
 
