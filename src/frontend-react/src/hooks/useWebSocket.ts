@@ -127,6 +127,18 @@ export function useWebSocket() {
           dispatch('grid-sentinel:theater-swapped', payload);
           return;
         }
+        if (payload.type === 'CONCURRENCE_REQUESTED') {
+          dispatch('grid-sentinel:concurrence-requested', payload);
+          return;
+        }
+        if (payload.type === 'CONCURRENCE_GRANTED') {
+          dispatch('grid-sentinel:concurrence-granted', payload);
+          return;
+        }
+        if (payload.type === 'ERROR') {
+          dispatch('grid-sentinel:error', payload);
+          return;
+        }
       };
     }
 

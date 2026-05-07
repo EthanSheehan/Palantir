@@ -20,6 +20,7 @@ import { IntelLayerPanel } from './overlays/IntelLayerPanel';
 import { AIPChatPanel } from './overlays/AIPChatPanel';
 import { ModelHubBadge } from './components/ModelHubBadge';
 import { VerticalTaskbar } from './components/VerticalTaskbar';
+import { TwoPersonConcurrencePanel } from './panels/TwoPersonConcurrencePanel';
 import { useSimStore } from './store/SimulationStore';
 import './styles/nvis.css';
 import './styles/accessibility.css';
@@ -48,6 +49,7 @@ export default function App() {
   const [intelLayerVisible, setIntelLayerVisible] = useState(true);
   const [taskingVisible, setTaskingVisible] = useState(false);
   const [activityTimelineVisible, setActivityTimelineVisible] = useState(false);
+  const [tpcVisible, setTpcVisible] = useState(false);
 
   // Bridge window events from Cesium hooks to WebSocket
   // Only allowlisted actions may be dispatched via the event bridge
@@ -135,6 +137,10 @@ export default function App() {
         if (!(e.ctrlKey || e.metaKey || e.shiftKey)) { setTaskingVisible(v => !v); return; }
       }
       if (e.key === 'h' || e.key === 'H') { setActivityTimelineVisible(v => !v); return; }
+      // 2 = two-person concurrence panel (FedRAMP-High control)
+      if (e.key === '2' && !(e.ctrlKey || e.metaKey || e.shiftKey)) {
+        setTpcVisible(v => !v); return;
+      }
     }
 
     window.addEventListener('keydown', onKey);
@@ -199,6 +205,7 @@ export default function App() {
       <ActivityTimeline visible={activityTimelineVisible} onClose={() => setActivityTimelineVisible(false)} />
       <SLADashboard visible={slaVisible} onClose={() => setSlaVisible(false)} />
       <AIPChatPanel visible={chatVisible} onClose={() => setChatVisible(false)} />
+      <TwoPersonConcurrencePanel visible={tpcVisible} onClose={() => setTpcVisible(false)} />
     </WebSocketContext.Provider>
   );
 }
