@@ -31,6 +31,7 @@ const AGENTS = [
   { slash: '/sitrep',     agent: 'synthesis_query_agent', color: '#94a3b8', label: 'SIT' },
   { slash: '/audit',      agent: 'performance_auditor',   color: '#cbd5e1', label: 'AUD' },
   { slash: '/critic',     agent: 'self_critic',           color: '#f472b6', label: 'CRIT' },
+  { slash: '/replay',     agent: 'decision_replay',       color: '#facc15', label: 'REPLAY' },
 ];
 
 interface ChatMessage {

@@ -357,6 +357,96 @@ async def _synthesis(query: str, ctx: Any) -> tuple[str, dict]:
     )
 
 
+@register_agent("decision_replay")
+async def _decision_replay(query: str, ctx: Any) -> tuple[str, dict]:
+    """Re-run a past engagement against effectors_agent with a deterministic
+    RNG seed. Beyond-Maven differentiator: postmortem replay for AAR /
+    JAGINT-style review. Maven is forward-only; we let the operator
+    re-litigate any past kill-chain decision.
+
+    Query is expected to contain a target_id digit. Pulls the most recent
+    engagement_executed record for that target out of audit_log, reconstructs
+    a minimal CourseOfAction + target_data, and runs the engagement at a
+    fixed seed (default 42) so the replay is reproducible.
+    """
+    import re
+    import random as _random
+    try:
+        from audit_log import audit_log as _audit_log
+        from agents.effectors_agent import EffectorsAgent
+        from schemas.ontology import CourseOfAction, Effector
+    except Exception as exc:  # noqa: BLE001
+        return (f"[heuristic] decision_replay unavailable: {exc}", {})
+
+    m = re.search(r"\b(\d{1,5})\b", query or "")
+    if not m:
+        return (
+            "Decision replay: include a target ID in the query "
+            "(e.g. `/replay 0042` or `/replay target 17`).",
+            {},
+        )
+    target_id = int(m.group(1))
+
+    matches = _audit_log.query(action_type="engagement_executed", target_id=target_id)
+    if not matches:
+        return (
+            f"Decision replay: no engagement_executed record for target #{target_id:04d}.",
+            {"target_id": target_id, "found": False},
+        )
+    original = matches[-1]
+    original_details = original.get("details", {})
+
+    seed = 42
+    rng = _random.Random(seed)
+    coa = CourseOfAction(
+        coa_id=str(original_details.get("coa_id", "replay-coa")),
+        coa_type="replay",
+        target_track_id=str(target_id),
+        effector=Effector(
+            effector_id="replay",
+            name=str(original_details.get("effector", "UNKNOWN")),
+            effector_type="Kinetic",
+            status="AVAILABLE",
+        ),
+        time_to_target_minutes=1.0,
+        probability_of_kill=float(original_details.get("modified_pk", 0.5)),
+        munition_efficiency_cost=1.0,
+        rationalization="Decision replay (postmortem AAR)",
+    )
+    target_data = {
+        "id": target_id,
+        "type": "UNKNOWN",
+        "state": "VERIFIED",
+        "lat": 0.0,
+        "lon": 0.0,
+    }
+    agent = EffectorsAgent(rng=rng)
+    try:
+        result = await agent.execute_engagement(coa, target_data)
+    except Exception as exc:  # noqa: BLE001
+        return (
+            f"Decision replay: failed to re-run engagement: {exc}",
+            {"target_id": target_id, "found": True, "error": str(exc)},
+        )
+
+    text = (
+        f"Decision replay #{target_id:04d}\n"
+        f"  original: {original_details.get('damage_level', '?')} via {original_details.get('effector', '?')} "
+        f"(Pk={original_details.get('modified_pk', '?')})\n"
+        f"  replay   (seed={seed}): {result.damage_level} via {result.effector_used} "
+        f"(hit={result.hit}, BDA conf={result.bda_confidence:.2f})"
+    )
+    return text, {
+        "target_id": target_id,
+        "found": True,
+        "seed": seed,
+        "original_damage_level": original_details.get("damage_level"),
+        "replay_damage_level": result.damage_level,
+        "replay_hit": result.hit,
+        "match": original_details.get("damage_level") == result.damage_level,
+    }
+
+
 @register_agent("self_critic")
 async def _self_critic(query: str, ctx: Any) -> tuple[str, dict]:
     """Reflective AI — reviews recent audit_log records and surfaces findings.

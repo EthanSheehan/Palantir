@@ -283,6 +283,67 @@ class TestSelfCriticAgent:
             _mod.audit_log = original
 
 
+class TestDecisionReplayAgent:
+    """Re-run a past engagement deterministically."""
+
+    @pytest.mark.asyncio
+    async def test_no_target_id_in_query_returns_hint(self):
+        from agents.registry import get_agent
+        class Ctx:
+            sim = None
+            llm_adapter = None
+        text, _meta = await get_agent("decision_replay")("status only", Ctx())
+        assert "target ID" in text or "target id" in text.lower()
+
+    @pytest.mark.asyncio
+    async def test_no_engagement_returns_clean_message(self):
+        from agents.registry import get_agent
+        import audit_log as _mod
+        original = _mod.audit_log
+        _mod.audit_log = _mod.AuditLog()
+        try:
+            class Ctx:
+                sim = None
+                llm_adapter = None
+            text, meta = await get_agent("decision_replay")("/replay 999", Ctx())
+            assert "0999" in text
+            assert "no engagement_executed" in text
+            assert meta.get("found") is False
+        finally:
+            _mod.audit_log = original
+
+    @pytest.mark.asyncio
+    async def test_replay_runs_against_existing_engagement(self):
+        from agents.registry import get_agent
+        import audit_log as _mod
+        original = _mod.audit_log
+        _mod.audit_log = _mod.AuditLog()
+        try:
+            _mod.audit_log.append(
+                "engagement_executed",
+                target_id=77,
+                details={
+                    "coa_id": "tac-001",
+                    "effector": "F-15E",
+                    "modified_pk": 0.85,
+                    "damage_level": "DESTROYED",
+                    "hit": True,
+                },
+            )
+            class Ctx:
+                sim = None
+                llm_adapter = None
+            text, meta = await get_agent("decision_replay")("replay 77", Ctx())
+            assert "0077" in text
+            assert meta["seed"] == 42
+            assert meta["original_damage_level"] == "DESTROYED"
+            # The replay deterministically runs the engagement; outcome is
+            # whatever seed=42 produces. We just assert it ran.
+            assert meta["replay_damage_level"] in ("DESTROYED", "DAMAGED", "MISSED")
+        finally:
+            _mod.audit_log = original
+
+
 class TestEffectorRouting:
     """Verify EffectorsAgent picks the right channel for a COA's effector."""
 
