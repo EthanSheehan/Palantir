@@ -865,11 +865,13 @@ async def _handle_get_provider_status(payload: dict, websocket: WebSocket, ctx: 
 
 
 async def _handle_get_target_history(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:
-    """Build a chronological event list for `target_id` from sim state + kill chain.
+    """Real chronological event list for `target_id`.
 
-    Fully self-contained — pulls what we have without requiring a full
-    audit_log persistence layer. The activity timeline UI reads
-    `{events: [{timestamp, kind, label, detail, source}, ...]}`.
+    Reads from `audit_log.events_for_target` first; appends a "current state"
+    sentinel from sim if no audit history exists yet so the panel still has
+    something to show during the warm-up window. The frontend
+    ActivityTimeline panel reads `{events: [{timestamp, kind, label, detail,
+    source}, ...]}`.
     """
     target_id = payload.get("target_id")
     if target_id is None:
@@ -881,35 +883,26 @@ async def _handle_get_target_history(payload: dict, websocket: WebSocket, ctx: H
         await _send_error(websocket, "target_id must be int", "get_target_history")
         return
 
+    from audit_log import audit_log as _audit_log
+    events: list[dict] = list(_audit_log.events_for_target(target_id))
+
+    # Always append a "current state" sentinel from live sim so the panel
+    # shows the latest snapshot at the top of the rail even when no audit
+    # records have landed yet.
     target = ctx.sim.targets.get(target_id) if hasattr(ctx.sim, "targets") else None
-    events: list[dict] = []
-    now_ms = int(time.time() * 1000)
     if target is not None:
-        # Synthesize an event log from the data we already track. As soon as
-        # audit_log exposes per-target history this gets replaced with that
-        # source of truth.
         events.append({
-            "timestamp": now_ms - int((target.time_in_state_sec or 0) * 1000),
-            "kind": "DETECTION",
-            "label": f"Initial sensor contact ({target.detected_by_sensor or 'EO_IR'})",
-            "detail": f"Confidence {round((target.fused_confidence or 0) * 100)}%",
-            "source": target.detected_by_sensor or "sim_engine",
-        })
-        for c in (target.sensor_contributions or []):
-            events.append({
-                "timestamp": now_ms - 4000,
-                "kind": "DETECTION",
-                "label": f"{c.get('sensor_type', '?')} contribution from UAV-{c.get('uav_id', '?')}",
-                "detail": f"Confidence {round((c.get('confidence', 0)) * 100)}%",
-                "source": c.get("sensor_type", "?"),
-            })
-        events.append({
-            "timestamp": now_ms,
+            "timestamp": int(time.time() * 1000),
             "kind": "STATE",
             "label": f"Current state: {target.state}",
-            "detail": f"In state {round(target.time_in_state_sec or 0, 1)}s; sensors {target.sensor_count}",
-            "source": "verification_engine",
+            "detail": (
+                f"in-state {round(target.time_in_state_sec or 0, 1)}s · "
+                f"sensors {target.sensor_count} · "
+                f"fused {round((target.fused_confidence or 0) * 100)}%"
+            ),
+            "source": "sim_engine",
         })
+
     events.sort(key=lambda e: e["timestamp"])
     try:
         await websocket.send_text(json.dumps({

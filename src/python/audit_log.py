@@ -114,6 +114,94 @@ class AuditLog:
     def to_json(self) -> list[dict]:
         return [asdict(r) for r in self._records]
 
+    def events_for_target(
+        self,
+        target_id: int,
+        *,
+        since_ms: int | None = None,
+        limit: int = 200,
+    ) -> list[dict]:
+        """Return timeline-formatted events for the ActivityTimeline panel.
+
+        Each event is `{timestamp, kind, label, detail, source}` matching the
+        frontend `TimelineEvent` shape. Maps audit `action_type` strings into
+        UI kinds (DETECTION / STATE / COA / ENGAGEMENT / BDA / OPERATOR / NOTE).
+        """
+        kind_map = {
+            "target_state_transition": "STATE",
+            "target_detected": "DETECTION",
+            "target_classified": "STATE",
+            "target_verified": "STATE",
+            "nomination_approved": "OPERATOR",
+            "nomination_rejected": "OPERATOR",
+            "nomination_retasked": "OPERATOR",
+            "coa_authorized": "COA",
+            "coa_rejected": "COA",
+            "engagement_executed": "ENGAGEMENT",
+            "effector_dispatched": "ENGAGEMENT",
+            "bda_completed": "BDA",
+            "verify_target": "OPERATOR",
+            "retask_sensors": "OPERATOR",
+        }
+        out: list[dict] = []
+        with self._lock:
+            for record in self._records:
+                if record.target_id != target_id:
+                    continue
+                ts_ms = _isoformat_to_ms(record.timestamp)
+                if since_ms is not None and ts_ms < since_ms:
+                    continue
+                kind = kind_map.get(record.action_type, "NOTE")
+                details = record.details or {}
+                # Build a human-readable label/detail
+                label, detail = _format_event(record.action_type, details)
+                out.append({
+                    "timestamp": ts_ms,
+                    "kind": kind,
+                    "label": label,
+                    "detail": detail,
+                    "source": record.action_type,
+                })
+        return out[-limit:]
+
+
+def _isoformat_to_ms(iso: str) -> int:
+    """Best-effort ISO-8601 → epoch milliseconds."""
+    try:
+        return int(datetime.fromisoformat(iso.replace("Z", "+00:00")).timestamp() * 1000)
+    except Exception:  # noqa: BLE001
+        return 0
+
+
+def _format_event(action: str, details: dict) -> tuple[str, str]:
+    if action == "target_state_transition":
+        return (
+            f"State {details.get('from_state', '?')} → {details.get('to_state', '?')}",
+            f"fused_confidence {details.get('fused_confidence', '?'):.2f}"
+            if isinstance(details.get("fused_confidence"), (int, float))
+            else "",
+        )
+    if action == "engagement_executed":
+        eff = details.get("effector", "?")
+        dmg = details.get("damage_level", "?")
+        return (f"Engagement via {eff}: {dmg}", details.get("reasoning_trace", ""))
+    if action == "effector_dispatched":
+        return (
+            f"{details.get('channel', '?')} mission {details.get('mission_id', '?')}",
+            f"latency {details.get('latency_ms', '?')}ms · {details.get('detail', '')}".strip(),
+        )
+    if action == "nomination_approved":
+        return ("Nomination approved", details.get("rationale", ""))
+    if action == "nomination_rejected":
+        return ("Nomination rejected", details.get("rationale", ""))
+    if action == "nomination_retasked":
+        return ("Nomination retasked", details.get("rationale", ""))
+    if action == "coa_authorized":
+        return ("COA authorized", details.get("coa_id", ""))
+    if action == "verify_target":
+        return ("Operator verify", details.get("rationale", ""))
+    return (action, json.dumps(details, default=str))
+
 
 # Module-level singleton for cross-module access
 audit_log = AuditLog()

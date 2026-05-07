@@ -169,6 +169,35 @@ class EffectorsAgent:
             channel=(effector_ack.get("effector") if effector_ack else None),
         )
 
+        # Audit-log the dispatch + engagement so the ActivityTimeline panel
+        # can render real ENGAGEMENT events instead of synthetic ones.
+        try:
+            from audit_log import audit_log as _audit_log
+            if effector_ack is not None:
+                _audit_log.append(
+                    action_type="effector_dispatched",
+                    target_id=int(target_id) if target_id is not None else None,
+                    details={**effector_ack, "coa_id": coa.coa_id},
+                )
+            _audit_log.append(
+                action_type="engagement_executed",
+                target_id=int(target_id) if target_id is not None else None,
+                details={
+                    "coa_id": coa.coa_id,
+                    "effector": coa.effector.name,
+                    "modified_pk": float(modified_pk),
+                    "hit": bool(hit),
+                    "damage_level": damage_level,
+                    "new_target_state": new_target_state,
+                    "reasoning_trace": (
+                        f"Engaged target {target_id} with {coa.effector.name} "
+                        f"(Pk={modified_pk:.2f}). Result: {damage_level}."
+                    ),
+                },
+            )
+        except Exception:  # noqa: BLE001
+            pass
+
         reasoning = (
             f"Engaged target {target_id} with {coa.effector.name} "
             f"(Pk={modified_pk:.2f}, base={base_pk:.2f}, "

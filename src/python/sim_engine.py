@@ -575,6 +575,25 @@ class SimulationModel:
                     to_state=new_state,
                     fused_confidence=t.fused_confidence,
                 )
+                # Persist into audit_log so ActivityTimeline can render real
+                # state-transition events (replaces the synthetic events that
+                # _handle_get_target_history was generating).
+                try:
+                    from audit_log import audit_log as _audit_log
+                    _audit_log.append(
+                        action_type="target_state_transition",
+                        autonomy_level=getattr(self, "autonomy_level", "MANUAL"),
+                        target_id=t.id,
+                        details={
+                            "from_state": old_state,
+                            "to_state": new_state,
+                            "target_type": t.type,
+                            "fused_confidence": float(t.fused_confidence),
+                            "sensor_count": int(t.sensor_count),
+                        },
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
             else:
                 t.time_in_state_sec += dt_sec
             if t.detection_confidence > 0.05:
