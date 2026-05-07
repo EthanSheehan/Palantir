@@ -812,10 +812,15 @@ async def _handle_set_roe(payload: dict, websocket: WebSocket, ctx: HandlerConte
 # ---------------------------------------------------------------------------
 
 
+_VALID_MODEL_HINTS = {"auto", "fast", "default", "reasoning"}
+
+
 async def _handle_agent_query(payload: dict, websocket: WebSocket, ctx: HandlerContext) -> None:
     """Route a free-text or slash-command query to one of the 9 agents.
 
-    Frontend `AIPChatPanel` sends `{action: "agent_query", agent, query}`.
+    Frontend `AIPChatPanel` sends `{action: "agent_query", agent, query,
+    model_hint?}`. `model_hint` is one of {"auto", "fast", "default",
+    "reasoning"}; "auto" falls through to whatever the agent prefers.
     The agent name maps to a registry entry; if unknown it falls back to
     synthesis_query_agent. Response is streamed back as type=AGENT_RESPONSE
     with `{agent, text, meta}` so the chat panel can render it.
@@ -823,12 +828,20 @@ async def _handle_agent_query(payload: dict, websocket: WebSocket, ctx: HandlerC
     from agents.registry import get_agent  # local import to avoid cycles
     agent_key = payload.get("agent") or "synthesis_query_agent"
     query = payload.get("query") or ""
+    model_hint = payload.get("model_hint", "auto")
     if not isinstance(query, str):
         await _send_error(websocket, "Field 'query' must be str", "agent_query")
         return
     if len(query) > 4000:
         await _send_error(websocket, "Query exceeds 4000 char limit", "agent_query")
         return
+    if model_hint not in _VALID_MODEL_HINTS:
+        await _send_error(websocket, f"model_hint must be one of {sorted(_VALID_MODEL_HINTS)}", "agent_query")
+        return
+
+    # Stash the operator's model_hint on ctx so the registry handlers can
+    # honour it (the per-agent default still wins when "auto").
+    setattr(ctx, "_operator_model_hint", model_hint)
 
     handler = get_agent(agent_key)
     try:
@@ -842,7 +855,7 @@ async def _handle_agent_query(payload: dict, websocket: WebSocket, ctx: HandlerC
         "type": "AGENT_RESPONSE",
         "agent": agent_key,
         "text": text,
-        "meta": meta,
+        "meta": {**meta, "operator_hint": model_hint},
     }
     try:
         await websocket.send_text(json.dumps(response))

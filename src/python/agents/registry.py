@@ -54,12 +54,15 @@ async def _ask_llm(
     """Run a single completion against ctx.llm_adapter, return (text, meta)
     or None if no LLM is reachable / call failed / response was empty.
 
-    `meta` carries provider info so the AIPChatPanel can render the model
-    badge per response.
+    The operator can override the agent's preferred tier via
+    `ctx._operator_model_hint` ("auto" defers to the agent's default).
     """
     adapter = getattr(ctx, "llm_adapter", None)
     if adapter is None or not getattr(adapter, "is_available", lambda: False)():
         return None
+    operator_hint = getattr(ctx, "_operator_model_hint", "auto")
+    if operator_hint and operator_hint != "auto":
+        model_hint = operator_hint
     try:
         response = await adapter.complete(
             messages=[

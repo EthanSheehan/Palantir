@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Button, Icon, IconName, Tag, InputGroup } from '@blueprintjs/core';
+import { Button, Icon, IconName, Tag, InputGroup, HTMLSelect } from '@blueprintjs/core';
 import { useSendMessage } from '../App';
 import { ModelHubBadge } from '../components/ModelHubBadge';
 
@@ -42,6 +42,8 @@ interface ChatMessage {
   meta?: Record<string, any>;
 }
 
+type ModelHint = 'auto' | 'fast' | 'default' | 'reasoning';
+
 interface Props { visible: boolean; onClose: () => void; }
 
 export function AIPChatPanel({ visible, onClose }: Props) {
@@ -53,6 +55,7 @@ export function AIPChatPanel({ visible, onClose }: Props) {
     timestamp: Date.now(),
   }]);
   const [input, setInput] = useState('');
+  const [modelHint, setModelHint] = useState<ModelHint>('auto');
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -98,7 +101,7 @@ export function AIPChatPanel({ visible, onClose }: Props) {
       text,
       timestamp: Date.now(),
     }]);
-    sendMessage({ action: 'agent_query', agent: agentKey, query: body });
+    sendMessage({ action: 'agent_query', agent: agentKey, query: body, model_hint: modelHint });
     setInput('');
   }
 
@@ -179,12 +182,34 @@ export function AIPChatPanel({ visible, onClose }: Props) {
         ))}
       </div>
 
-      {/* Input */}
+      {/* Input + model-tier picker */}
       <div style={{
         padding: '6px 8px',
         borderTop: '1px solid rgba(255,255,255,0.07)',
         background: 'rgba(15, 20, 30, 0.95)',
       }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}>
+          <span style={{
+            fontSize: 9,
+            fontFamily: 'monospace',
+            letterSpacing: '0.1em',
+            color: '#475569',
+          }}>
+            MODEL
+          </span>
+          <HTMLSelect
+            value={modelHint}
+            onChange={(e: any) => setModelHint(e.target.value as ModelHint)}
+            minimal
+            options={[
+              { value: 'auto',      label: 'auto · per-agent default' },
+              { value: 'fast',      label: 'fast · low latency'        },
+              { value: 'default',   label: 'default · balanced'        },
+              { value: 'reasoning', label: 'reasoning · deep think'    },
+            ]}
+            style={{ flex: 1, fontSize: 10 }}
+          />
+        </div>
         <InputGroup
           value={input}
           onChange={(e: any) => setInput(e.target.value)}
