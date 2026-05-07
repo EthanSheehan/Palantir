@@ -82,6 +82,7 @@ function TargetCard({ target, stage }: CardProps) {
   return (
     <div
       onClick={onSelect}
+      className="gs-card-enter"
       style={{
         background: 'rgba(15, 20, 30, 0.92)',
         border: `1px solid ${stage.accent}66`,
@@ -244,7 +245,7 @@ function Column({ stage, targets }: ColumnProps) {
           }}>{targets.length}</Tag>
         </div>
         <Tooltip content={stage.hint} compact>
-          <div style={{ fontSize: 9, color: '#475569', marginTop: 2, letterSpacing: '0.04em' }}>
+          <div style={{ fontSize: 9, color: '#64748b', marginTop: 2, letterSpacing: '0.04em' }}>
             {stage.hint}
           </div>
         </Tooltip>
@@ -294,16 +295,15 @@ export function TargetWorkbench({ visible, onToggle }: Props) {
     <div
       role="region"
       aria-label="Target Workbench"
+      className="gs-glass"
       style={{
         position: 'fixed',
         left: 12,
         right: 12,
         bottom: 12,
         height: collapsed ? 32 : 320,
-        background: 'rgba(7, 11, 17, 0.96)',
         border: '1px solid rgba(255,255,255,0.08)',
         borderRadius: 4,
-        boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
         zIndex: 8500,
         display: 'flex',
         flexDirection: 'column',

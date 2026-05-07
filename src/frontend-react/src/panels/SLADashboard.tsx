@@ -90,16 +90,15 @@ export function SLADashboard({ visible, onClose }: Props) {
     <div
       role="region"
       aria-label="SLA dashboard"
+      className="gs-glass"
       style={{
         position: 'fixed',
         top: 80,
         right: 12,
         width: 480,
         maxHeight: 'calc(100vh - 100px)',
-        background: 'rgba(7, 11, 17, 0.97)',
         border: '1px solid rgba(255,255,255,0.08)',
         borderRadius: 4,
-        boxShadow: '-8px 8px 32px rgba(0,0,0,0.55)',
         zIndex: 8200,
         display: 'flex',
         flexDirection: 'column',
@@ -145,7 +144,7 @@ export function SLADashboard({ visible, onClose }: Props) {
         padding: '4px 10px',
         borderTop: '1px solid rgba(255,255,255,0.05)',
         fontSize: 9,
-        color: '#475569',
+        color: '#64748b',
         fontFamily: 'monospace',
       }}>
         {breaches > 0

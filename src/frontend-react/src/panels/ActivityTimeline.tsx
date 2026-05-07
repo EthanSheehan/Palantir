@@ -27,7 +27,7 @@ const KIND_STYLE: Record<TimelineEvent['kind'], { color: string; icon: IconName 
   ENGAGEMENT: { color: '#ef4444', icon: 'flame' },
   BDA:        { color: '#06b6d4', icon: 'comparison' },
   OPERATOR:   { color: '#94a3b8', icon: 'user' },
-  NOTE:       { color: '#475569', icon: 'comment' },
+  NOTE:       { color: '#64748b', icon: 'comment' },
 };
 
 interface Props { visible: boolean; onClose: () => void; }
@@ -61,16 +61,15 @@ export function ActivityTimeline({ visible, onClose }: Props) {
     <div
       role="region"
       aria-label="Activity timeline"
+      className="gs-glass"
       style={{
         position: 'fixed',
         left: 80,
         top: 80,
         width: 380,
         maxHeight: 'calc(100vh - 100px)',
-        background: 'rgba(7, 11, 17, 0.97)',
         border: '1px solid rgba(255,255,255,0.08)',
         borderRadius: 4,
-        boxShadow: '8px 8px 32px rgba(0,0,0,0.55)',
         zIndex: 8200,
         display: 'flex',
         flexDirection: 'column',
@@ -142,7 +141,7 @@ function EventRow({ ev }: { ev: TimelineEvent }) {
         <Icon icon={style.icon} size={8} color={style.color} />
       </div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-        <span style={{ fontFamily: 'monospace', fontSize: 9, color: '#475569' }}>
+        <span style={{ fontFamily: 'monospace', fontSize: 9, color: '#64748b' }}>
           {t.toLocaleTimeString()}
         </span>
         <Tag minimal style={{
@@ -159,7 +158,7 @@ function EventRow({ ev }: { ev: TimelineEvent }) {
         <div style={{ color: '#94a3b8', fontSize: 10, marginTop: 2, lineHeight: 1.4 }}>{ev.detail}</div>
       )}
       {ev.source && (
-        <div style={{ color: '#475569', fontSize: 9, marginTop: 1, fontFamily: 'monospace' }}>
+        <div style={{ color: '#64748b', fontSize: 9, marginTop: 1, fontFamily: 'monospace' }}>
           src: {ev.source}
         </div>
       )}

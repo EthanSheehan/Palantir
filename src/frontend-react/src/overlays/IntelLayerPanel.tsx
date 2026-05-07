@@ -123,7 +123,7 @@ export function IntelLayerPanel({ visible = true }: Props) {
               </div>
             )}
             {on && (
-              <div style={{ fontSize: 9, color: '#475569', paddingLeft: 18 }}>
+              <div style={{ fontSize: 9, color: '#64748b', paddingLeft: 18 }}>
                 {layer.description}
               </div>
             )}

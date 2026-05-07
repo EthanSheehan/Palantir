@@ -133,7 +133,7 @@ function OrderCard({ order, rank, onTask }: { order: TaskingOrder; rank: number;
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontFamily: 'monospace', fontSize: 9, color: '#475569' }}>#{rank}</span>
+          <span style={{ fontFamily: 'monospace', fontSize: 9, color: '#64748b' }}>#{rank}</span>
           <span style={{ fontWeight: 700, fontSize: 11, color: '#e2e8f0' }}>{order.asset_id}</span>
           <Tag minimal style={{ background: `${color}22`, color, border: `1px solid ${color}55`, fontSize: 9, padding: '0 4px', minHeight: 14 }}>
             {order.collection_type}
@@ -179,16 +179,14 @@ function OrderCard({ order, rank, onTask }: { order: TaskingOrder; rank: number;
 
 function DrawerShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
-    <div style={{
+    <div className="gs-glass" style={{
       position: 'fixed',
       top: 80,
       right: 12,
       width: 340,
       maxHeight: 'calc(100vh - 100px)',
-      background: 'rgba(7, 11, 17, 0.97)',
       border: '1px solid rgba(255,255,255,0.08)',
       borderRadius: 4,
-      boxShadow: '-8px 8px 32px rgba(0,0,0,0.55)',
       zIndex: 8200,
       display: 'flex',
       flexDirection: 'column',

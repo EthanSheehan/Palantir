@@ -109,16 +109,15 @@ export function AIPChatPanel({ visible, onClose }: Props) {
     <div
       role="dialog"
       aria-label="AIP chat"
+      className="gs-glass-tinted"
       style={{
         position: 'fixed',
         right: 12,
         bottom: 12,
         width: 380,
         height: 460,
-        background: 'rgba(7, 11, 17, 0.97)',
         border: '1px solid rgba(255,255,255,0.08)',
         borderRadius: 4,
-        boxShadow: '-8px 8px 32px rgba(0,0,0,0.55)',
         zIndex: 8400,
         display: 'flex',
         flexDirection: 'column',
@@ -193,7 +192,7 @@ export function AIPChatPanel({ visible, onClose }: Props) {
             fontSize: 9,
             fontFamily: 'monospace',
             letterSpacing: '0.1em',
-            color: '#475569',
+            color: '#64748b',
           }}>
             MODEL
           </span>
@@ -226,7 +225,7 @@ export function AIPChatPanel({ visible, onClose }: Props) {
 function MessageRow({ message }: { message: ChatMessage }) {
   if (message.role === 'system') {
     return (
-      <div style={{ fontSize: 10, color: '#475569', fontStyle: 'italic', marginBottom: 6 }}>
+      <div style={{ fontSize: 10, color: '#64748b', fontStyle: 'italic', marginBottom: 6 }}>
         {message.text}
       </div>
     );
@@ -245,7 +244,7 @@ function MessageRow({ message }: { message: ChatMessage }) {
         alignItems: 'center',
         marginBottom: 2,
       }}>
-        <span style={{ fontSize: 9, color: '#475569' }}>
+        <span style={{ fontSize: 9, color: '#64748b' }}>
           {new Date(message.timestamp).toLocaleTimeString()}
         </span>
         {message.agent && (

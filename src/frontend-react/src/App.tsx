@@ -23,6 +23,7 @@ import { VerticalTaskbar } from './components/VerticalTaskbar';
 import { useSimStore } from './store/SimulationStore';
 import './styles/nvis.css';
 import './styles/accessibility.css';
+import './styles/glass.css';
 
 // Expose sendMessage to the entire app via context
 export const WebSocketContext = createContext<{ sendMessage: (msg: object) => void }>({
