@@ -241,7 +241,7 @@ the Swiss Alps. Romania theater renders use it as backdrop via
 - [x] Stage 7 LLM integration — `ai_tasking_manager.evaluate_and_retask_async` via LLMAdapter (`4d26b6f`)
 - [x] pyrender pipeline + Grid-Sentinel SimulationModel bridge (`2c19a51`)
 - [x] PyOpenGL pin fix for Python 3.13+ (`9d77c3a`)
-- [x] **Beyond-Maven push, iterations 1-10:**
+- [x] **Beyond-Maven push, iterations 1-16:**
   - i1 `6c2fc04` — registry → LLMAdapter routing with heuristic fallback
   - i2 `8ce96ae` — real activity-history (audit_log.events_for_target + sim_engine + effectors hooks)
   - i3 `2c3a96f` — real SLA metrics (record_stage_latency + sla_snapshot + sim hooks)
@@ -252,4 +252,28 @@ the Swiss Alps. Romania theater renders use it as backdrop via
   - i8 `d673418` — cross-theater hot-swap + reflective AI agent
   - i9 `181db40` — decision_replay agent for postmortem AAR
   - i10 `7a6c5c6` — AsyncAPI + CLAUDE.md sync
-- Test floor risen from 1860 → 1872 over the push. 0 regressions.
+  - i11 `1ba9c5d` — fix_plan close-out + learnings log
+  - i12 `f8e7783` — pulse on state advance + typewriter chat + swarm cost-matrix attribution
+  - i13 `a6f39e9` — per-persona broadcast filter (UNCLASS drops CUI+SECRET fields)
+  - i14 `6200858` — Foundry/Gotham-style ontology layer (object_types + link_types + action_types + OntologyService)
+  - i15 `d3a1b0e` — CI matrix (py 3.11/3.12/3.13 + frontend build + contracts gate) + DISA IL-5/6 posture audit
+  - i16 `a1a2715` — synthesis_query_agent migrated to OntologyService (first agent off direct sim access)
+- Test floor risen from 1860 → 1897 over the push. 0 regressions.
+
+## Outstanding (highest leverage first, smallest blast radius first)
+
+- [ ] Cesium swarm-line tooltip showing the cost-matrix explanation
+      (backend serializes the data already; frontend just needs the
+      hover render).
+- [ ] Migrate the next agent off direct sim access — `pattern_analyzer`
+      is the cleanest target since it already takes a sector argument.
+- [ ] Real Romania DEM tiles for the pyrender bridge (one shell command +
+      checkin per theater).
+- [ ] Two-person concurrence on AUTONOMOUS engagement (closes the
+      FedRAMP High gap from `docs/SECURITY_POSTURE.md`).
+- [ ] `pip-audit` / `npm audit --audit-level high` / `trivy fs` jobs in
+      `.github/workflows/test.yml`.
+- [ ] Playwright visual regression goldens for TargetWorkbench /
+      AssetTaskingDrawer / AIPChatPanel / SLADashboard.
+- [ ] Edge-replication checkpoint sync (Apollo equivalent) — defer to a
+      funded round.
