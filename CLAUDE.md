@@ -29,7 +29,7 @@ DEMO_MODE=true ./venv/Scripts/python src/python/api_main.py  # Backend in demo m
 ## Tests
 
 ```bash
-# Run all tests (1811 tests across 35 test files)
+# Run all tests (1911 tests across 38 test files — beyond-Maven push added 100/3)
 ./venv/Scripts/python -m pytest src/python/tests/
 
 # Run a single test file
@@ -205,6 +205,19 @@ Key WebSocket actions: `scan_area`, `follow_target`, `paint_target`, `intercept_
 | `corridor_detection.py` | Douglas-Peucker path simplification + heading consistency |
 | `metrics.py` | Prometheus text format metrics endpoint (`/metrics`); histograms, gauges, counters for tick duration, clients, detections, HITL, targets, drones, autonomy level |
 | `tls_support.py` | TLS/SSL certificate configuration and origin validation for WebSocket; localhost bypass + allowlist for remote origins |
+
+### Recent Additions (beyond-Maven push, Iterations 15-22)
+
+- **`two_person_concurrence.py`** — FedRAMP-High control: two operators must approve kinetic strikes in AUTONOMOUS mode within 5-min window
+- **`audit_log.py`** — Structured audit trail indexed by target (`events_for_target`); feeds ActivityTimeline frontend + decision_replay postmortem
+- **`metrics.py` enhancements** — `record_stage_latency()` + `sla_snapshot()` for real F2T2EA SLA tracking (Find→Fix→Track→Target→Engage→Assess)
+- **`ontology/service.py`** — `OntologyService` typed query API; 6 chat handlers migrated off direct `sim.targets/uavs` access
+- **`agents/registry.py::decision_replay`** + **`self_critic`** — Postmortem AAR re-run + reflective auditor (escalation patterns, COA churn detection)
+- **`vision/pyrender_bridge.py`** — 3D drone-gimbal rendering (connects Grid-Sentinel sim state to pyrender backend)
+- **Broadcast persona filtering** — `api_main.py::_filter_for_persona()` applies classification-tier filtering (UNCLASSIFIED/CUI/SECRET) per operator on WebSocket
+- **Per-task LLM tier picker** — `ctx._operator_model_hint` override (fast/default/reasoning) in AIPChatPanel, wired through all agents
+- **Cesium swarm InfoBox cost-matrix** — Real cost data (range, time) in swarm-line tooltips
+- **TwoPersonConcurrencePanel** — Operator surface for FedRAMP two-person approval workflow
 
 ## Integrated Agent Workflow (MANDATORY)
 

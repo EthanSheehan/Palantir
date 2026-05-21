@@ -49,5 +49,32 @@ tags: [grid_sentinel, documentation]
 | `lost_link.py` | Per-drone lost-link behavior (LOITER/RTB/SAFE_LAND/CONTINUE) |
 | `uav_kinematics.py` | 3-DOF point-mass with wind, collision avoidance, PN guidance |
 | `corridor_detection.py` | Douglas-Peucker path simplification + heading consistency |
-| `metrics.py` | Prometheus text format metrics endpoint (`/metrics`) |
+| `metrics.py` | Prometheus metrics + F2T2EA SLA tracking (stage latency histograms, snapshots) |
 | `tls_support.py` | TLS/SSL certificate configuration and origin validation for WebSocket |
+| `audit_log.py` | Structured audit trail (events_for_target → activity timeline, postmortem AAR) |
+| `two_person_concurrence.py` | FedRAMP-High two-operator concurrence gate (5min window, kinetic auth) |
+
+## Beyond-Maven Agent Extensions
+
+**Per-Model Tier Selection** — Operator can override agent tier (fast/default/reasoning) per query.
+
+**Agents leveraging OntologyService (migrations in progress)**:
+| Agent | Purpose | Status |
+|-------|---------|--------|
+| `synthesis_query_agent` | SITREP generation via typed ontology API | Migrated (iteration 20) |
+| `isr_observer` | Detection tracking (6 handlers → OntologyService) | Migrated (iteration 20) |
+| `strategy_analyst`, `tactical_planner`, `effectors_agent`, `pattern_analyzer` | Kill-chain agents | Migrated (iteration 20) |
+
+**Reflective / Replay Agents** (registered in `agents/registry.py`):
+| Agent | Purpose | Invoke |
+|-------|---------|--------|
+| `decision_replay` | Postmortem AAR — re-run engagement logic at seed=42 on past records | `/replay` |
+| `self_critic` | Scan audit_log for COA churn, repeated rejections, escalation candidates | `/critic` |
+
+**Vision Pipeline**:
+| Module | Purpose |
+|--------|---------|
+| `vision/pyrender_bridge.py` | 3D camera rendering from drone gimbal (connects Grid-Sentinel sim state to pyrender) |
+
+**Broadcast Filtering**:
+- `api_main.py::_filter_for_persona` — Classification-tier filtering (UNCLASSIFIED/CUI/SECRET) applied to WebSocket payloads per operator persona

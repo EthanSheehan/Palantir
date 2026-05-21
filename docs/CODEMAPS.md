@@ -715,6 +715,25 @@ Loop every 2 seconds:
 
 A red "DEMO MODE" banner appears on the dashboard. No API keys required.
 
+## Beyond-Maven Additions
+
+**FedRAMP Compliance & Security (Iteration 15-22)**:
+- `two_person_concurrence.py` — Two-operator gate for AUTONOMOUS kinetic strikes (5-min window, immutable records, audit-logged)
+- `audit_log.py` — Structured event trail with `events_for_target()` API (DETECTION, STATE, COA, ENGAGEMENT, BDA, OPERATOR, NOTE events)
+- `metrics.py` — F2T2EA per-stage SLA tracking (Find, Fix, Track, Target, Engage, Assess) with `record_stage_latency()` + `sla_snapshot()`
+
+**Agent & Ontology Enhancements (Iteration 20-22)**:
+- `ontology/service.py` — `OntologyService` typed API replacing direct `sim.targets/uavs` access (6 chat handlers migrated)
+- `agents/registry.py::decision_replay` — Postmortem AAR: re-run past engagements at deterministic seed
+- `agents/registry.py::self_critic` — Reflective agent: surfaces COA churn, repeated rejections, escalation candidates
+- Per-operator `_operator_model_hint` override (fast/default/reasoning) wired in AIPChatPanel
+
+**Vision & Rendering**:
+- `vision/pyrender_bridge.py` — 3D drone-gimbal rendering bridge (connects sim state to pyrender backend for camera feeds)
+
+**Classification & Broadcast Filtering**:
+- `api_main.py::_filter_for_persona()` — Classification-tier filtering (UNCLASSIFIED/CUI/SECRET) applied per operator persona on WebSocket broadcast
+
 ## Related Documentation
 
 - **Contributing Guide**: [CONTRIBUTING.md](CONTRIBUTING.md)
