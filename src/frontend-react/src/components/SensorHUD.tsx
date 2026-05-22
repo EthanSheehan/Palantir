@@ -15,6 +15,7 @@ const SENSOR_MODE_COLORS: Record<SensorMode, string> = {
   SAR: '#7ED321',
   SIGINT: '#F5A623',
   FUSION: '#00ffff',
+  PYRENDER_3D: '#58a6ff',
 };
 
 const COMPASS_LABELS: { deg: number; label: string }[] = [

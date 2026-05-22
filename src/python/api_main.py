@@ -34,7 +34,9 @@ from config import load_settings
 from event_logger import rotate_logs
 from event_logger import start_logger as start_event_logger
 from event_logger import stop_logger as stop_event_logger
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+import os
+
+from fastapi import FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from hitl_manager import HITLManager
 from intel_feed import IntelFeedRouter, _client_subscribed
@@ -667,6 +669,78 @@ async def delete_planned_target(target_id: str):
     if target_store.delete_target(target_id):
         return {"status": "deleted"}
     raise HTTPException(status_code=404, detail="Target not found")
+
+
+# ---------------------------------------------------------------------------
+# Drone camera — 3D pyrender path (opt-in via USE_PYRENDER=true)
+# ---------------------------------------------------------------------------
+# The 2D OpenCV `video_simulator.py` remains the default. When USE_PYRENDER is
+# truthy and `pyrender` + `trimesh` import successfully, requests to
+# /api/drone-camera/{uav_id} return a real 3D gimbal-POV frame rendered through
+# `GridSentinelRenderer` (see src/python/vision/pyrender_bridge.py).
+
+_pyrender_bridge = None
+_pyrender_lock = asyncio.Lock()
+
+
+def _pyrender_enabled() -> bool:
+    return os.getenv("USE_PYRENDER", "").lower() in ("1", "true", "yes", "on")
+
+
+async def _get_pyrender_bridge():
+    """Lazily instantiate the GridSentinelRenderer on first use. Returns None
+    if pyrender isn't available or USE_PYRENDER is off."""
+    global _pyrender_bridge
+    if not _pyrender_enabled():
+        return None
+    async with _pyrender_lock:
+        if _pyrender_bridge is not None:
+            return _pyrender_bridge
+        try:
+            from vision.pyrender_bridge import GridSentinelRenderer
+            _pyrender_bridge = GridSentinelRenderer(width=640, height=480)
+            logger.info("pyrender_bridge_initialized")
+            return _pyrender_bridge
+        except Exception as exc:
+            logger.warning("pyrender_bridge_unavailable", error=str(exc))
+            return None
+
+
+@app.get("/api/drone-camera/_status")
+async def drone_camera_status():
+    """Report which backend the drone-camera path is using."""
+    return {
+        "use_pyrender": _pyrender_enabled(),
+        "bridge_initialized": _pyrender_bridge is not None,
+        "fallback": "2D video_simulator broadcast (default)",
+    }
+
+
+@app.get("/api/drone-camera/{uav_id}")
+async def drone_camera_frame(uav_id: int, pitch_deg: float = 25.0):
+    """Render a single PNG frame from a UAV's 3D pyrender gimbal-POV.
+
+    When USE_PYRENDER is off or pyrender isn't installed, returns 503 so the
+    React frontend can fall back to the 2D video simulator broadcast.
+    """
+    bridge = await _get_pyrender_bridge()
+    if bridge is None:
+        raise HTTPException(
+            status_code=503,
+            detail="pyrender 3D backend unavailable (USE_PYRENDER off or pyrender not installed)",
+        )
+    if uav_id not in sim.uavs:
+        raise HTTPException(status_code=404, detail=f"UAV {uav_id} not found")
+    try:
+        rgb = bridge.render_from_uav(sim, uav_id, gimbal_pitch_deg=pitch_deg)
+    except Exception as exc:
+        logger.warning("pyrender_render_failed", uav_id=uav_id, error=str(exc))
+        raise HTTPException(status_code=500, detail=f"pyrender failed: {exc}")
+    from io import BytesIO
+    from PIL import Image
+    buf = BytesIO()
+    Image.fromarray(rgb).save(buf, format="PNG")
+    return Response(content=buf.getvalue(), media_type="image/png")
 
 
 # ---------------------------------------------------------------------------

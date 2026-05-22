@@ -4,6 +4,7 @@ import { useSensorCanvas } from '../hooks/useSensorCanvas';
 import { SigintDisplay } from '../components/SigintDisplay';
 import { SensorHUD } from '../components/SensorHUD';
 import { CamLayoutSelector } from '../components/CamLayoutSelector';
+import { PyrenderFeed } from '../components/PyrenderFeed';
 import type { SensorMode } from '../store/types';
 
 interface SlotConfig {
@@ -40,6 +41,8 @@ function CamSlot({
     <div style={{ position: 'relative', width, height, overflow: 'hidden', flexShrink: 0 }}>
       {sensorMode === 'SIGINT' ? (
         <SigintDisplay droneId={droneId} width={width} height={height} />
+      ) : sensorMode === 'PYRENDER_3D' ? (
+        <PyrenderFeed droneId={droneId} width={width} height={height} />
       ) : (
         <canvas
           ref={canvasRef}
@@ -60,13 +63,17 @@ function CamSlot({
           zIndex: 10,
         }}
       >
-        {(['EO_IR', 'SAR', 'SIGINT', 'FUSION'] as SensorMode[]).map((m) => (
+        {(['EO_IR', 'SAR', 'SIGINT', 'FUSION', 'PYRENDER_3D'] as SensorMode[]).map((m) => (
           <button
             key={m}
             onClick={() => onSensorModeChange(m)}
             style={{
               background:
-                sensorMode === m ? 'rgba(45,114,210,0.6)' : 'rgba(0,0,0,0.5)',
+                sensorMode === m
+                  ? m === 'PYRENDER_3D'
+                    ? 'rgba(88,166,255,0.6)'
+                    : 'rgba(45,114,210,0.6)'
+                  : 'rgba(0,0,0,0.5)',
               border: '1px solid rgba(255,255,255,0.2)',
               color: '#ccc',
               fontSize: 8,
@@ -76,7 +83,15 @@ function CamSlot({
               lineHeight: 1,
             }}
           >
-            {m === 'EO_IR' ? 'EO' : m === 'SIGINT' ? 'SIG' : m === 'FUSION' ? 'FUS' : m}
+            {m === 'EO_IR'
+              ? 'EO'
+              : m === 'SIGINT'
+                ? 'SIG'
+                : m === 'FUSION'
+                  ? 'FUS'
+                  : m === 'PYRENDER_3D'
+                    ? '3D'
+                    : m}
           </button>
         ))}
       </div>

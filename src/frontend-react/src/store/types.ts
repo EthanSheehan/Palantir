@@ -237,6 +237,6 @@ export interface Launcher {
 }
 
 export type CamLayout = 'SINGLE' | 'PIP' | 'SPLIT' | 'QUAD';
-export type SensorMode = 'EO_IR' | 'SAR' | 'SIGINT' | 'FUSION';
+export type SensorMode = 'EO_IR' | 'SAR' | 'SIGINT' | 'FUSION' | 'PYRENDER_3D';
 export type WorkspaceMode = 'isr' | 'plan';
 export type Persona = 'UNCLASSIFIED' | 'CUI' | 'SECRET';
