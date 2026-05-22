@@ -687,19 +687,32 @@ def _pyrender_enabled() -> bool:
     return os.getenv("USE_PYRENDER", "").lower() in ("1", "true", "yes", "on")
 
 
+def _pyrender_mock_enabled() -> bool:
+    return os.getenv("USE_PYRENDER_MOCK", "").lower() in ("1", "true", "yes", "on")
+
+
 async def _get_pyrender_bridge():
     """Lazily instantiate the GridSentinelRenderer on first use. Returns None
-    if pyrender isn't available or USE_PYRENDER is off."""
+    if pyrender isn't available or USE_PYRENDER is off.
+
+    When USE_PYRENDER_MOCK=true, returns a pure-matplotlib renderer instead
+    of touching pyglet/OpenGL — useful for frontend integration testing on
+    machines without a usable OpenGL context (e.g. macOS in headless mode)."""
     global _pyrender_bridge
     if not _pyrender_enabled():
         return None
     async with _pyrender_lock:
         if _pyrender_bridge is not None:
             return _pyrender_bridge
+        if _pyrender_mock_enabled():
+            from vision.pyrender_mock import MockGridSentinelRenderer
+            _pyrender_bridge = MockGridSentinelRenderer(width=640, height=480)
+            logger.info("pyrender_bridge_initialized", backend="matplotlib_mock")
+            return _pyrender_bridge
         try:
             from vision.pyrender_bridge import GridSentinelRenderer
             _pyrender_bridge = GridSentinelRenderer(width=640, height=480)
-            logger.info("pyrender_bridge_initialized")
+            logger.info("pyrender_bridge_initialized", backend="pyrender")
             return _pyrender_bridge
         except Exception as exc:
             logger.warning("pyrender_bridge_unavailable", error=str(exc))
